@@ -8,7 +8,7 @@ description: "Database schema, Prisma migrations, seed data and data-access conv
 GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **emails and notifies every member**.
+- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
 - Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
 - An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
 - Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
@@ -21,7 +21,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 ## Your area: data
 
-**Files:** `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`, `prisma.config.ts`, `src/server/db.ts` (exports `db` and the `Tx` type), `src/server/settings.ts`, `scripts/local-db.mjs`.
+**Files:** `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`, `prisma.config.ts`, `src/server/db.ts` (exports `db` and the `Tx` type; in dev the client cached on `globalThis` is replaced when `prisma generate` produces a new `PrismaClient` class, so a migration doesn't need a dev-server restart), `src/server/settings.ts`, `scripts/local-db.mjs`.
 
 **Models:** User, Session, Product, Variant, GroupCart, CartMember, CartLine, PaymentSlip, CartInvite, Notification, Delivery, Settings.
 
@@ -47,10 +47,13 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 **Seed** (`npm run db:seed`):
 
-- Empties every table, then loads the bank details, 1 admin (`admin@grouptogether.lk`) and 5 customers (amaya, kasun, nimali, ravi, ishara @example.com), all with the password `password123`.
+- Empties every table, then loads the bank details, 1 admin (`admin@grouptogether.lk`) and 5 buyers (amaya, kasun, nimali, ravi, ishara @example.com), all with the password `password123`.
 - Then 20 LIVE products (10 shoes in UK 6–11, 10 apparel in S–XL; mixed surplus and B-grade).
 - Then 4 carts that lock stock exactly as the app does: "Office sneaker run" at 49,800, "Family school shoes" at 33,900, "Kandy weekend haul" (READY) and "Ravi's friends only" (PRIVATE).
-- The e2e tests depend on these names and totals. Update `tests/e2e/journey.spec.ts` if you change them.
+- Then the demo buyer `buyer@example.com` (Dilan): an open cart "Dilan's office team", a DELIVERED order (its stock is `sold`, with a manual delivery and no slip file), and an invite to Ravi's private cart.
+- Then the demo seller `seller@example.com` (Ceylon Footwear Mills): one product LIVE, one IN_REVIEW (B-grade) and one DRAFT returned with a `reviewNote`.
+- Later picks skip variants already in a cart (`used`), so the original carts keep their variants.
+- The e2e tests depend on the first four carts' names and totals. Update `tests/e2e/journey.spec.ts` if you change them.
 
 **Speed and cost:**
 

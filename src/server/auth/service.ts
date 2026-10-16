@@ -27,7 +27,35 @@ export type SignUpInput = z.infer<typeof signUpSchema>;
 
 export class AuthError extends Error {}
 
-/** Public sign-up creates customers only; admins come from the seed. */
+export const sellerSchema = z.object({
+  name: z.string().trim().min(2, "Enter the contact person's name"),
+  company: z.string().trim().min(2, "Enter the factory or company name").max(80),
+  email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email")),
+  phone: phoneSchema,
+  password: z.string().min(8, "Use at least 8 characters"),
+});
+
+/** Admins create factory seller accounts; sellers can't sign themselves up. */
+export async function createSeller(input: unknown): Promise<User> {
+  const s = sellerSchema.parse(input);
+  const clash = await db.user.findFirst({
+    where: { OR: [{ email: s.email }, { phone: s.phone }] },
+  });
+  if (clash?.email === s.email) throw new AuthError("An account with this email already exists");
+  if (clash) throw new AuthError("An account with this mobile number already exists");
+  return db.user.create({
+    data: {
+      role: "SELLER",
+      name: s.name,
+      company: s.company,
+      email: s.email,
+      phone: s.phone,
+      passwordHash: await hashPassword(s.password),
+    },
+  });
+}
+
+/** Public sign-up creates customers only; admins come from the seed and sellers from an admin. */
 export async function registerUser(input: SignUpInput): Promise<User> {
   const clash = await db.user.findFirst({
     where: { OR: [{ email: input.email }, { phone: input.phone }] },
@@ -119,5 +147,5 @@ export async function userForToken(token: string, now = new Date()): Promise<Ses
 }
 
 export function homeFor(role: Role): string {
-  return role === "ADMIN" ? "/admin" : "/";
+  return role === "ADMIN" ? "/admin" : role === "SELLER" ? "/seller" : "/dashboard";
 }

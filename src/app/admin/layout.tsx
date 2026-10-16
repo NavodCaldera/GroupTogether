@@ -13,7 +13,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     ["/admin/slips", "Bank slips", badges.slips],
     ["/admin/carts", "Carts", 0],
     ["/admin/deliveries", "Deliveries", badges.toBook],
-    ["/admin/products", "Products", 0],
+    ["/admin/products", "Products", badges.inReview],
     ["/admin/users", "Users", 0],
     ["/admin/settings", "Settings", 0],
   ];

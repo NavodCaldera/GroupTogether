@@ -2,7 +2,10 @@ import "server-only";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@/generated/prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
+const globalForPrisma = globalThis as unknown as {
+  prisma?: PrismaClient;
+  prismaClass?: typeof PrismaClient;
+};
 
 function createClient() {
   const connectionString = process.env.DATABASE_URL;
@@ -12,9 +15,20 @@ function createClient() {
   return new PrismaClient({ adapter: new PrismaPg({ connectionString, max }) });
 }
 
-export const db = globalForPrisma.prisma ?? createClient();
+/**
+ * In dev one client is kept on globalThis so hot reloads don't open new pools. After a migration
+ * regenerates the client, the cached one would still reject new enum values and fields, so it is
+ * replaced when the generated PrismaClient class has changed.
+ */
+function devClient(): PrismaClient {
+  const cached = globalForPrisma.prisma;
+  if (cached && globalForPrisma.prismaClass === PrismaClient) return cached;
+  if (cached) void cached.$disconnect();
+  globalForPrisma.prismaClass = PrismaClient;
+  return (globalForPrisma.prisma = createClient());
+}
 
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = db;
+export const db = process.env.NODE_ENV === "production" ? createClient() : devClient();
 
 /** Transaction client type, for services that run inside `db.$transaction`. */
 export type Tx = Omit<

@@ -13,9 +13,12 @@ import { Table } from "../../list-bits";
 
 export const metadata: Metadata = { title: "User" };
 
-export default async function AdminUserPage({ params }: PageProps<"/admin/users/[id]">) {
+export default async function AdminUserPage({
+  params,
+  searchParams,
+}: PageProps<"/admin/users/[id]">) {
   await requireAdmin();
-  const { id } = await params;
+  const [{ id }, { created }] = await Promise.all([params, searchParams]);
   const now = new Date();
   const user = await db.user.findUnique({
     where: { id },
@@ -42,7 +45,9 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
         orderBy: { createdAt: "desc" },
         take: 20,
       },
-      _count: { select: { sessions: { where: { expiresAt: { gt: now } } } } },
+      _count: {
+        select: { sessions: { where: { expiresAt: { gt: now } } }, products: true },
+      },
     },
   });
   if (!user) notFound();
@@ -57,11 +62,29 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
           actions={
             <>
               {user.role === "ADMIN" && <Badge tone="info">Admin</Badge>}
+              {user.role === "SELLER" && <Badge tone="warn">Factory seller</Badge>}
               {user.locked && <Badge tone="bad">Locked</Badge>}
             </>
           }
         />
 
+        {created && (
+          <Alert tone="good">
+            Seller account created. Send them their email and password; they sign in at /sign-in and
+            land on their seller dashboard.
+          </Alert>
+        )}
+        {user.role === "SELLER" && (
+          <Card className="text-sm">
+            <h2 className="mb-1 font-semibold">{user.company}</h2>
+            <p className="text-subtle">
+              {user._count.products} {user._count.products === 1 ? "product" : "products"} listed ·{" "}
+              <Link href={`/admin/products?seller=${user.id}`} className="text-accent underline">
+                see their products
+              </Link>
+            </p>
+          </Card>
+        )}
         <section className="flex flex-col gap-3">
           <h2 className="font-semibold">Carts ({user.memberships.length})</h2>
           {user.memberships.length === 0 ? (
@@ -154,14 +177,14 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
           </dl>
         </Card>
 
-        {user.role === "CUSTOMER" && (
+        {user.role !== "ADMIN" && (
           <Card>
             <h2 className="mb-2 font-semibold">
               {user.locked ? "Unlock account" : "Lock account"}
             </h2>
             {user.locked ? (
               <p className="mb-3 text-sm text-subtle">
-                This customer can&apos;t sign in. Unlocking lets them sign in again.
+                This account can&apos;t sign in. Unlocking lets them sign in again.
               </p>
             ) : (
               <p className="mb-3 text-sm text-subtle">

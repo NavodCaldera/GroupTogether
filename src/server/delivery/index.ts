@@ -52,7 +52,6 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
       body: `A PickMe driver is bringing your order to ${cart.deliveryAddress}. Please pay the delivery fee${fee} to the driver.`,
       href: `/c/${cart.code}`,
     },
-    { email: true },
   );
 }
 

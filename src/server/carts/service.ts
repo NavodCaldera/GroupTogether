@@ -174,7 +174,7 @@ export async function setLine(
     const after = await recompute(tx, cart, now);
     return { cart, ...after, members: after.becameReady ? await memberIds(tx, cartId) : [] };
   });
-  if (result.becameReady) await notify(result.members, readyNotice(result.cart), { email: true });
+  if (result.becameReady) await notify(result.members, readyNotice(result.cart));
   return result;
 }
 
@@ -336,7 +336,6 @@ export async function sweep(now = new Date(), cartId?: string) {
             body: `The bank slip for "${name}" wasn't uploaded in time, so the order was cancelled.`,
             href: `/c/${done.cart.code}`,
           },
-      { email: done.what === "SLIP_MISSED" },
     );
   }
   return { closed };

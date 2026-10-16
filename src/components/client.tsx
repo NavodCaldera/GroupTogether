@@ -42,9 +42,9 @@ export function CopyLink({ url }: { url: string }) {
   );
 }
 
-type Sales = { sold: number; updatedAt: string };
+type Sales = { total: string; updatedAt: string };
 
-/** Total pieces sold. The server renders the first value; it refreshes every 15s while visible. */
+/** Total sales in LKR. The server renders the first value; it refreshes every 15s while visible. */
 export function SalesCounter({ initial }: { initial: Sales }) {
   const [s, setS] = useState(initial);
   useEffect(() => {
@@ -64,20 +64,8 @@ export function SalesCounter({ initial }: { initial: Sales }) {
   }, []);
   return (
     <>
-      <p className="text-sm font-semibold text-accent">Pieces sold</p>
-      <p className="mt-2 text-6xl font-bold tabular-nums tracking-tight sm:text-7xl">
-        {s.sold.toLocaleString("en-LK")}
-      </p>
-      <p className="mt-6 text-right text-xs text-subtle" suppressHydrationWarning>
-        Updated{" "}
-        {new Date(s.updatedAt).toLocaleString("en-LK", {
-          day: "numeric",
-          month: "short",
-          year: "numeric",
-          hour: "numeric",
-          minute: "2-digit",
-        })}
-      </p>
+      <p className="text-sm font-semibold text-accent">Total Sale</p>
+      <p className="mt-2 text-5xl font-bold tabular-nums tracking-tight sm:text-7xl">{s.total}</p>
     </>
   );
 }

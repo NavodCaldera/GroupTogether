@@ -1,56 +1,95 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { Card, Field, Input, PageHeader } from "@/components/ui";
-import { adjustStockAction } from "@/server/admin-actions";
+import Link from "next/link";
+import { ProductStatusBadge } from "@/components/cart-bits";
+import { StockTable } from "@/components/stock-table";
+import { Alert, Card, Field, Input, PageHeader } from "@/components/ui";
+import {
+  adjustStockAction,
+  publishProductAction,
+  returnProductAction,
+} from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { getProduct } from "@/server/catalogue";
+import { db } from "@/server/db";
 import { AdminForm } from "../../admin-form";
 import { ProductForm } from "../product-form";
 
 export const metadata: Metadata = { title: "Edit product" };
 
-export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
+export default async function EditProductPage({
+  params,
+  searchParams,
+}: PageProps<"/admin/products/[id]">) {
   await requireAdmin();
-  const product = await getProduct((await params).id, { live: false });
+  const [{ id }, { reviewed }] = await Promise.all([params, searchParams]);
+  const product = await getProduct(id, { live: false });
   if (!product) notFound();
+  const seller = product.sellerId
+    ? await db.user.findUnique({
+        where: { id: product.sellerId },
+        select: { id: true, name: true, company: true, phone: true },
+      })
+    : null;
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-      <div>
-        <PageHeader title={`${product.brand} ${product.title}`} />
+      <div className="min-w-0">
+        <PageHeader
+          title={`${product.brand} ${product.title}`}
+          description={
+            seller ? (
+              <>
+                Listed by{" "}
+                <Link href={`/admin/users/${seller.id}`} className="text-accent underline">
+                  {seller.company || seller.name}
+                </Link>{" "}
+                · {seller.name} · {seller.phone}
+              </>
+            ) : (
+              "Our own listing"
+            )
+          }
+          actions={<ProductStatusBadge status={product.status} />}
+        />
+        {reviewed === "published" && (
+          <div className="mb-4">
+            <Alert tone="good">Published: it is on sale now. The seller has been notified.</Alert>
+          </div>
+        )}
+        {product.status === "DRAFT" && product.reviewNote && (
+          <div className="mb-4">
+            <Alert tone={reviewed === "returned" ? "good" : "info"}>
+              Returned to the seller{reviewed === "returned" ? " and notified them" : ""}:{" "}
+              {product.reviewNote}
+            </Alert>
+          </div>
+        )}
         <Card>
           <ProductForm product={product} />
         </Card>
       </div>
       <div className="flex flex-col gap-4">
+        {product.status === "IN_REVIEW" && (
+          <Card className="border-warn">
+            <h2 className="mb-1 font-semibold">Seller submitted this for review</h2>
+            <p className="mb-3 text-sm text-subtle">
+              Check the details and defects, and that the stock below has reached our store, before
+              publishing.
+            </p>
+            <div className="flex flex-col gap-3">
+              <AdminForm action={publishProductAction} submit="Publish: put it on sale">
+                <input type="hidden" name="productId" value={product.id} />
+              </AdminForm>
+              <AdminForm action={returnProductAction} submit="Return to seller" variant="secondary">
+                <input type="hidden" name="productId" value={product.id} />
+                <Input name="note" placeholder="What should they change?" required />
+              </AdminForm>
+            </div>
+          </Card>
+        )}
         <Card>
           <h2 className="mb-2 font-semibold">Stock by size</h2>
-          {product.variants.length === 0 ? (
-            <p className="text-sm text-subtle">No sizes yet.</p>
-          ) : (
-            <table className="w-full text-sm">
-              <thead className="text-left text-xs text-subtle">
-                <tr>
-                  <th>Size</th>
-                  <th className="text-right">Free</th>
-                  <th className="text-right">In carts</th>
-                  <th className="text-right">Sold</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-line">
-                {product.variants.map((v) => (
-                  <tr key={v.id}>
-                    <td className="py-1">
-                      {v.size}
-                      {v.colour && <span className="text-subtle"> · {v.colour}</span>}
-                    </td>
-                    <td className="py-1 text-right">{v.available}</td>
-                    <td className="py-1 text-right">{v.reserved}</td>
-                    <td className="py-1 text-right">{v.sold}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          <StockTable variants={product.variants} />
         </Card>
         <Card>
           <h2 className="mb-2 font-semibold">Add or remove stock</h2>

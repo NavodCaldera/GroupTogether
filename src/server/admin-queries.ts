@@ -26,6 +26,7 @@ export async function overviewStats(now = new Date()) {
     byStatus,
     pendingSlips,
     toBook,
+    productsToReview,
     lowStockCount,
     today,
     week,
@@ -42,6 +43,7 @@ export async function overviewStats(now = new Date()) {
     db.groupCart.groupBy({ by: ["status"], _count: true }),
     db.paymentSlip.count({ where: { status: "PENDING" } }),
     db.groupCart.count({ where: { status: "CONFIRMED", delivery: { is: null } } }),
+    db.product.count({ where: { status: "IN_REVIEW" } }),
     db.variant.count({ where: { available: { lte: LOW_STOCK }, product: { status: "LIVE" } } }),
     salesSince(colomboDayStart(now)),
     salesSince(colomboDayStart(now, 6)),
@@ -119,6 +121,7 @@ export async function overviewStats(now = new Date()) {
     count,
     pendingSlips,
     toBook,
+    productsToReview,
     lowStockCount,
     sales: { today, week, month },
     locked: { carts: locked._count._all, total: toD(locked._sum.total ?? 0) },
@@ -134,9 +137,10 @@ export async function overviewStats(now = new Date()) {
 
 /** Counts for the admin nav badges. */
 export async function adminBadges() {
-  const [slips, toBook] = await Promise.all([
+  const [slips, toBook, inReview] = await Promise.all([
     db.paymentSlip.count({ where: { status: "PENDING" } }),
     db.groupCart.count({ where: { status: "CONFIRMED", delivery: { is: null } } }),
+    db.product.count({ where: { status: "IN_REVIEW" } }),
   ]);
-  return { slips, toBook };
+  return { slips, toBook, inReview };
 }

@@ -41,7 +41,7 @@ It is a standalone project: it shares no code, database or rules with any other 
 3. **A cart expires 24h after it is created** if the owner hasn't accepted it.
    - Expiry releases the stock.
    - The lines are kept as history, and closed carts hold no stock.
-4. **Reaching the minimum** moves the cart OPEN → READY and **notifies every member by email (Gmail SMTP) and in the app**, once per crossing. If the total drops below the minimum, the cart goes back to OPEN.
+4. **Reaching the minimum** moves the cart OPEN → READY and **notifies every member in the app (email sending was removed on 2026-10-17)**, once per crossing. If the total drops below the minimum, the cart goes back to OPEN.
 5. **Only the owner pays, for the whole cart.**
    - The owner presses "Accept & pay" (READY → AWAITING_SLIP). This freezes the cart (no joins or edits) and records the drop-off address, city and phone.
    - The owner then has **2 hours** (`slipWindowHours`) to upload **one bank slip**.
@@ -57,10 +57,19 @@ It is a standalone project: it shares no code, database or rules with any other 
 9. **Visibility and sharing.**
    - A cart is PUBLIC (shown on the "open carts" panel) or PRIVATE (reached only by link or invite).
    - Every cart has a share link `/c/<CODE>` (8 characters, no look-alike characters) and a WhatsApp share button (`https://wa.me/?text=…`).
-   - Any member can invite a registered user by email or mobile number; the invitee gets an in-app notice and an email.
+   - Any member can invite a registered user by email or mobile number; the invitee gets an in-app notice.
    - Anyone with the link can join while the cart is OPEN or READY.
 10. **B-grade products must list their defects** (`defectNotes`), and they are shown up front on the product page.
-11. **Accounts.** Customers sign up themselves with name, email, a Sri Lankan mobile (`07XXXXXXXX`), address, city and password. Admins only come from the seed.
+11. **Accounts and roles** (product owner, 2026-10-16).
+    - **Buyers** (`CUSTOMER`) sign up themselves with name, email, a Sri Lankan mobile (`07XXXXXXXX`), address, city and password. They land on `/dashboard`.
+    - **Factory sellers** (`SELLER`, with a `company`) are created by an admin at `/admin/users/new-seller`, or by the seed. They land on `/seller`.
+      - **A seller only publishes stock.** They see their own products and stock counts, never buyers, carts, sales or money.
+      - A seller's product goes `DRAFT → IN_REVIEW → LIVE`. The seller submits it, which needs free stock in at least one size and defects for B-grade.
+      - An admin publishes it once the stock has reached our store, or returns it to `DRAFT` with a `reviewNote`. The seller is notified in the app either way.
+      - Sellers change details and stock only while the product is a draft. **We hold the stock**, so a live product is managed by the admin.
+      - A seller can withdraw a product from review, or delete a draft that never reached a cart.
+    - **Admins** only come from the seed.
+    - Wrong-role visits redirect to the user's own home (`homeFor`).
 
 ## 3. Cart lifecycle
 
@@ -110,29 +119,31 @@ Money is `Decimal(14,2)`.
 
 ## 5. Pages and routes (`src/app`)
 
-| Route                                 | Who                  | What                                                                                                                                                                 |
-| ------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                   | anyone               | Hero, recent public carts panel (6), how it works, new products                                                                                                      |
-| `/carts`                              | anyone               | The full open-carts panel: PUBLIC carts that are OPEN or READY and not expired, newest first                                                                         |
-| `/carts/new`                          | signed in            | Start a cart (name, public/private)                                                                                                                                  |
-| `/shop`                               | anyone               | GET-form filters (search, category, stock type, brand, size); `?cart=CODE` carries a cart through                                                                    |
-| `/products/[id]`                      | anyone               | Product, defects, size picker; add to one of your carts, the shared cart from `?cart=`, or a new cart                                                                |
-| `/c/[code]`                           | anyone with the link | Progress, countdowns, members and their lines (yours editable), join, leave, accept form, share/WhatsApp/invite, cancel                                              |
-| `/c/[code]/pay`                       | owner, AWAITING_SLIP | Bank details, amount, reference (the cart code), 2h countdown, slip upload                                                                                           |
-| `/my-carts`, `/notifications`         | signed in            | Your carts; your notices (mark all read)                                                                                                                             |
-| `/sign-in`, `/sign-up`                | anyone               | `?next=` returns to where you were                                                                                                                                   |
-| `/admin`                              | admin                | Needs-action tiles; confirmed sales today / 7 / 30 days; stock locked in unpaid carts; slip windows and carts expiring in 6h; low stock; best sellers; recent orders |
-| `/admin/slips`                        | admin                | Pending slips; open the file; approve (redirects to the cart) or reject with a reason. `?view=history`: the last 100 decisions                                       |
-| `/admin/carts`, `/admin/carts/[code]` | admin                | Search, status chips with counts, due column, paging; picking list, members' shares, timeline, slips, book PickMe, cancel                                            |
-| `/admin/deliveries`                   | admin                | Confirmed carts to book; drops in progress with status buttons; recently delivered                                                                                   |
-| `/admin/products`, `/new`, `/[id]`    | admin                | Search, status and low-stock filters, free / in-cart / sold counts; edit; add or remove stock by size                                                                |
-| `/admin/users`, `/admin/users/[id]`   | admin                | Search and filter users; a user's carts, shares, slips and devices; lock (signs out everywhere) or unlock                                                            |
-| `/admin/settings`                     | admin                | Minimum, time windows, bank account; system status (mailer, delivery, cron); send a test email                                                                       |
-| `GET /admin/export/orders`            | admin                | Confirmed orders of the last `?days=` (default 30) as CSV                                                                                                            |
-| `GET /api/photos/[id]`                | public               | Product photo (ETag, cached)                                                                                                                                         |
-| `GET /api/slips/[id]`                 | uploader or admin    | Bank slip file, no-store                                                                                                                                             |
-| `POST /api/cron/sweep`                | `Bearer CRON_SECRET` | Runs `sweep()`                                                                                                                                                       |
-| `POST /api/webhooks/pickme`           | HMAC `x-signature`   | Delivery status updates (payload shape ASSUMED)                                                                                                                      |
+| Route                                      | Who                  | What                                                                                                                                                                  |
+| ------------------------------------------ | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                        | anyone               | Hero, recent public carts panel (6), how it works, new products                                                                                                       |
+| `/carts`                                   | anyone               | The full open-carts panel: PUBLIC carts that are OPEN or READY and not expired, newest first                                                                          |
+| `/carts/new`                               | signed in            | Start a cart (name, public/private)                                                                                                                                   |
+| `/shop`                                    | anyone               | GET-form filters (search, category, stock type, brand, size); `?cart=CODE` carries a cart through                                                                     |
+| `/products/[id]`                           | anyone               | Product, defects, size picker; add to one of your carts, the shared cart from `?cart=`, or a new cart                                                                 |
+| `/c/[code]`                                | anyone with the link | Progress, countdowns, members and their lines (yours editable), join, leave, accept form, share/WhatsApp/invite, cancel                                               |
+| `/c/[code]/pay`                            | owner, AWAITING_SLIP | Bank details, amount, reference (the cart code), 2h countdown, slip upload                                                                                            |
+| `/my-carts`, `/notifications`              | signed in            | Your carts; your notices (mark all read)                                                                                                                              |
+| `/dashboard`                               | buyer                | To-dos (accept & pay, upload slip, pay the driver, carts about to expire, invites), active carts with your share, orders and delivery, latest notices                 |
+| `/seller`, `/seller/products/new`, `/[id]` | seller               | Own products and stock by size; draft → submit for review; withdraw; delete a draft; read-only once live                                                              |
+| `/sign-in`, `/sign-up`                     | anyone               | `?next=` returns to where you were                                                                                                                                    |
+| `/admin`                                   | admin                | Needs-action tiles; confirmed sales today / 7 / 30 days; stock locked in unpaid carts; slip windows and carts expiring in 6h; low stock; best sellers; recent orders  |
+| `/admin/slips`                             | admin                | Pending slips; open the file; approve (redirects to the cart) or reject with a reason. `?view=history`: the last 100 decisions                                        |
+| `/admin/carts`, `/admin/carts/[code]`      | admin                | Search, status chips with counts, due column, paging; picking list, members' shares, timeline, slips, book PickMe, cancel                                             |
+| `/admin/deliveries`                        | admin                | Confirmed carts to book; drops in progress with status buttons; recently delivered                                                                                    |
+| `/admin/products`, `/new`, `/[id]`         | admin                | Search, status (incl. In review), seller and low-stock filters, free / in-cart / sold counts; edit; stock by size; publish or return a seller's product               |
+| `/admin/users`, `/admin/users/[id]`        | admin                | Search and filter users (buyers, sellers, admins, locked); a user's carts, shares, slips and devices; lock or unlock; `/admin/users/new-seller` adds a factory seller |
+| `/admin/settings`                          | admin                | Minimum, time windows, bank account; system status (delivery, cron)                                                                        |
+| `GET /admin/export/orders`                 | admin                | Confirmed orders of the last `?days=` (default 30) as CSV                                                                                                             |
+| `GET /api/photos/[id]`                     | public               | Product photo (ETag, cached)                                                                                                                                          |
+| `GET /api/slips/[id]`                      | uploader or admin    | Bank slip file, no-store                                                                                                                                              |
+| `POST /api/cron/sweep`                     | `Bearer CRON_SECRET` | Runs `sweep()`                                                                                                                                                        |
+| `POST /api/webhooks/pickme`                | HMAC `x-signature`   | Delivery status updates (payload shape ASSUMED)                                                                                                                       |
 
 ## 6. Code map
 
@@ -151,25 +162,26 @@ Money is `Decimal(14,2)`.
 - `src/server/admin-queries.ts`: `overviewStats`, `adminBadges` (nav counts), `PAID` (CONFIRMED/DISPATCHED/DELIVERED, what sales count), `LOW_STOCK` (2).
 - `src/server/catalogue.ts`: `listProducts`, `shopFacets`, `getProduct`, `saveProduct`, `adjustStock` (changes free stock only, never locked stock).
 - `src/server/delivery/provider.ts`: `DeliveryProvider` with `ManualProvider` (the default) and `PickMeProvider` (request shape ASSUMED). `delivery/index.ts`: `bookDelivery`, `setDeliveryStatus`.
-- `src/server/notify/index.ts`: `notify(userIds, notice, {email})` writes the in-app rows, then emails; email failures are logged, never thrown. `notify/mailer.ts`: `MockMailer`, `GmailMailer` (nodemailer), `setMailerForTests`.
+- `src/server/notify/index.ts`: `notify(userIds, notice)` writes the in-app rows. There is no email sending.
 - `src/server/auth/`: scrypt passwords, session cookie `gt_session`, `getCurrentUser`, `requireUser(roles, next)`, `requireAdmin`, `setUserLocked` (customers only; locking deletes their sessions).
 - `src/server/storage/`: local-disk storage (`STORAGE_DIR`), `checkUpload` and `saveUpload`. Limit 5 MB; images, plus PDF for slips.
 - `src/server/settings.ts`: `getSettings()` creates the defaults row if it is missing.
 - `src/components/`: `ui.tsx` (Button, Field, Input, Select, Card, Badge, Alert…), `cart-bits.tsx` (ProgressBar, StatusBadge, CartCard, ProductImage, StockTypeBadge), `client.tsx` (Countdown, CopyLink), `site-header.tsx`.
-- `prisma/seed.ts`: 1 admin, 5 customers, 20 products with variants, and 4 carts (49,800 open; 33,900 open; READY; a private one).
+- `prisma/seed.ts`: 1 admin, 1 seller (Ceylon Footwear Mills, with one product each live, in review and returned), 6 buyers, 20 products with variants, and the carts: 4 original (49,800 open; 33,900 open; READY; a private one), plus the demo buyer's open cart, a delivered order and an invite.
+- `src/server/seller.ts`: the seller listing flow (`sellerSaveProduct`, `sellerAdjustStock`, `submitForReview`, `withdrawFromReview`, `deleteDraft`) and admin review (`publishProduct`, `returnToSeller`). `src/server/seller-actions.ts`: the seller server actions (`requireSeller`).
+- `src/server/carts/queries.ts` → `buyerDashboard`: a buyer's carts with their own lines, latest slip and delivery, open invites and the latest notices.
 
 ## 7. Environment (`.env.example`)
 
 - Database: `DATABASE_URL` (5546), `TEST_DATABASE_URL` (5547), `DATABASE_POOL_MAX`.
-- App: `APP_URL` (used in share links and emails), `STORAGE_DIR`.
-- Email: `MAILER=mock|gmail`, `GMAIL_USER`, `GMAIL_APP_PASSWORD`.
+- App: `APP_URL` (used in share links), `STORAGE_DIR`.
 - Delivery: `DELIVERY_PROVIDER=manual|pickme`, `PICKME_API_URL`, `PICKME_API_KEY`, `PICKME_MERCHANT_ID`, `PICKME_WEBHOOK_SECRET`.
 - Cron: `CRON_SECRET`.
 
 ## 8. Commands and ports
 
 - `npm run db:start` / `db:stop`: embedded Postgres, dev on 5546 (`grouptogether`) and test on 5547 (`grouptogether_test`).
-- `npm run db:migrate`: a new migration plus a client regenerate. `npm run db:seed`: wipes the DB and loads demo data (password `password123`, admin `admin@grouptogether.lk`).
+- `npm run db:migrate`: a new migration plus a client regenerate. `npm run db:seed`: wipes the DB and loads demo data. Every password is `password123`: admin `admin@grouptogether.lk`, seller `seller@example.com`, buyer `buyer@example.com`.
 - `npm run dev`: http://localhost:3002.
 - `npm run check`: typecheck, lint and unit tests.
 - `npm run test:int`: integration tests against the test DB.
@@ -189,7 +201,6 @@ Money is `Decimal(14,2)`.
 
 - **PickMe API:** needs a PickMe business (Flash) account. Map the real fields in `PickMeProvider.book` and the webhook. Until then the provider stays manual.
 - **Hosting:** undecided. With serverless hosting, swap local-disk storage for object storage and schedule the sweep cron.
-- **Gmail credentials** for real email.
 - **Bank account details** are entered in Admin → Settings.
 - **Not built yet:** password reset, multiple photos per product, an SMS/WhatsApp API for notifications.
 
@@ -199,7 +210,7 @@ Money is `Decimal(14,2)`.
 - `carts`: lifecycle, stock locks, deadlines, invites.
 - `payments-slips`: bank slips.
 - `delivery`: PickMe.
-- `notifications`: email and in-app notices.
+- `notifications`: in-app notices.
 - `catalogue-admin`: products, stock, admin screens.
 - `frontend`: pages and UI.
 - `qa-review`: review and tests.

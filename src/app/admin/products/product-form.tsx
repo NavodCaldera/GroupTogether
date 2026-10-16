@@ -1,6 +1,6 @@
 import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { Field, Input, Select, Textarea } from "@/components/ui";
-import { saveProductAction } from "@/server/admin-actions";
+import { type AdminState, saveProductAction } from "@/server/admin-actions";
 import { AdminForm } from "../admin-form";
 
 type ProductValues = {
@@ -17,9 +17,24 @@ type ProductValues = {
   status: string;
 };
 
-export function ProductForm({ product }: { product?: ProductValues }) {
+/**
+ * The product details form, for admins and (with `seller`) factory sellers. Sellers don't set
+ * the status: their products stay drafts until they submit them for review.
+ */
+export function ProductForm({
+  product,
+  action = saveProductAction,
+  seller = false,
+}: {
+  product?: ProductValues;
+  action?: (prev: AdminState, fd: FormData) => Promise<AdminState>;
+  seller?: boolean;
+}) {
   return (
-    <AdminForm action={saveProductAction} submit={product ? "Save product" : "Create product"}>
+    <AdminForm
+      action={action}
+      submit={product ? "Save product" : seller ? "Create draft" : "Create product"}
+    >
       {product && <input type="hidden" name="id" value={product.id} />}
       <Field label="Title" name="title">
         <Input name="title" defaultValue={product?.title} required />
@@ -46,7 +61,7 @@ export function ProductForm({ product }: { product?: ProductValues }) {
         <Input name="defectNotes" defaultValue={product?.defectNotes ?? ""} />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Our price (LKR)" name="price">
+        <Field label={seller ? "Price on GroupTogether (LKR)" : "Our price (LKR)"} name="price">
           <Input
             name="price"
             inputMode="decimal"
@@ -74,13 +89,16 @@ export function ProductForm({ product }: { product?: ProductValues }) {
           className="text-sm"
         />
       </Field>
-      <Field label="Status" name="status">
-        <Select name="status" defaultValue={product?.status ?? "DRAFT"}>
-          <option value="DRAFT">Draft (hidden)</option>
-          <option value="LIVE">Live</option>
-          <option value="ARCHIVED">Archived</option>
-        </Select>
-      </Field>
+      {!seller && (
+        <Field label="Status" name="status">
+          <Select name="status" defaultValue={product?.status ?? "DRAFT"}>
+            <option value="DRAFT">Draft (hidden)</option>
+            <option value="IN_REVIEW">In review (seller submitted)</option>
+            <option value="LIVE">Live</option>
+            <option value="ARCHIVED">Archived</option>
+          </Select>
+        </Field>
+      )}
     </AdminForm>
   );
 }

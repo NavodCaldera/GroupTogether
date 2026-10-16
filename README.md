@@ -24,8 +24,6 @@ Demo accounts:
 ## Before going live
 
 - **Bank details:** enter them in Admin → Settings. Cart owners see them on the payment page.
-- **Email:** set `MAILER=gmail`, plus `GMAIL_USER` and `GMAIL_APP_PASSWORD`. The password is a
-  Google app password, and Gmail allows about 500 emails a day.
 - **PickMe:** apply for a PickMe business (Flash) account to get the API docs and keys.
   - Until then, keep `DELIVERY_PROVIDER=manual`. The admin books each trip in the PickMe app and
     enters the details.

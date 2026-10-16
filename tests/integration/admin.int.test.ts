@@ -11,12 +11,10 @@ import { hashPassword } from "@/server/auth/password";
 import { acceptAndPay, createCart, setLine } from "@/server/carts/service";
 import { approveSlip, uploadSlip } from "@/server/carts/slips";
 import { db } from "@/server/db";
-import { MockMailer, setMailerForTests } from "@/server/notify/mailer";
 import { makeUser, makeVariant, resetDb, slipFile } from "./helpers";
 
 beforeEach(async () => {
   await resetDb();
-  setMailerForTests(new MockMailer());
 });
 afterAll(() => db.$disconnect());
 

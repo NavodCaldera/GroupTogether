@@ -30,7 +30,7 @@ export default async function HomePage() {
             ["Add your items", "Your items are held for you as soon as they're in the cart."],
             [
               `Reach ${formatLKR(settings.minOrderValue)}`,
-              "Everyone gets an email when the cart hits the minimum.",
+              "Everyone is notified in the app when the cart hits the minimum.",
             ],
             [
               "Owner pays, PickMe delivers",

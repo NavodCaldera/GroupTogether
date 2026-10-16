@@ -19,8 +19,8 @@ heavy libraries, paid services or anything that needs an always-on worker.
    cancellation release it. Confirmation turns it into `sold`. Stock is never oversold.
 3. **Carts expire 24h after creation** unless the owner has accepted. Expiry releases stock and
    keeps the lines as history.
-4. **When the minimum is reached** (OPEN → READY), every member is notified **by email (Gmail
-   SMTP) and in the app**. If the total drops below the minimum, the cart goes back to OPEN.
+4. **When the minimum is reached** (OPEN → READY), every member is notified **in the app**
+   (there is no email sending). If the total drops below the minimum, the cart goes back to OPEN.
 5. **Only the owner pays, for the whole cart.** The owner presses "Accept & pay" (READY →
    AWAITING_SLIP), which freezes the cart. The owner then has **2 hours** to upload **one bank
    slip**. If they don't, the cart is CANCELLED and its stock released. Members pay their share
@@ -38,6 +38,16 @@ heavy libraries, paid services or anything that needs an always-on worker.
    link or invite). Every cart has a share link `/c/<code>` and a WhatsApp share. Members can
    invite registered users by email or mobile number.
 10. **B-grade products must list their defects**, and the defects are shown up front.
+11. **Three roles: buyer, factory seller, admin** (product owner, 2026-10-16).
+    - **Buyers** (`CUSTOMER`) sign up themselves and land on `/dashboard`.
+    - **Factory sellers** (`SELLER`) are created by an admin (or the seed) and land on `/seller`.
+      **A seller only publishes stock.** They see their own products and stock counts, never
+      buyers, carts or money.
+    - A seller's product goes `DRAFT → IN_REVIEW` (seller submits; it needs stock in a size)
+      `→ LIVE` (an admin publishes it once the stock has reached our store). Alternatively the
+      admin returns it to `DRAFT` with a note. Sellers change details and stock only while it's a
+      draft. **We hold the stock**, so a live product is managed by the admin.
+    - **Admins** come only from the seed.
 
 Cart statuses: `OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED`,
 plus the dead ends `EXPIRED` and `CANCELLED`.
@@ -53,8 +63,8 @@ plus the dead ends `EXPIRED` and `CANCELLED`.
   `number` for money; convert Prisma decimals with `toD`.
 - Deadlines: `sweep()` runs from `POST /api/cron/sweep` (bearer `CRON_SECRET`) and also on page
   loads, so it works even without a cron.
-- Email: `src/server/notify/mailer.ts`. `MAILER=gmail` needs `GMAIL_USER` and
-  `GMAIL_APP_PASSWORD`; otherwise mails go to a mock.
+- Notifications are in-app only: `src/server/notify/index.ts`. The product owner removed email
+  sending (2026-10-17); email addresses are only used to sign in and to find users to invite.
 - Delivery: `src/server/delivery/provider.ts`. The default is the manual provider, where the admin
   enters the PickMe booking. The `PickMeProvider` request shape is **assumed** until we get PickMe
   business API docs and keys.
@@ -64,15 +74,15 @@ plus the dead ends `EXPIRED` and `CANCELLED`.
 
 ## Commands
 
-|                      |                                                                        |
-| -------------------- | ---------------------------------------------------------------------- |
-| `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)          |
-| `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone) |
-| `npm run db:seed`    | Demo data. Password `password123`; admin `admin@grouptogether.lk`      |
-| `npm run dev`        | http://localhost:3002                                                  |
-| `npm run check`      | Typecheck, lint and unit tests                                         |
-| `npm run test:int`   | Integration tests on the test DB                                       |
-| `npm run e2e`        | Playwright journeys (port 3200, test DB)                               |
+|                      |                                                                                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                          |
+| `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                 |
+| `npm run db:seed`    | Demo data, all `password123`: `admin@grouptogether.lk`, `seller@example.com`, `buyer@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
+| `npm run dev`        | http://localhost:3002                                                                                                                                                  |
+| `npm run check`      | Typecheck, lint and unit tests                                                                                                                                         |
+| `npm run test:int`   | Integration tests on the test DB                                                                                                                                       |
+| `npm run e2e`        | Playwright journeys (port 3200, test DB)                                                                                                                               |
 
 ## Agents (`.claude/agents/`)
 
@@ -83,7 +93,7 @@ plus the dead ends `EXPIRED` and `CANCELLED`.
 | `carts`           | Cart lifecycle, stock locking, 50,000 threshold, 24h/2h deadlines, invites                                                                |
 | `payments-slips`  | The owner's single bank slip, admin approve/reject                                                                                        |
 | `delivery`        | One PickMe drop to the owner (the owner pays the driver), providers, webhook                                                              |
-| `notifications`   | Gmail SMTP and in-app notices: who gets what                                                                                              |
+| `notifications`   | In-app notices: who gets what                                                                                                             |
 | `catalogue-admin` | Products, stock by size, the admin back office                                                                                            |
 | `frontend`        | Pages and components (speed first, mobile first)                                                                                          |
 | `qa-review`       | Rule checklist and the test suites                                                                                                        |

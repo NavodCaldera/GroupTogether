@@ -89,7 +89,6 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
       body: `Payment for "${cart.name || cart.code}" is confirmed. We'll send it by PickMe to the cart owner. The owner pays the delivery fee to the driver.`,
       href: `/c/${cart.code}`,
     },
-    { email: true },
   );
 }
 
@@ -121,6 +120,5 @@ export async function rejectSlip(adminId: string, slipId: string, note: string, 
       body: `${reason}. Please upload a new slip within ${settings.slipWindowHours} hours or the order will be cancelled.`,
       href: `/c/${cart.code}/pay`,
     },
-    { email: true },
   );
 }

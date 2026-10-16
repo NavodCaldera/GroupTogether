@@ -12,7 +12,6 @@ import {
 import { approveSlip, rejectSlip, uploadSlip } from "@/server/carts/slips";
 import { bookDelivery } from "@/server/delivery";
 import { db } from "@/server/db";
-import { MockMailer, setMailerForTests } from "@/server/notify/mailer";
 import { cartRow, makeUser, makeVariant, resetDb, slipFile, variantRow } from "./helpers";
 
 const drop = {
@@ -20,12 +19,9 @@ const drop = {
   deliveryCity: "Colombo",
   deliveryPhone: "0771234567",
 };
-let mail: MockMailer;
 
 beforeEach(async () => {
   await resetDb();
-  mail = new MockMailer();
-  setMailerForTests(mail);
 });
 afterAll(() => db.$disconnect());
 
@@ -76,16 +72,15 @@ describe("stock locks as soon as items are in a cart", () => {
 });
 
 describe("minimum order value", () => {
-  it("becomes READY at 50,000 and emails every member once", async () => {
-    const { cart, becameReady, owner, member, v } = await readyCart();
+  it("becomes READY at 50,000 and notifies every member once", async () => {
+    const { cart, becameReady, member, v } = await readyCart();
     expect(becameReady).toBe(true);
     expect((await cartRow(cart.id)).status).toBe("READY");
-    expect(mail.sent.map((m) => m.to).sort()).toEqual([owner.email, member.email].sort());
     expect(await db.notification.count({ where: { title: { contains: "reached" } } })).toBe(2);
-    // More items: still READY, no second email.
+    // More items: still READY, no second notice.
     await db.variant.update({ where: { id: v.id }, data: { available: { increment: 1 } } });
     await setLine(member.id, cart.id, v.id, 2);
-    expect(mail.sent).toHaveLength(2);
+    expect(await db.notification.count({ where: { title: { contains: "reached" } } })).toBe(2);
   });
 
   it("drops back to OPEN when someone removes items", async () => {

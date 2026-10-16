@@ -8,7 +8,7 @@ description: "PickMe delivery for GroupTogether: one drop per confirmed cart to 
 GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **emails and notifies every member**.
+- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
 - Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
 - An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
 - Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
@@ -34,9 +34,9 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - **One PickMe drop per CONFIRMED cart, to the cart owner**, at the drop-off address, city and phone they gave when accepting (falling back to their profile).
 - **The receiver (the owner) pays the driver directly.** The platform never charges, collects or refunds a delivery fee.
   - `Delivery.paidBy` is always `"OWNER"`.
-  - `quotedFee` is only shown to the owner, in their "on the way" email and on the cart page.
+  - `quotedFee` is only shown to the owner, in their "on the way" notice and on the cart page.
 - Members settle their share of the fee with the owner outside the platform.
-- `bookDelivery` needs status CONFIRMED and no existing Delivery. It creates the Delivery, moves the cart to DISPATCHED and emails the owner.
+- `bookDelivery` needs status CONFIRMED and no existing Delivery. It creates the Delivery, moves the cart to DISPATCHED and notifies the owner.
 - `setDeliveryStatus(id, DELIVERED)` moves the cart to DELIVERED. It can be called from the admin buttons (picked up, delivered, failed) or the webhook.
 - After booking, the action redirects to `/admin/carts/<code>?booked=1`, because the form disappears.
 

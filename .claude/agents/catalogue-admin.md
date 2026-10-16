@@ -8,7 +8,7 @@ description: "Products, variants/stock and the admin back office of GroupTogethe
 GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **emails and notifies every member**.
+- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
 - Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
 - An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
 - Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
@@ -49,9 +49,16 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
   - Deliveries: confirmed carts to book (oldest first), drops in progress with status buttons, recently delivered.
   - Products: search, status chips, and "low stock" (live products with a size at ≤ 2 free); free / in carts / sold counts.
   - Users: search and filter (customers, admins, locked). A user's page shows their carts with their share, slips, active devices, and **lock / unlock**. `setUserLocked` refuses admins, and locking deletes every session, so the user is signed out at once. Their carts are left alone; an admin cancels them separately if needed.
-  - Settings, plus a system card (mailer, delivery provider, cron, `APP_URL`, uploads folder) and "Send me a test email".
+  - Settings, plus a system card (delivery provider, cron, `APP_URL`, uploads folder).
   - `GET /admin/export/orders?days=30`: confirmed orders as CSV (UTF-8 BOM for Excel). `toCsv` prefixes cells that start with `= + - @` so they can't run as formulas.
 - Admin controls stay inside the business rules. There is no override of the 24h / 2h deadlines, no admin editing of members' lines and no refunds. Ask the product owner before adding any of these.
 - Settings: `minOrderValue` (applies to **new** carts only; existing carts keep their snapshot), `cartLifetimeHours` (24), `slipWindowHours` (2), and the bank account details shown to owners.
 - After an action removes its own form, redirect with a query flag and show an `Alert` banner. Otherwise the success message is lost.
-- Admin accounts come only from the seed. Public sign-up creates customers only.
+- Admin accounts come only from the seed. Public sign-up creates buyers (`CUSTOMER`) only. Factory sellers (`SELLER`) are created at `/admin/users/new-seller` (`createSeller`).
+- **Seller products** (`src/server/seller.ts`; product-owner rule, 2026-10-16):
+  - `Product.sellerId` is null for our own listings. `ProductStatus` has `IN_REVIEW` between DRAFT and LIVE.
+  - The seller creates a draft, adds stock by size, and submits it (it needs free stock; B-grade needs defects). The admins get an in-app notice.
+  - The admin product page shows a review card: **Publish** (`IN_REVIEW → LIVE`, once the stock has reached our store) or **Return to seller** with a note (`→ DRAFT`, `reviewNote`). The seller is notified in the app either way.
+  - Sellers change details and stock only on their own drafts. `saveProduct(..., sellerId)` re-checks `status: DRAFT` in the same update, and the transitions use guarded `updateMany`. Live products are managed by the admin, since we hold the stock.
+  - Sellers never see buyers, carts or money. Their dashboard `/seller` shows their products, statuses and stock counts only.
+  - `ProductForm` takes `action` and `seller` (no status field for sellers). `StockTable` (`src/components/stock-table.tsx`) and `ProductStatusBadge` (`cart-bits.tsx`) are shared by admin and seller pages.

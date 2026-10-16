@@ -8,7 +8,7 @@ description: "Bank-slip payment flow in GroupTogether: the owner's single slip u
 GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **emails and notifies every member**.
+- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
 - Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
 - An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
 - Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
@@ -42,11 +42,11 @@ There is no card gateway. Payment is a bank transfer only.
 - **Approve** (admin):
   - Slip APPROVED, cart CONFIRMED with `confirmedAt` set.
   - For every line: `reserved -= qty` and `sold += qty`.
-  - Members are notified, with an email.
+  - Members are notified in the app.
   - The action redirects to `/admin/carts/<code>?approved=1`, because the slip's card leaves the queue.
 - **Reject** (admin, a reason of at least 3 characters):
   - Slip REJECTED with `reviewNote`, cart back to AWAITING_SLIP with a **fresh** `slipDueAt = now + slipWindowHours`.
-  - The owner gets an email asking them to re-upload. The pay page and the cart page show the rejection reason.
+  - The owner gets an in-app notice asking them to re-upload. The pay page and the cart page show the rejection reason.
 - A slip that is already reviewed can't be reviewed again ("already been reviewed").
 - The owner can't cancel during SLIP_REVIEW; an admin can.
 - **There are no refunds.**

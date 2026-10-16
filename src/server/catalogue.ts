@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Prisma, StockType } from "@/generated/prisma/client";
 import { type Audience, findKind, kindFits } from "@/lib/taxonomy";
+import { formatLKR } from "@/lib/format";
 import { db } from "./db";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
@@ -95,7 +96,7 @@ export const productSchema = z
     defectNotes: z.string().trim().max(500).optional().default(""),
     price: money,
     retailPrice: money.optional().or(z.literal("")),
-    status: z.enum(["DRAFT", "LIVE", "ARCHIVED"]).default("DRAFT"),
+    status: z.enum(["DRAFT", "IN_REVIEW", "LIVE", "ARCHIVED"]).default("DRAFT"),
   })
   .refine((v) => kindFits(v.audience, v.kind), {
     message: "That category isn't offered for this audience",
@@ -106,7 +107,16 @@ export const productSchema = z
     path: ["defectNotes"],
   });
 
-export async function saveProduct(id: string | null, input: unknown, photo: File | null) {
+/**
+ * Creates or updates a product. A seller passes `sellerId`: a new product becomes theirs, and an
+ * update applies only while it is still their draft (checked in the same statement).
+ */
+export async function saveProduct(
+  id: string | null,
+  input: unknown,
+  photo: File | null,
+  sellerId?: string,
+) {
   const p = productSchema.parse(input);
   const data = {
     ...p,
@@ -121,7 +131,11 @@ export async function saveProduct(id: string | null, input: unknown, photo: File
         })()
       : {}),
   };
-  return id ? db.product.update({ where: { id }, data }) : db.product.create({ data });
+  if (!id) return db.product.create({ data: { ...data, sellerId } });
+  return db.product.update({
+    where: sellerId ? { id, sellerId, status: "DRAFT" } : { id },
+    data,
+  });
 }
 
 /** Adds (or with a negative number, removes) free stock of a size. Never touches locked stock. */
@@ -146,8 +160,11 @@ export async function adjustStock(productId: string, size: string, colour: strin
     throw new CatalogueError("Can't remove more than the free stock (locked stock stays in carts)");
 }
 
-/** Pieces sold so far. Stock only becomes `sold` when an admin approves the owner's slip. */
+/** Money taken so far: carts whose slip an admin approved. Formatted here so the client stays light. */
 export async function salesSnapshot() {
-  const s = await db.variant.aggregate({ _sum: { sold: true } });
-  return { sold: s._sum.sold ?? 0, updatedAt: new Date().toISOString() };
+  const s = await db.groupCart.aggregate({
+    where: { status: { in: ["CONFIRMED", "DISPATCHED", "DELIVERED"] } },
+    _sum: { total: true },
+  });
+  return { total: formatLKR(s._sum.total ?? 0), updatedAt: new Date().toISOString() };
 }

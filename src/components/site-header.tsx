@@ -26,12 +26,31 @@ export async function SiteHeader() {
       label: "Open carts",
       icon: <path d="M3 4h2l2.4 11h11L21 7H6.2M9 20h.01M18 20h.01" />,
     },
-    ...(user
+    // Each role's own home: buyers their dashboard, sellers their products, admins My carts + Admin.
+    ...(user?.role === "CUSTOMER"
+      ? [
+          {
+            href: "/dashboard",
+            label: "Dashboard",
+            icon: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0" />,
+          },
+        ]
+      : []),
+    ...(user?.role === "ADMIN"
       ? [
           {
             href: "/my-carts",
             label: "My carts",
             icon: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0" />,
+          },
+        ]
+      : []),
+    ...(user?.role === "SELLER"
+      ? [
+          {
+            href: "/seller",
+            label: "Seller",
+            icon: <path d="M3 21V9l6-4v4l6-4v4l6-4v16zM7 17h2M11 17h2M15 17h2" />,
           },
         ]
       : []),

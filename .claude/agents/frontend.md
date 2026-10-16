@@ -8,7 +8,7 @@ description: "Pages, components and styling for GroupTogether (speed-first, mobi
 GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **emails and notifies every member**.
+- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
 - Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
 - An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
 - Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
@@ -44,6 +44,8 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Use these tokens, never raw colours. The one exception is the WhatsApp green on its button.
 
 **UX rules:**
+
+- The sign-in page lists the demo accounts (`src/lib/demo-accounts.ts`: admin, factory seller, buyer, all `password123`) with a "Use" button that fills the form. It shows only when `showDemoLogins()` is true: in development, or with `SHOW_DEMO_LOGINS=true`. Never turn it on for the real site.
 
 - Mobile first, so check at 360px. Tap targets are at least 40px, and inputs use 16px text on phones.
 - The open-carts panel shows PUBLIC carts that are OPEN or READY. Each card shows a progress bar ("LKR x of 50,000", "LKR y to go"), the owner's first name and city, the member count, the time left and "Join →".

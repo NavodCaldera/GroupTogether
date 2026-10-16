@@ -3,7 +3,7 @@ import { sweep } from "@/server/carts/service";
 
 /**
  * Expires carts past 24h and cancels missed 2h slip windows. Call every few minutes with
- * `Authorization: Bearer $CRON_SECRET`. Pages also sweep on load, so a late cron only delays emails.
+ * `Authorization: Bearer $CRON_SECRET`. Pages also sweep on load, so a late cron only delays the notices.
  */
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;

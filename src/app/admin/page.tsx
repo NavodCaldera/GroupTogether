@@ -23,6 +23,7 @@ export default async function AdminHome() {
     ["Awaiting owner's slip", s.count("AWAITING_SLIP"), "/admin/carts?status=AWAITING_SLIP", false],
     ["Reached minimum", s.count("READY"), "/admin/carts?status=READY", false],
     ["Open carts", s.count("OPEN"), "/admin/carts?status=OPEN", false],
+    ["Seller products to review", s.productsToReview, "/admin/products?status=IN_REVIEW", true],
     ["Sizes with ≤ 2 left", s.lowStockCount, "/admin/products?stock=low", false],
   ];
   const { today, week, month } = s.sales;
@@ -75,7 +76,7 @@ export default async function AdminHome() {
         </p>
       </Section>
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 lg:grid-cols-2 [&>*]:min-w-0">
         <Card>
           <h2 className="mb-3 font-semibold">Slip windows running</h2>
           {s.slipsDue.length === 0 ? (

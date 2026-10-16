@@ -13,8 +13,11 @@ datasource db {
 // ─── Identity ──────────────────────────────────────────────────────────────
 
 enum Role {
+  /// A buyer: joins and fills carts
   CUSTOMER
   ADMIN
+  /// A factory that supplies stock: lists products for an admin to review and publish
+  SELLER
 }
 
 model User {
@@ -27,6 +30,8 @@ model User {
   /// Default drop-off for carts this user owns
   address      String?
   city         String?
+  /// Sellers: the factory or company name
+  company      String?
   locked       Boolean  @default(false)
   createdAt    DateTime @default(now())
 
@@ -39,6 +44,7 @@ model User {
   invitesSent   CartInvite[]   @relation("InviteFrom")
   invites       CartInvite[]   @relation("InviteTo")
   notifications Notification[]
+  products      Product[]      @relation("SellerProducts")
 }
 
 model Session {
@@ -74,6 +80,8 @@ enum Audience {
 
 enum ProductStatus {
   DRAFT
+  /// A seller submitted it; an admin publishes it once the stock has arrived, or returns it
+  IN_REVIEW
   LIVE
   ARCHIVED
 }
@@ -95,12 +103,18 @@ model Product {
   status       ProductStatus @default(DRAFT)
   photoKey     String?
   photoType    String?
+  /// The factory that listed it; null for our own listings
+  sellerId     String?
+  seller       User?         @relation("SellerProducts", fields: [sellerId], references: [id])
+  /// Why an admin returned it to the seller (shown to the seller)
+  reviewNote   String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   variants Variant[]
 
   @@index([status, category])
+  @@index([sellerId])
   @@index([status, audience, kind])
 }
 

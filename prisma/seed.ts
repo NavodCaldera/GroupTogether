@@ -1,6 +1,10 @@
 /**
- * Demo data: 1 admin, 5 customers, about 20 products, and carts in several states.
- * Every account's password is "password123". Resets the database first.
+ * Demo data: 1 admin, 1 factory seller, 6 buyers, about 20 products, and carts in several
+ * states. Every account's password is "password123". Resets the database first.
+ *
+ *   admin@grouptogether.lk  admin       → /admin
+ *   seller@example.com      seller      → /seller (Ceylon Footwear Mills)
+ *   buyer@example.com       buyer       → /dashboard (an open cart, a delivered order, an invite)
  */
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
@@ -307,6 +311,8 @@ async function main() {
   }
 
   const now = new Date();
+  /** Variants already in a demo cart, so later picks don't reuse their (now stale) stock. */
+  const used = new Set<number>();
   /** A cart whose lines lock stock, as the app does. */
   async function cart(
     ownerIdx: number,
@@ -316,6 +322,7 @@ async function main() {
     visibility: "PUBLIC" | "PRIVATE" = "PUBLIC",
   ) {
     const memberIdx = [...new Set([ownerIdx, ...lines.map((l) => l[0])])];
+    for (const [, vi] of lines) used.add(vi);
     let total = 0;
     for (const [, vi, qty] of lines) total += variants[vi].price * qty;
     const c = await db.groupCart.create({
@@ -366,9 +373,163 @@ async function main() {
     [4, 76, 3],
     [0, 90, 2],
   ]);
-  await cart(3, "Ravi's friends only", [[3, 12, 1]], {}, "PRIVATE");
+  const ravisCart = await cart(3, "Ravi's friends only", [[3, 12, 1]], {}, "PRIVATE");
 
-  console.log("Seeded. Sign in as admin@grouptogether.lk or amaya@example.com (password123).");
+  // ─── Demo buyer: an open cart, a delivered order and an invite ───────────
+  const buyer = await db.user.create({
+    data: {
+      name: "Dilan Wickramasinghe",
+      email: "buyer@example.com",
+      phone: "0777777777",
+      address: "27 Ward Pl",
+      city: "Colombo 07",
+      passwordHash,
+    },
+  });
+  users.push(buyer);
+  const BUYER = users.length - 1;
+  /** An unused variant priced 3,000+ with enough free stock for `qty`. */
+  const pick = (qty: number) => {
+    const i = variants.findIndex((v, n) => !used.has(n) && v.price >= 3000 && v.available >= qty);
+    if (i < 0) throw new Error("seed: no variant with enough stock");
+    used.add(i);
+    return i;
+  };
+  await cart(BUYER, "Dilan's office team", [
+    [BUYER, pick(2), 2],
+    [1, pick(1), 1],
+  ]);
+  await db.cartInvite.create({
+    data: { cartId: ravisCart.id, invitedById: users[3].id, invitedUserId: buyer.id },
+  });
+
+  // A past order that went all the way: paid, confirmed and delivered by PickMe.
+  const vi = variants.findIndex(
+    (v, n) => !used.has(n) && v.available * v.price >= 45000 && v.price >= 3000,
+  );
+  if (vi < 0) throw new Error("seed: no variant for the delivered order");
+  used.add(vi);
+  const qty = Math.min(variants[vi].available, Math.ceil(45000 / variants[vi].price));
+  const vj = pick(2);
+  const lines: [number, number, number][] = [
+    [BUYER, vi, qty],
+    [2, vj, 2],
+  ];
+  const total = lines.reduce((n, [, v, q]) => n + variants[v].price * q, 0);
+  const past = addHours(now, -30);
+  await db.groupCart.create({
+    data: {
+      code: newCartCode(randomBytes),
+      name: "Dilan's first group order",
+      ownerId: buyer.id,
+      status: "DELIVERED",
+      minOrderValue: 50000,
+      total,
+      expiresAt: addHours(past, 24),
+      readyAt: past,
+      acceptedAt: addHours(past, 1),
+      slipDueAt: addHours(past, 3),
+      confirmedAt: addHours(past, 2),
+      deliveryAddress: buyer.address,
+      deliveryCity: buyer.city,
+      deliveryPhone: buyer.phone,
+      members: { create: [{ userId: buyer.id }, { userId: users[2].id }] },
+      lines: {
+        create: lines.map(([ui, v, q]) => ({
+          userId: users[ui].id,
+          variantId: variants[v].id,
+          qty: q,
+          unitPrice: variants[v].price,
+        })),
+      },
+      delivery: {
+        create: {
+          provider: "manual",
+          status: "DELIVERED",
+          externalRef: "PM-DEMO-1",
+          quotedFee: 850,
+        },
+      },
+    },
+  });
+  for (const [, v, q] of lines) {
+    await db.variant.update({
+      where: { id: variants[v].id },
+      data: { available: { decrement: q }, sold: { increment: q } },
+    });
+  }
+
+  // ─── Demo factory seller: one product live, one in review, one returned ──
+  const seller = await db.user.create({
+    data: {
+      role: "SELLER",
+      name: "Nuwan Rajapaksha",
+      company: "Ceylon Footwear Mills",
+      email: "seller@example.com",
+      phone: "0776666666",
+      passwordHash,
+    },
+  });
+  const sellerProducts = [
+    {
+      title: "Factory leather loafer",
+      kind: "men-formal",
+      audience: "MEN",
+      status: "LIVE",
+      price: 6200,
+      retailPrice: 14500,
+      stockType: "FACTORY_SURPLUS",
+      reviewNote: null,
+    },
+    {
+      title: "Ladies block-heel sandal",
+      kind: "women-sandals",
+      audience: "WOMEN",
+      status: "IN_REVIEW",
+      price: 3900,
+      retailPrice: 8900,
+      stockType: "B_GRADE",
+      defectNotes: "Small glue marks on the inner strap; not visible when worn",
+      reviewNote: null,
+    },
+    {
+      title: "Kids school sneaker",
+      kind: "boy-shoes",
+      audience: "BOY",
+      status: "DRAFT",
+      price: 2800,
+      retailPrice: null,
+      stockType: "FACTORY_SURPLUS",
+      reviewNote: "Please add a photo and the sizes you can send this week.",
+    },
+  ] as const;
+  for (const p of sellerProducts) {
+    const k = findKind(p.kind)!;
+    await db.product.create({
+      data: {
+        title: p.title,
+        brand: "Ceylon",
+        category: k.category,
+        audience: p.audience,
+        kind: p.kind,
+        stockType: p.stockType,
+        defectNotes: "defectNotes" in p ? p.defectNotes : null,
+        price: p.price,
+        retailPrice: p.retailPrice,
+        description: "Made in our Ja-Ela factory. Overrun from an export order.",
+        status: p.status,
+        reviewNote: p.reviewNote,
+        sellerId: seller.id,
+        variants: { create: k.sizes.slice(0, 4).map((size, i) => ({ size, available: 6 + i })) },
+      },
+    });
+  }
+
+  console.log(`Seeded. Every password is password123.
+  Admin   admin@grouptogether.lk  → /admin
+  Seller  seller@example.com      → /seller
+  Buyer   buyer@example.com       → /dashboard
+  (also amaya@, kasun@, nimali@, ravi@, ishara@example.com)`);
 }
 
 main().finally(() => db.$disconnect());

@@ -64,17 +64,6 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
           withSize
           selectClass={select}
         />
-        <select name="type" defaultValue={filters.stockType ?? ""} className={select}>
-          <option value="">All stock</option>
-          <option value="FACTORY_SURPLUS">Factory surplus</option>
-          <option value="B_GRADE">B-grade</option>
-        </select>
-        <select name="brand" defaultValue={filters.brand ?? ""} className={select}>
-          <option value="">Any brand</option>
-          {facets.brands.map((b) => (
-            <option key={b}>{b}</option>
-          ))}
-        </select>
         <button className="col-span-2 min-h-11 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent sm:min-h-10">
           Filter
         </button>

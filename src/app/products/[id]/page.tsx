@@ -7,7 +7,7 @@ import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { editableCartsFor, joinableCart } from "@/server/carts/queries";
 import { getProduct } from "@/server/catalogue";
-import { AddToCartForm } from "./add-to-cart-form";
+import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
   const p = await getProduct((await params).id);
@@ -66,15 +66,24 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
               preselect={carts.find((c) => c.code === wanted)?.id}
             />
           ) : (
-            <p className="text-sm">
-              <Link
-                href={`/sign-in?next=${encodeURIComponent(`/products/${product.id}${wanted ? `?cart=${wanted}` : ""}`)}`}
-                className="font-medium text-accent underline"
-              >
-                Sign in
-              </Link>{" "}
-              to add this to a group cart.
-            </p>
+            <div className="flex flex-col gap-4">
+              <SizeStockPreview
+                variants={product.variants.map((v) => ({
+                  id: v.id,
+                  label: v.colour ? `${v.size} · ${v.colour}` : v.size,
+                  available: v.available,
+                }))}
+              />
+              <p className="text-sm">
+                <Link
+                  href={`/sign-in?next=${encodeURIComponent(`/products/${product.id}${wanted ? `?cart=${wanted}` : ""}`)}`}
+                  className="font-medium text-accent underline"
+                >
+                  Sign in
+                </Link>{" "}
+                to add this to a group cart.
+              </p>
+            </div>
           )}
         </Card>
         <p className="text-xs text-subtle">

@@ -95,3 +95,67 @@ export async function myCarts(userId: string) {
     take: 50,
   });
 }
+
+/**
+ * Everything on a buyer's dashboard: their carts (with their own lines, for their share), the
+ * owner's latest slip and the delivery, open invites, and the latest notices.
+ */
+export async function buyerDashboard(userId: string, now = new Date()) {
+  const [memberships, invites, notices] = await Promise.all([
+    db.cartMember.findMany({
+      where: { userId },
+      select: {
+        cart: {
+          select: {
+            id: true,
+            code: true,
+            name: true,
+            status: true,
+            total: true,
+            minOrderValue: true,
+            expiresAt: true,
+            slipDueAt: true,
+            confirmedAt: true,
+            closedReason: true,
+            ownerId: true,
+            updatedAt: true,
+            owner: { select: { name: true, phone: true } },
+            lines: { where: { userId }, select: { qty: true, unitPrice: true } },
+            slips: {
+              orderBy: { createdAt: "desc" },
+              take: 1,
+              select: { status: true, reviewNote: true },
+            },
+            delivery: { select: { status: true, trackingUrl: true, quotedFee: true } },
+            _count: { select: { members: true } },
+          },
+        },
+      },
+      orderBy: { cart: { updatedAt: "desc" } },
+      take: 50,
+    }),
+    db.cartInvite.findMany({
+      where: {
+        invitedUserId: userId,
+        cart: {
+          status: { in: ["OPEN", "READY"] },
+          expiresAt: { gt: now },
+          members: { none: { userId } },
+        },
+      },
+      select: {
+        id: true,
+        invitedBy: { select: { name: true } },
+        cart: { select: { code: true, name: true, total: true, minOrderValue: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+    db.notification.findMany({
+      where: { userId },
+      orderBy: { createdAt: "desc" },
+      take: 5,
+    }),
+  ]);
+  return { carts: memberships.map((m) => m.cart), invites, notices };
+}

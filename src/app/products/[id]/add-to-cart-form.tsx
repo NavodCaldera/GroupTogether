@@ -54,7 +54,9 @@ export function AddToCartForm({
             </label>
           ))}
         </div>
-        {max > 0 && max <= 5 && <p className="mt-1 text-xs text-warn">Only {max} left</p>}
+        <p className={`mt-2 text-sm font-medium ${max <= 5 ? "text-warn" : "text-accent"}`}>
+          {max.toLocaleString("en-LK")} left in stock
+        </p>
       </fieldset>
       <Field label="Quantity" name="qty">
         <Input
@@ -88,5 +90,40 @@ export function AddToCartForm({
         {pending ? "Adding…" : "Add to group cart"}
       </Button>
     </form>
+  );
+}
+
+/** Signed-out view: pick a size to see how many are left. */
+export function SizeStockPreview({ variants }: { variants: Variant[] }) {
+  const [id, setId] = useState(variants.find((v) => v.available > 0)?.id ?? variants[0]?.id ?? "");
+  const left = variants.find((v) => v.id === id)?.available ?? 0;
+  return (
+    <fieldset>
+      <legend className="mb-1.5 text-sm font-bold">Size</legend>
+      <div className="flex flex-wrap gap-2">
+        {variants.map((v) => (
+          <label
+            key={v.id}
+            className={`inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm has-checked:border-accent has-checked:bg-accent has-checked:text-on-accent has-focus-visible:ring-2 has-focus-visible:ring-ink/30 sm:min-h-10 ${
+              v.available === 0 ? "line-through opacity-40" : "border-line"
+            }`}
+          >
+            <input
+              type="radio"
+              name="size"
+              checked={id === v.id}
+              onChange={() => setId(v.id)}
+              className="sr-only"
+            />
+            {v.label}
+          </label>
+        ))}
+      </div>
+      <p
+        className={`mt-2 text-sm font-medium ${left === 0 ? "text-danger" : left <= 5 ? "text-warn" : "text-accent"}`}
+      >
+        {left === 0 ? "Sold out" : `${left.toLocaleString("en-LK")} left in stock`}
+      </p>
+    </fieldset>
   );
 }

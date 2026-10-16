@@ -4,14 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError, z } from "zod";
 import type { DeliveryStatus } from "@/generated/prisma/client";
-import { AuthError, setUserLocked } from "./auth/service";
+import { AuthError, createSeller, setUserLocked } from "./auth/service";
 import { requireAdmin } from "./auth/session";
 import { CartError, cancelCart } from "./carts/service";
 import { approveSlip, rejectSlip } from "./carts/slips";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
 import { db } from "./db";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
-import { mailer } from "./notify/mailer";
+import { publishProduct, returnToSeller } from "./seller";
 import { UploadError } from "./storage";
 
 export type AdminState = { error?: string; ok?: string };
@@ -168,24 +168,33 @@ export async function lockUserAction(_p: AdminState, fd: FormData): Promise<Admi
   return res;
 }
 
-/** Sends a test email to the signed-in admin, to check the Gmail SMTP set-up. */
-export async function testEmailAction(): Promise<AdminState> {
-  const admin = await requireAdmin();
-  try {
-    const m = mailer();
-    const res = await m.send({
-      to: admin.email,
-      subject: "GroupTogether test email",
-      text: `Hi ${admin.name},\n\nEmail from GroupTogether is working (${m.name} mailer).\n\n— GroupTogether`,
-    });
-    if (!res.ok) return { error: `Sending failed: ${res.error}` };
-    return {
-      ok:
-        m.name === "mock"
-          ? "The mock mailer accepted it (nothing is really sent until MAILER=gmail)"
-          : `Sent to ${admin.email}`,
-    };
-  } catch (e) {
-    return { error: (e as Error).message };
-  }
+export async function publishProductAction(_p: AdminState, fd: FormData): Promise<AdminState> {
+  await requireAdmin();
+  const productId = str(fd, "productId");
+  const res = await attempt(() => publishProduct(productId));
+  revalidatePath("/admin", "layout");
+  revalidatePath("/shop");
+  if (res.error) return res;
+  // The review card goes away with the status, so say so on the reloaded page.
+  redirect(`/admin/products/${productId}?reviewed=published`);
+}
+
+export async function returnProductAction(_p: AdminState, fd: FormData): Promise<AdminState> {
+  await requireAdmin();
+  const productId = str(fd, "productId");
+  const res = await attempt(() => returnToSeller(productId, str(fd, "note")));
+  revalidatePath("/admin", "layout");
+  if (res.error) return res;
+  redirect(`/admin/products/${productId}?reviewed=returned`);
+}
+
+export async function createSellerAction(_p: AdminState, fd: FormData): Promise<AdminState> {
+  await requireAdmin();
+  let id = "";
+  const res = await attempt(async () => {
+    id = (await createSeller(Object.fromEntries(fd))).id;
+  });
+  if (res.error) return res;
+  revalidatePath("/admin/users");
+  redirect(`/admin/users/${id}?created=1`);
 }

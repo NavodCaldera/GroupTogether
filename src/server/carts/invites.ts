@@ -4,7 +4,7 @@ import { db } from "../db";
 import { notify } from "../notify";
 import { CartError } from "./service";
 
-/** A member invites a registered user by email or mobile number; they get an in-app notice and an email. */
+/** A member invites a registered user by email or mobile number; they get an in-app notice. */
 export async function inviteToCart(fromId: string, cartId: string, contact: string) {
   const raw = contact.trim();
   if (!raw) throw new CartError("Enter an email or mobile number");
@@ -42,7 +42,6 @@ export async function inviteToCart(fromId: string, cartId: string, contact: stri
       body: `Join "${cart.name || cart.code}" and help it reach the minimum order together.`,
       href: `/c/${cart.code}`,
     },
-    { email: true },
   );
   return target.name;
 }

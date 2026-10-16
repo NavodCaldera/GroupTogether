@@ -12,6 +12,7 @@ export const metadata: Metadata = { title: "Users" };
 const PAGE = 50;
 const FILTERS = {
   customers: { role: "CUSTOMER" },
+  sellers: { role: "SELLER" },
   admins: { role: "ADMIN" },
   locked: { locked: true },
 } satisfies Record<string, Prisma.UserWhereInput>;
@@ -33,6 +34,8 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
             { email: { contains: q, mode: "insensitive" } },
             { phone: { contains: q.replace(/[\s-]/g, "").replace(/^\+94/, "0") } },
             { city: { contains: q, mode: "insensitive" } },
+            { company: { contains: q, mode: "insensitive" } },
+            { company: { contains: q, mode: "insensitive" } },
           ]
         : undefined,
     },
@@ -42,6 +45,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
       email: true,
       phone: true,
       city: true,
+      company: true,
       role: true,
       locked: true,
       createdAt: true,
@@ -59,12 +63,20 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
     <>
       <PageHeader
         title="Users"
-        description="Customers sign up themselves. Admin accounts come only from the seed."
+        description="Buyers sign up themselves. Factory sellers are added here; admins come only from the seed."
+        actions={
+          <Link
+            href="/admin/users/new-seller"
+            className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
+          >
+            Add factory seller
+          </Link>
+        }
       />
       <SearchForm
         action="/admin/users"
         q={q}
-        placeholder="Name, email, mobile or city"
+        placeholder="Name, company, email, mobile or city"
         keep={{ show }}
       />
       <ChipRow>
@@ -72,7 +84,10 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
           All
         </Chip>
         <Chip href={href({ show: "customers" })} active={show === "customers"}>
-          Customers
+          Buyers
+        </Chip>
+        <Chip href={href({ show: "sellers" })} active={show === "sellers"}>
+          Factory sellers
         </Chip>
         <Chip href={href({ show: "admins" })} active={show === "admins"}>
           Admins
@@ -106,6 +121,11 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                 {u.role === "ADMIN" && (
                   <span className="ml-2">
                     <Badge tone="info">Admin</Badge>
+                  </span>
+                )}
+                {u.role === "SELLER" && (
+                  <span className="ml-2">
+                    <Badge tone="warn">Seller · {u.company}</Badge>
                   </span>
                 )}
                 {u.locked && (

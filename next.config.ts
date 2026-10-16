@@ -13,7 +13,7 @@ const nextConfig: NextConfig = {
     // A bank slip or product photo of up to 5 MB, plus multipart overhead.
     serverActions: { bodySizeLimit: "8mb" },
   },
-  serverExternalPackages: ["@prisma/client", "pg", "nodemailer"],
+  serverExternalPackages: ["@prisma/client", "pg"],
   poweredByHeader: false,
 };
 

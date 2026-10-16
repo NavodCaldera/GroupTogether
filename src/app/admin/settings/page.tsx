@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
-import { saveSettingsAction, testEmailAction } from "@/server/admin-actions";
+import { saveSettingsAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { deliveryProvider } from "@/server/delivery/provider";
 import { appUrl } from "@/server/notify";
-import { mailer } from "@/server/notify/mailer";
 import { getSettings } from "@/server/settings";
 import { storageDir } from "@/server/storage/local";
 import { AdminForm } from "../admin-form";
@@ -15,11 +14,6 @@ export default async function SettingsPage() {
   await requireAdmin();
   const s = await getSettings();
   const system: [string, string, boolean][] = [
-    [
-      "Email",
-      configured(() => (mailer().name === "gmail" ? "Gmail SMTP" : "Mock (not sent)")),
-      mailerSends(),
-    ],
     [
       "Delivery",
       configured(() =>
@@ -106,14 +100,6 @@ export default async function SettingsPage() {
           </dl>
           <p className="mt-3 text-xs text-subtle">Set these in the server environment (.env).</p>
         </Card>
-        <Card>
-          <h2 className="mb-2 font-semibold">Test email</h2>
-          <AdminForm action={testEmailAction} submit="Send me a test email" variant="secondary">
-            <p className="text-xs text-subtle">
-              Sends to your admin email with the current mailer.
-            </p>
-          </AdminForm>
-        </Card>
       </aside>
     </div>
   );
@@ -125,13 +111,5 @@ function configured(describe: () => string): string {
     return describe();
   } catch (e) {
     return `Not working: ${(e as Error).message}`;
-  }
-}
-
-function mailerSends() {
-  try {
-    return mailer().name === "gmail";
-  } catch {
-    return false;
   }
 }

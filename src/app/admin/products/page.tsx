@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { StockTypeBadge } from "@/components/cart-bits";
-import { Badge, EmptyState, PageHeader } from "@/components/ui";
+import { PRODUCT_STATUS_LABEL, ProductStatusBadge, StockTypeBadge } from "@/components/cart-bits";
+import { EmptyState, PageHeader } from "@/components/ui";
 import type { ProductStatus } from "@/generated/prisma/client";
 import { formatLKR } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
 import { LOW_STOCK } from "@/server/admin-queries";
 import { db } from "@/server/db";
-import { Chip, ChipRow, SearchForm, hrefWith, param } from "../list-bits";
+import { Chip, ChipRow, Count, SearchForm, hrefWith, param } from "../list-bits";
 
 export const metadata: Metadata = { title: "Products" };
 
-const STATUSES: ProductStatus[] = ["LIVE", "DRAFT", "ARCHIVED"];
+const STATUSES: ProductStatus[] = ["IN_REVIEW", "LIVE", "DRAFT", "ARCHIVED"];
 
 export default async function AdminProductsPage({ searchParams }: PageProps<"/admin/products">) {
   await requireAdmin();
@@ -19,26 +19,37 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
   const status = STATUSES.find((s) => s === param(sp, "status"));
   const low = param(sp, "stock") === "low";
   const q = param(sp, "q");
-  const products = await db.product.findMany({
-    where: {
-      status: low ? "LIVE" : status,
-      variants: low ? { some: { available: { lte: LOW_STOCK } } } : undefined,
-      OR: q
-        ? [
-            { title: { contains: q, mode: "insensitive" } },
-            { brand: { contains: q, mode: "insensitive" } },
-          ]
-        : undefined,
-    },
-    include: { variants: { select: { available: true, reserved: true, sold: true } } },
-    orderBy: { updatedAt: "desc" },
-  });
+  const sellerId = param(sp, "seller");
+  const [products, inReview, seller] = await Promise.all([
+    db.product.findMany({
+      where: {
+        sellerId,
+        status: low ? "LIVE" : status,
+        variants: low ? { some: { available: { lte: LOW_STOCK } } } : undefined,
+        OR: q
+          ? [
+              { title: { contains: q, mode: "insensitive" } },
+              { brand: { contains: q, mode: "insensitive" } },
+            ]
+          : undefined,
+      },
+      include: {
+        variants: { select: { available: true, reserved: true, sold: true } },
+        seller: { select: { name: true, company: true } },
+      },
+      orderBy: { updatedAt: "desc" },
+    }),
+    db.product.count({ where: { status: "IN_REVIEW" } }),
+    sellerId
+      ? db.user.findUnique({ where: { id: sellerId }, select: { name: true, company: true } })
+      : null,
+  ]);
   const href = (values: Record<string, string | undefined>) =>
-    hrefWith("/admin/products", { q, ...values });
+    hrefWith("/admin/products", { q, seller: sellerId, ...values });
   return (
     <>
       <PageHeader
-        title="Products"
+        title={seller ? `Products from ${seller.company || seller.name}` : "Products"}
         actions={
           <Link
             href="/admin/products/new"
@@ -55,9 +66,15 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
         </Chip>
         {STATUSES.map((s) => (
           <Chip key={s} href={href({ status: s })} active={status === s && !low}>
-            {s.charAt(0) + s.slice(1).toLowerCase()}
+            {PRODUCT_STATUS_LABEL[s]}
+            {s === "IN_REVIEW" && <Count n={inReview} tone="alert" />}
           </Chip>
         ))}
+        {sellerId && (
+          <Chip href={hrefWith("/admin/products", { q, status })} active={false}>
+            All sellers ✕
+          </Chip>
+        )}
         <Chip href={href({ stock: "low" })} active={low}>
           Low stock (≤ {LOW_STOCK} free in a size)
         </Chip>
@@ -70,6 +87,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
             <thead className="bg-muted text-left text-xs text-subtle">
               <tr>
                 <th className="px-3 py-2">Product</th>
+                <th className="px-3 py-2">Seller</th>
                 <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2 text-right">Price</th>
                 <th className="px-3 py-2 text-right">Free</th>
@@ -89,6 +107,15 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                         {p.brand} {p.title}
                       </Link>
                     </td>
+                    <td className="px-3 py-2 text-subtle">
+                      {p.sellerId ? (
+                        <Link href={href({ seller: p.sellerId })} className="hover:underline">
+                          {p.seller?.company || p.seller?.name}
+                        </Link>
+                      ) : (
+                        "Ours"
+                      )}
+                    </td>
                     <td className="px-3 py-2">
                       <StockTypeBadge stockType={p.stockType} />
                     </td>
@@ -97,7 +124,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                     <td className="px-3 py-2 text-right">{sum("reserved")}</td>
                     <td className="px-3 py-2 text-right">{sum("sold")}</td>
                     <td className="px-3 py-2">
-                      <Badge tone={p.status === "LIVE" ? "good" : "neutral"}>{p.status}</Badge>
+                      <ProductStatusBadge status={p.status} />
                     </td>
                   </tr>
                 );
