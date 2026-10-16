@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   addHours,
   cartTotal,
+  isActiveCart,
   newCartCode,
   overdue,
   progress,
@@ -88,5 +89,27 @@ describe("share codes", () => {
   it("are 8 characters from the no-look-alike alphabet", () => {
     const code = newCartCode((n) => new Uint8Array(n).map((_, i) => i * 37));
     expect(code).toMatch(/^[23456789ABCDEFGHJKMNPQRSTUVWXYZ]{8}$/);
+  });
+});
+
+describe("one cart at a time", () => {
+  const now = new Date("2026-10-17T10:00:00Z");
+  const future = addHours(now, 5);
+  it("counts carts that still hold stock", () => {
+    for (const status of ["OPEN", "READY", "AWAITING_SLIP", "SLIP_REVIEW"] as const)
+      expect(isActiveCart({ status, expiresAt: future, slipDueAt: future }, now)).toBe(true);
+  });
+  it("ignores finished, closed and overdue carts", () => {
+    for (const status of ["CONFIRMED", "DISPATCHED", "DELIVERED", "EXPIRED", "CANCELLED"] as const)
+      expect(isActiveCart({ status, expiresAt: future, slipDueAt: null }, now)).toBe(false);
+    expect(
+      isActiveCart({ status: "OPEN", expiresAt: addHours(now, -1), slipDueAt: null }, now),
+    ).toBe(false);
+    expect(
+      isActiveCart(
+        { status: "AWAITING_SLIP", expiresAt: future, slipDueAt: addHours(now, -1) },
+        now,
+      ),
+    ).toBe(false);
   });
 });

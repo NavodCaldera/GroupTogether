@@ -3,13 +3,15 @@ import Link from "next/link";
 import { CartCard } from "@/components/cart-bits";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { recentCarts } from "@/server/carts/queries";
+import { getCurrentUser } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 
 export const metadata: Metadata = { title: "Open carts" };
 
 export default async function CartsPage() {
   await sweep();
-  const carts = await recentCarts(60);
+  const user = await getCurrentUser();
+  const carts = await recentCarts(60, new Date(), user?.id);
   return (
     <>
       <PageHeader

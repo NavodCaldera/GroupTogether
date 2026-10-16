@@ -75,7 +75,7 @@ export function AddToCartForm({
               {c.label} ({c.code})
             </option>
           ))}
-          <option value="new">+ Start a new cart</option>
+          {carts.length === 0 && <option value="new">+ Start a new cart</option>}
         </Select>
       </Field>
       {target === "new" && (

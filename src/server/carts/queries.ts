@@ -1,10 +1,18 @@
 import "server-only";
 import { db } from "../db";
 
-/** The public "recent carts" panel: public carts still taking members, newest first. */
-export async function recentCarts(take = 12, now = new Date()) {
+/**
+ * The public "open carts" panel: public carts still taking members, newest first. A signed-in
+ * user's own carts (owned or joined) are left out; they are under "My carts".
+ */
+export async function recentCarts(take = 12, now = new Date(), userId?: string) {
   return db.groupCart.findMany({
-    where: { visibility: "PUBLIC", status: { in: ["OPEN", "READY"] }, expiresAt: { gt: now } },
+    where: {
+      visibility: "PUBLIC",
+      status: { in: ["OPEN", "READY"] },
+      expiresAt: { gt: now },
+      ...(userId ? { ownerId: { not: userId }, members: { none: { userId } } } : {}),
+    },
     select: {
       id: true,
       code: true,
@@ -158,4 +166,19 @@ export async function buyerDashboard(userId: string, now = new Date()) {
     }),
   ]);
   return { carts: memberships.map((m) => m.cart), invites, notices };
+}
+
+/** The user's one active cart, if any (same test as `assertOneCart` in service.ts). */
+export async function activeCartOf(userId: string, now = new Date()) {
+  return db.groupCart.findFirst({
+    where: {
+      members: { some: { userId } },
+      OR: [
+        { status: { in: ["OPEN", "READY"] }, expiresAt: { gt: now } },
+        { status: "AWAITING_SLIP", slipDueAt: { gt: now } },
+        { status: "SLIP_REVIEW" },
+      ],
+    },
+    select: { id: true, code: true, name: true },
+  });
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 /** Live "2h 5m left" that ticks every 20s; the server renders the first value. */
@@ -67,5 +68,23 @@ export function SalesCounter({ initial }: { initial: Sales }) {
       <p className="text-sm font-semibold text-accent">Total Sale</p>
       <p className="mt-2 text-5xl font-bold tabular-nums tracking-tight sm:text-7xl">{s.total}</p>
     </>
+  );
+}
+
+/** "← Back": the previous page when there is one in this tab, otherwise `fallback`. */
+export function BackLink({ fallback }: { fallback: string }) {
+  return (
+    <Link
+      href={fallback}
+      onClick={(e) => {
+        if (window.history.length > 1) {
+          e.preventDefault();
+          window.history.back();
+        }
+      }}
+      className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-subtle hover:text-ink sm:min-h-10"
+    >
+      <span aria-hidden>←</span> Back
+    </Link>
   );
 }

@@ -357,21 +357,23 @@ async function main() {
     return c;
   }
 
+  // One cart at a time (CLAUDE.md rule 12): every demo buyer is in at most one active cart, so
+  // each cart's lines belong to its owner. Ishara has none, ready to join "Office sneaker run".
   await cart(0, "Office sneaker run", [
     [0, 2, 2],
-    [1, 8, 1],
-    [2, 40, 3],
+    [0, 8, 1],
+    [0, 40, 3],
   ]);
   await cart(1, "Family school shoes", [
     [1, 50, 4],
-    [3, 52, 2],
-    [4, 66, 3],
+    [1, 52, 2],
+    [1, 66, 3],
   ]);
   await cart(2, "Kandy weekend haul", [
     [2, 0, 3],
-    [3, 30, 2],
-    [4, 76, 3],
-    [0, 90, 2],
+    [2, 30, 2],
+    [2, 76, 3],
+    [2, 90, 2],
   ]);
   const ravisCart = await cart(3, "Ravi's friends only", [[3, 12, 1]], {}, "PRIVATE");
 
@@ -397,7 +399,7 @@ async function main() {
   };
   await cart(BUYER, "Dilan's office team", [
     [BUYER, pick(2), 2],
-    [1, pick(1), 1],
+    [BUYER, pick(1), 1],
   ]);
   await db.cartInvite.create({
     data: { cartId: ravisCart.id, invitedById: users[3].id, invitedUserId: buyer.id },

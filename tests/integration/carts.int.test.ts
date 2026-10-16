@@ -5,6 +5,7 @@ import {
   acceptAndPay,
   cancelCart,
   createCart,
+  joinCart,
   leaveCart,
   sweep,
   CartError,
@@ -171,5 +172,35 @@ describe("one bank slip, then delivery", () => {
     await expect(cancelCart(owner, cart.id)).rejects.toThrow(/no longer be cancelled/);
     await cancelCart(admin, cart.id, "Payment not received");
     expect(await variantRow(v.id)).toMatchObject({ available: 5, reserved: 0 });
+  });
+});
+
+describe("one cart at a time", () => {
+  it("stops a buyer starting or joining a second active cart", async () => {
+    const [a, b] = [await makeUser(), await makeUser()];
+    const v = await makeVariant("1000", 10);
+    const first = await createCart(a.id, { name: "First" });
+    await expect(createCart(a.id, {})).rejects.toThrow(/already have an active cart/);
+    const other = await createCart(b.id, {});
+    await expect(joinCart(a.id, other.id)).rejects.toThrow(/already have an active cart/);
+    await expect(setLine(a.id, other.id, v.id, 1, { add: true })).rejects.toThrow(
+      /already have an active cart/,
+    );
+    // Still free to keep adding to their own cart.
+    await setLine(a.id, first.id, v.id, 1, { add: true });
+    expect(await variantRow(v.id)).toMatchObject({ available: 9, reserved: 1 });
+  });
+
+  it("lets them start another once the first is closed", async () => {
+    const a = await makeUser();
+    const first = await createCart(a.id, {});
+    await cancelCart({ id: a.id, role: "CUSTOMER" }, first.id);
+    await expect(createCart(a.id, {})).resolves.toBeTruthy();
+  });
+
+  it("can't be beaten by two requests at once", async () => {
+    const a = await makeUser();
+    const results = await Promise.allSettled([createCart(a.id, {}), createCart(a.id, {})]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
   });
 });

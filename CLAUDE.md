@@ -48,6 +48,11 @@ heavy libraries, paid services or anything that needs an always-on worker.
       admin returns it to `DRAFT` with a note. Sellers change details and stock only while it's a
       draft. **We hold the stock**, so a live product is managed by the admin.
     - **Admins** come only from the seed.
+12. **One cart at a time** (product owner, 2026-10-17). A buyer can own or be in only one active
+    cart. Active means `OPEN`/`READY` and not expired, `AWAITING_SLIP` inside its 2h window, or
+    `SLIP_REVIEW`. Starting, joining or adding to another cart is refused until the first is
+    confirmed, expired, cancelled or left. Rule: `isActiveCart` in `src/lib/cart-rules.ts`;
+    enforced by `assertOneCart` in `carts/service.ts` (per-user advisory lock).
 
 Cart statuses: `OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED`,
 plus the dead ends `EXPIRED` and `CANCELLED`.
@@ -99,3 +104,6 @@ plus the dead ends `EXPIRED` and `CANCELLED`.
 | `qa-review`       | Rule checklist and the test suites                                                                                                        |
 
 Every rule the product owner states goes into CLAUDE.md **and** the relevant agent files.
+
+**Change log:** every change the product owner asks for is also noted in `docs/CHANGES.md`, in the
+same piece of work as the code, and the matching agent files are updated alongside it.

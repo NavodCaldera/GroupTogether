@@ -35,13 +35,10 @@ export async function inviteToCart(fromId: string, cartId: string, contact: stri
     create: { cartId, invitedById: fromId, invitedUserId: target.id },
     update: { invitedById: fromId, createdAt: new Date() },
   });
-  await notify(
-    [target.id],
-    {
-      title: `${from.name} invited you to a group cart`,
-      body: `Join "${cart.name || cart.code}" and help it reach the minimum order together.`,
-      href: `/c/${cart.code}`,
-    },
-  );
+  await notify([target.id], {
+    title: `${from.name} invited you to a group cart`,
+    body: `Join "${cart.name || cart.code}" and help it reach the minimum order together.`,
+    href: `/c/${cart.code}`,
+  });
   return target.name;
 }

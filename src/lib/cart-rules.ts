@@ -106,3 +106,11 @@ export const STATUS_LABEL: Record<CartStatus, string> = {
   EXPIRED: "Expired",
   CANCELLED: "Cancelled",
 };
+
+/**
+ * One cart at a time: a buyer can own or be in only one active cart. Active means the cart still
+ * holds stock and hasn't passed its deadline. The service mirrors this as a query in `activeCartOf`.
+ */
+export function isActiveCart(cart: Deadlines, now: Date): boolean {
+  return HOLDS_STOCK.includes(cart.status) && overdue(cart, now) === null;
+}

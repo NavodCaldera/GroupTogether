@@ -113,12 +113,9 @@ export async function rejectSlip(adminId: string, slipId: string, note: string, 
       data: { status: "AWAITING_SLIP", slipDueAt: addHours(now, settings.slipWindowHours) },
     });
   });
-  await notify(
-    [cart.ownerId],
-    {
-      title: "Your bank slip was not accepted",
-      body: `${reason}. Please upload a new slip within ${settings.slipWindowHours} hours or the order will be cancelled.`,
-      href: `/c/${cart.code}/pay`,
-    },
-  );
+  await notify([cart.ownerId], {
+    title: "Your bank slip was not accepted",
+    body: `${reason}. Please upload a new slip within ${settings.slipWindowHours} hours or the order will be cancelled.`,
+    href: `/c/${cart.code}/pay`,
+  });
 }

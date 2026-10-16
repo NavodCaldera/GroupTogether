@@ -21,7 +21,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const wanted = typeof sp.cart === "string" ? sp.cart.toUpperCase() : undefined;
   const carts = user ? await editableCartsFor(user.id) : [];
   // Came from a shared cart they haven't joined yet: adding to it joins it.
-  if (user && wanted && !carts.some((c) => c.code === wanted)) {
+  if (user && wanted && carts.length === 0 && !carts.some((c) => c.code === wanted)) {
     const shared = await joinableCart(wanted);
     if (shared) carts.unshift(shared);
   }

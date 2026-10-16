@@ -35,6 +35,30 @@ function assertEditable(cart: GroupCart, now: Date) {
     throw new CartError("The owner has accepted this cart, so it can't be changed");
 }
 
+/**
+ * A buyer can own or be in only one active cart at a time. Takes a per-user lock so two requests
+ * can't both pass the check. Pass `cartId` to allow the cart they are already in.
+ */
+async function assertOneCart(tx: Tx, userId: string, now: Date, cartId?: string) {
+  await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${userId}))) AS l`;
+  const other = await tx.groupCart.findFirst({
+    where: {
+      id: cartId ? { not: cartId } : undefined,
+      members: { some: { userId } },
+      OR: [
+        { status: { in: ["OPEN", "READY"] }, expiresAt: { gt: now } },
+        { status: "AWAITING_SLIP", slipDueAt: { gt: now } },
+        { status: "SLIP_REVIEW" },
+      ],
+    },
+    select: { name: true, code: true },
+  });
+  if (other)
+    throw new CartError(
+      `You already have an active cart (${other.name || other.code}). Finish it, leave it or cancel it before starting or joining another.`,
+    );
+}
+
 async function memberIds(tx: Tx, cartId: string) {
   const rows = await tx.cartMember.findMany({ where: { cartId }, select: { userId: true } });
   return rows.map((r) => r.userId);
@@ -80,16 +104,19 @@ export async function createCart(ownerId: string, input: z.input<typeof createCa
   const { name, visibility } = createCartSchema.parse(input);
   const settings = await getSettings();
   const now = new Date();
-  return db.groupCart.create({
-    data: {
-      code: newCartCode(randomBytes),
-      name,
-      ownerId,
-      visibility,
-      minOrderValue: settings.minOrderValue,
-      expiresAt: addHours(now, settings.cartLifetimeHours),
-      members: { create: { userId: ownerId } },
-    },
+  return db.$transaction(async (tx) => {
+    await assertOneCart(tx, ownerId, now);
+    return tx.groupCart.create({
+      data: {
+        code: newCartCode(randomBytes),
+        name,
+        ownerId,
+        visibility,
+        minOrderValue: settings.minOrderValue,
+        expiresAt: addHours(now, settings.cartLifetimeHours),
+        members: { create: { userId: ownerId } },
+      },
+    });
   });
 }
 
@@ -98,6 +125,7 @@ export async function joinCart(userId: string, cartId: string, now = new Date())
   await db.$transaction(async (tx) => {
     const cart = await lockCart(tx, cartId);
     assertEditable(cart, now);
+    await assertOneCart(tx, userId, now, cartId);
     await tx.cartMember.upsert({
       where: { cartId_userId: { cartId, userId } },
       create: { cartId, userId },
@@ -124,6 +152,7 @@ export async function setLine(
   const result = await db.$transaction(async (tx) => {
     const cart = await lockCart(tx, cartId);
     assertEditable(cart, now);
+    await assertOneCart(tx, userId, now, cartId);
     await tx.cartMember.upsert({
       where: { cartId_userId: { cartId, userId } },
       create: { cartId, userId },

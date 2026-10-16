@@ -60,6 +60,8 @@ It is a standalone project: it shares no code, database or rules with any other 
    - Any member can invite a registered user by email or mobile number; the invitee gets an in-app notice.
    - Anyone with the link can join while the cart is OPEN or READY.
 10. **B-grade products must list their defects** (`defectNotes`), and they are shown up front on the product page.
+11b. **Change log:** every change the product owner asks for is noted in `docs/CHANGES.md` and the matching agent files are updated in the same piece of work.
+11c. **One cart at a time** (product owner, 2026-10-17): a buyer can own or be in only one active cart (`OPEN`/`READY` not expired, `AWAITING_SLIP` in its window, `SLIP_REVIEW`). Starting, joining or adding to another is refused until it is confirmed, expired, cancelled or left. `isActiveCart` in `cart-rules.ts`; `assertOneCart` in `carts/service.ts`; the product page hides "Start a new cart" and `/carts/new` shows a notice when the buyer already has one.
 11. **Accounts and roles** (product owner, 2026-10-16).
     - **Buyers** (`CUSTOMER`) sign up themselves with name, email, a Sri Lankan mobile (`07XXXXXXXX`), address, city and password. They land on `/dashboard`.
     - **Factory sellers** (`SELLER`, with a `company`) are created by an admin at `/admin/users/new-seller`, or by the seed. They land on `/seller`.
