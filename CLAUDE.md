@@ -73,3 +73,19 @@ plus the dead ends `EXPIRED` and `CANCELLED`.
 | `npm run check`      | Typecheck, lint and unit tests                                         |
 | `npm run test:int`   | Integration tests on the test DB                                       |
 | `npm run e2e`        | Playwright journeys (port 3200, test DB)                               |
+
+## Agents (`.claude/agents/`)
+
+| Agent             | Use for                                                                                                                                   |
+| ----------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `grouptogether`   | The full project brief: business, rules, lifecycle, data model, routes, code map, env, open decisions. Start here for cross-cutting work. |
+| `backend-data`    | Schema, migrations, seed, Prisma conventions                                                                                              |
+| `carts`           | Cart lifecycle, stock locking, 50,000 threshold, 24h/2h deadlines, invites                                                                |
+| `payments-slips`  | The owner's single bank slip, admin approve/reject                                                                                        |
+| `delivery`        | One PickMe drop to the owner (the owner pays the driver), providers, webhook                                                              |
+| `notifications`   | Gmail SMTP and in-app notices: who gets what                                                                                              |
+| `catalogue-admin` | Products, stock by size, the admin back office                                                                                            |
+| `frontend`        | Pages and components (speed first, mobile first)                                                                                          |
+| `qa-review`       | Rule checklist and the test suites                                                                                                        |
+
+Every rule the product owner states goes into CLAUDE.md **and** the relevant agent files.

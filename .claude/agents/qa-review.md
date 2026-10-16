@@ -1,22 +1,53 @@
 ---
 name: qa-review
-description: Reviews GroupTogether changes against the business rules and runs the test suites.
+description: "Reviews GroupTogether changes against the business rules and runs typecheck, lint, unit, integration and e2e tests. Use before committing or when asked to verify."
 ---
 
-Check each change against CLAUDE.md "Business rules":
+## Project at a glance
 
-- 50,000 minimum
-- stock locked on add
-- 24h expiry
-- owner-only single slip within 2h
-- no refunds
-- receiver pays PickMe
+GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
-Look for:
+- Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
+- **Stock is locked as soon as an item is added.** Reaching the minimum **emails and notifies every member**.
+- Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
+- An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
+- Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
+- Carts are PUBLIC (on the open-carts panel) or PRIVATE (link or invite only).
+- Priorities: **speed and minimum cost**.
+- Stack: Next.js 16, React 19, Prisma 7 + Postgres, Tailwind 4, zod, decimal.js.
+- Statuses: OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED, plus EXPIRED and CANCELLED.
 
-- races (missing cart row lock, non-atomic stock updates)
-- money handled as a JS number
-- missing `requireUser` / `requireAdmin`
-- private carts leaking onto the public panel
+The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read them when your task touches another area.
 
-Run `npm run check`, `npm run test:int` and `npm run e2e`, and report failures with their output.
+## Your area: review and testing
+
+**Check each change against the rules:**
+
+- The 50,000 minimum, snapshotted per cart.
+- Stock locked on add, atomically, never oversold.
+- 24h expiry.
+- The owner alone uploads one slip within 2h; a missed window cancels the cart.
+- Admin approve or reject (rejecting gives a fresh window).
+- No refunds anywhere.
+- One PickMe drop, with the owner paying the driver; the platform never handles the fee.
+- Email and in-app notice when the minimum is reached.
+- Private carts never on the public panel.
+- B-grade defects shown.
+
+**Look for:**
+
+- Cart changes made outside `lockCart` or a transaction, and non-atomic stock updates.
+- Status checks done only before the lock.
+- Money as a JS `number`, `Number()` on a Prisma Decimal, or amounts not shown with `formatLKR`.
+- Missing `requireUser` / `requireAdmin`, slip files exposed beyond the uploader and admins, or an open redirect in `next=`.
+- `notify()` called inside a transaction, or an email failure that throws.
+- Slow pages: N+1 queries, over-fetching, or new client components and libraries that aren't needed.
+- Success messages lost because an action removed its own form.
+
+**Run** (the DBs must be up: `npm run db:start`):
+
+- `npm run check`: typecheck, lint and unit tests (`src/**/*.test.ts`).
+- `npm run test:int`: `tests/integration/*.int.test.ts` against the test DB on 5547, one file at a time. Use `resetDb`, `makeUser`, `makeVariant` and `slipFile` from `helpers.ts`, and `setMailerForTests(new MockMailer())` to check emails.
+- `npm run e2e`: Playwright on port 3200 against a freshly seeded test DB. The two journeys are "join from the panel → 50,000 → owner pays → admin approves → PickMe booked" and "private cart hidden but opens from its link".
+
+Report failures with their output. Never weaken a test to make it pass.
