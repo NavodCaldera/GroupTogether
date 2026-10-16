@@ -64,6 +64,14 @@ enum StockType {
   B_GRADE
 }
 
+enum Audience {
+  MEN
+  WOMEN
+  GIRL
+  BOY
+  KID
+}
+
 enum ProductStatus {
   DRAFT
   LIVE
@@ -76,6 +84,9 @@ model Product {
   brand        String
   description  String        @default("")
   category     Category
+  /// Who it is for and the finer category (ids in src/lib/taxonomy.ts); null on older products
+  audience     Audience?
+  kind         String?
   stockType    StockType
   /// Required for B_GRADE: what is wrong with it, shown up front
   defectNotes  String?
@@ -90,6 +101,7 @@ model Product {
   variants Variant[]
 
   @@index([status, category])
+  @@index([status, audience, kind])
 }
 
 /// One size/colour of a product. available + reserved + sold is everything ever stocked.

@@ -1,13 +1,15 @@
 import "server-only";
 import { z } from "zod";
-import type { Category, Prisma, StockType } from "@/generated/prisma/client";
+import type { Prisma, StockType } from "@/generated/prisma/client";
+import { type Audience, findKind, kindFits } from "@/lib/taxonomy";
 import { db } from "./db";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
 export class CatalogueError extends Error {}
 
 export type ProductFilters = {
-  category?: Category;
+  audience?: Audience;
+  kind?: string;
   stockType?: StockType;
   brand?: string;
   size?: string;
@@ -32,7 +34,8 @@ export async function listProducts(f: ProductFilters = {}, take = 60) {
   return db.product.findMany({
     where: {
       status: "LIVE",
-      category: f.category,
+      audience: f.audience,
+      kind: f.kind,
       stockType: f.stockType,
       brand: f.brand ? { equals: f.brand, mode: "insensitive" } : undefined,
       variants: f.size ? { some: { size: f.size, available: { gt: 0 } } } : undefined,
@@ -86,12 +89,17 @@ export const productSchema = z
     title: z.string().trim().min(2, "Enter a title").max(120),
     brand: z.string().trim().min(1, "Enter the brand").max(60),
     description: z.string().trim().max(2000).default(""),
-    category: z.enum(["SHOES", "APPAREL"]),
+    audience: z.enum(["MEN", "WOMEN", "GIRL", "BOY", "KID"], { message: "Choose who it is for" }),
+    kind: z.string().min(1, "Choose a category"),
     stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]),
     defectNotes: z.string().trim().max(500).optional().default(""),
     price: money,
     retailPrice: money.optional().or(z.literal("")),
     status: z.enum(["DRAFT", "LIVE", "ARCHIVED"]).default("DRAFT"),
+  })
+  .refine((v) => kindFits(v.audience, v.kind), {
+    message: "That category isn't offered for this audience",
+    path: ["kind"],
   })
   .refine((v) => v.stockType !== "B_GRADE" || v.defectNotes.length >= 3, {
     message: "Describe what is wrong with B-grade stock",
@@ -102,6 +110,7 @@ export async function saveProduct(id: string | null, input: unknown, photo: File
   const p = productSchema.parse(input);
   const data = {
     ...p,
+    category: findKind(p.kind)!.category,
     defectNotes: p.defectNotes || null,
     retailPrice: p.retailPrice || null,
     ...(photo && photo.size > 0
@@ -135,4 +144,10 @@ export async function adjustStock(productId: string, size: string, colour: strin
   });
   if (r.count === 0)
     throw new CatalogueError("Can't remove more than the free stock (locked stock stays in carts)");
+}
+
+/** Pieces sold so far. Stock only becomes `sold` when an admin approves the owner's slip. */
+export async function salesSnapshot() {
+  const s = await db.variant.aggregate({ _sum: { sold: true } });
+  return { sold: s._sum.sold ?? 0, updatedAt: new Date().toISOString() };
 }

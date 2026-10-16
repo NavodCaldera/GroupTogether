@@ -1,80 +1,146 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { StatusBadge } from "@/components/cart-bits";
-import { EmptyState, PageHeader } from "@/components/ui";
-import { type CartStatus, STATUS_LABEL } from "@/lib/cart-rules";
-import { formatDateTime, formatLKR } from "@/lib/format";
+import { Badge, EmptyState, PageHeader } from "@/components/ui";
+import type { Prisma } from "@/generated/prisma/client";
+import { type CartStatus, STATUS_LABEL, isEditable } from "@/lib/cart-rules";
+import { formatDateTime, formatLKR, timeLeft } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
+import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
+import {
+  Chip,
+  ChipRow,
+  Count,
+  Pager,
+  SearchForm,
+  Table,
+  hrefWith,
+  pageNumber,
+  param,
+} from "../list-bits";
 
 export const metadata: Metadata = { title: "Carts" };
 
 const STATUSES = Object.keys(STATUS_LABEL) as CartStatus[];
+const PAGE = 50;
 
 export default async function AdminCartsPage({ searchParams }: PageProps<"/admin/carts">) {
   await requireAdmin();
-  const { status } = await searchParams;
-  const filter = STATUSES.find((s) => s === status);
-  const carts = await db.groupCart.findMany({
-    where: { status: filter },
-    include: { owner: { select: { name: true } }, _count: { select: { members: true } } },
-    orderBy: { updatedAt: "desc" },
-    take: 200,
-  });
-  const chip = (active: boolean) =>
-    `rounded-full border px-3 py-1 text-xs ${active ? "border-accent bg-accent text-on-accent" : "border-line hover:bg-muted"}`;
+  await sweep();
+  const sp = await searchParams;
+  const filter = STATUSES.find((s) => s === param(sp, "status"));
+  const q = param(sp, "q");
+  const page = pageNumber(sp);
+
+  const search: Prisma.GroupCartWhereInput | undefined = q
+    ? {
+        OR: [
+          { code: q.toUpperCase() },
+          { name: { contains: q, mode: "insensitive" } },
+          { owner: { name: { contains: q, mode: "insensitive" } } },
+          { owner: { email: { contains: q, mode: "insensitive" } } },
+          { owner: { phone: { contains: q.replace(/[\s-]/g, "").replace(/^\+94/, "0") } } },
+        ],
+      }
+    : undefined;
+
+  const [rows, byStatus] = await Promise.all([
+    db.groupCart.findMany({
+      where: { status: filter, ...search },
+      include: { owner: { select: { name: true } }, _count: { select: { members: true } } },
+      orderBy: { updatedAt: "desc" },
+      skip: (page - 1) * PAGE,
+      take: PAGE + 1,
+    }),
+    db.groupCart.groupBy({ by: ["status"], where: search, _count: true }),
+  ]);
+  const carts = rows.slice(0, PAGE);
+  const count = (s: CartStatus) => byStatus.find((b) => b.status === s)?._count ?? 0;
+  const href = (values: Record<string, string | number | undefined>) =>
+    hrefWith("/admin/carts", { status: filter, q, ...values });
+  const now = new Date();
+
   return (
     <>
-      <PageHeader title="Carts" />
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Link href="/admin/carts" className={chip(!filter)}>
+      <PageHeader
+        title="Carts"
+        actions={
+          <a
+            href="/admin/export/orders?days=30"
+            className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm hover:bg-muted sm:min-h-10"
+          >
+            Export orders (CSV)
+          </a>
+        }
+      />
+      <SearchForm
+        action="/admin/carts"
+        q={q}
+        placeholder="Code, cart name, owner name, email or mobile"
+        keep={{ status: filter }}
+      />
+      <ChipRow>
+        <Chip href={href({ status: undefined })} active={!filter}>
           All
-        </Link>
+        </Chip>
         {STATUSES.map((s) => (
-          <Link key={s} href={`/admin/carts?status=${s}`} className={chip(filter === s)}>
-            {STATUS_LABEL[s]}
-          </Link>
+          <Chip key={s} href={href({ status: s })} active={filter === s}>
+            {STATUS_LABEL[s]} <Count n={count(s)} />
+          </Chip>
         ))}
-      </div>
+      </ChipRow>
       {carts.length === 0 ? (
-        <EmptyState title="No carts" />
+        <EmptyState title={q ? `No carts match "${q}"` : "No carts"} />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-line">
-          <table className="w-full text-sm">
-            <thead className="bg-muted text-left text-xs text-subtle">
-              <tr>
-                <th className="px-3 py-2">Code</th>
-                <th className="px-3 py-2">Owner</th>
-                <th className="px-3 py-2">Members</th>
-                <th className="px-3 py-2 text-right">Total</th>
-                <th className="px-3 py-2">Status</th>
-                <th className="px-3 py-2">Updated</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line">
-              {carts.map((c) => (
-                <tr key={c.id}>
-                  <td className="px-3 py-2">
-                    <Link
-                      href={`/admin/carts/${c.code}`}
-                      className="font-mono text-accent underline"
-                    >
-                      {c.code}
-                    </Link>
-                  </td>
-                  <td className="px-3 py-2">{c.owner.name}</td>
-                  <td className="px-3 py-2">{c._count.members}</td>
-                  <td className="px-3 py-2 text-right">{formatLKR(c.total)}</td>
-                  <td className="px-3 py-2">
-                    <StatusBadge status={c.status} />
-                  </td>
-                  <td className="px-3 py-2 text-subtle">{formatDateTime(c.updatedAt)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table
+          head={
+            <>
+              <th>Code</th>
+              <th>Owner</th>
+              <th>Members</th>
+              <th className="text-right">Total</th>
+              <th>Status</th>
+              <th>Due</th>
+              <th>Updated</th>
+            </>
+          }
+        >
+          {carts.map((c) => (
+            <tr key={c.id}>
+              <td>
+                <Link href={`/admin/carts/${c.code}`} className="font-mono text-accent underline">
+                  {c.code}
+                </Link>
+                {c.visibility === "PRIVATE" && (
+                  <span className="ml-2">
+                    <Badge>Private</Badge>
+                  </span>
+                )}
+              </td>
+              <td>
+                <Link href={`/admin/users/${c.ownerId}`} className="hover:underline">
+                  {c.owner.name}
+                </Link>
+              </td>
+              <td>{c._count.members}</td>
+              <td className="text-right">{formatLKR(c.total)}</td>
+              <td>
+                <StatusBadge status={c.status} />
+              </td>
+              <td className="text-warn">
+                {c.status === "AWAITING_SLIP" && c.slipDueAt
+                  ? `Slip: ${timeLeft(c.slipDueAt, now)}`
+                  : isEditable(c.status)
+                    ? timeLeft(c.expiresAt, now)
+                    : ""}
+              </td>
+              <td className="text-subtle">{formatDateTime(c.updatedAt)}</td>
+            </tr>
+          ))}
+        </Table>
       )}
+      <Pager page={page} hasNext={rows.length > PAGE} href={(p) => href({ page: p })} />
     </>
   );
 }

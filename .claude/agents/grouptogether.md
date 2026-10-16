@@ -110,26 +110,29 @@ Money is `Decimal(14,2)`.
 
 ## 5. Pages and routes (`src/app`)
 
-| Route                                 | Who                  | What                                                                                                                    |
-| ------------------------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| `/`                                   | anyone               | Hero, recent public carts panel (6), how it works, new products                                                         |
-| `/carts`                              | anyone               | The full open-carts panel: PUBLIC carts that are OPEN or READY and not expired, newest first                            |
-| `/carts/new`                          | signed in            | Start a cart (name, public/private)                                                                                     |
-| `/shop`                               | anyone               | GET-form filters (search, category, stock type, brand, size); `?cart=CODE` carries a cart through                       |
-| `/products/[id]`                      | anyone               | Product, defects, size picker; add to one of your carts, the shared cart from `?cart=`, or a new cart                   |
-| `/c/[code]`                           | anyone with the link | Progress, countdowns, members and their lines (yours editable), join, leave, accept form, share/WhatsApp/invite, cancel |
-| `/c/[code]/pay`                       | owner, AWAITING_SLIP | Bank details, amount, reference (the cart code), 2h countdown, slip upload                                              |
-| `/my-carts`, `/notifications`         | signed in            | Your carts; your notices (mark all read)                                                                                |
-| `/sign-in`, `/sign-up`                | anyone               | `?next=` returns to where you were                                                                                      |
-| `/admin`                              | admin                | Overview tiles (slips to review, to dispatch, awaiting slip, ready, open, low stock)                                    |
-| `/admin/slips`                        | admin                | Pending slips; open the file; approve (redirects to the cart) or reject with a reason                                   |
-| `/admin/carts`, `/admin/carts/[code]` | admin                | List by status; picking list, timeline, slips, book PickMe, delivery status, cancel                                     |
-| `/admin/products`, `/new`, `/[id]`    | admin                | Products with free / in-cart / sold counts; edit; add or remove stock by size                                           |
-| `/admin/settings`                     | admin                | Minimum, time windows, bank account                                                                                     |
-| `GET /api/photos/[id]`                | public               | Product photo (ETag, cached)                                                                                            |
-| `GET /api/slips/[id]`                 | uploader or admin    | Bank slip file, no-store                                                                                                |
-| `POST /api/cron/sweep`                | `Bearer CRON_SECRET` | Runs `sweep()`                                                                                                          |
-| `POST /api/webhooks/pickme`           | HMAC `x-signature`   | Delivery status updates (payload shape ASSUMED)                                                                         |
+| Route                                 | Who                  | What                                                                                                                                                                 |
+| ------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                   | anyone               | Hero, recent public carts panel (6), how it works, new products                                                                                                      |
+| `/carts`                              | anyone               | The full open-carts panel: PUBLIC carts that are OPEN or READY and not expired, newest first                                                                         |
+| `/carts/new`                          | signed in            | Start a cart (name, public/private)                                                                                                                                  |
+| `/shop`                               | anyone               | GET-form filters (search, category, stock type, brand, size); `?cart=CODE` carries a cart through                                                                    |
+| `/products/[id]`                      | anyone               | Product, defects, size picker; add to one of your carts, the shared cart from `?cart=`, or a new cart                                                                |
+| `/c/[code]`                           | anyone with the link | Progress, countdowns, members and their lines (yours editable), join, leave, accept form, share/WhatsApp/invite, cancel                                              |
+| `/c/[code]/pay`                       | owner, AWAITING_SLIP | Bank details, amount, reference (the cart code), 2h countdown, slip upload                                                                                           |
+| `/my-carts`, `/notifications`         | signed in            | Your carts; your notices (mark all read)                                                                                                                             |
+| `/sign-in`, `/sign-up`                | anyone               | `?next=` returns to where you were                                                                                                                                   |
+| `/admin`                              | admin                | Needs-action tiles; confirmed sales today / 7 / 30 days; stock locked in unpaid carts; slip windows and carts expiring in 6h; low stock; best sellers; recent orders |
+| `/admin/slips`                        | admin                | Pending slips; open the file; approve (redirects to the cart) or reject with a reason. `?view=history`: the last 100 decisions                                       |
+| `/admin/carts`, `/admin/carts/[code]` | admin                | Search, status chips with counts, due column, paging; picking list, members' shares, timeline, slips, book PickMe, cancel                                            |
+| `/admin/deliveries`                   | admin                | Confirmed carts to book; drops in progress with status buttons; recently delivered                                                                                   |
+| `/admin/products`, `/new`, `/[id]`    | admin                | Search, status and low-stock filters, free / in-cart / sold counts; edit; add or remove stock by size                                                                |
+| `/admin/users`, `/admin/users/[id]`   | admin                | Search and filter users; a user's carts, shares, slips and devices; lock (signs out everywhere) or unlock                                                            |
+| `/admin/settings`                     | admin                | Minimum, time windows, bank account; system status (mailer, delivery, cron); send a test email                                                                       |
+| `GET /admin/export/orders`            | admin                | Confirmed orders of the last `?days=` (default 30) as CSV                                                                                                            |
+| `GET /api/photos/[id]`                | public               | Product photo (ETag, cached)                                                                                                                                         |
+| `GET /api/slips/[id]`                 | uploader or admin    | Bank slip file, no-store                                                                                                                                             |
+| `POST /api/cron/sweep`                | `Bearer CRON_SECRET` | Runs `sweep()`                                                                                                                                                       |
+| `POST /api/webhooks/pickme`           | HMAC `x-signature`   | Delivery status updates (payload shape ASSUMED)                                                                                                                      |
 
 ## 6. Code map
 
@@ -137,18 +140,19 @@ Money is `Decimal(14,2)`.
   - Statuses, EDITABLE / CANCELLABLE / HOLDS_STOCK, `cartTotal`, `progress`, `remaining`.
   - `statusAfterChange` (OPEN⇄READY), `overdue` (EXPIRE / SLIP_MISSED), `newCartCode`, `whatsappShareUrl`, `STATUS_LABEL`.
   - Tested in `cart-rules.test.ts`.
-- `src/lib/decimal.ts`: `D`, `toD`, `roundMoney`. `src/lib/format.ts`: `formatLKR`, `formatDateTime`, `timeLeft`.
+- `src/lib/decimal.ts`: `D`, `toD`, `roundMoney`. `src/lib/format.ts`: `formatLKR`, `formatDateTime`, `timeLeft`, `colomboDayStart`, `formatIsoDateTime`. `src/lib/csv.ts`: `toCsv` (defuses formula cells).
 - `src/server/carts/service.ts`: `createCart`, `joinCart`, `setLine` (set, or add with `{add:true}`), `leaveCart`, `acceptAndPay`, `cancelCart`, `sweep`.
   - Every change runs in `db.$transaction` behind `lockCart()` (`SELECT … FOR UPDATE`), then recomputes the total and status.
 - `src/server/carts/slips.ts`: `uploadSlip`, `approveSlip`, `rejectSlip`.
 - `src/server/carts/invites.ts`: `inviteToCart`.
 - `src/server/carts/queries.ts`: `recentCarts`, `cartByCode`, `editableCartsFor`, `joinableCart`, `myCarts`.
 - `src/server/carts/actions.ts`: customer server actions. `src/server/admin-actions.ts`: admin server actions.
-  - Expected errors (`CartError`, `UploadError`, `CatalogueError`, `ZodError`) become form messages.
+  - Expected errors (`CartError`, `UploadError`, `CatalogueError`, `AuthError`, `ZodError`) become form messages.
+- `src/server/admin-queries.ts`: `overviewStats`, `adminBadges` (nav counts), `PAID` (CONFIRMED/DISPATCHED/DELIVERED, what sales count), `LOW_STOCK` (2).
 - `src/server/catalogue.ts`: `listProducts`, `shopFacets`, `getProduct`, `saveProduct`, `adjustStock` (changes free stock only, never locked stock).
 - `src/server/delivery/provider.ts`: `DeliveryProvider` with `ManualProvider` (the default) and `PickMeProvider` (request shape ASSUMED). `delivery/index.ts`: `bookDelivery`, `setDeliveryStatus`.
 - `src/server/notify/index.ts`: `notify(userIds, notice, {email})` writes the in-app rows, then emails; email failures are logged, never thrown. `notify/mailer.ts`: `MockMailer`, `GmailMailer` (nodemailer), `setMailerForTests`.
-- `src/server/auth/`: scrypt passwords, session cookie `gt_session`, `getCurrentUser`, `requireUser(roles, next)`, `requireAdmin`.
+- `src/server/auth/`: scrypt passwords, session cookie `gt_session`, `getCurrentUser`, `requireUser(roles, next)`, `requireAdmin`, `setUserLocked` (customers only; locking deletes their sessions).
 - `src/server/storage/`: local-disk storage (`STORAGE_DIR`), `checkUpload` and `saveUpload`. Limit 5 MB; images, plus PDF for slips.
 - `src/server/settings.ts`: `getSettings()` creates the defaults row if it is missing.
 - `src/components/`: `ui.tsx` (Button, Field, Input, Select, Card, Badge, Alert…), `cart-bits.tsx` (ProgressBar, StatusBadge, CartCard, ProductImage, StockTypeBadge), `client.tsx` (Countdown, CopyLink), `site-header.tsx`.

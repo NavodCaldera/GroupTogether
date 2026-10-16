@@ -25,6 +25,29 @@ export function formatDateTime(date: Date | string | null | undefined): string {
   }).format(new Date(date));
 }
 
+/** Colombo is UTC+5:30 all year (no daylight saving). */
+const COLOMBO_OFFSET_MS = 5.5 * 3_600_000;
+const DAY_MS = 86_400_000;
+
+/** Midnight in Colombo at the start of the day `now` falls on, or `daysAgo` days before it. */
+export function colomboDayStart(now = new Date(), daysAgo = 0): Date {
+  const local = now.getTime() + COLOMBO_OFFSET_MS;
+  return new Date(local - (local % DAY_MS) - COLOMBO_OFFSET_MS - daysAgo * DAY_MS);
+}
+
+/** "2026-10-16 14:05" in Colombo time, for exports. */
+export function formatIsoDateTime(date: Date | null | undefined): string {
+  if (!date) return "";
+  return new Intl.DateTimeFormat("sv-SE", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Colombo",
+  }).format(date);
+}
+
 /** "5h 12m left", "3m left", or "ended". */
 export function timeLeft(until: Date, now = new Date()): string {
   const ms = until.getTime() - now.getTime();

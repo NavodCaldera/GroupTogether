@@ -25,6 +25,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 - `src/server/catalogue.ts`
 - `src/server/admin-actions.ts`
+- `src/server/admin-queries.ts`
 - `src/app/admin/**`, which includes `admin-form.tsx`, the generic `useActionState` form that shows `{ error | ok }`
 - `src/app/api/photos/[id]/route.ts`
 
@@ -40,12 +41,17 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 **Admin:**
 
 - Every admin page and action calls `requireAdmin()`. The admin layout also guards the section.
-- Pages:
-  - Overview: tiles for slips to review, carts to dispatch, carts awaiting a slip, READY carts, open carts and low stock (≤ 2).
-  - Slips, as described in the `payments-slips` agent.
-  - Carts: filter chips by status, then a cart page with the picking list, timeline, slips, delivery booking or status, and cancel with a reason.
-  - Products: free / in carts / sold counts.
-  - Settings.
+- Pages (shared list pieces such as chips, search, pager and table are in `src/app/admin/list-bits.tsx`; filters are plain GET links, no client JS):
+  - Layout nav with red count badges: slips to review and confirmed carts to book.
+  - Overview (`src/server/admin-queries.ts` → `overviewStats`): needs-action tiles; confirmed sales today, last 7 and last 30 days (Colombo days, by `confirmedAt`, statuses in `PAID`) and the average order; value locked in unpaid carts; slip windows running and carts expiring within 6h; low stock (≤ `LOW_STOCK`); best sellers by units sold; recent orders; CSV export.
+  - Slips, as described in the `payments-slips` agent, plus a "Reviewed" tab (`?view=history`, the last 100 with reviewer and note).
+  - Carts: search (code, name, owner name, email or mobile), status chips with counts, a due column (expiry or slip window), 50 per page. The cart page has the picking list, **members and their shares** (what each owes the owner), timeline, slips, delivery booking or status, and cancel with a reason.
+  - Deliveries: confirmed carts to book (oldest first), drops in progress with status buttons, recently delivered.
+  - Products: search, status chips, and "low stock" (live products with a size at ≤ 2 free); free / in carts / sold counts.
+  - Users: search and filter (customers, admins, locked). A user's page shows their carts with their share, slips, active devices, and **lock / unlock**. `setUserLocked` refuses admins, and locking deletes every session, so the user is signed out at once. Their carts are left alone; an admin cancels them separately if needed.
+  - Settings, plus a system card (mailer, delivery provider, cron, `APP_URL`, uploads folder) and "Send me a test email".
+  - `GET /admin/export/orders?days=30`: confirmed orders as CSV (UTF-8 BOM for Excel). `toCsv` prefixes cells that start with `= + - @` so they can't run as formulas.
+- Admin controls stay inside the business rules. There is no override of the 24h / 2h deadlines, no admin editing of members' lines and no refunds. Ask the product owner before adding any of these.
 - Settings: `minOrderValue` (applies to **new** carts only; existing carts keep their snapshot), `cartLifetimeHours` (24), `slipWindowHours` (2), and the bank account details shown to owners.
 - After an action removes its own form, redirect with a query flag and show an `Alert` banner. Otherwise the success message is lost.
 - Admin accounts come only from the seed. Public sign-up creates customers only.

@@ -37,7 +37,7 @@ export function AddToCartForm({
           {variants.map((v) => (
             <label
               key={v.id}
-              className={`cursor-pointer rounded-lg border px-3 py-2 text-sm has-checked:border-accent has-checked:bg-accent has-checked:text-on-accent ${
+              className={`inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm has-checked:border-accent has-focus-visible:ring-2 has-focus-visible:ring-ink/30 sm:min-h-10 has-checked:bg-accent has-checked:text-on-accent ${
                 v.available === 0 ? "cursor-not-allowed opacity-40 line-through" : "border-line"
               }`}
             >

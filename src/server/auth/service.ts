@@ -56,6 +56,20 @@ export async function authenticate(email: string, password: string): Promise<Use
   return user;
 }
 
+/**
+ * Admin control: a locked customer can't sign in, and locking ends all their sessions at once.
+ * Their carts are left as they are (an admin can cancel them separately). Admins can't be locked.
+ */
+export async function setUserLocked(userId: string, locked: boolean) {
+  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (!user) throw new AuthError("User not found");
+  if (user.role === "ADMIN") throw new AuthError("Admin accounts can't be locked");
+  await db.$transaction([
+    db.user.update({ where: { id: userId }, data: { locked } }),
+    ...(locked ? [db.session.deleteMany({ where: { userId } })] : []),
+  ]);
+}
+
 const DUMMY_HASH =
   "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 

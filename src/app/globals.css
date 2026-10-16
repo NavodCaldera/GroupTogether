@@ -26,7 +26,24 @@
   --color-danger: var(--danger);
 }
 
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+/* No double-tap zoom delay or grey flash on taps. */
+a,
+button,
+input,
+select,
+textarea,
+label {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
+  overflow-x: clip;
   background: var(--paper);
   color: var(--ink);
   font-family:

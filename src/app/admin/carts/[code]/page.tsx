@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/cart-bits";
 import { Alert, Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
-import { CANCELLABLE } from "@/lib/cart-rules";
+import { CANCELLABLE, cartTotal } from "@/lib/cart-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import {
   adminCancelAction,
@@ -10,6 +11,7 @@ import {
   deliveryStatusAction,
 } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
+import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { AdminForm } from "../../admin-form";
 
@@ -20,12 +22,16 @@ export default async function AdminCartPage({
   searchParams,
 }: PageProps<"/admin/carts/[code]">) {
   await requireAdmin();
+  await sweep();
   const [{ code }, { approved, booked }] = await Promise.all([params, searchParams]);
   const cart = await db.groupCart.findUnique({
     where: { code: code.toUpperCase() },
     include: {
       owner: { select: { name: true, phone: true, email: true } },
-      members: { include: { user: { select: { name: true, phone: true } } } },
+      members: {
+        include: { user: { select: { name: true, phone: true, email: true, locked: true } } },
+        orderBy: { joinedAt: "asc" },
+      },
       lines: {
         include: { variant: { include: { product: { select: { title: true, brand: true } } } } },
         orderBy: { variant: { product: { title: "asc" } } },
@@ -36,13 +42,26 @@ export default async function AdminCartPage({
   });
   if (!cart) notFound();
   const items = cart.lines.reduce((n, l) => n + l.qty, 0);
+  // What each member owes the owner (members settle with the owner outside the platform).
+  const shares = cart.members.map((m) => {
+    const lines = cart.lines.filter((l) => l.userId === m.userId);
+    return { ...m, items: lines.reduce((n, l) => n + l.qty, 0), total: cartTotal(lines) };
+  });
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-      <div className="flex flex-col gap-6">
+      <div className="flex min-w-0 flex-col gap-6">
         <PageHeader
           title={`Cart ${cart.code}`}
-          description={`${cart.name ? `${cart.name} · ` : ""}Owner ${cart.owner.name} · ${cart.owner.phone ?? ""} · ${cart.owner.email}`}
+          description={
+            <>
+              {cart.name && `${cart.name} · `}Owner{" "}
+              <Link href={`/admin/users/${cart.ownerId}`} className="text-accent underline">
+                {cart.owner.name}
+              </Link>{" "}
+              · {cart.owner.phone ?? ""} · {cart.owner.email}
+            </>
+          }
           actions={<StatusBadge status={cart.status} />}
         />
         {booked ? (
@@ -70,7 +89,7 @@ export default async function AdminCartPage({
                       {l.variant.colour && ` · ${l.variant.colour}`}
                     </span>
                   </td>
-                  <td className="py-1.5 text-right">× {l.qty}</td>
+                  <td className="py-1.5 text-right whitespace-nowrap">× {l.qty}</td>
                   <td className="py-1.5 text-right text-subtle">
                     {cart.members.find((m) => m.userId === l.userId)?.user.name}
                   </td>
@@ -79,8 +98,51 @@ export default async function AdminCartPage({
             </tbody>
           </table>
         </Card>
+        <Card>
+          <h2 className="mb-2 font-semibold">Members and their shares</h2>
+          <table className="w-full text-sm">
+            <tbody className="divide-y divide-line">
+              {shares.map((m) => (
+                <tr key={m.id}>
+                  <td className="py-1.5">
+                    <Link href={`/admin/users/${m.userId}`} className="hover:underline">
+                      {m.user.name}
+                    </Link>
+                    {m.userId === cart.ownerId && (
+                      <span className="ml-2">
+                        <Badge tone="info">Owner</Badge>
+                      </span>
+                    )}
+                    {m.user.locked && (
+                      <span className="ml-2">
+                        <Badge tone="bad">Locked</Badge>
+                      </span>
+                    )}
+                    <span className="block text-xs text-subtle">
+                      {m.user.phone ?? m.user.email}
+                    </span>
+                  </td>
+                  <td className="py-1.5 text-right text-subtle">
+                    {m.items} {m.items === 1 ? "item" : "items"}
+                  </td>
+                  <td className="py-1.5 text-right">{formatLKR(m.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <p className="mt-2 text-xs text-subtle">
+            Only the owner pays us. Members settle their share with the owner directly.
+          </p>
+        </Card>
         <Card className="text-sm">
           <h2 className="mb-2 font-semibold">Timeline</h2>
+          <p className="mb-1 text-subtle">
+            {cart.visibility === "PRIVATE" ? "Private" : "Public"} · minimum{" "}
+            {formatLKR(cart.minOrderValue)} (fixed when the cart started) ·{" "}
+            <a href={`/c/${cart.code}`} className="text-accent underline">
+              open the shopper view
+            </a>
+          </p>
           <p>
             Created {formatDateTime(cart.createdAt)} · expires {formatDateTime(cart.expiresAt)}
           </p>
@@ -175,7 +237,7 @@ export default async function AdminCartPage({
                   <form key={s} action={deliveryStatusAction}>
                     <input type="hidden" name="deliveryId" value={cart.delivery!.id} />
                     <input type="hidden" name="status" value={s} />
-                    <Button variant="secondary" className="min-h-8 text-xs">
+                    <Button variant="secondary" className="text-xs sm:min-h-8">
                       {s.replace("_", " ").toLowerCase()}
                     </Button>
                   </form>

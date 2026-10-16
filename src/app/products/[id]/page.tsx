@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProductImage, StockTypeBadge } from "@/components/cart-bits";
+import { ProductImage } from "@/components/cart-bits";
 import { Alert, Card } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
@@ -31,8 +31,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
       <ProductImage {...product} />
       <div className="flex flex-col gap-4">
         <div>
-          <StockTypeBadge stockType={product.stockType} />
-          <p className="mt-3 text-sm text-subtle">{product.brand}</p>
+          <p className="text-sm text-subtle">{product.brand}</p>
           <h1 className="text-2xl font-semibold tracking-tight">{product.title}</h1>
           <p className="mt-2 text-2xl font-bold">
             {formatLKR(product.price)}
@@ -46,7 +45,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
 
         {product.stockType === "B_GRADE" && product.defectNotes && (
           <Alert tone="info">
-            <strong>B-grade: </strong>
+            <strong>Defects: </strong>
             {product.defectNotes}
           </Alert>
         )}

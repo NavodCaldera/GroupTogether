@@ -2,18 +2,39 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { StockTypeBadge } from "@/components/cart-bits";
 import { Badge, EmptyState, PageHeader } from "@/components/ui";
+import type { ProductStatus } from "@/generated/prisma/client";
 import { formatLKR } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
+import { LOW_STOCK } from "@/server/admin-queries";
 import { db } from "@/server/db";
+import { Chip, ChipRow, SearchForm, hrefWith, param } from "../list-bits";
 
 export const metadata: Metadata = { title: "Products" };
 
-export default async function AdminProductsPage() {
+const STATUSES: ProductStatus[] = ["LIVE", "DRAFT", "ARCHIVED"];
+
+export default async function AdminProductsPage({ searchParams }: PageProps<"/admin/products">) {
   await requireAdmin();
+  const sp = await searchParams;
+  const status = STATUSES.find((s) => s === param(sp, "status"));
+  const low = param(sp, "stock") === "low";
+  const q = param(sp, "q");
   const products = await db.product.findMany({
+    where: {
+      status: low ? "LIVE" : status,
+      variants: low ? { some: { available: { lte: LOW_STOCK } } } : undefined,
+      OR: q
+        ? [
+            { title: { contains: q, mode: "insensitive" } },
+            { brand: { contains: q, mode: "insensitive" } },
+          ]
+        : undefined,
+    },
     include: { variants: { select: { available: true, reserved: true, sold: true } } },
     orderBy: { updatedAt: "desc" },
   });
+  const href = (values: Record<string, string | undefined>) =>
+    hrefWith("/admin/products", { q, ...values });
   return (
     <>
       <PageHeader
@@ -27,11 +48,25 @@ export default async function AdminProductsPage() {
           </Link>
         }
       />
+      <SearchForm action="/admin/products" q={q} placeholder="Title or brand" />
+      <ChipRow>
+        <Chip href={href({})} active={!status && !low}>
+          All
+        </Chip>
+        {STATUSES.map((s) => (
+          <Chip key={s} href={href({ status: s })} active={status === s && !low}>
+            {s.charAt(0) + s.slice(1).toLowerCase()}
+          </Chip>
+        ))}
+        <Chip href={href({ stock: "low" })} active={low}>
+          Low stock (≤ {LOW_STOCK} free in a size)
+        </Chip>
+      </ChipRow>
       {products.length === 0 ? (
-        <EmptyState title="No products yet" />
+        <EmptyState title={q || status || low ? "No products match" : "No products yet"} />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-line">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm whitespace-nowrap">
             <thead className="bg-muted text-left text-xs text-subtle">
               <tr>
                 <th className="px-3 py-2">Product</th>

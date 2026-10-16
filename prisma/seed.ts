@@ -7,14 +7,33 @@ import { randomBytes } from "node:crypto";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient, type User, type Variant } from "../src/generated/prisma/client";
 import { hashPassword } from "../src/server/auth/password";
+import { findKind } from "../src/lib/taxonomy";
 import { addHours, newCartCode } from "../src/lib/cart-rules";
 
 const db = new PrismaClient({
   adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
 });
 
-const SHOE_SIZES = ["UK 6", "UK 7", "UK 8", "UK 9", "UK 10", "UK 11"];
-const APPAREL_SIZES = ["S", "M", "L", "XL"];
+/** Audience and category id for each demo product (see src/lib/taxonomy.ts). */
+const KIND_OF: Record<string, ["MEN" | "WOMEN" | "BOY", string]> = {
+  "Court Classic leather sneaker": ["MEN", "men-sneakers"],
+  "Runner Air mesh trainer": ["MEN", "men-sneakers"],
+  "Canvas low-top": ["WOMEN", "women-sneakers"],
+  "Office derby shoe": ["MEN", "men-formal"],
+  "Trail hiker mid": ["MEN", "men-sneakers"],
+  "Slide sandal": ["WOMEN", "women-sandals"],
+  "School black shoe": ["BOY", "boy-shoes"],
+  "Basketball high-top": ["MEN", "men-sneakers"],
+  "Crew-neck cotton tee (3-pack)": ["MEN", "men-tshirts"],
+  "Oxford button-down shirt": ["MEN", "men-shirts"],
+  "Slim chino": ["MEN", "men-trousers"],
+  "Denim jacket": ["WOMEN", "women-jackets"],
+  "Running shorts": ["MEN", "men-shorts"],
+  "Hooded sweatshirt": ["MEN", "men-jackets"],
+  "Linen summer dress": ["WOMEN", "women-dresses"],
+  "Polo shirt": ["MEN", "men-tshirts"],
+  "Track pants": ["MEN", "men-trousers"],
+};
 
 type Seed = {
   title: string;
@@ -259,12 +278,16 @@ async function main() {
 
   const variants: (Variant & { price: number })[] = [];
   for (const p of PRODUCTS) {
-    const sizes = p.category === "SHOES" ? SHOE_SIZES : APPAREL_SIZES;
+    const [audience, kind] = KIND_OF[p.title] ?? ["MEN", "men-tshirts"];
+    // Same number of sizes as before, so the carts below keep pointing at the same variants.
+    const sizes = findKind(kind)!.sizes.slice(0, p.category === "SHOES" ? 6 : 4);
     const product = await db.product.create({
       data: {
         title: p.title,
         brand: p.brand,
         category: p.category,
+        audience,
+        kind,
         stockType: p.stockType,
         price: p.price,
         retailPrice: p.retail,

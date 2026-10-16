@@ -1,3 +1,4 @@
+import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { Field, Input, Select, Textarea } from "@/components/ui";
 import { saveProductAction } from "@/server/admin-actions";
 import { AdminForm } from "../admin-form";
@@ -7,7 +8,8 @@ type ProductValues = {
   title: string;
   brand: string;
   description: string;
-  category: string;
+  audience: string | null;
+  kind: string | null;
   stockType: string;
   defectNotes: string | null;
   price: { toString(): string };
@@ -26,12 +28,13 @@ export function ProductForm({ product }: { product?: ProductValues }) {
         <Input name="brand" defaultValue={product?.brand} required />
       </Field>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Category" name="category">
-          <Select name="category" defaultValue={product?.category ?? "SHOES"}>
-            <option value="SHOES">Shoes</option>
-            <option value="APPAREL">Apparel</option>
-          </Select>
-        </Field>
+        <TaxonomyFields
+          audience={product?.audience}
+          kind={product?.kind}
+          selectClass="min-h-11 rounded-lg border border-line bg-paper px-3 text-base outline-none focus:border-ink sm:min-h-10 sm:text-sm"
+        />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Stock type" name="stockType">
           <Select name="stockType" defaultValue={product?.stockType ?? "FACTORY_SURPLUS"}>
             <option value="FACTORY_SURPLUS">Factory surplus</option>

@@ -4,12 +4,14 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError, z } from "zod";
 import type { DeliveryStatus } from "@/generated/prisma/client";
+import { AuthError, setUserLocked } from "./auth/service";
 import { requireAdmin } from "./auth/session";
 import { CartError, cancelCart } from "./carts/service";
 import { approveSlip, rejectSlip } from "./carts/slips";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
 import { db } from "./db";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
+import { mailer } from "./notify/mailer";
 import { UploadError } from "./storage";
 
 export type AdminState = { error?: string; ok?: string };
@@ -19,7 +21,12 @@ async function attempt(fn: () => Promise<unknown>, ok?: string): Promise<AdminSt
     await fn();
     return ok ? { ok } : {};
   } catch (e) {
-    if (e instanceof CartError || e instanceof CatalogueError || e instanceof UploadError)
+    if (
+      e instanceof CartError ||
+      e instanceof CatalogueError ||
+      e instanceof UploadError ||
+      e instanceof AuthError
+    )
       return { error: e.message };
     if (e instanceof ZodError) return { error: e.issues[0]?.message ?? "Check the form" };
     throw e;
@@ -147,4 +154,38 @@ export async function saveSettingsAction(_p: AdminState, fd: FormData): Promise<
   }, "Settings saved. New carts use them; existing carts keep their minimum.");
   revalidatePath("/admin/settings");
   return res;
+}
+
+export async function lockUserAction(_p: AdminState, fd: FormData): Promise<AdminState> {
+  await requireAdmin();
+  const userId = str(fd, "userId");
+  const locked = str(fd, "locked") === "1";
+  const res = await attempt(
+    () => setUserLocked(userId, locked),
+    locked ? "Locked and signed out everywhere" : "Unlocked: they can sign in again",
+  );
+  revalidatePath("/admin/users", "layout");
+  return res;
+}
+
+/** Sends a test email to the signed-in admin, to check the Gmail SMTP set-up. */
+export async function testEmailAction(): Promise<AdminState> {
+  const admin = await requireAdmin();
+  try {
+    const m = mailer();
+    const res = await m.send({
+      to: admin.email,
+      subject: "GroupTogether test email",
+      text: `Hi ${admin.name},\n\nEmail from GroupTogether is working (${m.name} mailer).\n\n— GroupTogether`,
+    });
+    if (!res.ok) return { error: `Sending failed: ${res.error}` };
+    return {
+      ok:
+        m.name === "mock"
+          ? "The mock mailer accepted it (nothing is really sent until MAILER=gmail)"
+          : `Sent to ${admin.email}`,
+    };
+  } catch (e) {
+    return { error: (e as Error).message };
+  }
 }

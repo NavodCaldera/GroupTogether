@@ -41,7 +41,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
       <div className="flex flex-col gap-6">
         <div>
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+            <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">{title}</h1>
             <StatusBadge status={cart.status} />
             {cart.visibility === "PRIVATE" && <Badge>Private</Badge>}
           </div>
@@ -101,7 +101,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
                         <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
                           <Link
                             href={`/products/${l.variant.product.id}`}
-                            className="min-w-0 flex-1 hover:underline"
+                            className="min-w-0 basis-full hover:underline sm:basis-0 sm:flex-1"
                           >
                             {l.variant.product.title}
                             <span className="text-subtle">
@@ -121,16 +121,18 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
                                 max={Math.min(99, l.qty + l.variant.available)}
                                 defaultValue={l.qty}
                                 aria-label="Quantity"
-                                className="h-8 w-16 rounded border border-line bg-paper px-2"
+                                className="h-11 w-16 rounded-lg border border-line bg-paper px-2 text-base sm:h-8 sm:rounded sm:text-sm"
                               />
-                              <button className="h-8 rounded border border-line px-2 text-xs hover:bg-muted">
+                              <button className="h-11 rounded-lg border border-line px-3 text-sm hover:bg-muted sm:h-8 sm:rounded sm:px-2 sm:text-xs">
                                 Update
                               </button>
                             </form>
                           ) : (
                             <span className="text-subtle">× {l.qty}</span>
                           )}
-                          <span className="w-28 text-right">{formatLKR(lineTotal(l))}</span>
+                          <span className="ml-auto text-right sm:w-28">
+                            {formatLKR(lineTotal(l))}
+                          </span>
                         </li>
                       ))}
                     </ul>
@@ -156,7 +158,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
                 href={whatsappShareUrl(shareText)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex min-h-10 items-center rounded-lg bg-[#25D366] px-4 text-sm font-medium text-black hover:opacity-90"
+                className="inline-flex min-h-11 items-center rounded-lg bg-[#25D366] px-4 text-sm font-medium text-black hover:opacity-90 sm:min-h-10"
               >
                 WhatsApp
               </a>
@@ -206,7 +208,7 @@ function StatusPanel({
   const shopLink = (
     <Link
       href={`/shop?cart=${cart.code}`}
-      className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90"
+      className="inline-flex min-h-11 items-center justify-center sm:min-h-10 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90"
     >
       Add items
     </Link>
@@ -218,7 +220,7 @@ function StatusPanel({
         return (
           <Link
             href={`/sign-in?next=/c/${cart.code}`}
-            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent"
+            className="inline-flex min-h-11 items-center justify-center sm:min-h-10 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent"
           >
             Sign in to join this cart
           </Link>
@@ -257,7 +259,7 @@ function StatusPanel({
           </p>
           <Link
             href={`/c/${cart.code}/pay`}
-            className="inline-flex min-h-10 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent"
+            className="inline-flex min-h-11 items-center justify-center sm:min-h-10 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent"
           >
             Pay {formatLKR(cart.total)} and upload the slip
           </Link>
