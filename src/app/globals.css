@@ -1,0 +1,39 @@
+@import "tailwindcss";
+
+:root {
+  /* GroupTogether: ink + one green accent, amber for deadlines. Follows the device's day/night. */
+  color-scheme: light dark;
+  --paper: light-dark(#ffffff, #0d1110);
+  --ink: light-dark(#111614, #eef2f0);
+  --accent: light-dark(#0b7a55, #3fcf98);
+  --on-accent: light-dark(#ffffff, #04140e);
+  --muted: light-dark(#f2f5f3, #18201d);
+  --line: light-dark(#dde3e0, #2a3430);
+  --subtle: light-dark(#5b6762, #9aa7a1);
+  --warn: light-dark(#a35a00, #f2b45c);
+  --danger: light-dark(#b42318, #ff8a80);
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-subtle: var(--subtle);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+}

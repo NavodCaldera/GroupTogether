@@ -1,0 +1,297 @@
+// GroupTogether data model. See CLAUDE.md "Business rules".
+// Money is Decimal(14, 2), never Float.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Identity ──────────────────────────────────────────────────────────────
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+model User {
+  id           String   @id @default(cuid())
+  role         Role     @default(CUSTOMER)
+  name         String
+  email        String   @unique
+  phone        String?  @unique
+  passwordHash String
+  /// Default drop-off for carts this user owns
+  address      String?
+  city         String?
+  locked       Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  sessions      Session[]
+  ownedCarts    GroupCart[]    @relation("CartOwner")
+  memberships   CartMember[]
+  lines         CartLine[]
+  slips         PaymentSlip[]  @relation("SlipUploader")
+  reviewedSlips PaymentSlip[]  @relation("SlipReviewer")
+  invitesSent   CartInvite[]   @relation("InviteFrom")
+  invites       CartInvite[]   @relation("InviteTo")
+  notifications Notification[]
+}
+
+model Session {
+  /// SHA-256 of the cookie token
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─── Catalogue ─────────────────────────────────────────────────────────────
+
+enum Category {
+  SHOES
+  APPAREL
+}
+
+enum StockType {
+  FACTORY_SURPLUS
+  B_GRADE
+}
+
+enum ProductStatus {
+  DRAFT
+  LIVE
+  ARCHIVED
+}
+
+model Product {
+  id           String        @id @default(cuid())
+  title        String
+  brand        String
+  description  String        @default("")
+  category     Category
+  stockType    StockType
+  /// Required for B_GRADE: what is wrong with it, shown up front
+  defectNotes  String?
+  retailPrice  Decimal?      @db.Decimal(14, 2)
+  price        Decimal       @db.Decimal(14, 2)
+  status       ProductStatus @default(DRAFT)
+  photoKey     String?
+  photoType    String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  variants Variant[]
+
+  @@index([status, category])
+}
+
+/// One size/colour of a product. available + reserved + sold is everything ever stocked.
+model Variant {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  size      String
+  colour    String  @default("")
+  /// Free to add to a cart
+  available Int     @default(0)
+  /// Locked in carts that are not yet confirmed
+  reserved  Int     @default(0)
+  /// Turned into sales when a cart is confirmed
+  sold      Int     @default(0)
+
+  lines CartLine[]
+
+  @@unique([productId, size, colour])
+}
+
+// ─── Group carts ───────────────────────────────────────────────────────────
+
+enum Visibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum CartStatus {
+  /// Below the minimum: join, add, change, leave
+  OPEN
+  /// At or above the minimum, members notified; the owner can accept
+  READY
+  /// Owner accepted: frozen, owner has slipDueAt to upload one bank slip
+  AWAITING_SLIP
+  /// Slip uploaded, waiting for an admin
+  SLIP_REVIEW
+  CONFIRMED
+  DISPATCHED
+  DELIVERED
+  EXPIRED
+  CANCELLED
+}
+
+model GroupCart {
+  id              String     @id @default(cuid())
+  /// Share code in /c/<code>
+  code            String     @unique
+  name            String     @default("")
+  ownerId         String
+  owner           User       @relation("CartOwner", fields: [ownerId], references: [id])
+  visibility      Visibility @default(PUBLIC)
+  status          CartStatus @default(OPEN)
+  /// Snapshot of Settings.minOrderValue when the cart started
+  minOrderValue   Decimal    @db.Decimal(14, 2)
+  /// Sum of qty × unitPrice over all lines, kept in step in the same transaction
+  total           Decimal    @default(0) @db.Decimal(14, 2)
+  expiresAt       DateTime
+  readyAt         DateTime?
+  acceptedAt      DateTime?
+  slipDueAt       DateTime?
+  confirmedAt     DateTime?
+  deliveryAddress String?
+  deliveryCity    String?
+  deliveryPhone   String?
+  closedReason    String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  members  CartMember[]
+  lines    CartLine[]
+  slips    PaymentSlip[]
+  invites  CartInvite[]
+  delivery Delivery?
+
+  @@index([status, visibility, createdAt])
+  @@index([status, expiresAt])
+  @@index([status, slipDueAt])
+}
+
+model CartMember {
+  id       String    @id @default(cuid())
+  cartId   String
+  cart     GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User      @relation(fields: [userId], references: [id])
+  joinedAt DateTime  @default(now())
+
+  @@unique([cartId, userId])
+  @@index([userId])
+}
+
+/// One member's quantity of one variant. Its stock is locked while the cart is OPEN, READY,
+/// AWAITING_SLIP or SLIP_REVIEW; closed carts keep their lines as history.
+model CartLine {
+  id        String    @id @default(cuid())
+  cartId    String
+  cart      GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  variantId String
+  variant   Variant   @relation(fields: [variantId], references: [id])
+  qty       Int
+  /// Product price when first added
+  unitPrice Decimal   @db.Decimal(14, 2)
+  createdAt DateTime  @default(now())
+
+  @@unique([cartId, userId, variantId])
+}
+
+enum SlipStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// The owner's one bank slip for the whole cart. A rejected slip can be replaced.
+model PaymentSlip {
+  id           String     @id @default(cuid())
+  cartId       String
+  cart         GroupCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  uploaderId   String
+  uploader     User       @relation("SlipUploader", fields: [uploaderId], references: [id])
+  amount       Decimal    @db.Decimal(14, 2)
+  storageKey   String
+  contentType  String
+  status       SlipStatus @default(PENDING)
+  reviewNote   String?
+  reviewerId   String?
+  reviewer     User?      @relation("SlipReviewer", fields: [reviewerId], references: [id])
+  reviewedAt   DateTime?
+  createdAt    DateTime   @default(now())
+
+  @@index([status, createdAt])
+  @@index([cartId])
+}
+
+model CartInvite {
+  id            String    @id @default(cuid())
+  cartId        String
+  cart          GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  invitedById   String
+  invitedBy     User      @relation("InviteFrom", fields: [invitedById], references: [id])
+  invitedUserId String
+  invitedUser   User      @relation("InviteTo", fields: [invitedUserId], references: [id])
+  createdAt     DateTime  @default(now())
+
+  @@unique([cartId, invitedUserId])
+}
+
+model Notification {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String
+  body      String
+  href      String?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, readAt])
+}
+
+// ─── Delivery ──────────────────────────────────────────────────────────────
+
+enum DeliveryStatus {
+  BOOKED
+  PICKED_UP
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+/// One PickMe drop per confirmed cart, to the owner. The owner pays the driver directly:
+/// the platform never charges, collects or refunds the fee (quotedFee is shown only).
+model Delivery {
+  id          String         @id @default(cuid())
+  cartId      String         @unique
+  cart        GroupCart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  provider    String
+  externalRef String?
+  status      DeliveryStatus @default(BOOKED)
+  quotedFee   Decimal?       @db.Decimal(14, 2)
+  /// Always the cart owner (the receiver)
+  paidBy      String         @default("OWNER")
+  driverName  String?
+  driverPhone String?
+  trackingUrl String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+}
+
+// ─── Settings ──────────────────────────────────────────────────────────────
+
+/// One row (id = 1). Changes apply to carts started afterwards (minOrderValue is snapshotted).
+model Settings {
+  id                Int     @id @default(1)
+  minOrderValue     Decimal @default(50000) @db.Decimal(14, 2)
+  cartLifetimeHours Int     @default(24)
+  slipWindowHours   Int     @default(2)
+  bankName          String  @default("")
+  bankBranch        String  @default("")
+  accountName       String  @default("")
+  accountNumber     String  @default("")
+}
