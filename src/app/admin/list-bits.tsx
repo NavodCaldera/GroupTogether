@@ -59,11 +59,14 @@ export function SearchForm({
   action,
   q,
   placeholder,
+  label = placeholder,
   keep = {},
 }: {
   action: string;
   q?: string;
   placeholder: string;
+  /** Screen-reader label, when the placeholder is shortened to fit a phone. */
+  label?: string;
   keep?: Record<string, string | undefined>;
 }) {
   return (
@@ -76,7 +79,7 @@ export function SearchForm({
         type="search"
         defaultValue={q}
         placeholder={placeholder}
-        aria-label={placeholder}
+        aria-label={label}
         className="min-w-0 flex-1"
       />
       <Button type="submit" variant="secondary">

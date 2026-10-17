@@ -1,11 +1,25 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Badge, EmptyState, PageHeader } from "@/components/ui";
-import type { Prisma } from "@/generated/prisma/client";
-import { formatDateTime } from "@/lib/format";
+import { StatusBadge } from "@/components/cart-bits";
+import { Badge, EmptyState, PageHeader, cx } from "@/components/ui";
+import type { Prisma, Role } from "@/generated/prisma/client";
+import { type CartStatus, HOLDS_STOCK } from "@/lib/cart-rules";
+import { formatDate, formatDateTime } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
+import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
-import { Chip, ChipRow, Pager, SearchForm, Table, hrefWith, pageNumber, param } from "../list-bits";
+import { FilterSelect } from "../filter-select";
+import {
+  Chip,
+  ChipRow,
+  Count,
+  Pager,
+  SearchForm,
+  Table,
+  hrefWith,
+  pageNumber,
+  param,
+} from "../list-bits";
 
 export const metadata: Metadata = { title: "Users" };
 
@@ -17,45 +31,81 @@ const FILTERS = {
   locked: { locked: true },
 } satisfies Record<string, Prisma.UserWhereInput>;
 type Filter = keyof typeof FILTERS;
+const FILTER_LABEL: Record<Filter, string> = {
+  customers: "Buyers",
+  sellers: "Factory sellers",
+  admins: "Admins",
+  locked: "Locked",
+};
 
+/**
+ * Everyone with an account. Phones get one card per user (tap anywhere to open, tap the mobile to
+ * call); from `md` up a table, with the city column from `lg`. Role chips carry counts that
+ * follow the search.
+ */
 export default async function UsersPage({ searchParams }: PageProps<"/admin/users">) {
   await requireAdmin();
+  await sweep();
   const sp = await searchParams;
   const show = (Object.keys(FILTERS) as Filter[]).find((f) => f === param(sp, "show"));
   const q = param(sp, "q");
   const page = pageNumber(sp);
 
-  const rows = await db.user.findMany({
-    where: {
-      ...(show ? FILTERS[show] : {}),
-      OR: q
-        ? [
-            { name: { contains: q, mode: "insensitive" } },
-            { email: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q.replace(/[\s-]/g, "").replace(/^\+94/, "0") } },
-            { city: { contains: q, mode: "insensitive" } },
-            { company: { contains: q, mode: "insensitive" } },
-            { company: { contains: q, mode: "insensitive" } },
-          ]
-        : undefined,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      phone: true,
-      city: true,
-      company: true,
-      role: true,
-      locked: true,
-      createdAt: true,
-      _count: { select: { ownedCarts: true, memberships: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    skip: (page - 1) * PAGE,
-    take: PAGE + 1,
-  });
+  const search: Prisma.UserWhereInput | undefined = q
+    ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" } },
+          { email: { contains: q, mode: "insensitive" } },
+          { phone: { contains: q.replace(/[\s-]/g, "").replace(/^\+94/, "0") } },
+          { city: { contains: q, mode: "insensitive" } },
+          { company: { contains: q, mode: "insensitive" } },
+        ],
+      }
+    : undefined;
+
+  const [rows, byRole, lockedCount] = await Promise.all([
+    db.user.findMany({
+      where: { ...(show ? FILTERS[show] : {}), ...search },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phone: true,
+        city: true,
+        company: true,
+        role: true,
+        locked: true,
+        createdAt: true,
+        _count: { select: { ownedCarts: true, memberships: true, products: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAGE,
+      take: PAGE + 1,
+    }),
+    db.user.groupBy({ by: ["role"], where: search, _count: true }),
+    db.user.count({ where: { ...search, locked: true } }),
+  ]);
   const users = rows.slice(0, PAGE);
+
+  // The cart each buyer is in right now (one cart at a time, so at most one).
+  const live = await db.cartMember.findMany({
+    where: {
+      userId: { in: users.map((u) => u.id) },
+      cart: { status: { in: [...HOLDS_STOCK] } },
+    },
+    select: { userId: true, cart: { select: { code: true, status: true } } },
+  });
+  const liveCart = new Map(live.map((m) => [m.userId, m.cart]));
+
+  const roleCount = (role: Role) => byRole.find((r) => r.role === role)?._count ?? 0;
+  const counts: Record<Filter | "all", number> = {
+    all: byRole.reduce((n, r) => n + r._count, 0),
+    customers: roleCount("CUSTOMER"),
+    sellers: roleCount("SELLER"),
+    admins: roleCount("ADMIN"),
+    locked: lockedCount,
+  };
+  const shown = counts[show ?? "all"];
   const href = (values: Record<string, string | number | undefined>) =>
     hrefWith("/admin/users", { show, q, ...values });
 
@@ -63,88 +113,259 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
     <>
       <PageHeader
         title="Users"
-        description="Buyers sign up themselves. Factory sellers are added here; admins come only from the seed."
+        description="Buyers sign up themselves. Add factory sellers here; admins come only from the seed."
         actions={
           <Link
             href="/admin/users/new-seller"
-            className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
+            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
           >
-            Add factory seller
+            <span aria-hidden>+</span> Add factory seller
           </Link>
         }
       />
-      <SearchForm
-        action="/admin/users"
-        q={q}
-        placeholder="Name, company, email, mobile or city"
-        keep={{ show }}
-      />
-      <ChipRow>
-        <Chip href={href({ show: undefined })} active={!show}>
-          All
-        </Chip>
-        <Chip href={href({ show: "customers" })} active={show === "customers"}>
-          Buyers
-        </Chip>
-        <Chip href={href({ show: "sellers" })} active={show === "sellers"}>
-          Factory sellers
-        </Chip>
-        <Chip href={href({ show: "admins" })} active={show === "admins"}>
-          Admins
-        </Chip>
-        <Chip href={href({ show: "locked" })} active={show === "locked"}>
-          Locked
-        </Chip>
-      </ChipRow>
-      {users.length === 0 ? (
-        <EmptyState title={q ? `No users match "${q}"` : "No users"} />
-      ) : (
-        <Table
-          head={
-            <>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Mobile</th>
-              <th>City</th>
-              <th className="text-right">Started</th>
-              <th className="text-right">Joined</th>
-              <th>Signed up</th>
-            </>
-          }
-        >
-          {users.map((u) => (
-            <tr key={u.id}>
-              <td>
-                <Link href={`/admin/users/${u.id}`} className="text-accent underline">
-                  {u.name}
-                </Link>
-                {u.role === "ADMIN" && (
-                  <span className="ml-2">
-                    <Badge tone="info">Admin</Badge>
-                  </span>
-                )}
-                {u.role === "SELLER" && (
-                  <span className="ml-2">
-                    <Badge tone="info">Seller · {u.company}</Badge>
-                  </span>
-                )}
-                {u.locked && (
-                  <span className="ml-2">
-                    <Badge tone="bad">Locked</Badge>
-                  </span>
-                )}
-              </td>
-              <td>{u.email}</td>
-              <td>{u.phone ?? "—"}</td>
-              <td>{u.city ?? "—"}</td>
-              <td className="text-right">{u._count.ownedCarts}</td>
-              <td className="text-right">{u._count.memberships}</td>
-              <td className="text-subtle">{formatDateTime(u.createdAt)}</td>
-            </tr>
+
+      {/* One block, so the layout's gap doesn't open up between search, filters and count. */}
+      <div>
+        <SearchForm
+          action="/admin/users"
+          q={q}
+          placeholder="Name, email, mobile, city"
+          label="Search by name, company, email, mobile or city"
+          keep={{ show }}
+        />
+        {/* Phones: one dropdown with counts. From sm up: the chips. */}
+        <FilterSelect
+          action="/admin/users"
+          name="show"
+          label="Filter by role"
+          value={show}
+          keep={{ q }}
+          options={[
+            { value: "", label: `All users (${counts.all})` },
+            ...(Object.keys(FILTERS) as Filter[]).map((f) => ({
+              value: f,
+              label: `${FILTER_LABEL[f]} (${counts[f]})`,
+            })),
+          ]}
+        />
+        <ChipRow className="hidden sm:flex">
+          <Chip href={href({ show: undefined, page: undefined })} active={!show}>
+            All <Count n={counts.all} />
+          </Chip>
+          {(Object.keys(FILTERS) as Filter[]).map((f) => (
+            <Chip key={f} href={href({ show: f, page: undefined })} active={show === f}>
+              {FILTER_LABEL[f]} <Count n={counts[f]} tone={f === "locked" ? "alert" : "muted"} />
+            </Chip>
           ))}
-        </Table>
+        </ChipRow>
+
+        <p className="text-sm text-subtle">
+          {shown} {shown === 1 ? "user" : "users"}
+          {q && ` matching "${q}"`}
+          {show && ` · ${FILTER_LABEL[show].toLowerCase()}`}
+        </p>
+      </div>
+
+      {users.length === 0 ? (
+        <EmptyState title={q ? `No users match "${q}"` : "No users here"}>
+          {(q || show) && (
+            <Link href="/admin/users" className="text-accent underline">
+              Show everyone
+            </Link>
+          )}
+        </EmptyState>
+      ) : (
+        <>
+          {/* Phones and small tablets: one card per user, two columns from sm. */}
+          <ul className="grid gap-2 sm:grid-cols-2 md:hidden">
+            {users.map((u) => {
+              const cart = liveCart.get(u.id);
+              return (
+                <li
+                  key={u.id}
+                  className="relative flex gap-3 rounded-xl border border-line p-3 hover:bg-muted/50"
+                >
+                  <Avatar name={u.name} role={u.role} />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-start justify-between gap-2">
+                      <Link
+                        href={`/admin/users/${u.id}`}
+                        className="min-w-0 truncate font-semibold after:absolute after:inset-0 after:rounded-xl"
+                      >
+                        {u.name}
+                      </Link>
+                      <span aria-hidden className="text-subtle">
+                        ›
+                      </span>
+                    </div>
+                    <p className="truncate text-xs text-subtle">{u.email}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      <RoleBadge role={u.role} company={u.company} />
+                      {u.locked && <Badge tone="bad">Locked</Badge>}
+                    </div>
+                    <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      {u.phone && (
+                        <a
+                          href={`tel:${u.phone}`}
+                          className="relative z-10 inline-flex min-h-9 items-center text-accent underline"
+                        >
+                          {u.phone}
+                        </a>
+                      )}
+                      {u.city && <span className="text-subtle">{u.city}</span>}
+                    </div>
+                    <div className="mt-2 flex items-center justify-between gap-2 border-t border-line pt-2 text-xs text-subtle">
+                      <Activity user={u} cart={cart} />
+                      <span className="ml-auto shrink-0" title={formatDateTime(u.createdAt)}>
+                        Since {formatDate(u.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {/* Tablets and desktop: a table; the city column joins from lg. */}
+          <div className="hidden md:block">
+            <Table
+              head={
+                <>
+                  <th>User</th>
+                  <th>Role</th>
+                  <th>Mobile</th>
+                  <th className="hidden lg:table-cell">City</th>
+                  <th>Activity</th>
+                  <th className="text-right">Signed up</th>
+                </>
+              }
+            >
+              {users.map((u) => (
+                <tr key={u.id} className="hover:bg-muted/50">
+                  <td>
+                    <div className="flex items-center gap-3">
+                      <Avatar name={u.name} role={u.role} />
+                      <div className="min-w-0">
+                        <Link
+                          href={`/admin/users/${u.id}`}
+                          className="block max-w-56 truncate font-medium text-accent underline lg:max-w-72"
+                        >
+                          {u.name}
+                        </Link>
+                        <span className="block max-w-56 truncate text-xs text-subtle lg:max-w-72">
+                          {u.email}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="flex flex-col items-start gap-1">
+                      <RoleBadge role={u.role} company={u.company} />
+                      {u.locked && <Badge tone="bad">Locked</Badge>}
+                    </div>
+                  </td>
+                  <td className="tabular-nums">
+                    {u.phone ? (
+                      <a href={`tel:${u.phone}`} className="hover:underline">
+                        {u.phone}
+                      </a>
+                    ) : (
+                      <span className="text-subtle">—</span>
+                    )}
+                  </td>
+                  <td className="hidden lg:table-cell">
+                    {u.city ?? <span className="text-subtle">—</span>}
+                  </td>
+                  <td>
+                    <Activity user={u} cart={liveCart.get(u.id)} />
+                  </td>
+                  <td className="text-right text-subtle" title={formatDateTime(u.createdAt)}>
+                    {formatDate(u.createdAt)}
+                  </td>
+                </tr>
+              ))}
+            </Table>
+          </div>
+        </>
       )}
       <Pager page={page} hasNext={rows.length > PAGE} href={(p) => href({ page: p })} />
     </>
+  );
+}
+
+/** Initials in a circle, tinted by role. */
+function Avatar({ name, role }: { name: string; role: Role }) {
+  const initials = name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]?.toUpperCase())
+    .join("");
+  return (
+    <span
+      aria-hidden
+      className={cx(
+        "grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold",
+        role === "CUSTOMER" && "bg-muted text-ink",
+        role === "SELLER" && "bg-accent/15 text-accent",
+        role === "ADMIN" && "bg-ink text-paper",
+      )}
+    >
+      {initials || "?"}
+    </span>
+  );
+}
+
+function RoleBadge({ role, company }: { role: Role; company: string | null }) {
+  if (role === "ADMIN") return <Badge tone="info">Admin</Badge>;
+  if (role === "SELLER")
+    return (
+      <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">
+        <Badge tone="info">Seller</Badge>
+        {company && <span className="truncate text-xs text-subtle">{company}</span>}
+      </span>
+    );
+  return <Badge>Buyer</Badge>;
+}
+
+/** What the user does here: a buyer's carts (and the one they are in now), a seller's products. */
+function Activity({
+  user,
+  cart,
+}: {
+  user: {
+    role: Role;
+    _count: { ownedCarts: number; memberships: number; products: number };
+  };
+  cart?: { code: string; status: CartStatus };
+}) {
+  if (user.role === "SELLER") {
+    const n = user._count.products;
+    return (
+      <span className="text-subtle">
+        {n} {n === 1 ? "product" : "products"}
+      </span>
+    );
+  }
+  if (user.role === "ADMIN") return <span className="text-subtle">Back office</span>;
+  const { ownedCarts, memberships } = user._count;
+  return (
+    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+      {cart && (
+        <Link
+          href={`/admin/carts/${cart.code}`}
+          className="relative z-10 inline-flex items-center gap-1.5"
+          aria-label={`In cart ${cart.code}`}
+        >
+          <span className="font-mono text-xs text-accent underline">{cart.code}</span>
+          <StatusBadge status={cart.status} />
+        </Link>
+      )}
+      <span className="text-subtle">
+        {ownedCarts + memberships === 0
+          ? "No carts yet"
+          : `${ownedCarts} started · ${memberships} joined`}
+      </span>
+    </span>
   );
 }
