@@ -32,7 +32,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 **Catalogue:**
 
-- Products have a category (`SHOES` or `APPAREL`), a stock type (`FACTORY_SURPLUS` or `B_GRADE`), a price and an optional `retailPrice` (shown struck through), plus one photo (JPEG, PNG or WebP up to 5 MB, stored on local disk and served by `/api/photos/[id]` with an ETag).
+- Products have a category (`SHOES` or `APPAREL`), a stock type (`FACTORY_SURPLUS` or `B_GRADE`), a price and an optional `retailPrice` (shown struck through; `retailSaving()` turns the live ones into the home page's "On average X% below retail", needing at least 3 products priced under retail), plus one photo (JPEG, PNG or WebP up to 5 MB, stored on local disk and served by `/api/photos/[id]` with an ETag).
 - **B-grade requires `defectNotes`**, which the zod refine in `productSchema` enforces. They are shown up front.
 - Only LIVE products are listed or can be added to carts. DRAFT is hidden and ARCHIVED is retired.
 - Variants are size plus colour, for example "UK 9" for shoes or "M" for apparel.
@@ -63,3 +63,4 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
   - Sellers change details and stock only on their own drafts. `saveProduct(..., sellerId)` re-checks `status: DRAFT` in the same update, and the transitions use guarded `updateMany`. Live products are managed by the admin, since we hold the stock.
   - Sellers never see buyers, carts or money. Their dashboard `/seller` shows their products, statuses and stock counts only.
   - `ProductForm` takes `action` and `seller` (no status field for sellers). `StockTable` (`src/components/stock-table.tsx`) and `ProductStatusBadge` (`cart-bits.tsx`) are shared by admin and seller pages.
+    `suggestProducts` in catalogue.ts feeds the public `/api/suggest` (LIVE products only, title/brand match, max 6).

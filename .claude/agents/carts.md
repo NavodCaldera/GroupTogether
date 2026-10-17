@@ -38,7 +38,10 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
    - Increase: `variant.updateMany({ where: { id, available: { gte: delta }, product: { status: "LIVE" } }, data: { available: -delta, reserved: +delta } })`. If the count is 0, throw "Only N more available" or "sold out".
    - Decrease: release the difference.
 3. Only OPEN and READY carts are editable, and only before `expiresAt`. Adding to a cart joins it (`cartMember` upsert). `setLine(..., { add: true })` adds to the existing quantity (at most 99).
-3b. **One cart at a time:** `createCart`, `joinCart` and `setLine` call `assertOneCart` (per-user advisory lock) and refuse when the buyer is already in another active cart (`isActiveCart` / `activeCartOf`).
+   3b. **One cart at a time:** `createCart`, `joinCart` and `setLine` call `assertOneCart` (per-user advisory lock) and refuse when the buyer is already in another active cart (`isActiveCart` / `activeCartOf`).
+   3c. **Merge requests (rule 13):** `requestMerge` (buyer in an active cart asks to join another; checked with `mergeBlockReason`; one pending per buyer by a partial unique index), `acceptMerge` (target owner only; locks both carts in id order; moves the lines without touching stock, adds the member, deletes the old cart or removes the member from it, recomputes both, notifies), `declineMerge`, `cancelMerge`. Table `CartMergeRequest` (`PENDING|ACCEPTED|DECLINED|CANCELLED`).
+   3d. **Open carts order (rule 14):** `recentCarts(take, now, userId, { q, near })` filters public OPEN/READY carts the user isn't in, searches name/code/owner name, and with `near` (the buyer's pin) sorts by `distanceKm` to the cart's `deliveryLat/Lng` or else the owner's pin; unknown pins last. Pure helpers in `src/lib/distance.ts`.
+   3e. **Cart name (rule 15):** `createCart` names a cart `"<owner name>'s cart"`; there is no name input in the UI.
 4. After any line change, `recompute()` sums the lines into `total` and applies `statusAfterChange`. When the cart becomes READY, `notify(members, readyNotice)` runs **after** the commit.
 5. `acceptAndPay(owner)` is owner only. It needs READY with total ≥ min, stores the drop-off details (zod `acceptSchema`; the phone must be `07XXXXXXXX`), and sets `slipDueAt = now + slipWindowHours`.
 6. Cancelling:
@@ -63,3 +66,9 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 - Add every new transition to `cart-rules.ts` with unit tests, and to the integration file.
 - Pass a `now` argument instead of mocking the clock.
+
+Member location (rule 13): `joinCart(userId, cartId, location?)` stores address, city and map pin on `CartMember` and the profile; `createCart` and the implicit join in `setLine` copy the profile pin; `acceptAndPay` copies the owner's pin to `GroupCart.deliveryLat/deliveryLng`. Actions (`joinAction`, add-to-cart, create) require the pin; no pin sends the buyer to `/account/location`.
+Owner chat (rule 14): `src/server/carts/chat.ts` (`sendMessage`, `listMessages`, `threadsFor`), `GET /api/chat`. A thread is keyed by (cart, participant); the owner replies but cannot start one.
+Dashboard next step per status/role: `nextStep` and `journeyStep` in `src/lib/cart-rules.ts` (unit tests in `dashboard-step.test.ts`).
+Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.
+Accept & pay takes the drop-off from the owner's profile (address, city, phone) in `acceptAction`; there are no address fields on the cart page. Missing profile data → error pointing to the profile.

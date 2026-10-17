@@ -60,8 +60,11 @@ It is a standalone project: it shares no code, database or rules with any other 
    - Any member can invite a registered user by email or mobile number; the invitee gets an in-app notice.
    - Anyone with the link can join while the cart is OPEN or READY.
 10. **B-grade products must list their defects** (`defectNotes`), and they are shown up front on the product page.
-11b. **Change log:** every change the product owner asks for is noted in `docs/CHANGES.md` and the matching agent files are updated in the same piece of work.
-11c. **One cart at a time** (product owner, 2026-10-17): a buyer can own or be in only one active cart (`OPEN`/`READY` not expired, `AWAITING_SLIP` in its window, `SLIP_REVIEW`). Starting, joining or adding to another is refused until it is confirmed, expired, cancelled or left. `isActiveCart` in `cart-rules.ts`; `assertOneCart` in `carts/service.ts`; the product page hides "Start a new cart" and `/carts/new` shows a notice when the buyer already has one.
+    11b. **Change log:** every change the product owner asks for is noted in `docs/CHANGES.md` and the matching agent files are updated in the same piece of work.
+    11f. **Cart names** (product owner, 2026-10-17): a cart is named after its owner ("Navod Caldera's cart"); buyers don't type a name (`createCart` sets it).
+    11e. **Open carts nearest-first** (product owner, 2026-10-17): `/carts` sorts by distance from the signed-in buyer's map pin to each cart's delivery point (`distanceKm`, `sortNearest` in `src/lib/distance.ts`, `recentCarts` in `carts/queries.ts`), unknown pins last, newest first when the buyer has no pin; plus a search box (name, code, owner name).
+    11d. **Merge into a friend's cart** (product owner, 2026-10-17): a buyer in an active cart can ask to join another cart; its owner accepts or declines. On accept their items move over (stock stays locked), they join, and their old cart is deleted (or they just leave it if it was someone else's). Both carts must be OPEN/READY and unexpired; a cart they own must have no other members. `mergeBlockReason` in `cart-rules.ts`; `requestMerge`/`acceptMerge`/`declineMerge`/`cancelMerge` in `carts/service.ts`; table `CartMergeRequest`.
+    11c. **One cart at a time** (product owner, 2026-10-17): a buyer can own or be in only one active cart (`OPEN`/`READY` not expired, `AWAITING_SLIP` in its window, `SLIP_REVIEW`). Starting, joining or adding to another is refused until it is confirmed, expired, cancelled or left. `isActiveCart` in `cart-rules.ts`; `assertOneCart` in `carts/service.ts`; the product page hides "Start a new cart" and `/carts/new` shows a notice when the buyer already has one.
 11. **Accounts and roles** (product owner, 2026-10-16).
     - **Buyers** (`CUSTOMER`) sign up themselves with name, email, a Sri Lankan mobile (`07XXXXXXXX`), address, city and password. They land on `/dashboard`.
     - **Factory sellers** (`SELLER`, with a `company`) are created by an admin at `/admin/users/new-seller`, or by the seed. They land on `/seller`.
@@ -140,7 +143,7 @@ Money is `Decimal(14,2)`.
 | `/admin/deliveries`                        | admin                | Confirmed carts to book; drops in progress with status buttons; recently delivered                                                                                    |
 | `/admin/products`, `/new`, `/[id]`         | admin                | Search, status (incl. In review), seller and low-stock filters, free / in-cart / sold counts; edit; stock by size; publish or return a seller's product               |
 | `/admin/users`, `/admin/users/[id]`        | admin                | Search and filter users (buyers, sellers, admins, locked); a user's carts, shares, slips and devices; lock or unlock; `/admin/users/new-seller` adds a factory seller |
-| `/admin/settings`                          | admin                | Minimum, time windows, bank account; system status (delivery, cron)                                                                        |
+| `/admin/settings`                          | admin                | Minimum, time windows, bank account; system status (delivery, cron)                                                                                                   |
 | `GET /admin/export/orders`                 | admin                | Confirmed orders of the last `?days=` (default 30) as CSV                                                                                                             |
 | `GET /api/photos/[id]`                     | public               | Product photo (ETag, cached)                                                                                                                                          |
 | `GET /api/slips/[id]`                      | uploader or admin    | Bank slip file, no-store                                                                                                                                              |
@@ -169,7 +172,7 @@ Money is `Decimal(14,2)`.
 - `src/server/storage/`: local-disk storage (`STORAGE_DIR`), `checkUpload` and `saveUpload`. Limit 5 MB; images, plus PDF for slips.
 - `src/server/settings.ts`: `getSettings()` creates the defaults row if it is missing.
 - `src/components/`: `ui.tsx` (Button, Field, Input, Select, Card, Badge, Alert…), `cart-bits.tsx` (ProgressBar, StatusBadge, CartCard, ProductImage, StockTypeBadge), `client.tsx` (Countdown, CopyLink), `site-header.tsx`.
-- `prisma/seed.ts`: 1 admin, 1 seller (Ceylon Footwear Mills, with one product each live, in review and returned), 6 buyers, 20 products with variants, and the carts: 4 original (49,800 open; 33,900 open; READY; a private one), plus the demo buyer's open cart, a delivered order and an invite.
+- `prisma/seed.ts`: 1 admin, 1 seller (Ceylon Footwear Mills, with one product each live, in review and returned), exactly 3 buyers (Dilan `buyer@`, Sachini `buyer2@`, Tharindu `buyer3@example.com`), 20 products with variants, and the carts: Dilan's public one at 49,800, Sachini's private READY one, and Dilan's delivered order. Tharindu has no active cart.
 - `src/server/seller.ts`: the seller listing flow (`sellerSaveProduct`, `sellerAdjustStock`, `submitForReview`, `withdrawFromReview`, `deleteDraft`) and admin review (`publishProduct`, `returnToSeller`). `src/server/seller-actions.ts`: the seller server actions (`requireSeller`).
 - `src/server/carts/queries.ts` → `buyerDashboard`: a buyer's carts with their own lines, latest slip and delivery, open invites and the latest notices.
 
@@ -183,7 +186,7 @@ Money is `Decimal(14,2)`.
 ## 8. Commands and ports
 
 - `npm run db:start` / `db:stop`: embedded Postgres, dev on 5546 (`grouptogether`) and test on 5547 (`grouptogether_test`).
-- `npm run db:migrate`: a new migration plus a client regenerate. `npm run db:seed`: wipes the DB and loads demo data. Every password is `password123`: admin `admin@grouptogether.lk`, seller `seller@example.com`, buyer `buyer@example.com`.
+- `npm run db:migrate`: a new migration plus a client regenerate. `npm run db:seed`: wipes the DB and loads demo data. Every password is `password123`: admin `admin@grouptogether.lk`, seller `seller@example.com`, buyers `buyer@example.com`, `buyer2@example.com` and `buyer3@example.com`.
 - `npm run dev`: http://localhost:3002.
 - `npm run check`: typecheck, lint and unit tests.
 - `npm run test:int`: integration tests against the test DB.
@@ -216,3 +219,7 @@ Money is `Decimal(14,2)`.
 - `catalogue-admin`: products, stock, admin screens.
 - `frontend`: pages and UI.
 - `qa-review`: review and tests.
+
+11d. **Address with an exact map pin** (product owner, 2026-10-17): sign-up, joining and starting a cart require an address plus a pin inside Sri Lanka (`src/lib/location.ts`, `components/location-picker.tsx`). Stored on `User`, snapshotted on `CartMember`, owner's pin copied to `GroupCart.deliveryLat/Lng`. Accounts without a pin go to `/account/location`.
+11e. **Delivery-point map and owner chat** (product owner, 2026-10-17): see CLAUDE.md rule 14.
+Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.

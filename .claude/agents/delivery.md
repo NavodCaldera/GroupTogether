@@ -49,3 +49,6 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
   - Replace them with the real fields once the PickMe business (Flash) docs arrive. Keep `collect_from: receiver`.
 - The webhook is verified with HMAC-SHA256 of the raw body in `x-signature`, using `PICKME_WEBHOOK_SECRET`. It refuses everything while the secret is unset or `CHANGE_ME`.
 - External calls get a 15s timeout. Never block a page on PickMe.
+
+The owner's map pin is stored on the cart as `deliveryLat/deliveryLng` (rule 13); the admin cart page links to it with `mapsLink`. A real PickMe request should send these coordinates once the API shape is known.
+The drop-off address/phone come from the owner's profile at accept time (`/account` to change).

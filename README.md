@@ -18,8 +18,8 @@ npm run dev           # http://localhost:3002
 Demo accounts:
 
 - `admin@grouptogether.lk`, the admin.
-- `amaya@example.com`, `kasun@example.com`, `nimali@example.com`, `ravi@example.com` and
-  `ishara@example.com`, the customers.
+- `buyer@example.com` (Dilan), `buyer2@example.com` (Sachini) and `buyer3@example.com`
+  (Tharindu), the buyers. `seller@example.com` is the factory seller.
 
 ## Before going live
 

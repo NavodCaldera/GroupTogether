@@ -51,6 +51,15 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 - `npm run check`: typecheck, lint and unit tests (`src/**/*.test.ts`).
 - `npm run test:int`: `tests/integration/*.int.test.ts` against the test DB on 5547, one file at a time. Use `resetDb`, `makeUser`, `makeVariant` and `slipFile` from `helpers.ts`, and check the `Notification` table for notices.
-- `npm run e2e`: Playwright on port 3200 against a freshly seeded test DB. The two journeys are "join from the panel → 50,000 → owner pays → admin approves → PickMe booked" and "private cart hidden but opens from its link".
+- `npm run e2e`: Playwright on port 3200 against a freshly seeded test DB. The two journeys are "join from the panel → 50,000 → owner pays → admin approves → PickMe booked" and "private cart hidden but opens from its link" (accounts: buyer@, buyer2@, buyer3@example.com).
 
 Report failures with their output. Never weaken a test to make it pass.
+
+Rule 13 check: sign-up, join and start/add-to-cart all refuse without a pin; pins outside Sri Lanka are rejected (`location.test.ts`); `carts.int.test.ts` "member location" covers the snapshot.
+
+- Merge into a friend's cart (rule 13): only the target owner can accept; items move with stock untouched; the old cart is deleted; blocked when the leaving cart (owned) has other members or either cart is frozen/expired. Tests: `tests/integration/merge.int.test.ts`.
+
+- Open carts (rule 14): nearest first for a buyer with a pin, unknown pins last, newest first without a pin, search by name. Tests: `src/lib/distance.test.ts`, `tests/integration/open-carts.int.test.ts`.
+  Rule 14 check: non-members never receive the owner's exact coordinates; chat threads are private per participant (`chat.int.test.ts`).
+
+- Messages: a buyer's message is unread for the owner, opening it reads it and clears the notice, the owner's reply reaches the buyer's inbox, and buyers' conversations stay separate. Tests: `tests/integration/messages.int.test.ts`.

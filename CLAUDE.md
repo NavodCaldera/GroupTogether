@@ -35,8 +35,8 @@ heavy libraries, paid services or anything that needs an always-on worker.
    platform never charges, collects or refunds a delivery fee; `Delivery.paidBy` is always
    OWNER.
 9. **Visibility.** A cart is PUBLIC (shown on the "open carts" panel) or PRIVATE (reached only by
-   link or invite). Every cart has a share link `/c/<code>` and a WhatsApp share. Members can
-   invite registered users by email or mobile number.
+   link). Every cart has a share link `/c/<code>` and a WhatsApp share. The invite-by-email/phone
+   form was removed from the cart page (product owner, 2026-10-17); sharing the link is the way in.
 10. **B-grade products must list their defects**, and the defects are shown up front.
 11. **Three roles: buyer, factory seller, admin** (product owner, 2026-10-16).
     - **Buyers** (`CUSTOMER`) sign up themselves and land on `/dashboard`.
@@ -53,9 +53,44 @@ heavy libraries, paid services or anything that needs an always-on worker.
     `SLIP_REVIEW`. Starting, joining or adding to another cart is refused until the first is
     confirmed, expired, cancelled or left. Rule: `isActiveCart` in `src/lib/cart-rules.ts`;
     enforced by `assertOneCart` in `carts/service.ts` (per-user advisory lock).
+13. **Address with an exact map pin** (product owner, 2026-10-17). Sign-up, joining a cart and
+    starting a cart all need the buyer's address **and a pin on the map**, like choosing a PickMe
+    pick-up point (tap the map, drag the pin, or "Use my location"). The pin is mandatory and must
+    be inside Sri Lanka (`src/lib/location.ts`). It is saved on the profile and snapshotted on
+    `CartMember` (`address`, `city`, `lat`, `lng`); the owner's pin is copied to
+    `GroupCart.deliveryLat/deliveryLng` on accept for the PickMe booking. Older accounts with no pin
+    are sent to the profile page `/account` first, which also holds the address used for
+    delivery when the owner accepts (no address form on the cart page). The map is Leaflet + OpenStreetMap tiles, loaded from a
+    CDN only on pages that show it (free, no key).
+14. **Merging into a friend's cart** (product owner, 2026-10-17). A buyer already in a cart can
+    ask to join another. Only that cart's **owner** can accept. On accept, the buyer's items move
+    into the other cart (their stock stays locked, nothing is released), they become a member and
+    can add more, and the cart they left is **deleted** (or, if it was someone else's, they just
+    leave it). It only works while both carts are OPEN/READY and unexpired, and a cart the buyer
+    owns can only be merged if nobody else is in it. One pending request per buyer; the owner can
+    decline and the buyer can cancel. Rule: `mergeBlockReason` in `src/lib/cart-rules.ts`; flow:
+    `requestMerge` / `acceptMerge` / `declineMerge` / `cancelMerge` in `carts/service.ts`
+    (`CartMergeRequest` table). Cart page: "Ask to join and move my items here" and, for the
+    owner, an "Asking to join" card.
+15. **Open carts are sorted nearest-first and searchable** (product owner, 2026-10-17). For a
+    signed-in buyer with a map pin, the open carts panel lists carts by distance from their pin
+    to the cart's delivery point (the owner's drop-off pin once accepted, else the owner's own
+    pin); carts with no pin come last. Without a pin (or signed out) it is newest first, with a
+    hint to pin a location. Buyers can also search by cart name (also code and owner name).
+    Rule: `distanceKm` / `sortNearest` in `src/lib/distance.ts`; query: `recentCarts` in
+    `carts/queries.ts`; page: `/carts`.
+16. **Carts are named after their owner** (product owner, 2026-10-17): "Navod Caldera's cart".
+    Buyers aren't asked for a cart name; `createCart` sets it from the owner's name.
 
 Cart statuses: `OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED`,
-plus the dead ends `EXPIRED` and `CANCELLED`.
+plus the dead ends `EXPIRED` and `CANCELLED`. 14. **Delivery-point map and owner chat** (product owner, 2026-10-17). A cart page has "See
+delivery point on map" (the owner's pin): members and admins see the exact spot, everyone else
+only an approximate area (coordinates rounded server-side). Any signed-in user can message the
+cart's owner in a private thread (`CartMessage`, `src/server/carts/chat.ts`); the owner has an
+inbox of people who wrote and cannot start a thread. Max 500 characters, 10 messages a minute,
+one unread in-app notice per conversation. The sender sees WhatsApp-style ticks: one grey tick
+sent, two green ticks seen (the other side opened the conversation). The chat island polls `/api/chat` every 8 s while the
+tab is visible (no websocket or worker).
 
 ## Code
 
@@ -79,15 +114,15 @@ plus the dead ends `EXPIRED` and `CANCELLED`.
 
 ## Commands
 
-|                      |                                                                                                                                                                        |
-| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                          |
-| `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                 |
-| `npm run db:seed`    | Demo data, all `password123`: `admin@grouptogether.lk`, `seller@example.com`, `buyer@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
-| `npm run dev`        | http://localhost:3002                                                                                                                                                  |
-| `npm run check`      | Typecheck, lint and unit tests                                                                                                                                         |
-| `npm run test:int`   | Integration tests on the test DB                                                                                                                                       |
-| `npm run e2e`        | Playwright journeys (port 3200, test DB)                                                                                                                               |
+|                      |                                                                                                                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                                                                      |
+| `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                                                             |
+| `npm run db:seed`    | Demo data, all `password123`: `admin@grouptogether.lk`, `seller@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
+| `npm run dev`        | http://localhost:3002                                                                                                                                                                                              |
+| `npm run check`      | Typecheck, lint and unit tests                                                                                                                                                                                     |
+| `npm run test:int`   | Integration tests on the test DB                                                                                                                                                                                   |
+| `npm run e2e`        | Playwright journeys (port 3200, test DB)                                                                                                                                                                           |
 
 ## Agents (`.claude/agents/`)
 

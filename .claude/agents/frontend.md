@@ -36,7 +36,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Prefer server components.
 - Client JS only for small islands: forms using `useActionState` (the add-to-cart, invite, accept, slip, auth and admin forms), `Countdown` (ticks every 20s) and `CopyLink`.
 - No UI libraries, icon packs or web fonts (use the system font stack).
-- Shop filters are a plain GET form. Product images are lazy-loaded; when a product has no photo, show an emoji placeholder.
+- Shop filters are a plain GET form: one full-width box per row on phones, one wrapping row from `sm` up. With no search or filter the shop lists cheapest first; filtered results are newest first. Product images are lazy-loaded; when a product has no photo, show an emoji placeholder.
 
 **Look:**
 
@@ -61,3 +61,36 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Show money with `formatLKR` and dates with `formatDateTime` (Asia/Colombo).
 - Pages that need a user call `requireUser([], "/path")`, so sign-in returns them there. A cart page can be viewed signed out, with a "Sign in to join" prompt.
 - Next.js 16: use `PageProps<"/route">` and `LayoutProps<"/route">`; params and searchParams are Promises. Read `node_modules/next/dist/docs/` before using unfamiliar APIs.
+
+Map pin (rule 13): `src/components/location-picker.tsx` is the one client island for address + city + map pin (Leaflet from unpkg, loaded on demand; hidden `lat`/`lng` inputs). Used by sign-up, `JoinForm` on `/c/[code]` and `/account/location`. Keep it the only place Leaflet loads.
+
+- Cart page `/c/[code]`: a buyer already in another cart sees "Ask to join and move my items here" (or "Request sent" with Cancel) instead of Join; the owner sees an "Asking to join" card with Accept and Decline.
+  City field in the picker suggests places via Photon (photon.komoot.io, limited to Sri Lanka, debounced 300 ms) and flies the map to the best match; do not use Nominatim for type-ahead (its policy forbids it).
+
+- `/carts` (Open carts): a plain GET search form (`q`), a hint line ("Nearest to your delivery point first" or a prompt to pin/sign in), and cards that show "N km away" when known.
+  Cart page (rule 14): `delivery-map.tsx` (read-only Leaflet, exact only for members/admins; server rounds coordinates for others) and `chat.tsx` (polling island, 8 s, visible tab only).
+  Home page lists the 8 cheapest live products, price ascending ("Affordable prices"), via `listProducts(f, take, "cheapest")`. Before that section, its own "How we solve the problem" section holds `WhyCheap`, which explains the price: "Bulk buying from factory surplus" → "Consumer group buying" (arrow → on desktop, ↓ on phones), then "On average X% below retail" from `retailSaving()` (null under 3 qualifying products → generic line). Markup only.
+
+- `TaxonomyFields` (shop filter and admin product form): Category is disabled until an Audience is chosen, and Size until a Category is chosen; clearing the audience clears the category.
+  Shop search is `components/search-box.tsx` (dropdown from `/api/suggest`, 200 ms debounce); the form still works as a plain GET.
+  Every inner page (detail, new, pay, account) starts with `<BackLink fallback="<parent>" />` from `components/client.tsx`; header-level pages (home, shop, carts, my-carts, dashboard, notifications, admin/seller home and lists) do not.
+
+- No cart-name field on Start a cart or the product page's new-cart option: carts are named after their owner.
+
+- `CartCard` (open carts panel) is deliberately minimal: name, bar, "LKR N to go" or "Minimum reached", and a grey "distance · time left" line (amber under 2h). No status badge for OPEN, no city or member count.
+
+- Cart page `/c/[code]` is kept deliberately light: title (badge only if not OPEN), one bar with "LKR N to go" + countdown, then ONE call to action in `StatusPanel`. Members are native `<details>` rows (open for your own row or a one-member cart); share is a single row; messages sit in a collapsed `<details>`. Never stack two alerts for the same decision.
+
+- Cart page members: others show name + total only (no item lists); only the signed-in user's own row is a `<details>` with editable items.
+
+- Cart page order (single centred column, max-w-2xl): title + "N people · distance", progress card ending in exactly one next step, owner's join requests, "In this cart" (totals; own row editable), messages directly under it, share row, delivery map, then leave/cancel as quiet text links. A blocked buyer always gets a way forward ("Go to your cart").
+
+- Sharing a cart: `ShareMenu` (client island in `src/components/client.tsx`), an icon button beside the cart title that opens Copy link / Share on WhatsApp. No separate share box.
+
+- `/messages`: inbox (list of conversations with avatar initial, name, time, unread badge; no cart line or last-message preview). In `ChatPanel` your own messages carry ticks after the time: one grey tick sent, two green (`text-accent`) ticks seen and the open conversation (`ChatPanel`). Two panes on desktop; on phones the list and the conversation take turns ("← All messages"). Header has a chat icon with the unread count beside the bell.
+
+- Header links use `NavLink` (`src/components/nav-link.tsx`, a tiny client island with `usePathname`): the current section gets `aria-current=page` and a green underline (bottom tab: green text). Sections can claim extra prefixes via `also` (Shop: `/products/`, Carts: `/c/`).
+`/dashboard` is one current-cart card plus up to 3 past orders. The sentence and button come from `nextStep(status, mine, …)` in `cart-rules.ts`; change wording there (with `dashboard-step.test.ts`), not in the page.
+Colour rule (product owner, 2026-10-17): amber `text-warn` is used **only** for time left (countdowns, deadlines). Status badges use neutral/good/info/bad; there is no `warn` badge tone.
+Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.
+Profile (2026-10-17): header profile icon → `/account` (`ProfileForm`: name, phone, `LocationPicker`; Sign out lives here). `/account/location` only redirects.

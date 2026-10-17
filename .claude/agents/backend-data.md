@@ -48,16 +48,25 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 **Seed** (`npm run db:seed`):
 
-- Empties every table, then loads the bank details, 1 admin (`admin@grouptogether.lk`) and 5 buyers (amaya, kasun, nimali, ravi, ishara @example.com), all with the password `password123`.
+- Empties every table, then loads the bank details, 1 admin (`admin@grouptogether.lk`) and the only 3 buyers (`buyer@`, `buyer2@` and `buyer3@example.com`: Dilan, Sachini, Tharindu), all with the password `password123`.
 - Then 20 LIVE products (10 shoes in UK 6–11, 10 apparel in S–XL; mixed surplus and B-grade).
-- Then 4 carts that lock stock exactly as the app does: "Office sneaker run" at 49,800, "Family school shoes" at 33,900, "Kandy weekend haul" (READY) and "Ravi's friends only" (PRIVATE).
-- Then the demo buyer `buyer@example.com` (Dilan): an open cart "Dilan's office team", a DELIVERED order (its stock is `sold`, with a manual delivery and no slip file), and an invite to Ravi's private cart.
+- Then the carts, locking stock exactly as the app does and keeping rule 12 (one active cart per buyer): Dilan's public "Office sneaker run" at 49,800 and Sachini's PRIVATE "Sachini's friends only" (READY). Tharindu is in no active cart, so the e2e journey has him join Dilan's cart.
+- Dilan also has a DELIVERED order (with Tharindu; its stock is `sold`, with a manual delivery and no slip file) and an invite to Sachini's private cart.
 - Then the demo seller `seller@example.com` (Ceylon Footwear Mills): one product LIVE, one IN_REVIEW (B-grade) and one DRAFT returned with a `reviewNote`.
 - Later picks skip variants already in a cart (`used`), so the original carts keep their variants.
-- The e2e tests depend on the first four carts' names and totals. Update `tests/e2e/journey.spec.ts` if you change them.
+- The e2e tests depend on these accounts, cart names and the 49,800 total. Update `tests/e2e/journey.spec.ts` if you change them.
 
 **Speed and cost:**
 
 - Select only the fields a page needs.
 - Avoid N+1 queries: use `include`/`select`, or `Promise.all` for independent reads.
 - Keep the pool at `DATABASE_POOL_MAX` (default 10).
+
+Rule 13 columns: `User.lat/lng`, `CartMember.address/city/lat/lng`, `GroupCart.deliveryLat/deliveryLng` (Float, nullable for old rows). Validation lives in `src/lib/location.ts` (`locationSchema`, `pinFields`, Sri Lanka bounds). The seed pins its demo users.
+
+- `CartMergeRequest` (`userId`, nullable `fromCartId` set null when that cart is deleted, `toCartId` cascade, `status`: `PENDING|ACCEPTED|DECLINED|CANCELLED`). A hand-added partial unique index allows one `PENDING` request per user (see its migration).
+  `CartMessage` (cartId, participantId, authorId, body) holds owner chat threads; cascade-deleted with the cart or user.
+
+- Seeded carts are named `"<owner name>'s cart"` (the seed ignores its label argument).
+
+- `CartMessage.readAt` (null = unread by the non-author side), indexed with `participantId`.

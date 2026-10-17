@@ -46,9 +46,18 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 | Cart expired                                 | every member                 |
 | Cart cancelled by the owner or an admin      | members except the canceller |
 | Invited to a cart                            | invitee                      |
+| Asks to merge into a cart                    | that cart's owner            |
+| Merge accepted                               | the requester                |
+| Merge declined                               | the requester                |
 | Delivery booked (pay the driver about LKR x) | owner                        |
 | Seller submits a product for review          | admins                       |
 | Admin publishes a seller's product           | that seller                  |
 | Admin returns a seller's product with a note | that seller                  |
 
 Keep the messages short and say what to do next. Every notice should have an `href` to the cart or page it is about. If cost matters, an SMS or WhatsApp API is a possible later step; it is not built.
+Chat messages notify the recipient once per conversation while a notice for it is unread (href `/c/<code>?chat=<participantId>`).
+
+**Messages (cart chat):** `src/server/carts/chat.ts`. A conversation is (`cartId`, `participantId`): the owner talks to each buyer separately. `sendMessage` notifies the other side once per unread conversation with `href` = `conversationHref(cartId, participantId)` (`/messages?c=…&with=…`). `listMessages` marks the other side's messages read (`CartMessage.readAt`) and clears that notice. It returns each message with `seen` (`readAt` set), shown to the sender as ticks: one grey sent, two green seen. The `/messages` list shows only initial, name, time and unread count. `inbox(userId)` lists all conversations with last message and unread count; `unreadMessageCount` feeds the header chat icon.
+
+**Join requests:** the "wants to join your cart" notice has href `/c/<code>?request=<id>`; `/notifications` shows Accept / Decline on it while the request is PENDING (older notices are matched by cart code and requester name). The actions take `back=/notifications` to return there and mark that notice read.
+Opening a notice goes through `src/app/notifications/[id]/route.ts`: marks it read (own notices only), then redirects to its same-site `href`. Link to it with a plain `<a>`, never `next/link` (prefetch would mark it read).
