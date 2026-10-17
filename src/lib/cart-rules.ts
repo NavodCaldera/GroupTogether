@@ -1,5 +1,6 @@
 import type Decimal from "decimal.js";
 import { D, roundMoney } from "./decimal";
+import { formatLKR } from "./format";
 
 /**
  * The group-cart rules, with no database (CLAUDE.md "Business rules").
@@ -113,4 +114,142 @@ export const STATUS_LABEL: Record<CartStatus, string> = {
  */
 export function isActiveCart(cart: Deadlines, now: Date): boolean {
   return HOLDS_STOCK.includes(cart.status) && overdue(cart, now) === null;
+}
+
+export type MergeSide = { status: CartStatus; expiresAt: Date };
+
+/**
+ * Can `userId` merge their cart `from` into cart `to` (their items move over, their cart goes)?
+ * Returns why not, or null. Both carts must still be editable and unexpired; a cart they own can
+ * only go if nobody else is in it.
+ */
+export function mergeBlockReason(
+  p: {
+    from: MergeSide & { ownerId: string; memberCount: number };
+    to: MergeSide;
+    userId: string;
+  },
+  now: Date,
+): string | null {
+  const open = (c: MergeSide) => isEditable(c.status) && c.expiresAt > now;
+  if (!open(p.from)) return "Your cart is already being paid for or closed, so it can't be merged.";
+  if (!open(p.to)) return "That cart is no longer taking members.";
+  if (p.from.ownerId === p.userId && p.from.memberCount > 1)
+    return "Your cart has other members, so it can't be merged. Cancel it or ask them to leave first.";
+  return null;
+}
+
+// ─── Buyer dashboard: one card, one next step ────────────────────────────────
+
+/** The four steps a buyer sees on the dashboard progress line. */
+export const JOURNEY = ["Open", "Ready", "Paid", "Delivered"] as const;
+
+/** Index into JOURNEY of the last step reached (paying still counts as "Ready"). */
+export function journeyStep(status: CartStatus): number {
+  switch (status) {
+    case "OPEN":
+      return 0;
+    case "READY":
+    case "AWAITING_SLIP":
+    case "SLIP_REVIEW":
+      return 1;
+    case "CONFIRMED":
+    case "DISPATCHED":
+      return 2;
+    case "DELIVERED":
+      return 3;
+    default:
+      return -1;
+  }
+}
+
+export type NextStepInput = {
+  status: CartStatus;
+  /** The viewer owns the cart */
+  mine: boolean;
+  code: string;
+  total: Decimal.Value;
+  minOrderValue: Decimal.Value;
+  /** The viewer's own items */
+  share: Decimal.Value;
+  ownerName: string;
+  /** Reason the owner's last slip was rejected, if it was */
+  rejectedNote?: string | null;
+  trackingUrl?: string | null;
+};
+
+export type NextStep = {
+  text: string;
+  /** Extra line for members: settling their share with the owner */
+  note?: string;
+  action?: { label: string; href: string; external?: boolean };
+  /** Which deadline to count down, if any */
+  deadline?: "expires" | "slip";
+  /** Offer the WhatsApp share (only while the cart still needs people) */
+  share?: boolean;
+};
+
+/** The one sentence and one button for a buyer's current cart (rule 12: there is only one). */
+export function nextStep(c: NextStepInput): NextStep {
+  const cart = `/c/${c.code}`;
+  const settle = `Settle your ${formatLKR(c.share)} with ${c.ownerName}.`;
+  switch (c.status) {
+    case "OPEN":
+      return {
+        text: `${formatLKR(remaining(c.total, c.minOrderValue))} more to reach the minimum.`,
+        action: { label: "Add items", href: `/shop?cart=${c.code}` },
+        deadline: "expires",
+        share: true,
+      };
+    case "READY":
+      return c.mine
+        ? {
+            text: "Minimum reached. Accept the order to lock it, then pay.",
+            action: { label: "Accept & pay", href: cart },
+            deadline: "expires",
+          }
+        : {
+            text: `Minimum reached. Waiting for ${c.ownerName} to accept and pay.`,
+            action: { label: "View cart", href: cart },
+            deadline: "expires",
+          };
+    case "AWAITING_SLIP":
+      return c.mine
+        ? {
+            text:
+              `Pay ${formatLKR(c.total)} and upload the bank slip.` +
+              (c.rejectedNote ? ` Your last slip wasn't accepted: ${c.rejectedNote}` : ""),
+            action: { label: "Upload bank slip", href: `${cart}/pay` },
+            deadline: "slip",
+          }
+        : {
+            text: `${c.ownerName} is paying for the whole cart.`,
+            note: settle,
+            action: { label: "View cart", href: cart },
+            deadline: "slip",
+          };
+    case "SLIP_REVIEW":
+      return {
+        text: "We're checking the bank slip. You'll be notified when it's confirmed.",
+        note: c.mine ? undefined : settle,
+      };
+    case "CONFIRMED":
+      return {
+        text: c.mine
+          ? "Paid. We're arranging the PickMe delivery to you."
+          : `Paid. We're arranging the PickMe delivery to ${c.ownerName}.`,
+        note: c.mine ? undefined : settle,
+      };
+    case "DISPATCHED":
+      return {
+        text: c.mine
+          ? "On its way with PickMe. Pay the driver the delivery fee."
+          : `On its way to ${c.ownerName} with PickMe.`,
+        action: c.trackingUrl
+          ? { label: "Track delivery", href: c.trackingUrl, external: true }
+          : undefined,
+      };
+    default:
+      return { text: "This cart is closed.", action: { label: "View cart", href: cart } };
+  }
 }

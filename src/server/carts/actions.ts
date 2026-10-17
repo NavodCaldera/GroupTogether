@@ -5,15 +5,21 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { requireUser } from "../auth/session";
 import { db } from "../db";
+import { locationSchema } from "@/lib/location";
 import { UploadError } from "../storage";
+import { sendMessage } from "./chat";
 import { inviteToCart } from "./invites";
 import {
   CartError,
   acceptAndPay,
   cancelCart,
+  acceptMerge,
+  cancelMerge,
   createCart,
+  declineMerge,
   joinCart,
   leaveCart,
+  requestMerge,
   setLine,
 } from "./service";
 import { uploadSlip } from "./slips";
@@ -40,12 +46,17 @@ async function cartCode(cartId: string) {
   return c.code;
 }
 
+/** Joining or starting a cart needs the buyer's address pinned on the map (saved on their profile). */
+function needsPin(user: { lat: number | null }, next: string) {
+  if (user.lat == null) redirect(`/account?next=${encodeURIComponent(next)}`);
+}
+
 export async function createCartAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireUser([], "/carts/new");
+  needsPin(user, "/carts/new");
   let code = "";
   const res = await attempt(async () => {
     const cart = await createCart(user.id, {
-      name: str(fd, "name"),
       visibility: str(fd, "visibility") === "PRIVATE" ? "PRIVATE" : "PUBLIC",
     });
     code = cart.code;
@@ -58,6 +69,7 @@ export async function createCartAction(_p: ActionState, fd: FormData): Promise<A
 export async function addToCartAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   const productId = str(fd, "productId");
   const user = await requireUser([], `/products/${productId}`);
+  needsPin(user, `/products/${productId}`);
   const variantId = str(fd, "variantId");
   const qty = Number(str(fd, "qty") || "1");
   let target = str(fd, "cartId");
@@ -66,7 +78,6 @@ export async function addToCartAction(_p: ActionState, fd: FormData): Promise<Ac
     if (!variantId) throw new CartError("Choose a size");
     if (target === "new") {
       const cart = await createCart(user.id, {
-        name: str(fd, "name"),
         visibility: str(fd, "visibility") === "PRIVATE" ? "PRIVATE" : "PUBLIC",
       });
       target = cart.id;
@@ -90,12 +101,16 @@ export async function updateLineAction(fd: FormData) {
   if (res.error) redirect(`/c/${code}?error=${encodeURIComponent(res.error)}`);
 }
 
-export async function joinAction(fd: FormData) {
+/** Join with an address and a mandatory map pin. */
+export async function joinAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   const cartId = str(fd, "cartId");
   const code = await cartCode(cartId);
   const user = await requireUser([], `/c/${code}`);
-  const res = await attempt(() => joinCart(user.id, cartId));
-  if (res.error) redirect(`/c/${code}?error=${encodeURIComponent(res.error)}`);
+  const res = await attempt(async () => {
+    const location = locationSchema.parse(Object.fromEntries(fd));
+    await joinCart(user.id, cartId, location);
+  });
+  if (res.error) return res;
   redirect(`/shop?cart=${code}`);
 }
 
@@ -111,11 +126,14 @@ export async function leaveAction(fd: FormData) {
 export async function acceptAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   const user = await requireUser();
   const cartId = str(fd, "cartId");
+  // The drop-off is the owner's profile address and phone; they change it on /account.
   const res = await attempt(async () => {
+    if (!user.address || !user.city || !user.phone)
+      throw new CartError("Add your address and mobile number in your profile first");
     await acceptAndPay(user.id, cartId, {
-      deliveryAddress: str(fd, "deliveryAddress"),
-      deliveryCity: str(fd, "deliveryCity"),
-      deliveryPhone: str(fd, "deliveryPhone"),
+      deliveryAddress: user.address,
+      deliveryCity: user.city,
+      deliveryPhone: user.phone,
     });
   });
   if (res.error) return res;
@@ -129,6 +147,14 @@ export async function cancelAction(fd: FormData) {
   const res = await attempt(() => cancelCart(user, cartId, str(fd, "reason")));
   if (res.error) redirect(`/c/${code}?error=${encodeURIComponent(res.error)}`);
   revalidatePath(`/c/${code}`);
+}
+
+/** Chat with a cart's owner (or, for the owner, with the person who wrote). */
+export async function sendMessageAction(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  return attempt(async () => {
+    await sendMessage(user.id, str(fd, "cartId"), str(fd, "body"), str(fd, "with") || undefined);
+  });
 }
 
 export async function inviteAction(_p: ActionState, fd: FormData): Promise<ActionState> {
@@ -155,4 +181,63 @@ export async function markAllReadAction() {
     data: { readAt: new Date() },
   });
   revalidatePath("/notifications");
+}
+
+// ─── Merge into a friend's cart (the owner there must accept) ─────────────
+
+async function mergeStep(
+  fd: FormData,
+  codeOf: (fd: FormData) => Promise<string>,
+  run: (userId: string, id: string) => Promise<unknown>,
+  idKey: string,
+) {
+  const code = await codeOf(fd);
+  const user = await requireUser([], `/c/${code}`);
+  const res = await attempt(async () => {
+    await run(user.id, str(fd, idKey));
+  });
+  revalidatePath(`/c/${code}`);
+  revalidatePath("/notifications");
+  // Answering from Notifications: mark that notice read and stay there.
+  if (str(fd, "back") === "/notifications") {
+    if (!res.error)
+      await db.notification.updateMany({
+        where: {
+          userId: user.id,
+          href: { startsWith: `/c/${code}` },
+          title: { contains: "wants to join" },
+          readAt: null,
+        },
+        data: { readAt: new Date() },
+      });
+    redirect(
+      res.error
+        ? `/notifications?error=${encodeURIComponent(res.error)}`
+        : `/notifications?done=${idKey === "requestId" ? str(fd, "verdict") : "1"}`,
+    );
+  }
+  redirect(res.error ? `/c/${code}?error=${encodeURIComponent(res.error)}` : `/c/${code}?merge=1`);
+}
+
+const codeFromCart = (fd: FormData) => cartCode(str(fd, "cartId"));
+async function codeFromRequest(fd: FormData) {
+  const r = await db.cartMergeRequest.findUnique({
+    where: { id: str(fd, "requestId") },
+    select: { toCart: { select: { code: true } } },
+  });
+  if (!r) throw new CartError("This request no longer exists");
+  return r.toCart.code;
+}
+
+export async function requestMergeAction(fd: FormData) {
+  await mergeStep(fd, codeFromCart, requestMerge, "cartId");
+}
+export async function acceptMergeAction(fd: FormData) {
+  await mergeStep(fd, codeFromRequest, acceptMerge, "requestId");
+}
+export async function declineMergeAction(fd: FormData) {
+  await mergeStep(fd, codeFromRequest, declineMerge, "requestId");
+}
+export async function cancelMergeAction(fd: FormData) {
+  await mergeStep(fd, codeFromRequest, cancelMerge, "requestId");
 }

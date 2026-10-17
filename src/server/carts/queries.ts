@@ -1,17 +1,35 @@
 import "server-only";
+import { type Point, distanceKm, sortNearest } from "@/lib/distance";
 import { db } from "../db";
 
 /**
- * The public "open carts" panel: public carts still taking members, newest first. A signed-in
- * user's own carts (owned or joined) are left out; they are under "My carts".
+ * The public "open carts" panel: public carts still taking members. A signed-in user's own carts
+ * (owned or joined) are left out; they are under "My carts". With `near` (the buyer's map pin)
+ * the nearest delivery point comes first; otherwise newest first. `q` searches the cart name,
+ * its code and the owner's name.
  */
-export async function recentCarts(take = 12, now = new Date(), userId?: string) {
-  return db.groupCart.findMany({
+export async function recentCarts(
+  take = 12,
+  now = new Date(),
+  userId?: string,
+  { q, near }: { q?: string; near?: Point | null } = {},
+) {
+  const term = q?.trim();
+  const rows = await db.groupCart.findMany({
     where: {
       visibility: "PUBLIC",
       status: { in: ["OPEN", "READY"] },
       expiresAt: { gt: now },
       ...(userId ? { ownerId: { not: userId }, members: { none: { userId } } } : {}),
+      ...(term
+        ? {
+            OR: [
+              { name: { contains: term, mode: "insensitive" } },
+              { code: { contains: term, mode: "insensitive" } },
+              { owner: { name: { contains: term, mode: "insensitive" } } },
+            ],
+          }
+        : {}),
     },
     select: {
       id: true,
@@ -22,12 +40,26 @@ export async function recentCarts(take = 12, now = new Date(), userId?: string) 
       minOrderValue: true,
       expiresAt: true,
       createdAt: true,
-      owner: { select: { name: true, city: true } },
+      deliveryLat: true,
+      deliveryLng: true,
+      owner: { select: { name: true, city: true, lat: true, lng: true } },
       _count: { select: { members: true } },
     },
     orderBy: { createdAt: "desc" },
-    take,
+    // Sorting by distance happens here, so look at more than we show.
+    take: near ? Math.max(take, 300) : take,
   });
+  const carts = rows.map(({ deliveryLat, deliveryLng, ...c }) => {
+    // The drop-off pin once the owner has accepted; until then the owner's own pin.
+    const pin =
+      deliveryLat !== null && deliveryLng !== null
+        ? { lat: deliveryLat, lng: deliveryLng }
+        : c.owner.lat !== null && c.owner.lng !== null
+          ? { lat: c.owner.lat, lng: c.owner.lng }
+          : null;
+    return { ...c, distanceKm: near && pin ? distanceKm(near, pin) : null };
+  });
+  return (near ? sortNearest(carts) : carts).slice(0, take);
 }
 
 export type PanelCart = Awaited<ReturnType<typeof recentCarts>>[number];
@@ -106,10 +138,10 @@ export async function myCarts(userId: string) {
 
 /**
  * Everything on a buyer's dashboard: their carts (with their own lines, for their share), the
- * owner's latest slip and the delivery, open invites, and the latest notices.
+ * owner's latest slip and the delivery, and open invites.
  */
 export async function buyerDashboard(userId: string, now = new Date()) {
-  const [memberships, invites, notices] = await Promise.all([
+  const [memberships, invites] = await Promise.all([
     db.cartMember.findMany({
       where: { userId },
       select: {
@@ -159,13 +191,8 @@ export async function buyerDashboard(userId: string, now = new Date()) {
       orderBy: { createdAt: "desc" },
       take: 5,
     }),
-    db.notification.findMany({
-      where: { userId },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
   ]);
-  return { carts: memberships.map((m) => m.cart), invites, notices };
+  return { carts: memberships.map((m) => m.cart), invites };
 }
 
 /** The user's one active cart, if any (same test as `assertOneCart` in service.ts). */
@@ -180,5 +207,54 @@ export async function activeCartOf(userId: string, now = new Date()) {
       ],
     },
     select: { id: true, code: true, name: true },
+  });
+}
+
+/** Pending requests to join a cart, with what the requester would bring. */
+export async function mergeRequestsFor(cartId: string) {
+  const reqs = await db.cartMergeRequest.findMany({
+    where: { toCartId: cartId, status: "PENDING", fromCartId: { not: null } },
+    include: {
+      user: { select: { id: true, name: true } },
+      fromCart: { select: { name: true, code: true } },
+    },
+    orderBy: { createdAt: "asc" },
+  });
+  return Promise.all(
+    reqs.map(async (r) => ({
+      ...r,
+      lines: await db.cartLine.findMany({
+        where: { cartId: r.fromCartId!, userId: r.userId },
+        select: { qty: true, unitPrice: true },
+      }),
+    })),
+  );
+}
+
+/** The signed-in user's waiting request to join this cart, if any. */
+export async function myMergeRequest(userId: string, toCartId: string) {
+  return db.cartMergeRequest.findFirst({ where: { userId, toCartId, status: "PENDING" } });
+}
+
+/** The user's active cart with what a merge needs to know about it. */
+export async function activeCartDetail(userId: string, now = new Date()) {
+  return db.groupCart.findFirst({
+    where: {
+      members: { some: { userId } },
+      OR: [
+        { status: { in: ["OPEN", "READY"] }, expiresAt: { gt: now } },
+        { status: "AWAITING_SLIP", slipDueAt: { gt: now } },
+        { status: "SLIP_REVIEW" },
+      ],
+    },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      status: true,
+      expiresAt: true,
+      ownerId: true,
+      _count: { select: { members: true } },
+    },
   });
 }

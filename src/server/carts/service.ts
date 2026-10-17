@@ -1,12 +1,14 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import type { Location } from "@/lib/location";
 import type { CartStatus, GroupCart, Role } from "@/generated/prisma/client";
 import {
   CANCELLABLE,
   addHours,
   cartTotal,
   isEditable,
+  mergeBlockReason,
   meetsMinimum,
   newCartCode,
   overdue,
@@ -101,35 +103,65 @@ export const createCartSchema = z.object({
 });
 
 export async function createCart(ownerId: string, input: z.input<typeof createCartSchema>) {
-  const { name, visibility } = createCartSchema.parse(input);
+  const { name: given, visibility } = createCartSchema.parse(input);
   const settings = await getSettings();
   const now = new Date();
   return db.$transaction(async (tx) => {
     await assertOneCart(tx, ownerId, now);
+    const where = await profileLocation(tx, ownerId);
+    // Carts are named after their owner ("Navod Caldera's cart"); buyers don't choose a name.
+    const owner = await tx.user.findUniqueOrThrow({
+      where: { id: ownerId },
+      select: { name: true },
+    });
     return tx.groupCart.create({
       data: {
         code: newCartCode(randomBytes),
-        name,
+        name: given || `${owner.name}'s cart`,
         ownerId,
         visibility,
         minOrderValue: settings.minOrderValue,
         expiresAt: addHours(now, settings.cartLifetimeHours),
-        members: { create: { userId: ownerId } },
+        members: { create: { userId: ownerId, ...where } },
       },
     });
   });
 }
 
-/** Anyone with the code can join while the cart is editable. Joining twice is a no-op. */
-export async function joinCart(userId: string, cartId: string, now = new Date()) {
+/** The address and pin saved on a user's profile, copied onto each cart they join. */
+async function profileLocation(tx: Tx, userId: string) {
+  const u = await tx.user.findUnique({
+    where: { id: userId },
+    select: { address: true, city: true, lat: true, lng: true },
+  });
+  return {
+    address: u?.address ?? null,
+    city: u?.city ?? null,
+    lat: u?.lat ?? null,
+    lng: u?.lng ?? null,
+  };
+}
+
+/**
+ * Anyone with the code can join while the cart is editable. Joining twice only refreshes the
+ * location. A `location` (address + map pin) is saved on the membership and on the profile.
+ */
+export async function joinCart(
+  userId: string,
+  cartId: string,
+  location?: Location,
+  now = new Date(),
+) {
   await db.$transaction(async (tx) => {
     const cart = await lockCart(tx, cartId);
     assertEditable(cart, now);
     await assertOneCart(tx, userId, now, cartId);
+    if (location) await tx.user.update({ where: { id: userId }, data: location });
+    const where = location ?? (await profileLocation(tx, userId));
     await tx.cartMember.upsert({
       where: { cartId_userId: { cartId, userId } },
-      create: { cartId, userId },
-      update: {},
+      create: { cartId, userId, ...where },
+      update: location ?? {},
     });
   });
 }
@@ -155,7 +187,7 @@ export async function setLine(
     await assertOneCart(tx, userId, now, cartId);
     await tx.cartMember.upsert({
       where: { cartId_userId: { cartId, userId } },
-      create: { cartId, userId },
+      create: { cartId, userId, ...(await profileLocation(tx, userId)) },
       update: {},
     });
     const key = { cartId_userId_variantId: { cartId, userId, variantId } };
@@ -264,10 +296,16 @@ export async function acceptAndPay(
     assertEditable(cart, now);
     if (cart.status !== "READY" || !meetsMinimum(toD(cart.total), toD(cart.minOrderValue)))
       throw new CartError(`The cart must reach ${formatLKR(cart.minOrderValue)} first`);
+    const pin = await tx.cartMember.findUnique({
+      where: { cartId_userId: { cartId, userId: ownerId } },
+      select: { lat: true, lng: true },
+    });
     return tx.groupCart.update({
       where: { id: cartId },
       data: {
         ...delivery,
+        deliveryLat: pin?.lat ?? null,
+        deliveryLng: pin?.lng ?? null,
         status: "AWAITING_SLIP",
         acceptedAt: now,
         slipDueAt: addHours(now, settings.slipWindowHours),
@@ -369,3 +407,170 @@ export async function sweep(now = new Date(), cartId?: string) {
   }
   return { closed };
 }
+
+// ─── Merging into a friend's cart (CLAUDE.md rule 13) ─────────────────────
+
+/** The buyer's cart that a merge would move out of: their one active cart. */
+async function mergeSource(tx: Tx, userId: string, now: Date) {
+  return tx.groupCart.findFirst({
+    where: {
+      members: { some: { userId } },
+      OR: [
+        { status: { in: ["OPEN", "READY"] }, expiresAt: { gt: now } },
+        { status: "AWAITING_SLIP", slipDueAt: { gt: now } },
+        { status: "SLIP_REVIEW" },
+      ],
+    },
+    include: { _count: { select: { members: true } } },
+  });
+}
+
+/** A buyer already in a cart asks to join another. The other cart's owner must accept. */
+export async function requestMerge(userId: string, toCartId: string, now = new Date()) {
+  const { request, to } = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${userId}))) AS l`;
+    const to = await tx.groupCart.findUnique({ where: { id: toCartId } });
+    if (!to) throw new CartError("This cart no longer exists");
+    const from = await mergeSource(tx, userId, now);
+    if (!from) throw new CartError("You have no active cart to merge. Just join this one.");
+    if (from.id === toCartId) throw new CartError("You are already in this cart");
+    const why = mergeBlockReason(
+      { from: { ...from, memberCount: from._count.members }, to, userId },
+      now,
+    );
+    if (why) throw new CartError(why);
+    const pending = await tx.cartMergeRequest.findFirst({ where: { userId, status: "PENDING" } });
+    if (pending) throw new CartError("You already have a request waiting. Cancel it first.");
+    const request = await tx.cartMergeRequest.create({
+      data: { userId, fromCartId: from.id, toCartId },
+    });
+    return { request, to };
+  });
+  const who = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
+  await notify([to.ownerId], {
+    title: `${who.name} wants to join your cart`,
+    body: `${who.name} asks to move their items into "${to.name || to.code}". Accept or decline below.`,
+    href: `/c/${to.code}?request=${request.id}`,
+  });
+  return request;
+}
+
+/**
+ * The owner of the target cart accepts: the requester's items move over (their stock stays
+ * locked, nothing is released), they join the target, and the cart they leave is deleted, or
+ * just loses them when it was someone else's. Both carts are re-checked under their locks.
+ */
+export async function acceptMerge(ownerId: string, requestId: string, now = new Date()) {
+  const first = await db.cartMergeRequest.findUnique({ where: { id: requestId } });
+  if (!first || first.status !== "PENDING") throw new CartError("This request is no longer open");
+  const ids = [first.fromCartId, first.toCartId].filter((x): x is string => !!x).sort();
+  const out = await db.$transaction(async (tx) => {
+    for (const id of ids) await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${id} FOR UPDATE`;
+    const req = await tx.cartMergeRequest.findUniqueOrThrow({ where: { id: requestId } });
+    if (req.status !== "PENDING" || !req.fromCartId)
+      throw new CartError("This request is no longer open");
+    const [to, from] = await Promise.all([
+      tx.groupCart.findUniqueOrThrow({ where: { id: req.toCartId } }),
+      tx.groupCart.findUnique({
+        where: { id: req.fromCartId },
+        include: { _count: { select: { members: true } } },
+      }),
+    ]);
+    if (to.ownerId !== ownerId) throw new CartError("Only the cart owner can accept this");
+    const stillIn =
+      from &&
+      (await tx.cartMember.findUnique({
+        where: { cartId_userId: { cartId: from.id, userId: req.userId } },
+      }));
+    const why =
+      !from || !stillIn
+        ? "They are no longer in that cart."
+        : mergeBlockReason(
+            { from: { ...from, memberCount: from._count.members }, to, userId: req.userId },
+            now,
+          );
+    if (why || !from) {
+      await tx.cartMergeRequest.update({
+        where: { id: requestId },
+        data: { status: "CANCELLED", decidedAt: now },
+      });
+      return { error: why ?? "They are no longer in that cart." } as const;
+    }
+    // Their items move; stock is untouched (it is already locked for them).
+    await tx.cartLine.updateMany({
+      where: { cartId: from.id, userId: req.userId },
+      data: { cartId: to.id },
+    });
+    await tx.cartMember.upsert({
+      where: { cartId_userId: { cartId: to.id, userId: req.userId } },
+      create: { cartId: to.id, userId: req.userId },
+      update: {},
+    });
+    const waiting: string[] = [];
+    if (from.ownerId === req.userId) {
+      const others = await tx.cartMergeRequest.findMany({
+        where: { toCartId: from.id, status: "PENDING" },
+        select: { userId: true },
+      });
+      waiting.push(...others.map((o) => o.userId));
+      await tx.groupCart.delete({ where: { id: from.id } });
+    } else {
+      await tx.cartMember.deleteMany({ where: { cartId: from.id, userId: req.userId } });
+      await recompute(tx, from, now);
+    }
+    await tx.cartMergeRequest.update({
+      where: { id: requestId },
+      data: { status: "ACCEPTED", decidedAt: now },
+    });
+    const after = await recompute(tx, to, now);
+    return {
+      to,
+      userId: req.userId,
+      waiting,
+      sourceName: from.name || from.code,
+      becameReady: after.becameReady,
+      members: after.becameReady ? await memberIds(tx, to.id) : [],
+    } as const;
+  });
+  if ("error" in out) throw new CartError(`Can't merge: ${out.error}`);
+  const toName = out.to.name || out.to.code;
+  await notify([out.userId], {
+    title: "You joined the cart",
+    body: `"${toName}" accepted you. Your items from "${out.sourceName}" are now in it, and you can add more.`,
+    href: `/c/${out.to.code}`,
+  });
+  await notify(out.waiting, {
+    title: "That cart is gone",
+    body: `"${out.sourceName}" was merged into another cart, so your request to join it was closed.`,
+  });
+  if (out.becameReady) await notify(out.members, readyNotice(out.to));
+  return out.to;
+}
+
+async function decideMerge(
+  who: { userId: string; asOwner: boolean },
+  requestId: string,
+  status: "DECLINED" | "CANCELLED",
+  now: Date,
+) {
+  const req = await db.cartMergeRequest.findUnique({
+    where: { id: requestId },
+    include: { toCart: true },
+  });
+  if (!req || req.status !== "PENDING") throw new CartError("This request is no longer open");
+  if (who.asOwner ? req.toCart.ownerId !== who.userId : req.userId !== who.userId)
+    throw new CartError("That request isn't yours to change");
+  await db.cartMergeRequest.update({ where: { id: requestId }, data: { status, decidedAt: now } });
+  if (who.asOwner)
+    await notify([req.userId], {
+      title: "Your request was declined",
+      body: `The owner of "${req.toCart.name || req.toCart.code}" didn't accept you. Your own cart is unchanged.`,
+      href: `/my-carts`,
+    });
+}
+
+export const declineMerge = (ownerId: string, requestId: string, now = new Date()) =>
+  decideMerge({ userId: ownerId, asOwner: true }, requestId, "DECLINED", now);
+
+export const cancelMerge = (userId: string, requestId: string, now = new Date()) =>
+  decideMerge({ userId, asOwner: false }, requestId, "CANCELLED", now);

@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import type { Prisma, StockType } from "@/generated/prisma/client";
 import { type Audience, findKind, kindFits } from "@/lib/taxonomy";
+import { D, toD } from "@/lib/decimal";
 import { formatLKR } from "@/lib/format";
 import { db } from "./db";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
@@ -31,7 +32,11 @@ const listSelect = {
 } satisfies Prisma.ProductSelect;
 
 /** Live products for the shop. Sizes with no free stock are still listed but marked sold out. */
-export async function listProducts(f: ProductFilters = {}, take = 60) {
+export async function listProducts(
+  f: ProductFilters = {},
+  take = 60,
+  order: "newest" | "cheapest" = "newest",
+) {
   return db.product.findMany({
     where: {
       status: "LIVE",
@@ -48,9 +53,31 @@ export async function listProducts(f: ProductFilters = {}, take = 60) {
         : undefined,
     },
     select: listSelect,
-    orderBy: { createdAt: "desc" },
+    orderBy:
+      order === "cheapest" ? [{ price: "asc" }, { createdAt: "desc" }] : { createdAt: "desc" },
     take,
   });
+}
+
+/** A few live products matching what the shopper has typed, for the search dropdown. */
+export async function suggestProducts(q: string, take = 6) {
+  const term = q.trim().slice(0, 60);
+  if (term.length < 2) return [];
+  const rows = await db.product.findMany({
+    where: {
+      status: "LIVE",
+      OR: [
+        { title: { contains: term, mode: "insensitive" } },
+        { brand: { contains: term, mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, title: true, brand: true, price: true },
+    orderBy: { title: "asc" },
+    take: 20,
+  });
+  const lower = term.toLowerCase();
+  const starts = (t: string) => (t.toLowerCase().startsWith(lower) ? 0 : 1);
+  return rows.sort((a, b) => starts(a.title) - starts(b.title)).slice(0, take);
 }
 
 export async function shopFacets() {
@@ -158,6 +185,30 @@ export async function adjustStock(productId: string, size: string, colour: strin
   });
   if (r.count === 0)
     throw new CatalogueError("Can't remove more than the free stock (locked stock stays in carts)");
+}
+
+/**
+ * How far below retail our live prices are, over products that list a retail price above ours
+ * (total saving / total retail, whole percent). Null until at least 3 products qualify.
+ */
+export async function retailSaving() {
+  const rows = await db.product.findMany({
+    where: { status: "LIVE", retailPrice: { not: null } },
+    select: { price: true, retailPrice: true },
+  });
+  let retail = new D(0);
+  let ours = new D(0);
+  let n = 0;
+  for (const r of rows) {
+    const rp = toD(r.retailPrice!);
+    const p = toD(r.price);
+    if (rp.lte(p)) continue;
+    retail = retail.plus(rp);
+    ours = ours.plus(p);
+    n++;
+  }
+  if (n < 3) return null;
+  return retail.minus(ours).div(retail).times(100).toDecimalPlaces(0, D.ROUND_DOWN).toNumber();
 }
 
 /** Money taken so far: carts whose slip an admin approved. Formatted here so the client stays light. */

@@ -49,6 +49,11 @@ export function formatIsoDateTime(date: Date | null | undefined): string {
 }
 
 /** "5h 12m left", "3m left", or "ended". */
+/** True when less than `hours` remain until `until`. */
+export function endsWithin(until: Date, hours: number, now = new Date()): boolean {
+  return until.getTime() - now.getTime() < hours * 3_600_000;
+}
+
 export function timeLeft(until: Date, now = new Date()): string {
   const ms = until.getTime() - now.getTime();
   if (ms <= 0) return "ended";

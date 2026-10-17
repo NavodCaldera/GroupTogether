@@ -175,6 +175,27 @@ describe("one bank slip, then delivery", () => {
   });
 });
 
+describe("member location", () => {
+  it("saves the joiner's address and pin on the membership and the profile", async () => {
+    const [owner, joiner] = [await makeUser(), await makeUser()];
+    const cart = await createCart(owner.id, {});
+    const location = { address: "8 Temple Lane", city: "Kandy", lat: 7.2936, lng: 80.6413 };
+    await joinCart(joiner.id, cart.id, location);
+    const m = await db.cartMember.findUniqueOrThrow({
+      where: { cartId_userId: { cartId: cart.id, userId: joiner.id } },
+    });
+    expect(m).toMatchObject(location);
+    expect(await db.user.findUniqueOrThrow({ where: { id: joiner.id } })).toMatchObject(location);
+  });
+
+  it("copies the profile pin when the owner starts a cart", async () => {
+    const owner = await makeUser();
+    const cart = await createCart(owner.id, {});
+    const m = await db.cartMember.findFirstOrThrow({ where: { cartId: cart.id } });
+    expect(m).toMatchObject({ lat: 6.9271, lng: 79.8612, city: "Colombo" });
+  });
+});
+
 describe("one cart at a time", () => {
   it("stops a buyer starting or joining a second active cart", async () => {
     const [a, b] = [await makeUser(), await makeUser()];

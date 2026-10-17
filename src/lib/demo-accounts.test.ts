@@ -13,6 +13,8 @@ describe("demo logins on the sign-in page", () => {
       "admin@grouptogether.lk",
       "seller@example.com",
       "buyer@example.com",
+      "buyer2@example.com",
+      "buyer3@example.com",
     ]);
   });
 });

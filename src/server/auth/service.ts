@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Role, User } from "@/generated/prisma/client";
+import { pinFields, pinInSriLanka, pinOutsideMessage } from "@/lib/location";
 import { db } from "../db";
 import { hashPassword, verifyPassword } from "./password";
 
@@ -14,16 +15,32 @@ export const phoneSchema = z
   .transform((v) => v.replace(/[\s-]/g, "").replace(/^\+94/, "0"))
   .pipe(z.string().regex(/^07\d{8}$/, "Enter a mobile number such as 0771234567"));
 
-export const signUpSchema = z.object({
-  name: z.string().trim().min(2, "Enter your name"),
-  email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email")),
-  phone: phoneSchema,
-  address: z.string().trim().min(5, "Enter your delivery address").max(300),
-  city: z.string().trim().min(2, "Enter your city").max(60),
-  password: z.string().min(8, "Use at least 8 characters"),
-});
+export const signUpSchema = z
+  .object({
+    name: z.string().trim().min(2, "Enter your name"),
+    email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email")),
+    phone: phoneSchema,
+    address: z.string().trim().min(5, "Enter your delivery address").max(300),
+    city: z.string().trim().min(2, "Enter your city").max(60),
+    ...pinFields,
+    password: z.string().min(8, "Use at least 8 characters"),
+  })
+  .refine(pinInSriLanka, pinOutsideMessage);
 
 export type SignUpInput = z.infer<typeof signUpSchema>;
+
+/** The buyer's own profile: who they are and where PickMe drops their orders. */
+export const profileSchema = z
+  .object({
+    name: z.string().trim().min(2, "Enter your name").max(80),
+    phone: phoneSchema,
+    address: z.string().trim().min(5, "Enter your delivery address").max(300),
+    city: z.string().trim().min(2, "Enter your city").max(60),
+    ...pinFields,
+  })
+  .refine(pinInSriLanka, pinOutsideMessage);
+
+export type ProfileInput = z.infer<typeof profileSchema>;
 
 export class AuthError extends Error {}
 
@@ -70,9 +87,20 @@ export async function registerUser(input: SignUpInput): Promise<User> {
       phone: input.phone,
       address: input.address,
       city: input.city,
+      lat: input.lat,
+      lng: input.lng,
       passwordHash: await hashPassword(input.password),
     },
   });
+}
+
+export async function updateProfile(userId: string, input: ProfileInput) {
+  const clash = await db.user.findFirst({
+    where: { phone: input.phone, id: { not: userId } },
+    select: { id: true },
+  });
+  if (clash) throw new AuthError("Another account uses this mobile number");
+  await db.user.update({ where: { id: userId }, data: input });
 }
 
 export async function authenticate(email: string, password: string): Promise<User> {
@@ -119,7 +147,7 @@ export async function endSession(token: string) {
 
 export type SessionUser = Pick<
   User,
-  "id" | "role" | "name" | "email" | "phone" | "address" | "city"
+  "id" | "role" | "name" | "email" | "phone" | "address" | "city" | "lat" | "lng"
 >;
 
 export async function userForToken(token: string, now = new Date()): Promise<SessionUser | null> {
@@ -136,6 +164,8 @@ export async function userForToken(token: string, now = new Date()): Promise<Ses
           phone: true,
           address: true,
           city: true,
+          lat: true,
+          lng: true,
           locked: true,
         },
       },

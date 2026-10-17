@@ -3,6 +3,7 @@ import {
   addHours,
   cartTotal,
   isActiveCart,
+  mergeBlockReason,
   newCartCode,
   overdue,
   progress,
@@ -111,5 +112,36 @@ describe("one cart at a time", () => {
         now,
       ),
     ).toBe(false);
+  });
+});
+
+describe("merging carts", () => {
+  const now = new Date("2026-10-17T10:00:00Z");
+  const future = addHours(now, 5);
+  const from = { status: "OPEN" as const, expiresAt: future, ownerId: "me", memberCount: 1 };
+  const to = { status: "READY" as const, expiresAt: future };
+  it("allows a sole-owner cart into an open one", () => {
+    expect(mergeBlockReason({ from, to, userId: "me" }, now)).toBeNull();
+  });
+  it("allows a member to move out of someone else's cart", () => {
+    expect(
+      mergeBlockReason({ from: { ...from, ownerId: "x", memberCount: 4 }, to, userId: "me" }, now),
+    ).toBeNull();
+  });
+  it("refuses when the owner's cart has other members", () => {
+    expect(mergeBlockReason({ from: { ...from, memberCount: 2 }, to, userId: "me" }, now)).toMatch(
+      /other members/,
+    );
+  });
+  it("refuses frozen, closed or expired carts on either side", () => {
+    expect(
+      mergeBlockReason({ from: { ...from, status: "AWAITING_SLIP" }, to, userId: "me" }, now),
+    ).toMatch(/already being paid/);
+    expect(
+      mergeBlockReason({ from, to: { ...to, status: "AWAITING_SLIP" }, userId: "me" }, now),
+    ).toMatch(/no longer taking/);
+    expect(
+      mergeBlockReason({ from, to: { ...to, expiresAt: addHours(now, -1) }, userId: "me" }, now),
+    ).toMatch(/no longer taking/);
   });
 });

@@ -1,10 +1,22 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { AuthError, authenticate, homeFor, registerUser, signUpSchema } from "./service";
-import { signInAs, signOut } from "./session";
+import {
+  AuthError,
+  authenticate,
+  homeFor,
+  profileSchema,
+  registerUser,
+  signUpSchema,
+  updateProfile,
+} from "./service";
+import { requireUser, signInAs, signOut } from "./session";
 
-export type FormState = { error?: string; fieldErrors?: Record<string, string[] | undefined> };
+export type FormState = {
+  error?: string;
+  ok?: string;
+  fieldErrors?: Record<string, string[] | undefined>;
+};
 
 export async function signUpAction(_prev: FormState, formData: FormData): Promise<FormState> {
   const parsed = signUpSchema.safeParse(Object.fromEntries(formData));
@@ -33,6 +45,22 @@ export async function signInAction(_prev: FormState, formData: FormData): Promis
     throw e;
   }
   redirect(safeNext(formData.get("next")) ?? homeFor(role));
+}
+
+/** Saves the profile; with `next` (sent here to finish something) it goes back there. */
+export async function saveProfileAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  const user = await requireUser([], "/account");
+  const parsed = profileSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
+  try {
+    await updateProfile(user.id, parsed.data);
+  } catch (e) {
+    if (e instanceof AuthError) return { error: e.message };
+    throw e;
+  }
+  const next = safeNext(formData.get("next"));
+  if (next) redirect(next);
+  return { ok: "Saved" };
 }
 
 /** A same-site path to return to after sign-in, never another site. */

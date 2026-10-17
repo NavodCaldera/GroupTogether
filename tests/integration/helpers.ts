@@ -24,6 +24,8 @@ export async function makeUser(role: "CUSTOMER" | "ADMIN" = "CUSTOMER") {
       passwordHash: "x",
       address: "1 Test Rd",
       city: "Colombo",
+      lat: 6.9271,
+      lng: 79.8612,
     },
   });
 }

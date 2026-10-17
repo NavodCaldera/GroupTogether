@@ -12,6 +12,8 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     lands: "/seller",
   },
   { role: "Buyer", name: "Dilan Wickramasinghe", email: "buyer@example.com", lands: "/dashboard" },
+  { role: "Buyer", name: "Sachini Gunawardena", email: "buyer2@example.com", lands: "/dashboard" },
+  { role: "Buyer", name: "Tharindu Senanayake", email: "buyer3@example.com", lands: "/dashboard" },
 ];
 
 /** Demo logins show in development, or anywhere with SHOW_DEMO_LOGINS=true (never by default in production). */
