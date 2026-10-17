@@ -5,6 +5,9 @@ relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
 ## 2026-10-18
 
+- **Admin tabs show the open page with a green bar.** The admin tab row (Overview, Bank slips, Carts, Deliveries, Products, Users, Settings) underlines the current section in green and makes it bold, like the main header; sub-pages count too (e.g. Add factory seller → Users), Overview only on `/admin` itself. `NavLink` gained an `exact` option. _Agents: frontend, catalogue-admin._
+- **No phone tab bar for admins.** With only "Admin" left in it, the bottom tab bar is gone for admins; they use the logo (→ `/admin`) and the admin section links at the top of the page. The footer's extra bottom space for the bar is dropped for them too. Buyers, sellers and visitors keep the tab bar. _Agent: frontend._
+- **No Carts or My carts for admins.** Both tabs are gone from the admin's header and phone tab bar, which now shows only Admin. Opening `/carts` as an admin goes to Admin → Carts, and `/my-carts` goes to `/admin`. Buyers keep both. _Agent: frontend._
 - **No Shop for admins.** The Shop tab is gone from the admin's header and phone tab bar (they see Carts, My carts, Admin), and opening `/shop` as an admin goes to Admin → Products. Buyers and sellers keep Shop. _Agent: frontend._
 - **No home page for admins.** Opening `/` as an admin redirects to `/admin`; the Home tab is hidden for admins (phone tab bar and desktop header) and the logo links to `/admin`. Buyers, sellers and visitors still get the home page. _Agent: frontend._
 - **"Slip uploaded. We'll check it." is a pop-up.** After the owner uploads the bank slip (`/c/<code>?paid=1`) it shows as the bottom `Toast` that hides itself, instead of a green box at the top of the cart page. _Agent: frontend._

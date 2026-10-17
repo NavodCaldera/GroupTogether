@@ -6,6 +6,14 @@ import { unreadMessageCount } from "@/server/carts/chat";
 import { unreadCount } from "@/server/notify";
 
 /**
+ * The phone tab bar is for shoppers and sellers. An admin's only section is Admin, which the
+ * logo already opens, so they get no tab bar.
+ */
+export function hasTabBar(user: { role: string } | null) {
+  return user?.role !== "ADMIN";
+}
+
+/**
  * Mobile first: on phones the top bar holds only the logo, the bell and the account button,
  * and the main sections sit in a bottom tab bar within thumb reach. From `sm` up the sections
  * move into the top bar and the tab bar is hidden. No client JavaScript.
@@ -187,32 +195,34 @@ export async function SiteHeader() {
         </nav>
       </header>
 
-      <nav
-        aria-label="Sections"
-        className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
-      >
-        <ul className="flex">
-          {sections.map((s) => (
-            <li key={s.href} className="flex-1">
-              <NavLink
-                href={s.href}
-                also={s.also}
-                className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-subtle active:bg-muted"
-                activeClassName="!text-accent"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                  className="size-5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]"
+      {hasTabBar(user) && (
+        <nav
+          aria-label="Sections"
+          className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
+        >
+          <ul className="flex">
+            {sections.map((s) => (
+              <li key={s.href} className="flex-1">
+                <NavLink
+                  href={s.href}
+                  also={s.also}
+                  className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-subtle active:bg-muted"
+                  activeClassName="!text-accent"
                 >
-                  {s.icon}
-                </svg>
-                {s.label}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+                  <svg
+                    viewBox="0 0 24 24"
+                    aria-hidden="true"
+                    className="size-5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round]"
+                  >
+                    {s.icon}
+                  </svg>
+                  {s.label}
+                </NavLink>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      )}
     </>
   );
 }

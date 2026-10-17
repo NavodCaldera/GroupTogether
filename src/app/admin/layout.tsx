@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { NavLink } from "@/components/nav-link";
 import { adminBadges } from "@/server/admin-queries";
 import { requireAdmin } from "@/server/auth/session";
 import { Count } from "./list-bits";
@@ -7,7 +7,10 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   await requireAdmin();
   const badges = await adminBadges();
   const link =
-    "inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-3 hover:bg-muted sm:min-h-9";
+    "relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-3 hover:bg-muted sm:min-h-9";
+  // The open page gets a green bar on the tab row's bottom line, like the main header.
+  const active =
+    "font-medium text-ink after:absolute after:inset-x-3 after:-bottom-2 after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-3";
   const items: [string, string, number][] = [
     ["/admin", "Overview", 0],
     ["/admin/slips", "Bank slips", badges.slips],
@@ -22,10 +25,16 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       {/* One swipeable row on phones instead of wrapping onto several lines. */}
       <nav className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 pb-2 text-sm whitespace-nowrap sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-3">
         {items.map(([href, label, n]) => (
-          <Link key={href} href={href} className={link}>
+          <NavLink
+            key={href}
+            href={href}
+            exact={href === "/admin"}
+            className={link}
+            activeClassName={active}
+          >
             {label}
             <Count n={n} tone="alert" />
-          </Link>
+          </NavLink>
         ))}
       </nav>
       {children}

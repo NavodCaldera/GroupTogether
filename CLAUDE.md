@@ -51,7 +51,7 @@ heavy libraries, paid services or anything that needs an always-on worker.
       `→ LIVE` (an admin publishes it once the stock has reached our store). Alternatively the
       admin returns it to `DRAFT` with a note. Sellers change details and stock only while it's a
       draft. **We hold the stock**, so a live product is managed by the admin.
-    - **Admins** come only from the seed. They have no home page: `/` redirects them to `/admin`, and the header has no Home tab for them (the logo goes to `/admin`) (product owner, 2026-10-18).
+    - **Admins** come only from the seed. They have no home page, shop or buyer carts: `/` and `/my-carts` redirect them to `/admin`, `/shop` to `/admin/products`, `/carts` to `/admin/carts`; their header shows only Admin and on phones there is no bottom tab bar (the logo goes to `/admin`) (product owner, 2026-10-18).
 12. **One cart at a time** (product owner, 2026-10-17). A buyer can own or be in only one active
     cart. Active means `OPEN`/`READY` and not expired, `AWAITING_SLIP` inside its 2h window, or
     `SLIP_REVIEW`. Starting, joining or adding to another cart is refused until the first is
