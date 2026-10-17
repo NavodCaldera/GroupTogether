@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Countdown } from "@/components/client";
+import { BackLink, Countdown } from "@/components/client";
 import { Alert, Card, PageHeader } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
@@ -24,6 +23,7 @@ export default async function PayPage({ params }: PageProps<"/c/[code]/pay">) {
 
   return (
     <div className="mx-auto w-full max-w-lg">
+      <BackLink fallback={`/c/${cart.code}`} />
       <PageHeader
         title={`Pay ${formatLKR(cart.total)}`}
         description={
@@ -67,11 +67,6 @@ export default async function PayPage({ params }: PageProps<"/c/[code]/pay">) {
       <Card>
         <SlipForm cartId={cart.id} />
       </Card>
-      <p className="mt-4 text-center text-sm">
-        <Link href={`/c/${cart.code}`} className="text-accent underline">
-          Back to the cart
-        </Link>
-      </p>
     </div>
   );
 }

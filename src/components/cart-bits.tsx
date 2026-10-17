@@ -1,6 +1,7 @@
 import Link from "next/link";
+import { formatDistance } from "@/lib/distance";
 import { type CartStatus, STATUS_LABEL, progress, remaining } from "@/lib/cart-rules";
-import { formatLKR, timeLeft } from "@/lib/format";
+import { endsWithin, formatLKR, timeLeft } from "@/lib/format";
 import { Badge } from "./ui";
 
 type Money = { toString(): string };
@@ -37,7 +38,7 @@ export function StatusBadge({ status }: { status: CartStatus }) {
     status === "READY" || status === "CONFIRMED" || status === "DELIVERED"
       ? "good"
       : status === "AWAITING_SLIP" || status === "SLIP_REVIEW"
-        ? "warn"
+        ? "info"
         : status === "EXPIRED" || status === "CANCELLED"
           ? "bad"
           : status === "DISPATCHED"
@@ -55,38 +56,50 @@ export type PanelCartView = {
   expiresAt: Date;
   owner: { name: string; city: string | null };
   _count: { members: number };
+  /** Km from the signed-in buyer's pin to the delivery point, when both are known */
+  distanceKm?: number | null;
 };
 
-/** One card on the "recent carts" panel. */
+/** One card on the open carts panel: name, progress, what is left, and distance and time. */
 export function CartCard({ cart }: { cart: PanelCartView }) {
+  const p = progress(cart.total.toString(), cart.minOrderValue.toString());
+  const left = remaining(cart.total.toString(), cart.minOrderValue.toString());
+  const details = [
+    cart.distanceKm != null ? formatDistance(cart.distanceKm).replace(" away", "") : null,
+    timeLeft(cart.expiresAt),
+  ].filter(Boolean);
   return (
     <Link
       href={`/c/${cart.code}`}
-      className="flex flex-col gap-3 rounded-xl border border-line bg-paper p-4 transition hover:border-accent"
+      className="flex flex-col gap-2.5 rounded-xl border border-line bg-paper p-4 transition hover:border-accent"
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="truncate font-semibold">{cart.name || `${cart.owner.name}'s cart`}</p>
-          <p className="text-xs text-subtle">
-            {cart.owner.name.split(" ")[0]}
-            {cart.owner.city ? ` · ${cart.owner.city}` : ""} · {cart._count.members}{" "}
-            {cart._count.members === 1 ? "member" : "members"}
-          </p>
-        </div>
-        <StatusBadge status={cart.status} />
+      <p className="truncate font-semibold">{cart.name || `${cart.owner.name}'s cart`}</p>
+      <div
+        className="h-2.5 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(p * 100)}
+      >
+        <div
+          className="h-full rounded-full bg-accent"
+          style={{ width: `${Math.max(2, p * 100)}%` }}
+        />
       </div>
-      <ProgressBar total={cart.total} min={cart.minOrderValue} />
-      <div className="flex items-center justify-between text-xs">
-        <span className="text-warn">{timeLeft(cart.expiresAt)}</span>
-        <span className="font-semibold text-accent">Join →</span>
-      </div>
+      <p className={`text-sm font-medium ${left.gt(0) ? "" : "text-accent"}`}>
+        {left.gt(0) ? `${formatLKR(left)} to go` : "Minimum reached"}
+      </p>
+      {/* Grey, turning amber only in the last 2 hours. */}
+      <p className={`text-xs ${endsWithin(cart.expiresAt, 2) ? "text-warn" : "text-subtle"}`}>
+        {details.join(" · ")}
+      </p>
     </Link>
   );
 }
 
 export function StockTypeBadge({ stockType }: { stockType: "FACTORY_SURPLUS" | "B_GRADE" }) {
   return stockType === "B_GRADE" ? (
-    <Badge tone="warn">B-grade</Badge>
+    <Badge>B-grade</Badge>
   ) : (
     <Badge tone="info">Factory surplus</Badge>
   );
@@ -136,6 +149,6 @@ export const PRODUCT_STATUS_LABEL: Record<ProductStatus, string> = {
 };
 
 export function ProductStatusBadge({ status }: { status: ProductStatus }) {
-  const tone = status === "LIVE" ? "good" : status === "IN_REVIEW" ? "warn" : "neutral";
+  const tone = status === "LIVE" ? "good" : status === "IN_REVIEW" ? "info" : "neutral";
   return <Badge tone={tone}>{PRODUCT_STATUS_LABEL[status]}</Badge>;
 }

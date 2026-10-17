@@ -1,18 +1,43 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ProgressBar, StatusBadge } from "@/components/cart-bits";
-import { CopyLink, Countdown } from "@/components/client";
+import { StatusBadge } from "@/components/cart-bits";
+import { BackLink, Countdown, ShareMenu } from "@/components/client";
 import { Alert, Badge, Button, Card } from "@/components/ui";
-import { cartTotal, isEditable, lineTotal, whatsappShareUrl } from "@/lib/cart-rules";
+import {
+  cartTotal,
+  isEditable,
+  lineTotal,
+  mergeBlockReason,
+  progress,
+  remaining,
+  whatsappShareUrl,
+} from "@/lib/cart-rules";
+import { distanceKm, formatDistance } from "@/lib/distance";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
-import { cancelAction, joinAction, leaveAction, updateLineAction } from "@/server/carts/actions";
-import { type FullCart, cartByCode } from "@/server/carts/queries";
+import {
+  acceptMergeAction,
+  cancelAction,
+  cancelMergeAction,
+  declineMergeAction,
+  leaveAction,
+  requestMergeAction,
+  updateLineAction,
+} from "@/server/carts/actions";
+import {
+  type FullCart,
+  activeCartDetail,
+  cartByCode,
+  mergeRequestsFor,
+  myMergeRequest,
+} from "@/server/carts/queries";
 import { sweep } from "@/server/carts/service";
 import { appUrl } from "@/server/notify";
-import { getSettings } from "@/server/settings";
-import { AcceptForm, InviteForm } from "./cart-forms";
+import { listMessages, threadsFor } from "@/server/carts/chat";
+import { ChatPanel } from "./chat";
+import { AcceptForm, JoinForm } from "./cart-forms";
+import { DeliveryMap } from "./delivery-map";
 
 export async function generateMetadata({ params }: PageProps<"/c/[code]">): Promise<Metadata> {
   const { code } = await params;
@@ -26,7 +51,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   // Apply any deadline that passed before showing the cart.
   const swept = await sweep(new Date(), found.id);
   const cart = swept.closed ? (await cartByCode(code))! : found;
-  const [user, settings] = await Promise.all([getCurrentUser(), getSettings()]);
+  const user = await getCurrentUser();
 
   const isOwner = user?.id === cart.ownerId;
   const isMember = !!user && cart.members.some((m) => m.userId === user.id);
@@ -35,157 +60,307 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   const title = cart.name || `${cart.owner.name}'s group cart`;
   const shareText = `Join my GroupTogether cart "${title}" and let's reach ${formatLKR(cart.minOrderValue)} together: ${url}`;
   const slip = cart.slips[0];
+  const pct = progress(cart.total.toString(), cart.minOrderValue.toString());
+  const toGo = remaining(cart.total.toString(), cart.minOrderValue.toString());
+
+  // Someone already in another cart can ask to merge into this one; its owner decides.
+  const now = new Date();
+  const mine = user && !isMember && editable ? await activeCartDetail(user.id, now) : null;
+  const merge =
+    user && mine
+      ? {
+          from: mine,
+          request: await myMergeRequest(user.id, cart.id),
+          reason: mergeBlockReason(
+            {
+              from: { ...mine, memberCount: mine._count.members },
+              to: cart,
+              userId: user.id,
+            },
+            now,
+          ),
+        }
+      : null;
+
+  // Delivery point: the owner's pin. Members (and admins) see it exactly, others only the area.
+  const ownerPin = cart.members.find((m) => m.userId === cart.ownerId);
+  const pinLat = cart.deliveryLat ?? ownerPin?.lat ?? null;
+  const pinLng = cart.deliveryLng ?? ownerPin?.lng ?? null;
+  const exactPin = isMember || user?.role === "ADMIN";
+  const round = (n: number) => Math.round(n * 100) / 100;
+
+  // Chat with the owner. The owner has an inbox of people who wrote; everyone else one thread.
+  const threads = user && isOwner ? await threadsFor(cart.id) : [];
+  const chatWith =
+    user && isOwner
+      ? typeof sp.chat === "string" && threads.some((t) => t.participantId === sp.chat)
+        ? sp.chat
+        : threads[0]?.participantId
+      : undefined;
+  const chatMessages =
+    user && (!isOwner || chatWith)
+      ? (await listMessages(user.id, cart.id, chatWith)).map((m) => ({
+          ...m,
+          createdAt: m.createdAt.toISOString(),
+        }))
+      : [];
+  const chatName = isOwner
+    ? (threads.find((t) => t.participantId === chatWith)?.name ?? "")
+    : cart.owner.name;
+  const joinRequests = isOwner && editable ? await mergeRequestsFor(cart.id) : [];
+  const away =
+    user && user.lat !== null && user.lng !== null && pinLat !== null && pinLng !== null && !isOwner
+      ? formatDistance(distanceKm({ lat: user.lat, lng: user.lng }, { lat: pinLat, lng: pinLng }))
+      : null;
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_340px]">
-      <div className="flex flex-col gap-6">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">{title}</h1>
-            <StatusBadge status={cart.status} />
-            {cart.visibility === "PRIVATE" && <Badge>Private</Badge>}
-          </div>
-          <p className="mt-1 text-sm text-subtle">
-            Started by {cart.owner.name} · code <span className="font-mono">{cart.code}</span>
-          </p>
+    // One column, read top to bottom: what it is, how far along, your next step, who is in it.
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <div>
+        <BackLink fallback="/carts" />
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">{title}</h1>
+          {editable && <ShareMenu url={url} whatsappUrl={whatsappShareUrl(shareText)} />}
+          {cart.status !== "OPEN" && <StatusBadge status={cart.status} />}
+          {cart.visibility === "PRIVATE" && <Badge>Private</Badge>}
         </div>
-
-        {sp.added && <Alert tone="good">Added. Your items are held for you in this cart.</Alert>}
-        {sp.paid && (
-          <Alert tone="good">
-            Slip uploaded. We&apos;ll confirm the order once we&apos;ve checked it.
-          </Alert>
-        )}
-        {typeof sp.error === "string" && <Alert>{sp.error}</Alert>}
-
-        <Card className="flex flex-col gap-3">
-          <ProgressBar total={cart.total} min={cart.minOrderValue} />
-          {editable && (
-            <p className="text-sm text-warn">
-              <Countdown until={cart.expiresAt.toISOString()} prefix="Expires: " />
-            </p>
-          )}
-          <StatusPanel
-            cart={cart}
-            isOwner={isOwner}
-            isMember={isMember}
-            signedIn={!!user}
-            settings={settings}
-            defaults={user}
-          />
-        </Card>
-
-        <section>
-          <h2 className="mb-3 text-lg font-semibold">Members ({cart.members.length})</h2>
-          <div className="flex flex-col gap-3">
-            {cart.members.map((m) => {
-              const lines = cart.lines.filter((l) => l.userId === m.userId);
-              const mine = m.userId === user?.id;
-              return (
-                <Card key={m.id} className="p-4">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="font-medium">
-                      {m.user.name}
-                      {m.userId === cart.ownerId && (
-                        <span className="ml-2 text-xs text-accent">Owner</span>
-                      )}
-                      {mine && <span className="ml-2 text-xs text-subtle">(you)</span>}
-                    </p>
-                    <p className="text-sm font-semibold">{formatLKR(cartTotal(lines))}</p>
-                  </div>
-                  {lines.length === 0 ? (
-                    <p className="mt-2 text-sm text-subtle">No items yet</p>
-                  ) : (
-                    <ul className="mt-2 divide-y divide-line text-sm">
-                      {lines.map((l) => (
-                        <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
-                          <Link
-                            href={`/products/${l.variant.product.id}`}
-                            className="min-w-0 basis-full hover:underline sm:basis-0 sm:flex-1"
-                          >
-                            {l.variant.product.title}
-                            <span className="text-subtle">
-                              {" "}
-                              · {l.variant.size}
-                              {l.variant.colour ? ` · ${l.variant.colour}` : ""}
-                            </span>
-                          </Link>
-                          {mine && editable ? (
-                            <form action={updateLineAction} className="flex items-center gap-1">
-                              <input type="hidden" name="cartId" value={cart.id} />
-                              <input type="hidden" name="variantId" value={l.variantId} />
-                              <input
-                                name="qty"
-                                type="number"
-                                min={0}
-                                max={Math.min(99, l.qty + l.variant.available)}
-                                defaultValue={l.qty}
-                                aria-label="Quantity"
-                                className="h-11 w-16 rounded-lg border border-line bg-paper px-2 text-base sm:h-8 sm:rounded sm:text-sm"
-                              />
-                              <button className="h-11 rounded-lg border border-line px-3 text-sm hover:bg-muted sm:h-8 sm:rounded sm:px-2 sm:text-xs">
-                                Update
-                              </button>
-                            </form>
-                          ) : (
-                            <span className="text-subtle">× {l.qty}</span>
-                          )}
-                          <span className="ml-auto text-right sm:w-28">
-                            {formatLKR(lineTotal(l))}
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                </Card>
-              );
-            })}
-          </div>
-          {isMember && editable && (
-            <p className="mt-2 text-xs text-subtle">Set a quantity to 0 to remove an item.</p>
-          )}
-        </section>
+        {away && <p className="mt-1 text-sm text-subtle">{away}</p>}
       </div>
 
-      <aside className="flex flex-col gap-4">
-        {editable && (
-          <Card className="flex flex-col gap-3">
-            <h2 className="font-semibold">Bring people in</h2>
-            <p className="text-sm text-subtle">Share the link. Anyone with it can join.</p>
-            <div className="flex flex-wrap gap-2">
-              <CopyLink url={url} />
-              <a
-                href={whatsappShareUrl(shareText)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex min-h-11 items-center rounded-lg bg-[#25D366] px-4 text-sm font-medium text-black hover:opacity-90 sm:min-h-10"
-              >
-                WhatsApp
-              </a>
+      {sp.added && <Alert tone="good">Added and held for you.</Alert>}
+      {sp.paid && <Alert tone="good">Slip uploaded. We&apos;ll check it.</Alert>}
+      {typeof sp.error === "string" && <Alert>{sp.error}</Alert>}
+      {sp.merge && <Alert tone="good">Done.</Alert>}
+      {slip?.status === "REJECTED" && isOwner && cart.status === "AWAITING_SLIP" && (
+        <Alert>Slip rejected: {slip.reviewNote}</Alert>
+      )}
+
+      {/* Progress, then always one next step. */}
+      <Card className="flex flex-col gap-4">
+        <div>
+          <p>
+            <span className="text-2xl font-bold tabular-nums">{formatLKR(cart.total)}</span>{" "}
+            <span className="text-sm text-subtle">of {formatLKR(cart.minOrderValue)}</span>
+          </p>
+          <div
+            className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(pct * 100)}
+          >
+            <div
+              className="h-full rounded-full bg-accent"
+              style={{ width: `${Math.max(2, pct * 100)}%` }}
+            />
+          </div>
+          <p className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+            <span className={`font-medium ${toGo.gt(0) ? "" : "text-accent"}`}>
+              {toGo.gt(0) ? `${formatLKR(toGo)} to go` : "Minimum reached"}
+            </span>
+            {editable && (
+              <span className="text-warn">
+                <Countdown until={cart.expiresAt.toISOString()} />
+              </span>
+            )}
+          </p>
+        </div>
+        <StatusPanel
+          cart={cart}
+          isOwner={isOwner}
+          isMember={isMember}
+          signedIn={!!user}
+          defaults={user}
+          merge={merge}
+        />
+      </Card>
+
+      {joinRequests.length > 0 && (
+        <Card className="flex flex-col gap-3">
+          <h2 className="font-semibold">Asking to join ({joinRequests.length})</h2>
+          {joinRequests.map((r) => (
+            <div
+              key={r.id}
+              className="flex flex-col gap-2 border-t border-line pt-3 first:border-0 first:pt-0"
+            >
+              <p className="text-sm">
+                <strong>{r.user.name}</strong> wants to join with{" "}
+                <strong>{formatLKR(cartTotal(r.lines))}</strong>.
+              </p>
+              <div className="flex gap-2">
+                <form action={acceptMergeAction}>
+                  <input type="hidden" name="requestId" value={r.id} />
+                  <Button>Accept</Button>
+                </form>
+                <form action={declineMergeAction}>
+                  <input type="hidden" name="requestId" value={r.id} />
+                  <Button variant="secondary">Decline</Button>
+                </form>
+              </div>
             </div>
-            {isMember && <InviteForm cartId={cart.id} />}
+          ))}
+        </Card>
+      )}
+
+      {/* Who is in it: a total per person; only your own row opens, to change your items. */}
+      <section>
+        <h2 className="mb-2 text-lg font-semibold">In this cart</h2>
+        <div className="divide-y divide-line rounded-xl border border-line bg-paper">
+          {cart.members.map((m) => {
+            const lines = cart.lines.filter((l) => l.userId === m.userId);
+            const mine = m.userId === user?.id;
+            const who = (
+              <span className="min-w-0 font-medium">
+                {mine ? "You" : m.user.name}
+                {m.userId === cart.ownerId && (
+                  <span className="ml-2 text-xs text-accent">Owner</span>
+                )}
+              </span>
+            );
+            if (!mine)
+              return (
+                <div key={m.id} className="flex items-center justify-between gap-2 p-4">
+                  {who}
+                  <span className="text-sm font-semibold">{formatLKR(cartTotal(lines))}</span>
+                </div>
+              );
+            return (
+              <details key={m.id} open={editable} className="group p-4">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
+                  {who}
+                  <span className="flex items-center gap-2 text-sm font-semibold">
+                    {formatLKR(cartTotal(lines))}
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 20 20"
+                      width="16"
+                      height="16"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="shrink-0 text-subtle transition group-open:rotate-180"
+                    >
+                      <path d="m5 7.5 5 5 5-5" />
+                    </svg>
+                  </span>
+                </summary>
+                {lines.length === 0 ? (
+                  <p className="mt-2 text-sm text-subtle">No items yet</p>
+                ) : (
+                  <ul className="mt-2 divide-y divide-line text-sm">
+                    {lines.map((l) => (
+                      <li key={l.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 py-2">
+                        <Link
+                          href={`/products/${l.variant.product.id}`}
+                          className="min-w-0 basis-full hover:underline sm:basis-0 sm:flex-1"
+                        >
+                          {l.variant.product.title}
+                          <span className="text-subtle">
+                            {" "}
+                            · {l.variant.size}
+                            {l.variant.colour ? ` · ${l.variant.colour}` : ""}
+                          </span>
+                        </Link>
+                        {editable ? (
+                          <form action={updateLineAction} className="flex items-center gap-1">
+                            <input type="hidden" name="cartId" value={cart.id} />
+                            <input type="hidden" name="variantId" value={l.variantId} />
+                            <input
+                              name="qty"
+                              type="number"
+                              min={0}
+                              max={Math.min(99, l.qty + l.variant.available)}
+                              defaultValue={l.qty}
+                              aria-label="Quantity (0 removes it)"
+                              className="h-11 w-16 rounded-lg border border-line bg-paper px-2 text-base sm:h-8 sm:rounded sm:text-sm"
+                            />
+                            <button className="h-11 rounded-lg border border-line px-3 text-sm hover:bg-muted sm:h-8 sm:rounded sm:px-2 sm:text-xs">
+                              Update
+                            </button>
+                          </form>
+                        ) : (
+                          <span className="text-subtle">× {l.qty}</span>
+                        )}
+                        <span className="ml-auto text-right sm:w-28">
+                          {formatLKR(lineTotal(l))}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </details>
+            );
+          })}
+        </div>
+      </section>
+
+      {/* Messages sit right under the people in the cart. */}
+      {user && (!isOwner || threads.length > 0) && (
+        <section>
+          <h2 className="mb-2 text-lg font-semibold">
+            {isOwner ? "Messages" : `Chat with ${cart.owner.name.split(" ")[0]}`}
+          </h2>
+          <Card className="flex flex-col gap-3">
+            {isOwner && (
+              <div className="flex flex-wrap gap-2">
+                {threads.map((t) => (
+                  <Link
+                    key={t.participantId}
+                    href={`/c/${cart.code}?chat=${t.participantId}`}
+                    className={`rounded-full border px-3 py-1 text-xs ${t.participantId === chatWith ? "border-ink font-semibold" : "border-line"}`}
+                  >
+                    {t.name}
+                    {t.unread > 0 && (
+                      <span className="ml-1 rounded-full bg-accent px-1.5 font-semibold text-on-accent">
+                        {t.unread}
+                      </span>
+                    )}
+                  </Link>
+                ))}
+              </div>
+            )}
+            {(!isOwner || chatWith) && (
+              <ChatPanel
+                key={chatWith ?? "owner"}
+                cartId={cart.id}
+                withId={chatWith}
+                meId={user.id}
+                initial={chatMessages}
+                otherName={chatName}
+              />
+            )}
           </Card>
-        )}
-        {isMember && editable && !isOwner && (
-          <form action={leaveAction}>
-            <input type="hidden" name="cartId" value={cart.id} />
-            <Button variant="secondary" className="w-full">
-              Leave cart (your items go back on sale)
-            </Button>
-          </form>
-        )}
-        {isOwner && ["OPEN", "READY", "AWAITING_SLIP"].includes(cart.status) && (
-          <form action={cancelAction}>
-            <input type="hidden" name="cartId" value={cart.id} />
-            <Button variant="secondary" className="w-full">
-              Cancel this cart
-            </Button>
-          </form>
-        )}
-        {slip?.status === "REJECTED" && isOwner && cart.status === "AWAITING_SLIP" && (
-          <Alert>Your last slip was not accepted: {slip.reviewNote}</Alert>
-        )}
-      </aside>
+        </section>
+      )}
+
+      {pinLat !== null && pinLng !== null && (
+        <section>
+          <h2 className="mb-2 text-lg font-semibold">Delivery point</h2>
+          <DeliveryMap
+            lat={exactPin ? pinLat : round(pinLat)}
+            lng={exactPin ? pinLng : round(pinLng)}
+            exact={exactPin}
+          />
+        </section>
+      )}
+
+      {/* Rare, irreversible actions go last and stay quiet. */}
+      {isMember && editable && !isOwner && (
+        <form action={leaveAction}>
+          <input type="hidden" name="cartId" value={cart.id} />
+          <button className="text-sm text-subtle underline hover:text-ink">Leave cart</button>
+        </form>
+      )}
+      {isOwner && ["OPEN", "READY", "AWAITING_SLIP"].includes(cart.status) && (
+        <form action={cancelAction}>
+          <input type="hidden" name="cartId" value={cart.id} />
+          <Button variant="danger" className="text-white">
+            Cancel
+          </Button>
+        </form>
+      )}
     </div>
   );
 }
@@ -195,15 +370,25 @@ function StatusPanel({
   isOwner,
   isMember,
   signedIn,
-  settings,
   defaults,
+  merge,
 }: {
   cart: FullCart;
   isOwner: boolean;
   isMember: boolean;
   signedIn: boolean;
-  settings: { slipWindowHours: number };
-  defaults: { address: string | null; city: string | null; phone: string | null } | null;
+  merge: {
+    from: { name: string; code: string };
+    request: { id: string } | null;
+    reason: string | null;
+  } | null;
+  defaults: {
+    address: string | null;
+    city: string | null;
+    phone: string | null;
+    lat: number | null;
+    lng: number | null;
+  } | null;
 }) {
   const shopLink = (
     <Link
@@ -222,32 +407,50 @@ function StatusPanel({
             href={`/sign-in?next=/c/${cart.code}`}
             className="inline-flex min-h-11 items-center justify-center sm:min-h-10 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent"
           >
-            Sign in to join this cart
+            Sign in to join
           </Link>
         );
-      if (!isMember)
-        return (
-          <form action={joinAction}>
+      if (!isMember && merge)
+        // One message at a time: the reason it can't happen, or the question and its button.
+        return merge.request ? (
+          <form action={cancelMergeAction} className="flex flex-wrap items-center gap-3">
+            <input type="hidden" name="requestId" value={merge.request.id} />
+            <p className="text-sm font-medium text-subtle">Request sent.</p>
+            <Button variant="secondary">Cancel request</Button>
+          </form>
+        ) : merge.reason ? (
+          <div className="flex flex-col gap-3">
+            <p className="text-sm">
+              You&apos;re in <strong>{merge.from.name || merge.from.code}</strong>. {merge.reason}
+            </p>
+            <div>
+              <Link
+                href={`/c/${merge.from.code}`}
+                className="inline-flex min-h-11 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
+              >
+                Go to your cart
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <form action={requestMergeAction} className="flex flex-col gap-2">
             <input type="hidden" name="cartId" value={cart.id} />
-            <Button className="w-full sm:w-auto">Join this cart</Button>
+            <p className="text-sm">You&apos;re in another cart. Move your items here?</p>
+            <div>
+              <Button className="w-full sm:w-auto">Ask to join</Button>
+            </div>
           </form>
         );
+      if (!isMember) return <JoinForm cartId={cart.id} defaults={defaults} />;
       if (cart.status === "OPEN") return <div>{shopLink}</div>;
       return isOwner ? (
         <div className="flex flex-col gap-3">
-          <Alert tone="good">
-            The cart reached the minimum. Accept the order to lock it, then pay{" "}
-            <strong>{formatLKR(cart.total)}</strong> by bank transfer and upload the slip within{" "}
-            {settings.slipWindowHours} hours. Members pay their share to you directly.
-          </Alert>
-          <AcceptForm cartId={cart.id} defaults={defaults} />
+          <AcceptForm cartId={cart.id} back={`/c/${cart.code}`} defaults={defaults} />
           <div>{shopLink}</div>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
-          <Alert tone="good">
-            The minimum is reached. Waiting for the owner to accept and pay.
-          </Alert>
+          <p className="text-sm">Waiting for the owner to pay.</p>
           <div>{shopLink}</div>
         </div>
       );
@@ -255,38 +458,33 @@ function StatusPanel({
       return isOwner ? (
         <div className="flex flex-col gap-2">
           <p className="text-sm font-medium text-warn">
-            <Countdown until={cart.slipDueAt!.toISOString()} prefix="Upload your slip: " />
+            <Countdown until={cart.slipDueAt!.toISOString()} />
           </p>
           <Link
             href={`/c/${cart.code}/pay`}
             className="inline-flex min-h-11 items-center justify-center sm:min-h-10 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent"
           >
-            Pay {formatLKR(cart.total)} and upload the slip
+            Pay &amp; upload slip
           </Link>
         </div>
       ) : (
-        <p className="text-sm">The owner has accepted and is paying for the whole cart.</p>
+        <p className="text-sm">The owner is paying.</p>
       );
     case "SLIP_REVIEW":
-      return <p className="text-sm">The bank slip is uploaded. We&apos;re checking the payment.</p>;
+      return <p className="text-sm">Checking the payment.</p>;
     case "CONFIRMED":
-      return (
-        <Alert tone="good">
-          Payment confirmed. We&apos;re packing the order for PickMe delivery.
-        </Alert>
-      );
+      return <p className="text-sm">Paid. Packing for delivery.</p>;
     case "DISPATCHED":
     case "DELIVERED":
       return (
         <div className="flex flex-col gap-1 text-sm">
           <p>
-            {cart.status === "DELIVERED" ? "Delivered" : "On the way"} by PickMe to{" "}
-            {cart.deliveryAddress}, {cart.deliveryCity}.
+            {cart.status === "DELIVERED" ? "Delivered" : "On the way"} to {cart.deliveryAddress},{" "}
+            {cart.deliveryCity}.
           </p>
           {cart.delivery?.quotedFee && (
-            <p>
-              Delivery fee about <strong>{formatLKR(cart.delivery.quotedFee)}</strong>, paid by the
-              owner to the driver.
+            <p className="text-subtle">
+              Driver fee about {formatLKR(cart.delivery.quotedFee)}, paid by the owner.
             </p>
           )}
           {cart.delivery?.trackingUrl && (
@@ -296,7 +494,7 @@ function StatusPanel({
               target="_blank"
               rel="noopener noreferrer"
             >
-              Track the delivery
+              Track
             </a>
           )}
         </div>
