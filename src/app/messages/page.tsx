@@ -3,7 +3,7 @@ import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
-import { inbox, listMessages } from "@/server/carts/chat";
+import { inbox, listMessages, newThreadWith } from "@/server/carts/chat";
 import { ChatPanel } from "../c/[code]/chat";
 
 export const metadata: Metadata = { title: "Messages" };
@@ -28,52 +28,62 @@ export default async function MessagesPage({ searchParams }: PageProps<"/message
     }
   }
   const threads = await inbox(user.id);
-  const open = opened ? threads.find((t) => t.cartId === c && t.participantId === w) : undefined;
+  // No messages yet: the owner starting a chat with someone asking to join their cart.
+  const open =
+    opened && c && w
+      ? (threads.find((t) => t.cartId === c && t.participantId === w) ??
+        (await newThreadWith(user.id, c, w)) ??
+        undefined)
+      : undefined;
 
   return (
     <>
       <PageHeader title="Messages" />
-      {threads.length === 0 ? (
+      {threads.length === 0 && !open ? (
         <EmptyState title="No messages yet">
           When someone writes about your cart, or you message a cart owner, it shows up here.
         </EmptyState>
       ) : (
-        <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-          <ul
-            className={`divide-y divide-line overflow-hidden rounded-xl border border-line bg-paper ${open ? "hidden lg:block" : ""}`}
-          >
-            {threads.map((t) => {
-              const active = t.cartId === open?.cartId && t.participantId === open?.participantId;
-              return (
-                <li key={`${t.cartId}:${t.participantId}`}>
-                  <Link
-                    href={`/messages?c=${t.cartId}&with=${t.participantId}`}
-                    className={`flex gap-3 p-3 hover:bg-muted ${active ? "bg-muted" : ""}`}
-                  >
-                    <span
-                      aria-hidden
-                      className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/15 font-semibold text-accent"
+        <div className={`grid gap-4 ${threads.length > 0 ? "lg:grid-cols-[320px_1fr]" : ""}`}>
+          {threads.length > 0 && (
+            <ul
+              className={`divide-y divide-line overflow-hidden rounded-xl border border-line bg-paper ${open ? "hidden lg:block" : ""}`}
+            >
+              {threads.map((t) => {
+                const active = t.cartId === open?.cartId && t.participantId === open?.participantId;
+                return (
+                  <li key={`${t.cartId}:${t.participantId}`}>
+                    <Link
+                      href={`/messages?c=${t.cartId}&with=${t.participantId}`}
+                      className={`flex gap-3 p-3 hover:bg-muted ${active ? "bg-muted" : ""}`}
                     >
-                      {t.otherName.charAt(0).toUpperCase()}
-                    </span>
-                    <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                      <span className={`truncate ${t.unread ? "font-bold" : "font-medium"}`}>
-                        {t.otherName}
+                      <span
+                        aria-hidden
+                        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-accent/15 font-semibold text-accent"
+                      >
+                        {t.otherName.charAt(0).toUpperCase()}
                       </span>
-                      <span className="flex shrink-0 items-center gap-2">
-                        <span className="text-[11px] text-subtle">{formatDateTime(t.lastAt)}</span>
-                        {t.unread > 0 && (
-                          <span className="rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
-                            {t.unread}
+                      <span className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                        <span className={`truncate ${t.unread ? "font-bold" : "font-medium"}`}>
+                          {t.otherName}
+                        </span>
+                        <span className="flex shrink-0 items-center gap-2">
+                          <span className="text-[11px] text-subtle">
+                            {formatDateTime(t.lastAt)}
                           </span>
-                        )}
+                          {t.unread > 0 && (
+                            <span className="rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
+                              {t.unread}
+                            </span>
+                          )}
+                        </span>
                       </span>
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
 
           {open && opened ? (
             <section className="flex flex-col gap-3 rounded-xl border border-line bg-paper p-4">

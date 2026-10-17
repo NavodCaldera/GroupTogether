@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Toast } from "@/components/toast";
 import { Alert, Button, EmptyState, PageHeader } from "@/components/ui";
 import { cartTotal } from "@/lib/cart-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
@@ -71,16 +72,9 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
           )
         }
       />
-      {sp.done === "accepted" && (
-        <div className="mb-4">
-          <Alert tone="good">Accepted. Their items are now in your cart.</Alert>
-        </div>
-      )}
-      {sp.done === "declined" && (
-        <div className="mb-4">
-          <Alert tone="info">Declined. Their cart stays as it was.</Alert>
-        </div>
-      )}
+      {/* Answering a join request: a short pop-up, not a banner. */}
+      {sp.done === "accepted" && <Toast>Accepted. Their items are now in your cart.</Toast>}
+      {sp.done === "declined" && <Toast>Declined. Their cart stays as it was.</Toast>}
       {typeof sp.error === "string" && (
         <div className="mb-4">
           <Alert>{sp.error}</Alert>
@@ -92,6 +86,8 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
         <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
           {items.map((n) => {
             const req = requestFor(n.href, n.title);
+            // Join requests show only their title and the Accept / Decline buttons.
+            const joinRequest = n.title.endsWith(JOIN);
             const body = (
               <>
                 <p className={n.readAt ? "font-medium" : "font-semibold"}>
@@ -100,8 +96,10 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
                   )}
                   {n.title}
                 </p>
-                <p className="mt-0.5 text-sm text-subtle">{n.body}</p>
-                <p className="mt-1 text-xs text-subtle">{formatDateTime(n.createdAt)}</p>
+                {!joinRequest && n.body && <p className="mt-0.5 text-sm text-subtle">{n.body}</p>}
+                {!joinRequest && (
+                  <p className="mt-1 text-xs text-subtle">{formatDateTime(n.createdAt)}</p>
+                )}
               </>
             );
             return (

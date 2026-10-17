@@ -3,8 +3,26 @@
 Every change the product owner asks for is written here **and** reflected in `CLAUDE.md` and the
 relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
+## 2026-10-18
+
+- **No Shop for admins.** The Shop tab is gone from the admin's header and phone tab bar (they see Carts, My carts, Admin), and opening `/shop` as an admin goes to Admin → Products. Buyers and sellers keep Shop. _Agent: frontend._
+- **No home page for admins.** Opening `/` as an admin redirects to `/admin`; the Home tab is hidden for admins (phone tab bar and desktop header) and the logo links to `/admin`. Buyers, sellers and visitors still get the home page. _Agent: frontend._
+- **"Slip uploaded. We'll check it." is a pop-up.** After the owner uploads the bank slip (`/c/<code>?paid=1`) it shows as the bottom `Toast` that hides itself, instead of a green box at the top of the cart page. _Agent: frontend._
+- **Cart page: no "Minimum reached" pill by the title.** Once a cart reaches the minimum, the green pill beside the cart name is hidden (the progress bar already says "Minimum reached"). Later states (Payment in review, On the way…) still show their pill. _Agent: frontend._
+- **Cart page: one box per member.** "In this cart" shows each person (the owner, other members and "You") in their own rounded box with a small gap, instead of rows inside one shared box. Your own box still opens to change quantities. _Agent: frontend._
+- **Cart page: no "N km away".** The distance line under the cart name is gone; distance still shows on the open carts cards (`/carts`). _Agent: frontend._
+- **Dashboard: no "Minimum reached. Waiting for <owner> (<phone>) to accept and pay."** A member's cart card in READY now shows only the "Minimum reached" badge, countdown and "View cart" (`nextStep` in `cart-rules.ts` returns no `text` there). _Agent: frontend._
+- **Total box beside Quantity** on the product page's add-to-cart form: shows price × quantity (e.g. 3 × LKR 1,700 = LKR 5,100) and updates as you type. Worked out with `D` from a decimal-string `price` prop, never a JS number. _Agent: frontend._
+- **Accepting or declining a join request shows a pop-up.** On Notifications, "Accepted. Their items are now in your cart." and "Declined. Their cart stays as it was." are now a toast at the bottom (hides after 3.5 s, ✕ to close) instead of a banner above the list. Uses `components/toast.tsx`. _Agents: notifications, frontend._
+- **"Leave cart" is a red button** with white text on the cart page (was a small grey underlined link), matching the owner's red "Cancel". _Agent: frontend._
+
 ## 2026-10-17
 
+- **Join-request notices are just the title.** "<name> wants to join your cart" no longer shows the sentence "<name> asks to move their items into … Accept or decline below." or its time; the Accept / Decline buttons follow the title directly. New requests store an empty body. _Agent: notifications._
+- **Message someone asking to join.** The owner's "Asking to join" card has a "Message" button beside Accept / Decline. It opens a chat with that person in `/messages` (empty until the owner writes). Owners still can't start a chat with anyone else; the exception is only while the request is pending (`askingToJoin` / `newThreadWith` in `chat.ts`), and a chat that has started carries on after the request is accepted or declined. The person gets the usual "New message" notice. _Agents: carts, frontend._
+- **"Request sent." removed** from the cart page after asking to join; only the "Cancel request" button stays. _Agent: frontend._
+- **"Done." is a pop-up.** After sending, accepting, declining or cancelling a join request (`/c/<code>?merge=1`), "Done." now shows as the bottom `Toast` that hides itself after a few seconds, instead of a green box at the top of the cart page. _Agent: frontend._
+- **Map no longer covers the phone tab bar.** Scrolling the map pin picker (sign-up, profile, start/join a cart) under the bottom tab bar drew the map on top of the tabs: Leaflet's layers use z-index 400/1000 and the bar is z-20. The map box is now `isolate`, so its layers stay inside it. _Agent: frontend._
 - **"Copy cart link" instead of "Share on WhatsApp"** on the buyer dashboard's cart card (shown while the cart is filling). It copies `/c/<code>` and reads "Link copied" for 2 s (`CopyLinkButton` in `components/client.tsx`). Rule 9 updated. _Agents: frontend, grouptogether._
 - **Product page fits on phones.** A long cart name in the "Add to" dropdown made the page wider than the screen (image and text cut off on the right). The page's grid columns can now shrink (`min-w-0`) and every `Select` is capped at its container's width. _Agent: frontend._
 - **Share icon removed from the cart page.** The round share button beside the cart title (Copy link / Share on WhatsApp) is gone, and the unused `ShareMenu` component was deleted. Buyers share from the dashboard's "Share on WhatsApp" button. Rule 9 updated. _Agents: frontend, grouptogether._

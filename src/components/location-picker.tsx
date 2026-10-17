@@ -266,7 +266,8 @@ export function LocationPicker({
           ref={el}
           role="application"
           aria-label="Map. Tap to drop a pin on your address."
-          className="h-64 w-full overflow-hidden rounded-lg border border-line bg-muted sm:h-72"
+          // isolate: Leaflet's panes (z 400) and controls (z 1000) stay inside the map, under the header and tab bar
+          className="isolate h-64 w-full overflow-hidden rounded-lg border border-line bg-muted sm:h-72"
         />
         <input type="hidden" name="lat" value={pin?.lat ?? ""} />
         <input type="hidden" name="lng" value={pin?.lng ?? ""} />

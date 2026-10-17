@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { STATUS_LABEL, cartTotal } from "@/lib/cart-rules";
@@ -18,6 +19,8 @@ const DONE = ["CONFIRMED", "DISPATCHED", "DELIVERED"];
  */
 export default async function PastOrdersPage() {
   const user = await requireUser([], "/my-carts");
+  // Admins have no carts of their own; their view of carts is Admin → Carts.
+  if (user.role === "ADMIN") redirect("/admin");
   const carts = await myCarts(user.id);
   const orders = carts.filter((c) => DONE.includes(c.status));
   const closed = carts.filter((c) => !DONE.includes(c.status));

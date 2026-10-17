@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Toast } from "@/components/toast";
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
+import { D } from "@/lib/decimal";
+import { formatLKR } from "@/lib/format";
 import { type ActionState, addToCartAction } from "@/server/carts/actions";
 import { VisibilityChoice } from "../../carts/new/new-cart-form";
 
@@ -12,11 +14,14 @@ type CartOption = { id: string; code: string; label: string };
 
 export function AddToCartForm({
   productId,
+  price,
   variants,
   carts,
   preselect,
 }: {
   productId: string;
+  /** Unit price as a decimal string (never a JS number) */
+  price: string;
   variants: Variant[];
   carts: CartOption[];
   preselect?: string;
@@ -27,6 +32,9 @@ export function AddToCartForm({
   const target = carts.some((c) => c.id === picked) ? picked : (carts[0]?.id ?? "new");
   const [variantId, setVariantId] = useState(variants.find((v) => v.available > 0)?.id ?? "");
   const max = variants.find((v) => v.id === variantId)?.available ?? 0;
+  const [qty, setQty] = useState("1");
+  const count = /^\d+$/.test(qty) ? Number(qty) : 0;
+  const total = new D(price).mul(count);
 
   if (!variants.some((v) => v.available > 0))
     return <p className="text-sm font-medium text-danger">Sold out in every size.</p>;
@@ -69,16 +77,29 @@ export function AddToCartForm({
           {max === 0 ? "Sold" : `${max.toLocaleString("en-LK")} left in stock`}
         </p>
       </fieldset>
-      <Field label="Quantity" name="qty">
-        <Input
-          name="qty"
-          type="number"
-          min={1}
-          max={Math.max(1, Math.min(99, max))}
-          defaultValue={1}
-          className="w-24"
-        />
-      </Field>
+      <div className="flex items-start gap-3">
+        <Field label="Quantity" name="qty">
+          <Input
+            name="qty"
+            type="number"
+            min={1}
+            max={Math.max(1, Math.min(99, max))}
+            value={qty}
+            onChange={(e) => setQty(e.target.value)}
+            className="w-24"
+          />
+        </Field>
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          <span className="text-sm font-bold">Total</span>
+          <output
+            htmlFor="qty"
+            aria-live="polite"
+            className="flex min-h-11 items-center rounded-lg border border-line bg-muted px-3 font-semibold tabular-nums sm:min-h-10"
+          >
+            {formatLKR(total)}
+          </output>
+        </div>
+      </div>
       <Field label="Add to" name="cartId">
         <Select name="cartId" value={target} onChange={(e) => setPicked(e.target.value)}>
           {carts.map((c) => (

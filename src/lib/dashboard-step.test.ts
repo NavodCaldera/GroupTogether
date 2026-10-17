@@ -19,10 +19,10 @@ describe("nextStep", () => {
     expect(s).toMatchObject({ deadline: "expires", share: true });
   });
 
-  it("gives the owner accept, and a member a waiting message, when ready", () => {
+  it("gives the owner accept, and a member just a link to the cart, when ready", () => {
     expect(nextStep({ ...base, status: "READY" }).action?.label).toBe("Accept & pay");
     const member = nextStep({ ...base, status: "READY", mine: false });
-    expect(member.text).toMatch(/Waiting for Nimali/);
+    expect(member.text).toBeUndefined();
     expect(member.action?.label).toBe("View cart");
   });
 

@@ -40,7 +40,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 **Look:**
 
-- Tokens in `globals.css`: `paper`, `ink`, `accent` (green), `on-accent`, `muted`, `line`, `subtle`, `warn` (amber, for deadlines), `danger` (red).
+- Tokens in `globals.css`: `paper`, `ink`, `accent` (green), `on-accent`, `muted`, `line`, `subtle`, `warn` (amber, for deadlines), `danger` (red). The cart page's "Leave cart" (members) and "Cancel" (owner) are `<Button variant="danger" className="text-white">`.
 - Day and night follow the device through `light-dark()`.
 - Use these tokens, never raw colours. The one exception is the WhatsApp green on its button.
 
@@ -62,13 +62,16 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Pages that need a user call `requireUser([], "/path")`, so sign-in returns them there. A cart page can be viewed signed out, with a "Sign in to join" prompt.
 - Next.js 16: use `PageProps<"/route">` and `LayoutProps<"/route">`; params and searchParams are Promises. Read `node_modules/next/dist/docs/` before using unfamiliar APIs.
 
-Map pin (rule 13): `src/components/location-picker.tsx` is the one client island for address + city + map pin (Leaflet from unpkg, loaded on demand; hidden `lat`/`lng` inputs). Used by sign-up, `JoinForm` on `/c/[code]` and `/account/location`. Keep it the only place Leaflet loads.
+Map pin (rule 13): `src/components/location-picker.tsx` is the one client island for address + city + map pin (Leaflet from unpkg, loaded on demand; hidden `lat`/`lng` inputs). Used by sign-up, `JoinForm` on `/c/[code]` and `/account/location`. Keep it the only place Leaflet loads, and keep `isolate` on the map box: Leaflet's z-index 400/1000 layers otherwise cover the header and the phone tab bar (z-20).
 
-- Cart page `/c/[code]`: a buyer already in another cart sees "Ask to join and move my items here" (or "Request sent" with Cancel) instead of Join; the owner sees an "Asking to join" card with Accept and Decline.
+- Header: admins get no Home or Shop tab (`/` → `/admin`, `/shop` → `/admin/products`); buyers and sellers keep both.
+- Cart page `/c/[code]`: the title has no status pill while OPEN or READY (the bar says "Minimum reached"); later states show `StatusBadge`.
+- Cart page `/c/[code]`: "In this cart" is one box per member (separate rounded boxes, `gap-3`); only your own box is a `<details>` that opens to edit quantities.
+- Cart page `/c/[code]`: a buyer already in another cart sees "Ask to join and move my items here" (or, once asked, just a "Cancel request" button) instead of Join; the owner sees an "Asking to join" card with Accept and Decline.
   City field in the picker suggests places via Photon (photon.komoot.io, limited to Sri Lanka, debounced 300 ms) and flies the map to the best match; do not use Nominatim for type-ahead (its policy forbids it).
 
 - `/carts` (Open carts): a plain GET search form (`q`), a hint line ("Nearest to your delivery point first" or a prompt to pin/sign in), and cards that show "N km away" when known.
-  Cart page (rule 14): `chat.tsx` (polling island, 8 s, visible tab only). There is no delivery-point map on the cart page (removed 2026-10-17); the owner's pin only feeds "N km away".
+  Cart page (rule 14): `chat.tsx` (polling island, 8 s, visible tab only). There is no delivery-point map on the cart page (removed 2026-10-17); and no "N km away" line either (removed 2026-10-18); distance shows only on the `/carts` cards.
   Home page lists the 8 cheapest live products, price ascending ("Affordable prices"), via `listProducts(f, take, "cheapest")`. Before that section, its own "How we solve the problem" section holds `WhyCheap`, which explains the price: "Bulk buying from factory surplus" → "Consumer group buying" (arrow → on desktop, ↓ on phones), then "On average X% below retail" from `retailSaving()` (null under 3 qualifying products → generic line). Markup only.
 
 - `TaxonomyFields` (shop filter and admin product form): Category is disabled until an Audience is chosen, and Size until a Category is chosen; clearing the audience clears the category.
@@ -87,9 +90,9 @@ Map pin (rule 13): `src/components/location-picker.tsx` is the one client island
 
 - Sharing a cart: the buyer dashboard's "Copy cart link" button (`CopyLinkButton` in `components/client.tsx`; it replaced "Share on WhatsApp" 2026-10-17). The cart page has no share icon or share box (`ShareMenu` removed 2026-10-17).
 
-- `/messages`: inbox (list of conversations with avatar initial, name, time, unread badge; no cart line or last-message preview). In `ChatPanel` your own messages carry ticks after the time: one grey tick sent, two green (`text-accent`) ticks seen and the open conversation (`ChatPanel`). Two panes on desktop; on phones the list and the conversation take turns ("← All messages"). Header has a chat icon with the unread count beside the bell.
+- `/messages`: inbox (list of conversations with avatar initial, name, time, unread badge; no cart line or last-message preview). In `ChatPanel` your own messages carry ticks after the time: one grey tick sent, two green (`text-accent`) ticks seen and the open conversation (`ChatPanel`). Two panes on desktop; on phones the list and the conversation take turns ("← All messages"). An owner opening `/messages?c=…&with=…` for someone asking to join (no messages yet) gets an empty conversation from `newThreadWith`; with no other conversations the list is left out. Header has a chat icon with the unread count beside the bell.
 
-- Header links use `NavLink` (`src/components/nav-link.tsx`, a tiny client island with `usePathname`): the current section gets `aria-current=page` and a green underline (bottom tab: green text). Sections can claim extra prefixes via `also` (Shop: `/products/`, Carts: `/c/`).
+- Header links use `NavLink` (`src/components/nav-link.tsx`, a tiny client island with `usePathname`): the current section gets `aria-current=page` and a green underline (bottom tab: green text). Sections can claim extra prefixes via `also` (Shop: `/products/`, Carts: `/c/`). Admins get no Home tab and the logo links to `/admin`; `src/app/page.tsx` redirects admins to `/admin` (2026-10-18).
   `/dashboard` is one current-cart card plus up to 3 past orders. The sentence and button come from `nextStep(status, mine, …)` in `cart-rules.ts`; change wording there (with `dashboard-step.test.ts`), not in the page. Layout: the status pill sits beside the name and wraps under it when both don't fit; the name wraps (never truncated); step labels are centred under their bars; on phones the buttons are full width and stacked. `Badge` pills never wrap (`whitespace-nowrap`, `shrink-0`).
   Colour rule (product owner, 2026-10-17): amber `text-warn` is used **only** for time left (countdowns, deadlines). Status badges use neutral/good/info/bad; there is no `warn` badge tone.
   Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.

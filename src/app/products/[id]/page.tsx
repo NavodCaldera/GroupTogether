@@ -54,6 +54,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             {user ? (
               <AddToCartForm
                 productId={product.id}
+                price={product.price.toString()}
                 variants={product.variants.map((v) => ({
                   id: v.id,
                   label: v.colour ? `${v.size} · ${v.colour}` : v.size,

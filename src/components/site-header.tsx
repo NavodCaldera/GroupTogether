@@ -20,34 +20,31 @@ export async function SiteHeader() {
   const underline =
     "relative text-ink after:absolute after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
   const sections: { href: string; label: string; icon: ReactNode; also?: string[] }[] = [
-    { href: "/", label: "Home", icon: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" /> },
-    {
-      href: "/shop",
-      label: "Shop",
-      also: ["/products/"],
-      icon: <path d="M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2" />,
-    },
-    {
-      href: "/carts",
-      label: "Carts",
-      also: ["/c/"],
-      icon: <path d="M3 4h2l2.4 11h11L21 7H6.2M9 20h.01M18 20h.01" />,
-    },
-    // Each role's own home: buyers their dashboard, sellers their products, admins My carts + Admin.
+    // Admins have no home page, shop or buyer carts: `/` and `/my-carts` send them to /admin,
+    // `/shop` to /admin/products and `/carts` to /admin/carts.
+    ...(user?.role === "ADMIN"
+      ? []
+      : [
+          { href: "/", label: "Home", icon: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" /> },
+          {
+            href: "/shop",
+            label: "Shop",
+            also: ["/products/"],
+            icon: <path d="M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2" />,
+          },
+          {
+            href: "/carts",
+            label: "Carts",
+            also: ["/c/"],
+            icon: <path d="M3 4h2l2.4 11h11L21 7H6.2M9 20h.01M18 20h.01" />,
+          },
+        ]),
+    // Each role's own home: buyers their dashboard, sellers their products, admins Admin.
     ...(user?.role === "CUSTOMER"
       ? [
           {
             href: "/dashboard",
             label: "Dashboard",
-            icon: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0" />,
-          },
-        ]
-      : []),
-    ...(user?.role === "ADMIN"
-      ? [
-          {
-            href: "/my-carts",
-            label: "My carts",
             icon: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0" />,
           },
         ]
@@ -76,7 +73,10 @@ export async function SiteHeader() {
     <>
       <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <nav className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-1.5 text-sm sm:py-2.5">
-          <Link href="/" className="mr-3 text-lg font-bold tracking-tight">
+          <Link
+            href={user?.role === "ADMIN" ? "/admin" : "/"}
+            className="mr-3 text-lg font-bold tracking-tight"
+          >
             Group<span className="text-accent">Together</span>
           </Link>
           {sections.slice(1).map((s) => (

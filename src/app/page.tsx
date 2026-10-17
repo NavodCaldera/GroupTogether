@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/server/auth/session";
 import { ProductImage } from "@/components/cart-bits";
 import { formatLKR } from "@/lib/format";
 import { SalesCounter } from "@/components/client";
@@ -7,6 +9,8 @@ import { sweep } from "@/server/carts/service";
 import { getSettings } from "@/server/settings";
 
 export default async function HomePage() {
+  // The home page is for shoppers; admins go straight to the back office.
+  if ((await getCurrentUser())?.role === "ADMIN") redirect("/admin");
   await sweep();
   const [products, settings, sales, saving] = await Promise.all([
     listProducts({}, 8, "cheapest"),
@@ -75,7 +79,15 @@ function WhyCheap({ saving }: { saving: number | null }) {
     <div className="rounded-2xl bg-muted p-3 sm:p-6">
       <div className="flex flex-col items-stretch gap-1 md:flex-row md:items-center md:gap-4">
         <div className={box}>
-          <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" aria-hidden>
+          <svg
+            className={icon}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinejoin="round"
+            aria-hidden
+          >
             <path d="M3 21V10l5 3V10l5 3V10l5 3V4h3v17H3z" />
             <path d="M7 17h2M11 17h2M15 17h2" />
           </svg>
@@ -87,13 +99,24 @@ function WhyCheap({ saving }: { saving: number | null }) {
           </div>
         </div>
 
-        <span className="self-center text-xl leading-none font-bold text-accent md:text-2xl" aria-hidden>
+        <span
+          className="self-center text-xl leading-none font-bold text-accent md:text-2xl"
+          aria-hidden
+        >
           <span className="md:hidden">↓</span>
           <span className="hidden md:inline">→</span>
         </span>
 
         <div className={box}>
-          <svg className={icon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+          <svg
+            className={icon}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.8"
+            strokeLinecap="round"
+            aria-hidden
+          >
             <circle cx="9" cy="8" r="3" />
             <circle cx="17" cy="9" r="2.5" />
             <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.5c.6-.3 1.3-.5 2-.5 2.5 0 4.5 2 4.5 4.5" />
@@ -108,7 +131,10 @@ function WhyCheap({ saving }: { saving: number | null }) {
       </div>
 
       <p className="mt-3 text-center font-semibold text-accent sm:mt-4">
-        <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-accent align-middle" aria-hidden />
+        <span
+          className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-accent align-middle"
+          aria-hidden
+        />
         {saving !== null ? `On average ${saving}% below retail.` : "Lower prices for you."} No
         middlemen, no small-order costs.
       </p>

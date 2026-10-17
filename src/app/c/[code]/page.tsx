@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/cart-bits";
 import { BackLink, Countdown } from "@/components/client";
-import { Alert, Badge, Button, Card } from "@/components/ui";
+import { Toast } from "@/components/toast";
+import { Alert, Badge, Button, Card, LinkButton } from "@/components/ui";
 import {
   cartTotal,
   isEditable,
@@ -12,7 +13,6 @@ import {
   progress,
   remaining,
 } from "@/lib/cart-rules";
-import { distanceKm, formatDistance } from "@/lib/distance";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import {
@@ -32,7 +32,7 @@ import {
   myMergeRequest,
 } from "@/server/carts/queries";
 import { sweep } from "@/server/carts/service";
-import { listMessages, threadsFor } from "@/server/carts/chat";
+import { conversationHref, listMessages, threadsFor } from "@/server/carts/chat";
 import { ChatPanel } from "./chat";
 import { AcceptForm, JoinForm } from "./cart-forms";
 
@@ -77,11 +77,6 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
         }
       : null;
 
-  // The cart's delivery point (the owner's pin), used only for "X km away"; no map is shown.
-  const ownerPin = cart.members.find((m) => m.userId === cart.ownerId);
-  const pinLat = cart.deliveryLat ?? ownerPin?.lat ?? null;
-  const pinLng = cart.deliveryLng ?? ownerPin?.lng ?? null;
-
   // Chat with the owner. The owner has an inbox of people who wrote; everyone else one thread.
   const threads = user && isOwner ? await threadsFor(cart.id) : [];
   const chatWith =
@@ -101,10 +96,6 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
     ? (threads.find((t) => t.participantId === chatWith)?.name ?? "")
     : cart.owner.name;
   const joinRequests = isOwner && editable ? await mergeRequestsFor(cart.id) : [];
-  const away =
-    user && user.lat !== null && user.lng !== null && pinLat !== null && pinLng !== null && !isOwner
-      ? formatDistance(distanceKm({ lat: user.lat, lng: user.lng }, { lat: pinLat, lng: pinLng }))
-      : null;
 
   return (
     // One column, read top to bottom: what it is, how far along, your next step, who is in it.
@@ -113,16 +104,18 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
         <BackLink fallback="/carts" />
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">{title}</h1>
-          {cart.status !== "OPEN" && <StatusBadge status={cart.status} />}
+          {/* No pill while filling: OPEN needs none, and the bar already says "Minimum reached". */}
+          {cart.status !== "OPEN" && cart.status !== "READY" && (
+            <StatusBadge status={cart.status} />
+          )}
           {cart.visibility === "PRIVATE" && <Badge>Private</Badge>}
         </div>
-        {away && <p className="mt-1 text-sm text-subtle">{away}</p>}
       </div>
 
       {sp.added && <Alert tone="good">Added and held for you.</Alert>}
-      {sp.paid && <Alert tone="good">Slip uploaded. We&apos;ll check it.</Alert>}
+      {sp.paid && <Toast>Slip uploaded. We&apos;ll check it.</Toast>}
       {typeof sp.error === "string" && <Alert>{sp.error}</Alert>}
-      {sp.merge && <Alert tone="good">Done.</Alert>}
+      {sp.merge && <Toast>Done.</Toast>}
       {slip?.status === "REJECTED" && isOwner && cart.status === "AWAITING_SLIP" && (
         <Alert>Slip rejected: {slip.reviewNote}</Alert>
       )}
@@ -186,16 +179,19 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
                   <input type="hidden" name="requestId" value={r.id} />
                   <Button variant="secondary">Decline</Button>
                 </form>
+                <LinkButton href={conversationHref(cart.id, r.userId)} variant="secondary">
+                  Message
+                </LinkButton>
               </div>
             </div>
           ))}
         </Card>
       )}
 
-      {/* Who is in it: a total per person; only your own row opens, to change your items. */}
+      {/* Who is in it: one box per person with their total; only your own box opens, to change your items. */}
       <section>
         <h2 className="mb-2 text-lg font-semibold">In this cart</h2>
-        <div className="divide-y divide-line rounded-xl border border-line bg-paper">
+        <div className="flex flex-col gap-3">
           {cart.members.map((m) => {
             const lines = cart.lines.filter((l) => l.userId === m.userId);
             const mine = m.userId === user?.id;
@@ -209,13 +205,20 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
             );
             if (!mine)
               return (
-                <div key={m.id} className="flex items-center justify-between gap-2 p-4">
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between gap-2 rounded-xl border border-line bg-paper p-4"
+                >
                   {who}
                   <span className="text-sm font-semibold">{formatLKR(cartTotal(lines))}</span>
                 </div>
               );
             return (
-              <details key={m.id} open={editable} className="group p-4">
+              <details
+                key={m.id}
+                open={editable}
+                className="group rounded-xl border border-line bg-paper p-4"
+              >
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-2 [&::-webkit-details-marker]:hidden">
                   {who}
                   <span className="flex items-center gap-2 text-sm font-semibold">
@@ -325,11 +328,13 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
         </section>
       )}
 
-      {/* Rare, irreversible actions go last and stay quiet. */}
+      {/* Rare, irreversible actions go last, as red buttons. */}
       {isMember && editable && !isOwner && (
         <form action={leaveAction}>
           <input type="hidden" name="cartId" value={cart.id} />
-          <button className="text-sm text-subtle underline hover:text-ink">Leave cart</button>
+          <Button variant="danger" className="text-white">
+            Leave cart
+          </Button>
         </form>
       )}
       {isOwner && ["OPEN", "READY", "AWAITING_SLIP"].includes(cart.status) && (
@@ -384,9 +389,8 @@ function StatusPanel({
       if (!isMember && merge)
         // One message at a time: the reason it can't happen, or the question and its button.
         return merge.request ? (
-          <form action={cancelMergeAction} className="flex flex-wrap items-center gap-3">
+          <form action={cancelMergeAction}>
             <input type="hidden" name="requestId" value={merge.request.id} />
-            <p className="text-sm font-medium text-subtle">Request sent.</p>
             <Button variant="secondary">Cancel request</Button>
           </form>
         ) : merge.reason ? (

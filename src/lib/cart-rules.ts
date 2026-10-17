@@ -209,7 +209,7 @@ export function nextStep(c: NextStepInput): NextStep {
             deadline: "expires",
           }
         : {
-            text: `Minimum reached. Waiting for ${c.ownerName} to accept and pay.`,
+            // No sentence: the "Minimum reached" badge already says it.
             action: { label: "View cart", href: cart },
             deadline: "expires",
           };

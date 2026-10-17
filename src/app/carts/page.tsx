@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { CartCard } from "@/components/cart-bits";
 import { EmptyState, PageHeader } from "@/components/ui";
 import { getCurrentUser } from "@/server/auth/session";
@@ -11,8 +12,10 @@ export const metadata: Metadata = { title: "Carts" };
 export default async function CartsPage({ searchParams }: PageProps<"/carts">) {
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 60) : "";
-  await sweep();
   const user = await getCurrentUser();
+  // Admins don't join carts; theirs is Admin → Carts.
+  if (user?.role === "ADMIN") redirect("/admin/carts");
+  await sweep();
   const near =
     user && user.lat !== null && user.lng !== null ? { lat: user.lat, lng: user.lng } : null;
   const carts = await recentCarts(60, new Date(), user?.id, { q, near });

@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ProductImage } from "@/components/cart-bits";
 import { Alert, EmptyState, PageHeader } from "@/components/ui";
 import { SearchBox } from "@/components/search-box";
 import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { formatLKR } from "@/lib/format";
 import { findKind, isAudience, kindFits } from "@/lib/taxonomy";
+import { getCurrentUser } from "@/server/auth/session";
 import { type ProductFilters, listProducts } from "@/server/catalogue";
 
 export const metadata: Metadata = { title: "Shop" };
@@ -13,6 +15,8 @@ export const metadata: Metadata = { title: "Shop" };
 const one = (v: string | string[] | undefined) => (typeof v === "string" && v ? v : undefined);
 
 export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
+  // Admins don't shop; their catalogue is Admin → Products.
+  if ((await getCurrentUser())?.role === "ADMIN") redirect("/admin/products");
   const sp = await searchParams;
   const cart = one(sp.cart);
   const filters: ProductFilters = {

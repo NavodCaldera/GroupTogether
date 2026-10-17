@@ -12,7 +12,8 @@ const PER_MINUTE = 10;
 
 /**
  * Who a user is talking to in a cart's chat: the owner talks to one participant at a time, every
- * other user only has their own thread with the owner.
+ * other user only has their own thread with the owner. The owner can only reply, except to
+ * someone asking to join the cart, whom they may message first.
  */
 function threadParticipant(cart: { ownerId: string }, userId: string, withId?: string | null) {
   if (userId !== cart.ownerId) return userId;
@@ -30,7 +31,8 @@ export async function sendMessage(userId: string, cartId: string, body: string, 
   const participantId = threadParticipant(cart, userId, withId);
   if (userId === cart.ownerId) {
     const known = await db.cartMessage.count({ where: { cartId, participantId } });
-    if (known === 0) throw new CartError("That person hasn't written to you");
+    if (known === 0 && !(await askingToJoin(cartId, participantId)))
+      throw new CartError("That person hasn't written to you");
   }
   const recent = await db.cartMessage.count({
     where: { cartId, authorId: userId, createdAt: { gt: new Date(Date.now() - 60_000) } },
@@ -75,6 +77,25 @@ export async function listMessages(userId: string, cartId: string, withId?: stri
   });
   // `seen` drives the sender's ticks: one grey tick sent, two green ticks seen.
   return rows.map(({ readAt, ...m }) => ({ ...m, seen: readAt !== null }));
+}
+
+/** The owner may write first only to someone with a pending request to join their cart. */
+async function askingToJoin(cartId: string, userId: string) {
+  const n = await db.cartMergeRequest.count({
+    where: { toCartId: cartId, userId, status: "PENDING" },
+  });
+  return n > 0;
+}
+
+/**
+ * A conversation the owner is about to start with someone asking to join (no messages yet), or
+ * null if they can't. The Messages page uses it to open an empty thread.
+ */
+export async function newThreadWith(ownerId: string, cartId: string, withId: string) {
+  const cart = await db.groupCart.findUnique({ where: { id: cartId }, select: { ownerId: true } });
+  if (cart?.ownerId !== ownerId || !(await askingToJoin(cartId, withId))) return null;
+  const other = await db.user.findUnique({ where: { id: withId }, select: { name: true } });
+  return other && { cartId, participantId: withId, otherName: other.name, asOwner: true };
 }
 
 /** Where a conversation lives: the Messages inbox, opened on that thread. */

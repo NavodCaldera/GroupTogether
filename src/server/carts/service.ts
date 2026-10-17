@@ -449,7 +449,8 @@ export async function requestMerge(userId: string, toCartId: string, now = new D
   const who = await db.user.findUniqueOrThrow({ where: { id: userId }, select: { name: true } });
   await notify([to.ownerId], {
     title: `${who.name} wants to join your cart`,
-    body: `${who.name} asks to move their items into "${to.name || to.code}". Accept or decline below.`,
+    // The title says it all; Accept / Decline sit right under it on the notifications page.
+    body: "",
     href: `/c/${to.code}?request=${request.id}`,
   });
   return request;
