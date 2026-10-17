@@ -253,3 +253,51 @@ export function nextStep(c: NextStepInput): NextStep {
       return { text: "This cart is closed.", action: { label: "View cart", href: cart } };
   }
 }
+
+// ─── Admin carts list: stages and urgency ────────────────────────────────────
+
+export type AdminStage = "active" | "filling" | "paying" | "delivering" | "done" | "closed" | "all";
+
+/** Statuses where the next move is an admin's: review the slip, book the drop, mark it delivered. */
+export const ADMIN_TURN: readonly CartStatus[] = ["SLIP_REVIEW", "CONFIRMED", "DISPATCHED"];
+
+/** The admin carts tabs. Active is the default: everything not yet delivered or closed. */
+export const ADMIN_STAGES: readonly {
+  key: AdminStage;
+  label: string;
+  statuses: readonly CartStatus[];
+}[] = [
+  { key: "active", label: "Active", statuses: [...HOLDS_STOCK, "CONFIRMED", "DISPATCHED"] },
+  { key: "filling", label: "Filling", statuses: EDITABLE },
+  { key: "paying", label: "Paying", statuses: ["AWAITING_SLIP", "SLIP_REVIEW"] },
+  { key: "delivering", label: "Delivering", statuses: ["CONFIRMED", "DISPATCHED"] },
+  { key: "done", label: "Done", statuses: ["DELIVERED"] },
+  { key: "closed", label: "Closed", statuses: ["EXPIRED", "CANCELLED"] },
+  { key: "all", label: "All", statuses: Object.keys(STATUS_LABEL) as CartStatus[] },
+];
+
+/** The stage a status belongs to (not Active or All), for the admin cart page's stepper. */
+export function adminStage(status: CartStatus): AdminStage {
+  return ADMIN_STAGES.slice(1, 6).find((s) => s.statuses.includes(status))!.key;
+}
+
+/** The deadline running now: the cart's expiry while filling, the slip window while paying. */
+export function dueAt(c: Deadlines): Date | null {
+  if (isEditable(c.status)) return c.expiresAt;
+  if (c.status === "AWAITING_SLIP") return c.slipDueAt;
+  return null;
+}
+
+/**
+ * Order for live admin lists: carts waiting on an admin first (longest waiting first), then the
+ * soonest deadline, then the rest by latest activity.
+ */
+export function byUrgency<T extends Deadlines & { updatedAt: Date }>(a: T, b: T): number {
+  const rank = (c: T) => (ADMIN_TURN.includes(c.status) ? 0 : dueAt(c) ? 1 : 2);
+  const ra = rank(a);
+  const rb = rank(b);
+  if (ra !== rb) return ra - rb;
+  if (ra === 0) return a.updatedAt.getTime() - b.updatedAt.getTime();
+  if (ra === 1) return dueAt(a)!.getTime() - dueAt(b)!.getTime();
+  return b.updatedAt.getTime() - a.updatedAt.getTime();
+}

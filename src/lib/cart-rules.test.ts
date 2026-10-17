@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
+  ADMIN_STAGES,
+  type CartStatus,
   addHours,
+  adminStage,
+  byUrgency,
   cartTotal,
   isActiveCart,
   mergeBlockReason,
@@ -143,5 +147,39 @@ describe("merging carts", () => {
     expect(
       mergeBlockReason({ from, to: { ...to, expiresAt: addHours(now, -1) }, userId: "me" }, now),
     ).toMatch(/no longer taking/);
+  });
+});
+
+describe("admin carts list", () => {
+  const at = (h: number) => new Date(Date.UTC(2026, 9, 18, h));
+  const cart = (status: CartStatus, h: { exp?: number; slip?: number; upd?: number } = {}) => ({
+    status,
+    expiresAt: at(h.exp ?? 20),
+    slipDueAt: h.slip === undefined ? null : at(h.slip),
+    updatedAt: at(h.upd ?? 1),
+  });
+
+  it("every status is in exactly one stage besides Active and All", () => {
+    const all = ADMIN_STAGES.find((s) => s.key === "all")!.statuses;
+    for (const status of all) {
+      const stages = ADMIN_STAGES.filter(
+        (s) => s.key !== "active" && s.key !== "all" && s.statuses.includes(status),
+      );
+      expect(stages).toHaveLength(1);
+      expect(adminStage(status)).toBe(stages[0].key);
+    }
+    const active = ADMIN_STAGES.find((s) => s.key === "active")!.statuses;
+    expect(active).not.toContain("DELIVERED");
+    expect(active).not.toContain("EXPIRED");
+  });
+
+  it("puts the admin's turn first, then the soonest deadline", () => {
+    const open = cart("OPEN", { exp: 9 });
+    const paying = cart("AWAITING_SLIP", { slip: 5 });
+    const review = cart("SLIP_REVIEW", { upd: 4 });
+    const toBook = cart("CONFIRMED", { upd: 2 });
+    const done = cart("DELIVERED", { upd: 3 });
+    const sorted = [done, open, review, paying, toBook].sort(byUrgency);
+    expect(sorted).toEqual([toBook, review, paying, open, done]);
   });
 });

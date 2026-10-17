@@ -20,6 +20,28 @@ async function salesSince(from: Date) {
   return { orders: r._count._all, total: toD(r._sum.total ?? 0) };
 }
 
+/** Confirmed sales per Colombo day for the last `days` days, oldest first (empty days are 0). */
+export async function dailySales(now = new Date(), days = 14) {
+  const from = colomboDayStart(now, days - 1);
+  const carts = await db.groupCart.findMany({
+    where: { status: { in: PAID }, confirmedAt: { gte: from } },
+    select: { confirmedAt: true, total: true },
+  });
+  const out = Array.from({ length: days }, (_, i) => ({
+    day: colomboDayStart(now, days - 1 - i),
+    total: toD(0),
+    orders: 0,
+  }));
+  for (const c of carts) {
+    const i = Math.floor((colomboDayStart(c.confirmedAt!).getTime() - from.getTime()) / 86_400_000);
+    if (out[i]) {
+      out[i].total = out[i].total.plus(toD(c.total));
+      out[i].orders++;
+    }
+  }
+  return out;
+}
+
 /** Everything on the admin overview, in one round of parallel queries. */
 export async function overviewStats(now = new Date()) {
   const [

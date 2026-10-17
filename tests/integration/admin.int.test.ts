@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { overviewStats } from "@/server/admin-queries";
+import { dailySales, overviewStats } from "@/server/admin-queries";
 import {
   authenticate,
   hashToken,
@@ -76,5 +76,12 @@ describe("overview figures", () => {
     expect(s.bestSellers).toEqual([
       { product: expect.objectContaining({ id: v.productId }), sold: 2 },
     ]);
+
+    // The chart: 14 days, oldest first; today's bar holds the confirmed cart, the rest are 0.
+    const days = await dailySales();
+    expect(days).toHaveLength(14);
+    expect(days[13].total.toFixed(2)).toBe("50000.00");
+    expect(days[13].orders).toBe(1);
+    expect(days.slice(0, 13).every((d) => d.orders === 0 && d.total.isZero())).toBe(true);
   });
 });

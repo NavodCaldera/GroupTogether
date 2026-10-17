@@ -24,7 +24,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   return (
     <div className="flex flex-col gap-6">
       {/* One swipeable row on phones instead of wrapping onto several lines. */}
-      <nav className="-mx-4 flex gap-1 overflow-x-auto border-b border-line px-4 pb-2 text-sm whitespace-nowrap sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-3">
+      <nav className="-mx-4 flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-4 pb-2 text-sm whitespace-nowrap sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-3">
         {items.map(([href, label, n]) => (
           <NavLink
             key={href}
