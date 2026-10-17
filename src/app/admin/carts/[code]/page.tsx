@@ -3,7 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { StatusBadge } from "@/components/cart-bits";
-import { Alert, Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
+import { Toast } from "@/components/toast";
+import { Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
 import { CANCELLABLE, cartTotal } from "@/lib/cart-rules";
 import { mapsLink } from "@/lib/location";
 import { formatDateTime, formatLKR } from "@/lib/format";
@@ -68,13 +69,14 @@ export default async function AdminCartPage({
             }
             actions={<StatusBadge status={cart.status} />}
           />
+          {/* After approving a slip or booking the drop: a pop-up, not a banner. */}
           {booked ? (
-            <Alert tone="good">Delivery booked. The owner has been told to pay the driver.</Alert>
+            <Toast ms={5000}>Delivery booked. The owner has been told to pay the driver.</Toast>
           ) : (
             approved && (
-              <Alert tone="good">
+              <Toast ms={5000}>
                 Slip approved. The order is confirmed; book the PickMe delivery.
-              </Alert>
+              </Toast>
             )
           )}
           <Card>

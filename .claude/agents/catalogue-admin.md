@@ -54,7 +54,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
   - `GET /admin/export/orders?days=30`: confirmed orders as CSV (UTF-8 BOM for Excel). `toCsv` prefixes cells that start with `= + - @` so they can't run as formulas.
 - Admin controls stay inside the business rules. There is no override of the 24h / 2h deadlines, no admin editing of members' lines and no refunds. Ask the product owner before adding any of these.
 - Settings: `minOrderValue` (applies to **new** carts only; existing carts keep their snapshot), `cartLifetimeHours` (24), `slipWindowHours` (2), and the bank account details shown to owners.
-- After an action removes its own form, redirect with a query flag and show an `Alert` banner. Otherwise the success message is lost.
+- After an action removes its own form, redirect with a query flag and show a message. Otherwise the success message is lost. The admin cart page shows `?approved=1` / `?booked=1` as a `Toast` pop-up (5 s); other pages still use an `Alert` banner.
 - Admin accounts come only from the seed. Public sign-up creates buyers (`CUSTOMER`) only. Factory sellers (`SELLER`) are created at `/admin/users/new-seller` (`createSeller`).
 - **Seller products** (`src/server/seller.ts`; product-owner rule, 2026-10-16):
   - `Product.sellerId` is null for our own listings. `ProductStatus` has `IN_REVIEW` between DRAFT and LIVE.
