@@ -2,10 +2,11 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ProductImage } from "@/components/cart-bits";
 import { Alert, EmptyState, PageHeader } from "@/components/ui";
+import { SearchBox } from "@/components/search-box";
 import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { formatLKR } from "@/lib/format";
 import { findKind, isAudience, kindFits } from "@/lib/taxonomy";
-import { type ProductFilters, listProducts, shopFacets } from "@/server/catalogue";
+import { type ProductFilters, listProducts } from "@/server/catalogue";
 
 export const metadata: Metadata = { title: "Shop" };
 
@@ -27,7 +28,9 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   };
   if (filters.audience && filters.kind && !kindFits(filters.audience, filters.kind))
     filters.kind = undefined;
-  const [products, facets] = await Promise.all([listProducts(filters), shopFacets()]);
+  // No filter or search: lowest prices first. Filtered: newest first.
+  const unfiltered = Object.values(filters).every((v) => v === undefined);
+  const products = await listProducts(filters, 60, unfiltered ? "cheapest" : "newest");
   // 16px text on phones so iOS doesn't zoom into the field.
   const select =
     "min-h-11 min-w-0 rounded-lg border border-line bg-paper px-2 text-base sm:min-h-10 sm:text-sm";
@@ -46,25 +49,18 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
         </div>
       )}
       {/* A plain GET form: filtering needs no JavaScript. */}
-      <form className="mb-6 grid grid-cols-2 gap-2 sm:flex sm:flex-wrap" action="/shop">
+      {/* Phones: one box per row. Wider screens: one wrapping row. */}
+      <form className="mb-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap" action="/shop">
         {cart && <input type="hidden" name="cart" value={cart} />}
-        <input
-          name="q"
-          type="search"
-          defaultValue={filters.q}
-          placeholder="Search"
-          aria-label="Search"
-          className={`${select} col-span-2 px-3 sm:min-w-40 sm:flex-1`}
-        />
+        <SearchBox defaultValue={filters.q} cart={cart} className="sm:min-w-40 sm:flex-1" />
         <TaxonomyFields
           audience={filters.audience}
           kind={filters.kind}
           size={filters.size}
-          allSizes={facets.sizes}
           withSize
           selectClass={select}
         />
-        <button className="col-span-2 min-h-11 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent sm:min-h-10">
+        <button className="min-h-11 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent sm:min-h-10">
           Filter
         </button>
       </form>

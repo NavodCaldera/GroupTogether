@@ -54,7 +54,7 @@ export function AddToCartForm({
             </label>
           ))}
         </div>
-        <p className={`mt-2 text-sm font-medium ${max <= 5 ? "text-warn" : "text-accent"}`}>
+        <p className={`mt-2 text-sm font-medium ${max <= 5 ? "text-danger" : "text-accent"}`}>
           {max.toLocaleString("en-LK")} left in stock
         </p>
       </fieldset>
@@ -78,14 +78,7 @@ export function AddToCartForm({
           {carts.length === 0 && <option value="new">+ Start a new cart</option>}
         </Select>
       </Field>
-      {target === "new" && (
-        <>
-          <Field label="New cart name (optional)" name="name">
-            <Input name="name" maxLength={60} />
-          </Field>
-          <VisibilityChoice />
-        </>
-      )}
+      {target === "new" && <VisibilityChoice />}
       <Button type="submit" disabled={pending || !variantId}>
         {pending ? "Adding…" : "Add to group cart"}
       </Button>
@@ -120,7 +113,7 @@ export function SizeStockPreview({ variants }: { variants: Variant[] }) {
         ))}
       </div>
       <p
-        className={`mt-2 text-sm font-medium ${left === 0 ? "text-danger" : left <= 5 ? "text-warn" : "text-accent"}`}
+        className={`mt-2 text-sm font-medium ${left === 0 ? "text-danger" : left <= 5 ? "text-danger" : "text-accent"}`}
       >
         {left === 0 ? "Sold out" : `${left.toLocaleString("en-LK")} left in stock`}
       </p>
