@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { BackLink } from "@/components/client";
 import { StatusBadge } from "@/components/cart-bits";
 import { Toast } from "@/components/toast";
-import { Badge, Button, Card, Field, Input, PageHeader } from "@/components/ui";
-import { CANCELLABLE, cartTotal } from "@/lib/cart-rules";
+import { Badge, Button, Card, Field, Input, PageHeader, cx } from "@/components/ui";
+import { ADMIN_STAGES, CANCELLABLE, adminStage, cartTotal } from "@/lib/cart-rules";
 import { mapsLink } from "@/lib/location";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import {
@@ -17,8 +18,17 @@ import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { AdminForm } from "../../admin-form";
+import { NextStep } from "../next-step";
 
 export const metadata: Metadata = { title: "Cart" };
+
+/** The stepper on top: Filling, Paying, Delivering, Done. */
+const STEPS = ADMIN_STAGES.slice(1, 5);
+const DELIVERY_BUTTONS = [
+  ["PICKED_UP", "Mark picked up"],
+  ["DELIVERED", "Mark delivered"],
+  ["FAILED", "Delivery failed"],
+] as const;
 
 export default async function AdminCartPage({
   params,
@@ -45,6 +55,70 @@ export default async function AdminCartPage({
   });
   if (!cart) notFound();
   const items = cart.lines.reduce((n, l) => n + l.qty, 0);
+  const now = new Date();
+  const stage = adminStage(cart.status);
+  const closed = stage === "closed";
+  const step = STEPS.findIndex((st) => st.key === stage);
+  const pendingSlipId = cart.slips.find((s) => s.status === "PENDING")?.id;
+  // What happened, oldest first.
+  const events: { at: Date; text: ReactNode; bad?: boolean }[] = [
+    { at: cart.createdAt, text: `Started by ${cart.owner.name}` },
+    ...(cart.readyAt ? [{ at: cart.readyAt, text: "Reached the minimum" }] : []),
+    ...(cart.acceptedAt
+      ? [{ at: cart.acceptedAt, text: "Owner accepted and froze the cart" }]
+      : []),
+    ...cart.slips.flatMap((s) => [
+      {
+        at: s.createdAt,
+        text: (
+          <>
+            Slip uploaded ({formatLKR(s.amount)}) ·{" "}
+            <a
+              href={`/api/slips/${s.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent underline"
+            >
+              open
+            </a>
+          </>
+        ),
+      },
+      ...(s.reviewedAt
+        ? [
+            {
+              at: s.reviewedAt,
+              text:
+                s.status === "APPROVED"
+                  ? "Slip approved"
+                  : `Slip rejected${s.reviewNote ? `: ${s.reviewNote}` : ""}`,
+              bad: s.status === "REJECTED",
+            },
+          ]
+        : []),
+    ]),
+    ...(cart.confirmedAt ? [{ at: cart.confirmedAt, text: "Order confirmed" }] : []),
+    ...(cart.delivery ? [{ at: cart.delivery.createdAt, text: "PickMe drop booked" }] : []),
+    ...(cart.status === "DELIVERED" && cart.delivery
+      ? [{ at: cart.delivery.updatedAt, text: "Delivered" }]
+      : []),
+    ...(closed
+      ? [
+          {
+            at: cart.updatedAt,
+            text: `${cart.status === "EXPIRED" ? "Expired" : "Cancelled"}${cart.closedReason ? `: ${cart.closedReason}` : ""}`,
+            bad: true,
+          },
+        ]
+      : []),
+  ].sort((a, b) => a.at.getTime() - b.at.getTime());
+  // The deadline still ahead, shown as a hollow dot after the events.
+  const upcoming =
+    cart.status === "AWAITING_SLIP" && cart.slipDueAt
+      ? { at: cart.slipDueAt, text: "Slip due" }
+      : cart.status === "OPEN" || cart.status === "READY"
+        ? { at: cart.expiresAt, text: "Expires unless the owner accepts" }
+        : null;
   // What each member owes the owner (members settle with the owner outside the platform).
   const shares = cart.members.map((m) => {
     const lines = cart.lines.filter((l) => l.userId === m.userId);
@@ -73,6 +147,35 @@ export default async function AdminCartPage({
           {booked && (
             <Toast ms={5000}>Delivery booked. The owner has been told to pay the driver.</Toast>
           )}
+          <Card className="flex flex-col gap-3">
+            {closed ? (
+              <p className="text-sm font-medium text-danger">
+                {cart.status === "EXPIRED" ? "Expired" : "Cancelled"}
+                {cart.closedReason && `: ${cart.closedReason}`}
+              </p>
+            ) : (
+              <>
+                <ol className="grid grid-cols-4 gap-1.5 text-xs" aria-label="Stages">
+                  {STEPS.map((st, i) => (
+                    <li key={st.key} aria-current={i === step ? "step" : undefined}>
+                      <span
+                        className={cx(
+                          "block h-1.5 rounded-full",
+                          i <= step ? "bg-accent" : "bg-muted",
+                        )}
+                      />
+                      <span
+                        className={cx("mt-1 block", i === step ? "font-semibold" : "text-subtle")}
+                      >
+                        {st.label}
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                <NextStep cart={{ ...cart, pendingSlipId }} now={now} />
+              </>
+            )}
+          </Card>
           <Card>
             <h2 className="mb-2 font-semibold">
               Picking list: {items} items · {formatLKR(cart.total)}
@@ -143,32 +246,27 @@ export default async function AdminCartPage({
                 open the shopper view
               </a>
             </p>
-            <p>
-              Created {formatDateTime(cart.createdAt)} · expires {formatDateTime(cart.expiresAt)}
-            </p>
-            {cart.readyAt && <p>Reached minimum {formatDateTime(cart.readyAt)}</p>}
-            {cart.acceptedAt && (
-              <p>
-                Accepted {formatDateTime(cart.acceptedAt)} · slip due{" "}
-                {formatDateTime(cart.slipDueAt)}
-              </p>
-            )}
-            {cart.confirmedAt && <p>Confirmed {formatDateTime(cart.confirmedAt)}</p>}
-            {cart.closedReason && <p className="text-danger">{cart.closedReason}</p>}
-            {cart.slips.map((s) => (
-              <p key={s.id}>
-                Slip {formatDateTime(s.createdAt)}: <Badge>{s.status}</Badge>{" "}
-                <a
-                  href={`/api/slips/${s.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-accent underline"
-                >
-                  open
-                </a>
-                {s.reviewNote && ` (${s.reviewNote})`}
-              </p>
-            ))}
+            <ol className="mt-3 ml-1 flex flex-col gap-2.5 border-l border-line pl-4">
+              {[...events, ...(upcoming ? [{ ...upcoming, bad: false, next: true }] : [])].map(
+                (e, i) => (
+                  <li key={i} className={cx("relative", "next" in e && "text-subtle")}>
+                    <span
+                      aria-hidden
+                      className={cx(
+                        "absolute top-1 -left-[21px] size-2.5 rounded-full",
+                        "next" in e
+                          ? "border border-line bg-paper"
+                          : e.bad
+                            ? "bg-danger"
+                            : "bg-accent",
+                      )}
+                    />
+                    <span className="block text-xs text-subtle">{formatDateTime(e.at)}</span>
+                    <span className={cx(e.bad && "text-danger")}>{e.text}</span>
+                  </li>
+                ),
+              )}
+            </ol>
           </Card>
         </div>
 
@@ -203,7 +301,7 @@ export default async function AdminCartPage({
           </Card>
 
           {cart.status === "CONFIRMED" && !cart.delivery && (
-            <Card>
+            <Card id="book" className="scroll-mt-4">
               <h2 className="mb-2 font-semibold">Book delivery</h2>
               <AdminForm action={bookDeliveryAction} submit="Mark as booked with PickMe">
                 <input type="hidden" name="cartId" value={cart.id} />
@@ -231,7 +329,7 @@ export default async function AdminCartPage({
           )}
 
           {cart.delivery && (
-            <Card className="text-sm">
+            <Card id="delivery" className="scroll-mt-4 text-sm">
               <h2 className="mb-2 font-semibold">Delivery · {cart.delivery.status}</h2>
               <p>
                 {cart.delivery.provider}{" "}
@@ -247,12 +345,12 @@ export default async function AdminCartPage({
               )}
               {cart.delivery.status !== "DELIVERED" && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {(["PICKED_UP", "DELIVERED", "FAILED"] as const).map((s) => (
+                  {DELIVERY_BUTTONS.map(([s, text]) => (
                     <form key={s} action={deliveryStatusAction}>
                       <input type="hidden" name="deliveryId" value={cart.delivery!.id} />
                       <input type="hidden" name="status" value={s} />
                       <Button variant="secondary" className="text-xs sm:min-h-8">
-                        {s.replace("_", " ").toLowerCase()}
+                        {text}
                       </Button>
                     </form>
                   ))}

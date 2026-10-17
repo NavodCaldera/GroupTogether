@@ -44,10 +44,17 @@ export function adminNextStep(c: StepCart, now: Date): Step {
         },
       };
     case "CONFIRMED":
-      return { text: "Paid, not booked yet", action: { label: "Book delivery", href: `${page}#book` } };
+      return {
+        text: "Paid, not booked yet",
+        action: { label: "Book delivery", href: `${page}#book` },
+      };
     case "DISPATCHED":
       return c.delivery?.status === "FAILED"
-        ? { text: "Delivery failed", tone: "bad", action: { label: "Open", href: `${page}#delivery` } }
+        ? {
+            text: "Delivery failed",
+            tone: "bad",
+            action: { label: "Open", href: `${page}#delivery` },
+          }
         : {
             text: c.delivery?.status === "PICKED_UP" ? "Picked up by PickMe" : "Booked with PickMe",
             action: { label: "Mark delivered", href: `${page}#delivery` },
@@ -109,7 +116,10 @@ export function MiniProgress({ total, min }: { total: Money; min: Money }) {
         aria-valuemax={100}
         aria-valuenow={Math.round(p * 100)}
       >
-        <div className="h-full rounded-full bg-accent" style={{ width: `${Math.max(2, p * 100)}%` }} />
+        <div
+          className="h-full rounded-full bg-accent"
+          style={{ width: `${Math.max(2, p * 100)}%` }}
+        />
       </div>
       <p className="mt-0.5 text-[11px] text-subtle">
         {Math.floor(p * 100)}% of {formatLKR(min)}
