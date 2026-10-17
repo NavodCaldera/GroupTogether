@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { signOutAction } from "@/server/auth/actions";
 import { getCurrentUser } from "@/server/auth/session";
+import { NavLink } from "./nav-link";
+import { unreadMessageCount } from "@/server/carts/chat";
 import { unreadCount } from "@/server/notify";
 
 /**
@@ -11,19 +12,25 @@ import { unreadCount } from "@/server/notify";
  */
 export async function SiteHeader() {
   const user = await getCurrentUser();
-  const unread = user ? await unreadCount(user.id) : 0;
+  const [unread, unreadMessages] = user
+    ? await Promise.all([unreadCount(user.id), unreadMessageCount(user.id)])
+    : [0, 0];
   const tap = "min-h-11 items-center rounded-md px-2.5 hover:bg-muted sm:min-h-9";
   const link = `inline-flex ${tap}`;
-  const sections: { href: string; label: string; icon: ReactNode }[] = [
+  const underline =
+    "relative text-ink after:absolute after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
+  const sections: { href: string; label: string; icon: ReactNode; also?: string[] }[] = [
     { href: "/", label: "Home", icon: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" /> },
     {
       href: "/shop",
       label: "Shop",
+      also: ["/products/"],
       icon: <path d="M5 8h14l-1 13H6zM9 8V6a3 3 0 0 1 6 0v2" />,
     },
     {
       href: "/carts",
-      label: "Open carts",
+      label: "Carts",
+      also: ["/c/"],
       icon: <path d="M3 4h2l2.4 11h11L21 7H6.2M9 20h.01M18 20h.01" />,
     },
     // Each role's own home: buyers their dashboard, sellers their products, admins My carts + Admin.
@@ -73,28 +80,96 @@ export async function SiteHeader() {
             Group<span className="text-accent">Together</span>
           </Link>
           {sections.slice(1).map((s) => (
-            <Link key={s.href} href={s.href} className={`hidden sm:inline-flex ${tap}`}>
+            <NavLink
+              key={s.href}
+              href={s.href}
+              also={s.also}
+              className={`hidden sm:inline-flex ${tap}`}
+              activeClassName={`${underline} font-medium`}
+            >
               {s.label}
-            </Link>
+            </NavLink>
           ))}
           <span className="flex-1" />
           {user ? (
             <>
-              <Link
+              <NavLink
+                href="/messages"
+                className={link}
+                activeClassName={underline}
+                aria-label={`Messages, ${unreadMessages} unread`}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className="text-ink"
+                >
+                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                </svg>
+                {unreadMessages > 0 && (
+                  <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
+                    {unreadMessages}
+                  </span>
+                )}
+              </NavLink>
+              <NavLink
                 href="/notifications"
                 className={link}
+                activeClassName={underline}
                 aria-label={`Notifications, ${unread} unread`}
               >
-                🔔
+                <svg
+                  viewBox="0 0 24 24"
+                  width="20"
+                  height="20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className="text-ink"
+                >
+                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                </svg>
                 {unread > 0 && (
                   <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
                     {unread}
                   </span>
                 )}
-              </Link>
-              <form action={signOutAction}>
-                <button className={link}>Sign out</button>
-              </form>
+              </NavLink>
+              <NavLink
+                href="/account"
+                className={link}
+                activeClassName={underline}
+                aria-label="Profile"
+                title="Profile"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="22"
+                  height="22"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  className="text-ink"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <circle cx="12" cy="10" r="3" />
+                  <path d="M6.2 18.8a7 7 0 0 1 11.6 0" />
+                </svg>
+              </NavLink>
             </>
           ) : (
             <>
@@ -119,9 +194,11 @@ export async function SiteHeader() {
         <ul className="flex">
           {sections.map((s) => (
             <li key={s.href} className="flex-1">
-              <Link
+              <NavLink
                 href={s.href}
+                also={s.also}
                 className="flex min-h-14 flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-subtle active:bg-muted"
+                activeClassName="!text-accent"
               >
                 <svg
                   viewBox="0 0 24 24"
@@ -131,7 +208,7 @@ export async function SiteHeader() {
                   {s.icon}
                 </svg>
                 {s.label}
-              </Link>
+              </NavLink>
             </li>
           ))}
         </ul>

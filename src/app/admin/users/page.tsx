@@ -125,7 +125,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                 )}
                 {u.role === "SELLER" && (
                   <span className="ml-2">
-                    <Badge tone="warn">Seller · {u.company}</Badge>
+                    <Badge tone="info">Seller · {u.company}</Badge>
                   </span>
                 )}
                 {u.locked && (

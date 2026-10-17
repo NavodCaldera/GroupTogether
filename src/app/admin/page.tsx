@@ -49,9 +49,9 @@ export default async function AdminHome() {
           {tiles.map(([label, n, href, urgent]) => (
             <Link key={label} href={href}>
               <Card
-                className={`h-full hover:border-accent ${urgent && n > 0 ? "border-warn" : ""}`}
+                className={`h-full hover:border-accent ${urgent && n > 0 ? "border-accent" : ""}`}
               >
-                <p className={`text-3xl font-bold ${urgent && n > 0 ? "text-warn" : ""}`}>{n}</p>
+                <p className={`text-3xl font-bold ${urgent && n > 0 ? "text-accent" : ""}`}>{n}</p>
                 <p className="mt-1 text-sm text-subtle">{label}</p>
               </Card>
             </Link>

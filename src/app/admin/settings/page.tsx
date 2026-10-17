@@ -94,7 +94,7 @@ export default async function SettingsPage() {
             {system.map(([k, v, ok]) => (
               <div key={k}>
                 <dt className="text-xs text-subtle">{k}</dt>
-                <dd className={`break-words ${ok ? "" : "text-warn"}`}>{v}</dd>
+                <dd className={`break-words ${ok ? "" : "text-danger"}`}>{v}</dd>
               </div>
             ))}
           </dl>

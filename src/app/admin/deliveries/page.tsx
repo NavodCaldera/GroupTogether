@@ -10,9 +10,9 @@ import { Table } from "../list-bits";
 
 export const metadata: Metadata = { title: "Deliveries" };
 
-const STATUS_TONE: Record<DeliveryStatus, "neutral" | "good" | "warn" | "bad" | "info"> = {
+const STATUS_TONE: Record<DeliveryStatus, "neutral" | "good" | "bad" | "info"> = {
   BOOKED: "info",
-  PICKED_UP: "warn",
+  PICKED_UP: "info",
   DELIVERED: "good",
   FAILED: "bad",
   CANCELLED: "neutral",

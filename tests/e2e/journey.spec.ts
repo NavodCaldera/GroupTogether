@@ -12,10 +12,10 @@ async function signIn(page: Page, email: string) {
 test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ admin confirms â†’ PickMe drop", async ({
   page,
 }) => {
-  // Ishara joins Amaya's public cart (LKR 49,800) from the open carts panel.
-  await signIn(page, "ishara@example.com");
+  // Tharindu (in no cart) joins Dilan's public cart (LKR 49,800) from the open carts panel.
+  await signIn(page, "buyer3@example.com");
   await page.goto("/carts");
-  await page.getByRole("link", { name: /Office sneaker run/ }).click();
+  await page.getByRole("link", { name: /Dilan Wickramasinghe's cart/ }).click();
   await page.getByRole("button", { name: "Join this cart" }).click();
   await page.waitForURL(/\/shop\?cart=/);
   await page
@@ -26,12 +26,12 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
   await page.getByRole("button", { name: "Add to group cart" }).click();
   await page.waitForURL(/\/c\/[A-Z0-9]+\?added=1/);
   const cartUrl = new URL(page.url()).pathname;
-  await expect(page.getByText("Waiting for the owner to accept")).toBeVisible();
+  await expect(page.getByText("Waiting for the owner to pay")).toBeVisible();
 
-  // Amaya (the owner) accepts and uploads one bank slip.
-  await signIn(page, "amaya@example.com");
+  // Dilan (the owner) accepts and uploads one bank slip.
+  await signIn(page, "buyer@example.com");
   await page.goto(cartUrl);
-  await page.getByRole("button", { name: "Accept the order and pay" }).click();
+  await page.getByRole("button", { name: "Accept & pay" }).click();
   await page.waitForURL(/\/pay$/);
   await expect(page.getByRole("heading", { name: /Pay LKR/ })).toBeVisible();
   await page.getByLabel(/Bank slip/).setInputFiles({
@@ -53,7 +53,7 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
   await expect(page.getByText(/Delivery booked/)).toBeVisible();
 
   // The owner sees it on the way, with the fee they pay the driver.
-  await signIn(page, "amaya@example.com");
+  await signIn(page, "buyer@example.com");
   await page.goto(cartUrl);
   await expect(page.getByText("On the way").first()).toBeVisible();
   await expect(page.getByText(/LKR\s?950/)).toBeVisible();
@@ -61,16 +61,17 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
 
 test("a private cart is hidden from the panel but opens from its link", async ({ page }) => {
   await page.goto("/carts");
-  await expect(page.getByText("Family school shoes")).toBeVisible();
-  await expect(page.getByText("Ravi's friends only")).toHaveCount(0);
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(page.getByText("Sachini Gunawardena's cart")).toHaveCount(0);
 
-  await signIn(page, "ravi@example.com");
+  await signIn(page, "buyer2@example.com");
   await page.goto("/my-carts");
-  await page.getByRole("link", { name: /Ravi's friends only/ }).click();
+  await page.getByRole("link", { name: /Sachini Gunawardena's cart/ }).click();
   await expect(page.getByText("Private", { exact: true })).toBeVisible();
   const url = page.url();
 
-  await signIn(page, "kasun@example.com");
+  // Tharindu's cart from the first journey is on its way (no longer active), so he can join.
+  await signIn(page, "buyer3@example.com");
   await page.goto(url);
   await expect(page.getByRole("button", { name: "Join this cart" })).toBeVisible();
 });

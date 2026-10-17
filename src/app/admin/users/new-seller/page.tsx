@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BackLink } from "@/components/client";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
 import { createSellerAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
@@ -10,6 +11,7 @@ export default async function NewSellerPage() {
   await requireAdmin();
   return (
     <div className="max-w-xl">
+      <BackLink fallback="/admin/users" />
       <PageHeader
         title="Add a factory seller"
         description="Sellers list their stock for us to review and publish. They never see buyers or sales."

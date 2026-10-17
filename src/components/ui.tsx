@@ -152,7 +152,7 @@ export function Badge({
   tone = "neutral",
   children,
 }: {
-  tone?: "neutral" | "good" | "warn" | "bad" | "info";
+  tone?: "neutral" | "good" | "bad" | "info";
   children: ReactNode;
 }) {
   return (
@@ -162,7 +162,6 @@ export function Badge({
         tone === "neutral" && "bg-muted text-ink",
         tone === "good" && "bg-accent text-on-accent",
         tone === "info" && "bg-accent/15 text-ink",
-        tone === "warn" && "border border-warn text-warn",
         tone === "bad" && "bg-danger text-paper",
       )}
     >
