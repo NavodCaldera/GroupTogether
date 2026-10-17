@@ -1,0 +1,13 @@
+-- AlterTable
+ALTER TABLE "CartMember" ADD COLUMN     "address" TEXT,
+ADD COLUMN     "city" TEXT,
+ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "GroupCart" ADD COLUMN     "deliveryLat" DOUBLE PRECISION,
+ADD COLUMN     "deliveryLng" DOUBLE PRECISION;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "lat" DOUBLE PRECISION,
+ADD COLUMN     "lng" DOUBLE PRECISION;

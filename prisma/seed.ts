@@ -1,10 +1,12 @@
 /**
- * Demo data: 1 admin, 1 factory seller, 6 buyers, about 20 products, and carts in several
+ * Demo data: 1 admin, 1 factory seller, 3 buyers, about 20 products, and carts in several
  * states. Every account's password is "password123". Resets the database first.
  *
  *   admin@grouptogether.lk  admin       → /admin
  *   seller@example.com      seller      → /seller (Ceylon Footwear Mills)
- *   buyer@example.com       buyer       → /dashboard (an open cart, a delivered order, an invite)
+ *   buyer@example.com       buyer       → /dashboard (public cart at 49,800, delivered order, invite)
+ *   buyer2@example.com      buyer       → /dashboard (private cart at the minimum)
+ *   buyer3@example.com      buyer       → /dashboard (no active cart, free to join)
  */
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
@@ -268,16 +270,41 @@ async function main() {
       passwordHash,
     },
   });
+  // The only buyers: Dilan, Sachini and Tharindu (all listed on the sign-in page).
   const people = [
-    ["Amaya Perera", "amaya@example.com", "0771111111", "12 Flower Rd", "Colombo 07"],
-    ["Kasun Silva", "kasun@example.com", "0772222222", "45 Galle Rd", "Dehiwala"],
-    ["Nimali Fernando", "nimali@example.com", "0773333333", "8 Temple Ln", "Kandy"],
-    ["Ravi Kumar", "ravi@example.com", "0774444444", "201 High Level Rd", "Nugegoda"],
-    ["Ishara Jayasinghe", "ishara@example.com", "0775555555", "3 Lake Dr", "Kurunegala"],
-  ];
+    [
+      "Dilan Wickramasinghe",
+      "buyer@example.com",
+      "0777777777",
+      "27 Ward Pl",
+      "Colombo 07",
+      6.9147,
+      79.8678,
+    ],
+    [
+      "Sachini Gunawardena",
+      "buyer2@example.com",
+      "0778888888",
+      "14 Hill St",
+      "Kandy",
+      7.2906,
+      80.6337,
+    ],
+    [
+      "Tharindu Senanayake",
+      "buyer3@example.com",
+      "0779999999",
+      "5 Beach Rd",
+      "Galle",
+      6.0535,
+      80.221,
+    ],
+  ] as const;
   const users: User[] = [];
-  for (const [name, email, phone, address, city] of people) {
-    users.push(await db.user.create({ data: { name, email, phone, address, city, passwordHash } }));
+  for (const [name, email, phone, address, city, lat, lng] of people) {
+    users.push(
+      await db.user.create({ data: { name, email, phone, address, city, lat, lng, passwordHash } }),
+    );
   }
 
   const variants: (Variant & { price: number })[] = [];
@@ -316,7 +343,7 @@ async function main() {
   /** A cart whose lines lock stock, as the app does. */
   async function cart(
     ownerIdx: number,
-    name: string,
+    _label: string,
     lines: [number, number, number][],
     extra: object = {},
     visibility: "PUBLIC" | "PRIVATE" = "PUBLIC",
@@ -328,7 +355,7 @@ async function main() {
     const c = await db.groupCart.create({
       data: {
         code: newCartCode(randomBytes),
-        name,
+        name: `${users[ownerIdx].name}'s cart`,
         ownerId: users[ownerIdx].id,
         visibility,
         minOrderValue: 50000,
@@ -357,39 +384,33 @@ async function main() {
     return c;
   }
 
-  // One cart at a time (CLAUDE.md rule 12): every demo buyer is in at most one active cart, so
-  // each cart's lines belong to its owner. Ishara has none, ready to join "Office sneaker run".
-  await cart(0, "Office sneaker run", [
-    [0, 2, 2],
-    [0, 8, 1],
-    [0, 40, 3],
+  // One cart at a time (CLAUDE.md rule 12): each buyer owns at most one active cart.
+  // Dilan's public cart sits at 49,800, one item short of the minimum. Sachini's private cart
+  // has reached it (she can accept & pay). Tharindu is in no active cart, free to join one.
+  const [DILAN, SACHINI, THARINDU] = [0, 1, 2];
+  const buyer = users[DILAN];
+  await cart(DILAN, "Office sneaker run", [
+    [DILAN, 2, 2],
+    [DILAN, 8, 1],
+    [DILAN, 40, 3],
   ]);
-  await cart(1, "Family school shoes", [
-    [1, 50, 4],
-    [1, 52, 2],
-    [1, 66, 3],
-  ]);
-  await cart(2, "Kandy weekend haul", [
-    [2, 0, 3],
-    [2, 30, 2],
-    [2, 76, 3],
-    [2, 90, 2],
-  ]);
-  const ravisCart = await cart(3, "Ravi's friends only", [[3, 12, 1]], {}, "PRIVATE");
-
-  // ─── Demo buyer: an open cart, a delivered order and an invite ───────────
-  const buyer = await db.user.create({
-    data: {
-      name: "Dilan Wickramasinghe",
-      email: "buyer@example.com",
-      phone: "0777777777",
-      address: "27 Ward Pl",
-      city: "Colombo 07",
-      passwordHash,
-    },
+  const privateCart = await cart(
+    SACHINI,
+    "Sachini's friends only",
+    [
+      [SACHINI, 0, 3],
+      [SACHINI, 30, 2],
+      [SACHINI, 76, 3],
+      [SACHINI, 90, 2],
+    ],
+    {},
+    "PRIVATE",
+  );
+  // Dilan is already in a cart, so this invite lets him try "ask to join" (rule 14).
+  await db.cartInvite.create({
+    data: { cartId: privateCart.id, invitedById: users[SACHINI].id, invitedUserId: buyer.id },
   });
-  users.push(buyer);
-  const BUYER = users.length - 1;
+
   /** An unused variant priced 3,000+ with enough free stock for `qty`. */
   const pick = (qty: number) => {
     const i = variants.findIndex((v, n) => !used.has(n) && v.price >= 3000 && v.available >= qty);
@@ -397,14 +418,6 @@ async function main() {
     used.add(i);
     return i;
   };
-  await cart(BUYER, "Dilan's office team", [
-    [BUYER, pick(2), 2],
-    [BUYER, pick(1), 1],
-  ]);
-  await db.cartInvite.create({
-    data: { cartId: ravisCart.id, invitedById: users[3].id, invitedUserId: buyer.id },
-  });
-
   // A past order that went all the way: paid, confirmed and delivered by PickMe.
   const vi = variants.findIndex(
     (v, n) => !used.has(n) && v.available * v.price >= 45000 && v.price >= 3000,
@@ -414,8 +427,8 @@ async function main() {
   const qty = Math.min(variants[vi].available, Math.ceil(45000 / variants[vi].price));
   const vj = pick(2);
   const lines: [number, number, number][] = [
-    [BUYER, vi, qty],
-    [2, vj, 2],
+    [DILAN, vi, qty],
+    [THARINDU, vj, 2],
   ];
   const total = lines.reduce((n, [, v, q]) => n + variants[v].price * q, 0);
   const past = addHours(now, -30);
@@ -434,8 +447,10 @@ async function main() {
       confirmedAt: addHours(past, 2),
       deliveryAddress: buyer.address,
       deliveryCity: buyer.city,
+      deliveryLat: buyer.lat,
+      deliveryLng: buyer.lng,
       deliveryPhone: buyer.phone,
-      members: { create: [{ userId: buyer.id }, { userId: users[2].id }] },
+      members: { create: [{ userId: buyer.id }, { userId: users[THARINDU].id }] },
       lines: {
         create: lines.map(([ui, v, q]) => ({
           userId: users[ui].id,
@@ -530,8 +545,9 @@ async function main() {
   console.log(`Seeded. Every password is password123.
   Admin   admin@grouptogether.lk  → /admin
   Seller  seller@example.com      → /seller
-  Buyer   buyer@example.com       → /dashboard
-  (also amaya@, kasun@, nimali@, ravi@, ishara@example.com)`);
+  Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)
+          buyer2@example.com (Sachini: private cart at the minimum)
+          buyer3@example.com (Tharindu: no active cart, free to join)`);
 }
 
 main().finally(() => db.$disconnect());

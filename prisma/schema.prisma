@@ -30,21 +30,27 @@ model User {
   /// Default drop-off for carts this user owns
   address      String?
   city         String?
+  /// Exact map pin of the address (mandatory at sign-up)
+  lat          Float?
+  lng          Float?
   /// Sellers: the factory or company name
   company      String?
   locked       Boolean  @default(false)
   createdAt    DateTime @default(now())
 
   sessions      Session[]
-  ownedCarts    GroupCart[]    @relation("CartOwner")
+  ownedCarts    GroupCart[]        @relation("CartOwner")
   memberships   CartMember[]
   lines         CartLine[]
-  slips         PaymentSlip[]  @relation("SlipUploader")
-  reviewedSlips PaymentSlip[]  @relation("SlipReviewer")
-  invitesSent   CartInvite[]   @relation("InviteFrom")
-  invites       CartInvite[]   @relation("InviteTo")
+  slips         PaymentSlip[]      @relation("SlipUploader")
+  reviewedSlips PaymentSlip[]      @relation("SlipReviewer")
+  messages      CartMessage[]      @relation("MessageParticipant")
+  messagesSent  CartMessage[]      @relation("MessageAuthor")
+  invitesSent   CartInvite[]       @relation("InviteFrom")
+  invites       CartInvite[]       @relation("InviteTo")
+  mergeRequests CartMergeRequest[]
   notifications Notification[]
-  products      Product[]      @relation("SellerProducts")
+  products      Product[]          @relation("SellerProducts")
 }
 
 model Session {
@@ -87,29 +93,29 @@ enum ProductStatus {
 }
 
 model Product {
-  id           String        @id @default(cuid())
-  title        String
-  brand        String
-  description  String        @default("")
-  category     Category
+  id          String        @id @default(cuid())
+  title       String
+  brand       String
+  description String        @default("")
+  category    Category
   /// Who it is for and the finer category (ids in src/lib/taxonomy.ts); null on older products
-  audience     Audience?
-  kind         String?
-  stockType    StockType
+  audience    Audience?
+  kind        String?
+  stockType   StockType
   /// Required for B_GRADE: what is wrong with it, shown up front
-  defectNotes  String?
-  retailPrice  Decimal?      @db.Decimal(14, 2)
-  price        Decimal       @db.Decimal(14, 2)
-  status       ProductStatus @default(DRAFT)
-  photoKey     String?
-  photoType    String?
+  defectNotes String?
+  retailPrice Decimal?      @db.Decimal(14, 2)
+  price       Decimal       @db.Decimal(14, 2)
+  status      ProductStatus @default(DRAFT)
+  photoKey    String?
+  photoType   String?
   /// The factory that listed it; null for our own listings
-  sellerId     String?
-  seller       User?         @relation("SellerProducts", fields: [sellerId], references: [id])
+  sellerId    String?
+  seller      User?         @relation("SellerProducts", fields: [sellerId], references: [id])
   /// Why an admin returned it to the seller (shown to the seller)
-  reviewNote   String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  reviewNote  String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
   variants Variant[]
 
@@ -181,6 +187,8 @@ model GroupCart {
   deliveryAddress String?
   deliveryCity    String?
   deliveryPhone   String?
+  deliveryLat     Float?
+  deliveryLng     Float?
   closedReason    String?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -190,6 +198,10 @@ model GroupCart {
   slips    PaymentSlip[]
   invites  CartInvite[]
   delivery Delivery?
+
+  messages  CartMessage[]
+  mergeFrom CartMergeRequest[] @relation("MergeFrom")
+  mergeTo   CartMergeRequest[] @relation("MergeTo")
 
   @@index([status, visibility, createdAt])
   @@index([status, expiresAt])
@@ -203,6 +215,11 @@ model CartMember {
   userId   String
   user     User      @relation(fields: [userId], references: [id])
   joinedAt DateTime  @default(now())
+  /// Where this member is, pinned on the map when they joined
+  address  String?
+  city     String?
+  lat      Float?
+  lng      Float?
 
   @@unique([cartId, userId])
   @@index([userId])
@@ -234,23 +251,49 @@ enum SlipStatus {
 
 /// The owner's one bank slip for the whole cart. A rejected slip can be replaced.
 model PaymentSlip {
-  id           String     @id @default(cuid())
-  cartId       String
-  cart         GroupCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  uploaderId   String
-  uploader     User       @relation("SlipUploader", fields: [uploaderId], references: [id])
-  amount       Decimal    @db.Decimal(14, 2)
-  storageKey   String
-  contentType  String
-  status       SlipStatus @default(PENDING)
-  reviewNote   String?
-  reviewerId   String?
-  reviewer     User?      @relation("SlipReviewer", fields: [reviewerId], references: [id])
-  reviewedAt   DateTime?
-  createdAt    DateTime   @default(now())
+  id          String     @id @default(cuid())
+  cartId      String
+  cart        GroupCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  uploaderId  String
+  uploader    User       @relation("SlipUploader", fields: [uploaderId], references: [id])
+  amount      Decimal    @db.Decimal(14, 2)
+  storageKey  String
+  contentType String
+  status      SlipStatus @default(PENDING)
+  reviewNote  String?
+  reviewerId  String?
+  reviewer    User?      @relation("SlipReviewer", fields: [reviewerId], references: [id])
+  reviewedAt  DateTime?
+  createdAt   DateTime   @default(now())
 
   @@index([status, createdAt])
   @@index([cartId])
+}
+
+enum MergeStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  CANCELLED
+}
+
+/// A buyer in one cart asks to join another: on accept by that cart's owner, their items move
+/// over and their old cart goes (CLAUDE.md rule 13). One pending request per user.
+model CartMergeRequest {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id])
+  /// The cart they are leaving; null once it has been deleted
+  fromCartId String?
+  fromCart   GroupCart?  @relation("MergeFrom", fields: [fromCartId], references: [id], onDelete: SetNull)
+  toCartId   String
+  toCart     GroupCart   @relation("MergeTo", fields: [toCartId], references: [id], onDelete: Cascade)
+  status     MergeStatus @default(PENDING)
+  createdAt  DateTime    @default(now())
+  decidedAt  DateTime?
+
+  @@index([toCartId, status])
+  @@index([userId, status])
 }
 
 model CartInvite {
@@ -320,4 +363,23 @@ model Settings {
   bankBranch        String  @default("")
   accountName       String  @default("")
   accountNumber     String  @default("")
+}
+
+/// A private conversation between a cart's owner and one other user (a member or someone asking
+/// about the cart). `participantId` is the non-owner side; `authorId` is who wrote the message.
+model CartMessage {
+  id            String    @id @default(cuid())
+  cartId        String
+  cart          GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   User      @relation("MessageParticipant", fields: [participantId], references: [id], onDelete: Cascade)
+  authorId      String
+  author        User      @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  body          String
+  createdAt     DateTime  @default(now())
+  /// When the other side (not the author) opened the conversation; null = unread
+  readAt        DateTime?
+
+  @@index([cartId, participantId, createdAt])
+  @@index([participantId, readAt])
 }
