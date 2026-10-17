@@ -8,9 +8,10 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const badges = await adminBadges();
   const link =
     "relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-3 hover:bg-muted sm:min-h-9";
-  // The open page gets a green bar on the tab row's bottom line, like the main header.
+  // The open page gets a green bar just under its label (inside the tab, so the scrollable row
+  // never overflows vertically and shows a scrollbar).
   const active =
-    "font-medium text-ink after:absolute after:inset-x-3 after:-bottom-2 after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-3";
+    "font-medium text-ink after:absolute after:inset-x-3 after:bottom-1.5 after:h-0.5 after:rounded-full after:bg-accent sm:after:bottom-1";
   const items: [string, string, number][] = [
     ["/admin", "Overview", 0],
     ["/admin/slips", "Bank slips", badges.slips],

@@ -5,6 +5,7 @@ relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
 ## 2026-10-18
 
+- **Admin tab bar sits closer to the word.** The green bar is now just under the open tab's label (about 3–5 px) instead of on the row's bottom edge; this also removes the stray grey scrollbar that showed under the tabs on Windows. _Agent: frontend._
 - **Admin tabs show the open page with a green bar.** The admin tab row (Overview, Bank slips, Carts, Deliveries, Products, Users, Settings) underlines the current section in green and makes it bold, like the main header; sub-pages count too (e.g. Add factory seller → Users), Overview only on `/admin` itself. `NavLink` gained an `exact` option. _Agents: frontend, catalogue-admin._
 - **No phone tab bar for admins.** With only "Admin" left in it, the bottom tab bar is gone for admins; they use the logo (→ `/admin`) and the admin section links at the top of the page. The footer's extra bottom space for the bar is dropped for them too. Buyers, sellers and visitors keep the tab bar. _Agent: frontend._
 - **No Carts or My carts for admins.** Both tabs are gone from the admin's header and phone tab bar, which now shows only Admin. Opening `/carts` as an admin goes to Admin → Carts, and `/my-carts` goes to `/admin`. Buyers keep both. _Agent: frontend._

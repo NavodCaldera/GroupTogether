@@ -64,7 +64,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 Map pin (rule 13): `src/components/location-picker.tsx` is the one client island for address + city + map pin (Leaflet from unpkg, loaded on demand; hidden `lat`/`lng` inputs). Used by sign-up, `JoinForm` on `/c/[code]` and `/account/location`. Keep it the only place Leaflet loads, and keep `isolate` on the map box: Leaflet's z-index 400/1000 layers otherwise cover the header and the phone tab bar (z-20).
 
-- Admin tab row (`admin/layout.tsx`) uses `NavLink`: the open section gets a green bar on the row's bottom line and bold text; Overview uses `exact` so it's marked only on `/admin`.
+- Admin tab row (`admin/layout.tsx`) uses `NavLink`: the open section gets a green bar just under its label (inside the tab, so the scrollable row never shows a scrollbar) and bold text; Overview uses `exact` so it's marked only on `/admin`.
 - Header: admins get no Home or Shop tab (`/` → `/admin`, `/shop` → `/admin/products`); buyers and sellers keep both.
 - Cart page `/c/[code]`: the title has no status pill while OPEN or READY (the bar says "Minimum reached"); later states show `StatusBadge`.
 - Cart page `/c/[code]`: "In this cart" is one box per member (separate rounded boxes, `gap-3`); only your own box is a `<details>` that opens to edit quantities.
