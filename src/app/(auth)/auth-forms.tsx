@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useRef } from "react";
+import { LocationPicker } from "@/components/location-picker";
 import { PasswordInput } from "@/components/password-input";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { DEMO_PASSWORD, type DemoAccount } from "@/lib/demo-accounts";
@@ -38,7 +39,7 @@ export function SignInForm({ next, demo = [] }: { next?: string; demo?: DemoAcco
                   variant="secondary"
                   className="shrink-0 px-3 text-xs sm:min-h-8"
                   onClick={() => use(a.email)}
-                  aria-label={`Use the ${a.role} demo account`}
+                  aria-label={`Use the demo account ${a.email}`}
                 >
                   Use
                 </Button>
@@ -83,17 +84,7 @@ export function SignUpForm({ next }: { next?: string }) {
       >
         <Input name="phone" type="tel" autoComplete="tel" placeholder="0771234567" required />
       </Field>
-      <Field
-        label="Delivery address"
-        name="address"
-        error={e.address}
-        hint="Used when you start a cart"
-      >
-        <Input name="address" autoComplete="street-address" required />
-      </Field>
-      <Field label="City" name="city" error={e.city}>
-        <Input name="city" autoComplete="address-level2" placeholder="Colombo" required />
-      </Field>
+      <LocationPicker errors={e} addressHint="Used when you join or start a cart" />
       <Field label="Password" name="password" error={e.password}>
         <PasswordInput name="password" autoComplete="new-password" minLength={8} required />
       </Field>

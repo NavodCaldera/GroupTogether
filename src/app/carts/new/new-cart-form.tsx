@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { Alert, Button, Field, Input } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import { type ActionState, createCartAction } from "@/server/carts/actions";
 
 export function VisibilityChoice() {
@@ -40,9 +40,6 @@ export function NewCartForm() {
   return (
     <form action={action} className="flex flex-col gap-4">
       {state.error && <Alert>{state.error}</Alert>}
-      <Field label="Cart name (optional)" name="name" hint="e.g. Office sneaker run">
-        <Input name="name" maxLength={60} />
-      </Field>
       <VisibilityChoice />
       <Button type="submit" disabled={pending}>
         {pending ? "Starting…" : "Start cart"}
