@@ -50,8 +50,8 @@ export function Chip({
   );
 }
 
-export function ChipRow({ children }: { children: ReactNode }) {
-  return <div className="mb-4 flex flex-wrap gap-2">{children}</div>;
+export function ChipRow({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cx("mb-4 flex flex-wrap gap-2", className)}>{children}</div>;
 }
 
 /** GET search box. `keep` carries the active filters into the search. */

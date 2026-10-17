@@ -19,6 +19,7 @@ import {
   pageNumber,
   param,
 } from "../list-bits";
+import { FilterSelect } from "../filter-select";
 
 export const metadata: Metadata = { title: "Carts" };
 
@@ -57,6 +58,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
   ]);
   const carts = rows.slice(0, PAGE);
   const count = (s: CartStatus) => byStatus.find((b) => b.status === s)?._count ?? 0;
+  const total = byStatus.reduce((n, b) => n + b._count, 0);
   const href = (values: Record<string, string | number | undefined>) =>
     hrefWith("/admin/carts", { status: filter, q, ...values });
   const now = new Date();
@@ -80,7 +82,19 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
         placeholder="Code, cart name, owner name, email or mobile"
         keep={{ status: filter }}
       />
-      <ChipRow>
+      {/* Phones: one dropdown with counts. From sm up: the chips. */}
+      <FilterSelect
+        action="/admin/carts"
+        name="status"
+        label="Filter by status"
+        value={filter}
+        keep={{ q }}
+        options={[
+          { value: "", label: `All statuses (${total})` },
+          ...STATUSES.map((s) => ({ value: s, label: `${STATUS_LABEL[s]} (${count(s)})` })),
+        ]}
+      />
+      <ChipRow className="hidden sm:flex">
         <Chip href={href({ status: undefined })} active={!filter}>
           All
         </Chip>
