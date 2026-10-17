@@ -98,7 +98,7 @@ export function Select({ className, ...props }: ComponentProps<"select">) {
     <select
       id={props.id ?? props.name}
       className={cx(
-        "min-h-11 rounded-lg border border-line bg-paper px-3 text-base outline-none focus:border-ink sm:min-h-10 sm:text-sm",
+        "min-h-11 max-w-full min-w-0 rounded-lg border border-line bg-paper px-3 text-base outline-none focus:border-ink sm:min-h-10 sm:text-sm",
         className,
       )}
       {...props}
@@ -158,7 +158,8 @@ export function Badge({
   return (
     <span
       className={cx(
-        "inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium",
+        // A pill stays on one line: wrapping it squeezes whatever sits beside it.
+        "inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap",
         tone === "neutral" && "bg-muted text-ink",
         tone === "good" && "bg-accent text-on-accent",
         tone === "info" && "bg-accent/15 text-ink",

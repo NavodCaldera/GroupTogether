@@ -24,7 +24,14 @@ import {
 } from "./service";
 import { uploadSlip } from "./slips";
 
-export type ActionState = { error?: string; ok?: string };
+export type ActionState = {
+  error?: string;
+  ok?: string;
+  /** Cart code, after adding to it */
+  code?: string;
+  /** When it happened, so the same message can pop up again */
+  at?: number;
+};
 
 /** Expected failures become a message on the form; anything else is a real error. */
 async function attempt(fn: () => Promise<string | void>): Promise<ActionState> {
@@ -65,7 +72,7 @@ export async function createCartAction(_p: ActionState, fd: FormData): Promise<A
   redirect(`/c/${code}`);
 }
 
-/** Product page: add a size to one of your carts, or start a new cart with it. */
+/** Product page: add a size to one of your carts, or start a new cart with it. Stays on the page. */
 export async function addToCartAction(_p: ActionState, fd: FormData): Promise<ActionState> {
   const productId = str(fd, "productId");
   const user = await requireUser([], `/products/${productId}`);
@@ -87,7 +94,9 @@ export async function addToCartAction(_p: ActionState, fd: FormData): Promise<Ac
     code = await cartCode(target);
   });
   if (res.error) return res;
-  redirect(`/c/${code}?added=1`);
+  // Stay on the product page: refresh its stock and cart list, and say where it went.
+  revalidatePath(`/products/${productId}`);
+  return { ok: "Added to your cart", code, at: Date.now() };
 }
 
 export async function updateLineAction(fd: FormData) {

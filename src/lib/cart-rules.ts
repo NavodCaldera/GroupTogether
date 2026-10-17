@@ -179,13 +179,14 @@ export type NextStepInput = {
 };
 
 export type NextStep = {
-  text: string;
+  /** Omitted when the progress bar already says it (an open cart) */
+  text?: string;
   /** Extra line for members: settling their share with the owner */
   note?: string;
   action?: { label: string; href: string; external?: boolean };
   /** Which deadline to count down, if any */
   deadline?: "expires" | "slip";
-  /** Offer the WhatsApp share (only while the cart still needs people) */
+  /** Offer "Copy cart link" (only while the cart still needs people) */
   share?: boolean;
 };
 
@@ -196,8 +197,7 @@ export function nextStep(c: NextStepInput): NextStep {
   switch (c.status) {
     case "OPEN":
       return {
-        text: `${formatLKR(remaining(c.total, c.minOrderValue))} more to reach the minimum.`,
-        action: { label: "Add items", href: `/shop?cart=${c.code}` },
+        action: { label: "View cart", href: cart },
         deadline: "expires",
         share: true,
       };

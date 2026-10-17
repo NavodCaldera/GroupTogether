@@ -56,10 +56,10 @@ It is a standalone project: it shares no code, database or rules with any other 
    - The platform never charges, collects or refunds a delivery fee. `Delivery.paidBy` is always `OWNER`, and `quotedFee` is only shown to the owner.
 9. **Visibility and sharing.**
    - A cart is PUBLIC (shown on the "open carts" panel) or PRIVATE (reached only by link or invite).
-   - Every cart has a share link `/c/<CODE>` (8 characters, no look-alike characters) and a WhatsApp share button (`https://wa.me/?text=…`).
+   - Every cart has a share link `/c/<CODE>` (8 characters, no look-alike characters). Sharing is the "Copy cart link" button on the buyer dashboard (it replaced "Share on WhatsApp", 2026-10-17; `whatsappShareUrl` is unused); the cart page's share icon was removed (2026-10-17).
    - Any member can invite a registered user by email or mobile number; the invitee gets an in-app notice.
    - Anyone with the link can join while the cart is OPEN or READY.
-10. **B-grade products must list their defects** (`defectNotes`), and they are shown up front on the product page.
+10. **B-grade products are labelled "B-grade"; defects are not listed** (product owner, 2026-10-17). No defects field in the admin or seller forms and no defects box on the product page; `Product.defectNotes` stays in the schema, unused.
     11b. **Change log:** every change the product owner asks for is noted in `docs/CHANGES.md` and the matching agent files are updated in the same piece of work.
     11f. **Cart names** (product owner, 2026-10-17): a cart is named after its owner ("Navod Caldera's cart"); buyers don't type a name (`createCart` sets it).
     11e. **Open carts nearest-first** (product owner, 2026-10-17): `/carts` sorts by distance from the signed-in buyer's map pin to each cart's delivery point (`distanceKm`, `sortNearest` in `src/lib/distance.ts`, `recentCarts` in `carts/queries.ts`), unknown pins last, newest first when the buyer has no pin; plus a search box (name, code, owner name).
@@ -69,7 +69,7 @@ It is a standalone project: it shares no code, database or rules with any other 
     - **Buyers** (`CUSTOMER`) sign up themselves with name, email, a Sri Lankan mobile (`07XXXXXXXX`), address, city and password. They land on `/dashboard`.
     - **Factory sellers** (`SELLER`, with a `company`) are created by an admin at `/admin/users/new-seller`, or by the seed. They land on `/seller`.
       - **A seller only publishes stock.** They see their own products and stock counts, never buyers, carts, sales or money.
-      - A seller's product goes `DRAFT → IN_REVIEW → LIVE`. The seller submits it, which needs free stock in at least one size and defects for B-grade.
+      - A seller's product goes `DRAFT → IN_REVIEW → LIVE`. The seller submits it, which needs free stock in at least one size.
       - An admin publishes it once the stock has reached our store, or returns it to `DRAFT` with a `reviewNote`. The seller is notified in the app either way.
       - Sellers change details and stock only while the product is a draft. **We hold the stock**, so a live product is managed by the admin.
       - A seller can withdraw a product from review, or delete a draft that never reached a cart.
@@ -101,7 +101,7 @@ Money is `Decimal(14,2)`.
   - Fields: role `CUSTOMER|ADMIN`, name, email (unique), phone (unique), passwordHash (scrypt), address, city, locked.
   - `Session`: id = SHA-256 of the cookie token, 30 days.
 - `Product`:
-  - Fields: title, brand, description, category `SHOES|APPAREL`, stockType `FACTORY_SURPLUS|B_GRADE`, defectNotes, retailPrice, price, status `DRAFT|LIVE|ARCHIVED`, photoKey and photoType (one photo).
+  - Fields: title, brand, description, category `SHOES|APPAREL`, stockType `FACTORY_SURPLUS|B_GRADE`, defectNotes (unused since 2026-10-17), retailPrice, price, status `DRAFT|LIVE|ARCHIVED`, photoKey and photoType (one photo).
   - `Variant`: size, colour, `available`, `reserved`, `sold`, unique per (product, size, colour).
 - `GroupCart`:
   - Identity: code (unique), name, owner, visibility `PUBLIC|PRIVATE`, status.
@@ -130,7 +130,7 @@ Money is `Decimal(14,2)`.
 | `/carts`                                   | anyone               | The full open-carts panel: PUBLIC carts that are OPEN or READY and not expired, newest first                                                                          |
 | `/carts/new`                               | signed in            | Start a cart (name, public/private)                                                                                                                                   |
 | `/shop`                                    | anyone               | GET-form filters (search, category, stock type, brand, size); `?cart=CODE` carries a cart through                                                                     |
-| `/products/[id]`                           | anyone               | Product, defects, size picker; add to one of your carts, the shared cart from `?cart=`, or a new cart                                                                 |
+| `/products/[id]`                           | anyone               | Product, size picker; add to one of your carts, the shared cart from `?cart=`, or a new cart                                                                          |
 | `/c/[code]`                                | anyone with the link | Progress, countdowns, members and their lines (yours editable), join, leave, accept form, share/WhatsApp/invite, cancel                                               |
 | `/c/[code]/pay`                            | owner, AWAITING_SLIP | Bank details, amount, reference (the cart code), 2h countdown, slip upload                                                                                            |
 | `/my-carts`, `/notifications`              | signed in            | Your carts; your notices (mark all read)                                                                                                                              |
@@ -221,5 +221,5 @@ Money is `Decimal(14,2)`.
 - `qa-review`: review and tests.
 
 11d. **Address with an exact map pin** (product owner, 2026-10-17): sign-up, joining and starting a cart require an address plus a pin inside Sri Lanka (`src/lib/location.ts`, `components/location-picker.tsx`). Stored on `User`, snapshotted on `CartMember`, owner's pin copied to `GroupCart.deliveryLat/Lng`. Accounts without a pin go to `/account/location`.
-11e. **Delivery-point map and owner chat** (product owner, 2026-10-17): see CLAUDE.md rule 14.
+11e. **Owner chat** (product owner, 2026-10-17): see CLAUDE.md rule 14. The cart page's delivery-point map was removed (2026-10-17).
 Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.

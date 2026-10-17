@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ProgressBar, StatusBadge } from "@/components/cart-bits";
-import { Countdown } from "@/components/client";
+import { CopyLinkButton, Countdown } from "@/components/client";
 import { Card, LinkButton } from "@/components/ui";
 import {
   HOLDS_STOCK,
@@ -9,7 +9,6 @@ import {
   cartTotal,
   journeyStep,
   nextStep,
-  whatsappShareUrl,
 } from "@/lib/cart-rules";
 import { formatLKR } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
@@ -142,13 +141,13 @@ function CurrentCart({ cart: c }: { cart: DashCart }) {
   const until =
     step.deadline === "slip" ? c.slipDueAt : step.deadline === "expires" ? c.expiresAt : null;
   const reached = journeyStep(c.status);
-  const shareText = `Join my GroupTogether cart "${c.label}" and let's reach ${formatLKR(c.minOrderValue)} together: ${appUrl(`/c/${c.code}`)}`;
 
   return (
     <Card className="flex flex-col gap-5 p-5 sm:p-6">
-      <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="truncate text-lg font-semibold">{c.label}</h2>
+      {/* The status pill drops under the name when both don't fit (small phones). */}
+      <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+        <div className="min-w-0 flex-[1_1_12rem]">
+          <h2 className="text-lg leading-snug font-semibold break-words">{c.label}</h2>
           <p className="text-xs text-subtle">
             {c._count.members} {c._count.members === 1 ? "member" : "members"}
           </p>
@@ -158,7 +157,7 @@ function CurrentCart({ cart: c }: { cart: DashCart }) {
 
       <ol className="grid grid-cols-4 gap-1 text-[11px] sm:text-xs" aria-label="Progress">
         {JOURNEY.map((label, i) => (
-          <li key={label} className="flex flex-col gap-1.5">
+          <li key={label} className="flex flex-col gap-1.5 text-center">
             <span className={`h-1.5 rounded-full ${i <= reached ? "bg-accent" : "bg-muted"}`} />
             <span
               className={i === reached ? "font-semibold" : i < reached ? "" : "text-subtle"}
@@ -173,7 +172,7 @@ function CurrentCart({ cart: c }: { cart: DashCart }) {
       {c.status === "OPEN" && <ProgressBar total={c.total} min={c.minOrderValue} />}
 
       <div className="flex flex-col gap-1">
-        <p className="text-base font-medium">{step.text}</p>
+        {step.text && <p className="text-base font-medium">{step.text}</p>}
         {step.note && <p className="text-sm text-subtle">{step.note}</p>}
         {until && (
           <p className="text-sm font-medium text-warn">
@@ -182,27 +181,31 @@ function CurrentCart({ cart: c }: { cart: DashCart }) {
         )}
       </div>
 
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      {/* Phones: full-width buttons stacked for the thumb. From sm: one row. */}
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-4">
         {step.action &&
           (step.action.external ? (
-            <LinkButton href={step.action.href} target="_blank" rel="noopener noreferrer">
+            <LinkButton
+              href={step.action.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full sm:w-auto"
+            >
               {step.action.label}
             </LinkButton>
           ) : (
-            <LinkButton href={step.action.href}>{step.action.label}</LinkButton>
+            <LinkButton href={step.action.href} className="w-full sm:w-auto">
+              {step.action.label}
+            </LinkButton>
           ))}
         {step.share && (
-          <LinkButton
-            href={whatsappShareUrl(shareText)}
-            target="_blank"
-            rel="noopener noreferrer"
-            variant="secondary"
-          >
-            Share on WhatsApp
-          </LinkButton>
+          <CopyLinkButton url={appUrl(`/c/${c.code}`)} className="w-full sm:w-auto" />
         )}
         {step.action?.href !== `/c/${c.code}` && (
-          <Link href={`/c/${c.code}`} className="text-sm font-medium text-accent">
+          <Link
+            href={`/c/${c.code}`}
+            className="inline-flex min-h-11 items-center justify-center text-sm font-medium text-accent sm:min-h-0"
+          >
             View cart →
           </Link>
         )}

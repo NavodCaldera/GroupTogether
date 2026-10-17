@@ -64,14 +64,18 @@ describe("factory seller listing flow", () => {
 
     await returnToSeller(p.id, "Add a photo");
     expect(await product(p.id)).toMatchObject({ status: "DRAFT", reviewNote: "Add a photo" });
-    expect(await db.notification.count({ where: { userId: s.id, title: "Your product needs changes" } })).toBe(1);
+    expect(
+      await db.notification.count({ where: { userId: s.id, title: "Your product needs changes" } }),
+    ).toBe(1);
 
     await sellerSaveProduct(s.id, p.id, { ...shoe, title: "Factory loafer v2" }, null);
     await submitForReview(s.id, p.id);
     expect((await product(p.id)).reviewNote).toBeNull();
     await publishProduct(p.id);
     expect(await product(p.id)).toMatchObject({ status: "LIVE", title: "Factory loafer v2" });
-    expect(await db.notification.count({ where: { userId: s.id, title: "Your product is live" } })).toBe(1);
+    expect(
+      await db.notification.count({ where: { userId: s.id, title: "Your product is live" } }),
+    ).toBe(1);
 
     // Live: the seller can't change it any more; buyers can buy it.
     await expect(sellerSaveProduct(s.id, p.id, shoe, null)).rejects.toThrow("live");
@@ -114,11 +118,10 @@ describe("factory seller listing flow", () => {
     expect(await db.product.count({ where: { id: p.id } })).toBe(0);
   });
 
-  it("B-grade needs defects, and admins can only publish what is in review", async () => {
+  it("B-grade needs no defects, and admins can only publish what is in review", async () => {
     const s = await seller();
-    await expect(
-      sellerSaveProduct(s.id, null, { ...shoe, stockType: "B_GRADE" }, null),
-    ).rejects.toThrow();
+    const b = await sellerSaveProduct(s.id, null, { ...shoe, stockType: "B_GRADE" }, null);
+    expect(b).toMatchObject({ stockType: "B_GRADE", defectNotes: null });
     const p = await sellerSaveProduct(s.id, null, shoe, null);
     await expect(publishProduct(p.id)).rejects.toThrow("isn't waiting for review");
   });

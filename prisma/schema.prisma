@@ -102,7 +102,7 @@ model Product {
   audience    Audience?
   kind        String?
   stockType   StockType
-  /// Required for B_GRADE: what is wrong with it, shown up front
+  /// No longer used (defects removed by the product owner, 2026-10-17); kept so old notes aren't lost
   defectNotes String?
   retailPrice Decimal?      @db.Decimal(14, 2)
   price       Decimal       @db.Decimal(14, 2)

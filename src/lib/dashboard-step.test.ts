@@ -12,10 +12,10 @@ const base: NextStepInput = {
 };
 
 describe("nextStep", () => {
-  it("asks an open cart to add items, with what's left and the share option", () => {
+  it("sends an open cart to the cart page, with what's left and the share option", () => {
     const s = nextStep(base);
-    expect(s.text).toMatch(/12,000 more/);
-    expect(s.action).toEqual({ label: "Add items", href: "/shop?cart=ABC123" });
+    expect(s.text).toBeUndefined(); // the progress bar shows what is left
+    expect(s.action).toEqual({ label: "View cart", href: "/c/ABC123" });
     expect(s).toMatchObject({ deadline: "expires", share: true });
   });
 

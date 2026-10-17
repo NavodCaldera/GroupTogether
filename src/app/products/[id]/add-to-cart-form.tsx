@@ -1,6 +1,8 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState, useState } from "react";
+import { Toast } from "@/components/toast";
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
 import { type ActionState, addToCartAction } from "@/server/carts/actions";
 import { VisibilityChoice } from "../../carts/new/new-cart-form";
@@ -20,7 +22,9 @@ export function AddToCartForm({
   preselect?: string;
 }) {
   const [state, action, pending] = useActionState<ActionState, FormData>(addToCartAction, {});
-  const [target, setTarget] = useState(preselect ?? carts[0]?.id ?? "new");
+  const [picked, setPicked] = useState(preselect ?? carts[0]?.id ?? "new");
+  // After the first add starts a cart, the list gains it: fall back to it instead of "new".
+  const target = carts.some((c) => c.id === picked) ? picked : (carts[0]?.id ?? "new");
   const [variantId, setVariantId] = useState(variants.find((v) => v.available > 0)?.id ?? "");
   const max = variants.find((v) => v.id === variantId)?.available ?? 0;
 
@@ -30,6 +34,14 @@ export function AddToCartForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       {state.error && <Alert>{state.error}</Alert>}
+      {state.ok && !pending && (
+        <Toast key={state.at}>
+          <span>✓ {state.ok}</span>
+          <Link href={`/c/${state.code}`} className="text-accent underline">
+            View cart
+          </Link>
+        </Toast>
+      )}
       <input type="hidden" name="productId" value={productId} />
       <fieldset>
         <legend className="mb-1.5 text-sm font-bold">Size</legend>
@@ -38,14 +50,13 @@ export function AddToCartForm({
             <label
               key={v.id}
               className={`inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm has-checked:border-accent has-focus-visible:ring-2 has-focus-visible:ring-ink/30 sm:min-h-10 has-checked:bg-accent has-checked:text-on-accent ${
-                v.available === 0 ? "cursor-not-allowed opacity-40 line-through" : "border-line"
+                v.available === 0 ? "border-line text-subtle" : "border-line"
               }`}
             >
               <input
                 type="radio"
                 name="variantId"
                 value={v.id}
-                disabled={v.available === 0}
                 checked={variantId === v.id}
                 onChange={() => setVariantId(v.id)}
                 className="sr-only"
@@ -55,7 +66,7 @@ export function AddToCartForm({
           ))}
         </div>
         <p className={`mt-2 text-sm font-medium ${max <= 5 ? "text-danger" : "text-accent"}`}>
-          {max.toLocaleString("en-LK")} left in stock
+          {max === 0 ? "Sold" : `${max.toLocaleString("en-LK")} left in stock`}
         </p>
       </fieldset>
       <Field label="Quantity" name="qty">
@@ -69,17 +80,17 @@ export function AddToCartForm({
         />
       </Field>
       <Field label="Add to" name="cartId">
-        <Select name="cartId" value={target} onChange={(e) => setTarget(e.target.value)}>
+        <Select name="cartId" value={target} onChange={(e) => setPicked(e.target.value)}>
           {carts.map((c) => (
             <option key={c.id} value={c.id}>
-              {c.label} ({c.code})
+              {c.label}
             </option>
           ))}
           {carts.length === 0 && <option value="new">+ Start a new cart</option>}
         </Select>
       </Field>
       {target === "new" && <VisibilityChoice />}
-      <Button type="submit" disabled={pending || !variantId}>
+      <Button type="submit" disabled={pending || !variantId || max === 0}>
         {pending ? "Adding…" : "Add to group cart"}
       </Button>
     </form>
@@ -98,7 +109,7 @@ export function SizeStockPreview({ variants }: { variants: Variant[] }) {
           <label
             key={v.id}
             className={`inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center rounded-lg border px-3 text-sm has-checked:border-accent has-checked:bg-accent has-checked:text-on-accent has-focus-visible:ring-2 has-focus-visible:ring-ink/30 sm:min-h-10 ${
-              v.available === 0 ? "line-through opacity-40" : "border-line"
+              v.available === 0 ? "border-line text-subtle" : "border-line"
             }`}
           >
             <input
@@ -115,7 +126,7 @@ export function SizeStockPreview({ variants }: { variants: Variant[] }) {
       <p
         className={`mt-2 text-sm font-medium ${left === 0 ? "text-danger" : left <= 5 ? "text-danger" : "text-accent"}`}
       >
-        {left === 0 ? "Sold out" : `${left.toLocaleString("en-LK")} left in stock`}
+        {left === 0 ? "Sold" : `${left.toLocaleString("en-LK")} left in stock`}
       </p>
     </fieldset>
   );

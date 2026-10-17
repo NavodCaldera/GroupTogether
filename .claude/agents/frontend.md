@@ -26,7 +26,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 - `src/app/**`: the pages listed in `grouptogether.md` §5
 - `src/components/ui.tsx`: Button, LinkButton, Field, Input, Select, Textarea, Card, PageHeader, Badge, Alert, EmptyState, `cx`
-- `src/components/cart-bits.tsx`: ProgressBar, StatusBadge, CartCard, StockTypeBadge, ProductImage
+- `src/components/cart-bits.tsx`: ProgressBar (shows "LKR N to go" only while below the minimum; no "Minimum reached" text, the status badge says it), StatusBadge, CartCard, StockTypeBadge, ProductImage
 - `src/components/client.tsx`: Countdown, CopyLink
 - `src/components/site-header.tsx`, `src/components/password-input.tsx`
 - `src/app/globals.css`
@@ -57,7 +57,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
   - your own lines editable with qty, where 0 removes the line
   - Copy link, WhatsApp and the invite form
   - Leave (non-owners) and Cancel (the owner, before review)
-- The product page shows the B-grade defects in an info alert above the description, and sold-out sizes struck through. "Add to" lists your editable carts, the `?cart=` cart and "+ Start a new cart" (with name and visibility).
+- The product page shows sold-out sizes struck through. B-grade products show only the "B-grade" badge; there is no defects box (removed 2026-10-17). "Add to" lists your editable carts, the `?cart=` cart and "+ Start a new cart" (with name and visibility).
 - Show money with `formatLKR` and dates with `formatDateTime` (Asia/Colombo).
 - Pages that need a user call `requireUser([], "/path")`, so sign-in returns them there. A cart page can be viewed signed out, with a "Sign in to join" prompt.
 - Next.js 16: use `PageProps<"/route">` and `LayoutProps<"/route">`; params and searchParams are Promises. Read `node_modules/next/dist/docs/` before using unfamiliar APIs.
@@ -68,12 +68,12 @@ Map pin (rule 13): `src/components/location-picker.tsx` is the one client island
   City field in the picker suggests places via Photon (photon.komoot.io, limited to Sri Lanka, debounced 300 ms) and flies the map to the best match; do not use Nominatim for type-ahead (its policy forbids it).
 
 - `/carts` (Open carts): a plain GET search form (`q`), a hint line ("Nearest to your delivery point first" or a prompt to pin/sign in), and cards that show "N km away" when known.
-  Cart page (rule 14): `delivery-map.tsx` (read-only Leaflet, exact only for members/admins; server rounds coordinates for others) and `chat.tsx` (polling island, 8 s, visible tab only).
+  Cart page (rule 14): `chat.tsx` (polling island, 8 s, visible tab only). There is no delivery-point map on the cart page (removed 2026-10-17); the owner's pin only feeds "N km away".
   Home page lists the 8 cheapest live products, price ascending ("Affordable prices"), via `listProducts(f, take, "cheapest")`. Before that section, its own "How we solve the problem" section holds `WhyCheap`, which explains the price: "Bulk buying from factory surplus" → "Consumer group buying" (arrow → on desktop, ↓ on phones), then "On average X% below retail" from `retailSaving()` (null under 3 qualifying products → generic line). Markup only.
 
 - `TaxonomyFields` (shop filter and admin product form): Category is disabled until an Audience is chosen, and Size until a Category is chosen; clearing the audience clears the category.
   Shop search is `components/search-box.tsx` (dropdown from `/api/suggest`, 200 ms debounce); the form still works as a plain GET.
-  Every inner page (detail, new, pay, account) starts with `<BackLink fallback="<parent>" />` from `components/client.tsx`; header-level pages (home, shop, carts, my-carts, dashboard, notifications, admin/seller home and lists) do not.
+  Every inner page (detail, new, pay, account, my-carts) starts with `<BackLink fallback="<parent>" />` from `components/client.tsx`; header-level pages (home, shop, carts, dashboard, notifications, admin/seller home and lists) do not.
 
 - No cart-name field on Start a cart or the product page's new-cart option: carts are named after their owner.
 
@@ -85,12 +85,14 @@ Map pin (rule 13): `src/components/location-picker.tsx` is the one client island
 
 - Cart page order (single centred column, max-w-2xl): title + "N people · distance", progress card ending in exactly one next step, owner's join requests, "In this cart" (totals; own row editable), messages directly under it, share row, delivery map, then leave/cancel as quiet text links. A blocked buyer always gets a way forward ("Go to your cart").
 
-- Sharing a cart: `ShareMenu` (client island in `src/components/client.tsx`), an icon button beside the cart title that opens Copy link / Share on WhatsApp. No separate share box.
+- Sharing a cart: the buyer dashboard's "Copy cart link" button (`CopyLinkButton` in `components/client.tsx`; it replaced "Share on WhatsApp" 2026-10-17). The cart page has no share icon or share box (`ShareMenu` removed 2026-10-17).
 
 - `/messages`: inbox (list of conversations with avatar initial, name, time, unread badge; no cart line or last-message preview). In `ChatPanel` your own messages carry ticks after the time: one grey tick sent, two green (`text-accent`) ticks seen and the open conversation (`ChatPanel`). Two panes on desktop; on phones the list and the conversation take turns ("← All messages"). Header has a chat icon with the unread count beside the bell.
 
 - Header links use `NavLink` (`src/components/nav-link.tsx`, a tiny client island with `usePathname`): the current section gets `aria-current=page` and a green underline (bottom tab: green text). Sections can claim extra prefixes via `also` (Shop: `/products/`, Carts: `/c/`).
-`/dashboard` is one current-cart card plus up to 3 past orders. The sentence and button come from `nextStep(status, mine, …)` in `cart-rules.ts`; change wording there (with `dashboard-step.test.ts`), not in the page.
-Colour rule (product owner, 2026-10-17): amber `text-warn` is used **only** for time left (countdowns, deadlines). Status badges use neutral/good/info/bad; there is no `warn` badge tone.
-Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.
-Profile (2026-10-17): header profile icon → `/account` (`ProfileForm`: name, phone, `LocationPicker`; Sign out lives here). `/account/location` only redirects.
+  `/dashboard` is one current-cart card plus up to 3 past orders. The sentence and button come from `nextStep(status, mine, …)` in `cart-rules.ts`; change wording there (with `dashboard-step.test.ts`), not in the page. Layout: the status pill sits beside the name and wraps under it when both don't fit; the name wraps (never truncated); step labels are centred under their bars; on phones the buttons are full width and stacked. `Badge` pills never wrap (`whitespace-nowrap`, `shrink-0`).
+  Colour rule (product owner, 2026-10-17): amber `text-warn` is used **only** for time left (countdowns, deadlines). Status badges use neutral/good/info/bad; there is no `warn` badge tone.
+  Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.
+  Profile (2026-10-17): header profile icon → `/account` (`ProfileForm`: name, phone, `LocationPicker`; Sign out lives here). `/account/location` only redirects.
+  `/my-carts` = "Past orders": statement-style rows from `myCarts` (finished statuses only); the active cart is shown only on `/dashboard`.
+  Quick confirmations use `<Toast key={state.at}>` from `components/toast.tsx` (bottom pop-up, auto-hides, above the phone tab bar), not an inline Alert.

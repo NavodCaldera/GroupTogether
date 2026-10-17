@@ -116,23 +116,26 @@ export async function joinableCart(code: string, now = new Date()) {
   });
 }
 
+/** A buyer's finished carts (orders and closed ones), newest first, with their own lines. */
 export async function myCarts(userId: string) {
   return db.groupCart.findMany({
-    where: { members: { some: { userId } } },
+    where: {
+      members: { some: { userId } },
+      status: { in: ["CONFIRMED", "DISPATCHED", "DELIVERED", "EXPIRED", "CANCELLED"] },
+    },
     select: {
       id: true,
       code: true,
-      name: true,
       status: true,
       total: true,
-      minOrderValue: true,
-      expiresAt: true,
-      slipDueAt: true,
       ownerId: true,
-      _count: { select: { members: true } },
+      createdAt: true,
+      confirmedAt: true,
+      owner: { select: { name: true } },
+      lines: { where: { userId }, select: { qty: true, unitPrice: true } },
     },
     orderBy: { updatedAt: "desc" },
-    take: 50,
+    take: 100,
   });
 }
 

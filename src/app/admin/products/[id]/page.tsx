@@ -76,8 +76,8 @@ export default async function EditProductPage({
             <Card className="border-accent">
               <h2 className="mb-1 font-semibold">Seller submitted this for review</h2>
               <p className="mb-3 text-sm text-subtle">
-                Check the details and defects, and that the stock below has reached our store,
-                before publishing.
+                Check the details, and that the stock below has reached our store, before
+                publishing.
               </p>
               <div className="flex flex-col gap-3">
                 <AdminForm action={publishProductAction} submit="Publish: put it on sale">

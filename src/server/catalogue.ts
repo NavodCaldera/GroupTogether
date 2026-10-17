@@ -27,7 +27,6 @@ const listSelect = {
   price: true,
   retailPrice: true,
   photoKey: true,
-  defectNotes: true,
   variants: { select: { size: true, available: true }, orderBy: { size: "asc" } },
 } satisfies Prisma.ProductSelect;
 
@@ -120,7 +119,6 @@ export const productSchema = z
     audience: z.enum(["MEN", "WOMEN", "GIRL", "BOY", "KID"], { message: "Choose who it is for" }),
     kind: z.string().min(1, "Choose a category"),
     stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]),
-    defectNotes: z.string().trim().max(500).optional().default(""),
     price: money,
     retailPrice: money.optional().or(z.literal("")),
     status: z.enum(["DRAFT", "IN_REVIEW", "LIVE", "ARCHIVED"]).default("DRAFT"),
@@ -128,10 +126,6 @@ export const productSchema = z
   .refine((v) => kindFits(v.audience, v.kind), {
     message: "That category isn't offered for this audience",
     path: ["kind"],
-  })
-  .refine((v) => v.stockType !== "B_GRADE" || v.defectNotes.length >= 3, {
-    message: "Describe what is wrong with B-grade stock",
-    path: ["defectNotes"],
   });
 
 /**
@@ -148,7 +142,6 @@ export async function saveProduct(
   const data = {
     ...p,
     category: findKind(p.kind)!.category,
-    defectNotes: p.defectNotes || null,
     retailPrice: p.retailPrice || null,
     ...(photo && photo.size > 0
       ? await (async () => {

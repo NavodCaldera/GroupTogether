@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { ProductImage } from "@/components/cart-bits";
-import { Alert, Card } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { editableCartsFor, joinableCart } from "@/server/carts/queries";
@@ -30,7 +30,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   return (
     <>
       <BackLink fallback={wanted ? `/shop?cart=${wanted}` : "/shop"} />
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2 [&>*]:min-w-0">
         <ProductImage {...product} />
         <div className="flex flex-col gap-4">
           <div>
@@ -46,12 +46,6 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             </p>
           </div>
 
-          {product.stockType === "B_GRADE" && product.defectNotes && (
-            <Alert tone="info">
-              <strong>Defects: </strong>
-              {product.defectNotes}
-            </Alert>
-          )}
           {product.description && (
             <p className="text-sm whitespace-pre-line">{product.description}</p>
           )}

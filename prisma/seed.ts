@@ -48,7 +48,6 @@ type Seed = {
   stockType: "FACTORY_SURPLUS" | "B_GRADE";
   price: number;
   retail: number;
-  defect?: string;
   description: string;
 };
 
@@ -78,7 +77,6 @@ const PRODUCTS: Seed[] = [
     stockType: "B_GRADE",
     price: 4200,
     retail: 16900,
-    defect: "Small glue marks on the midsole; uneven stitching on one heel tab.",
     description: "Same shoe as the surplus pair, cosmetic seconds.",
   },
   {
@@ -97,7 +95,6 @@ const PRODUCTS: Seed[] = [
     stockType: "B_GRADE",
     price: 1900,
     retail: 6500,
-    defect: "Faint print misalignment on the side logo.",
     description: "Cosmetic seconds.",
   },
   {
@@ -116,7 +113,6 @@ const PRODUCTS: Seed[] = [
     stockType: "B_GRADE",
     price: 9500,
     retail: 24000,
-    defect: "Colour shade differs slightly between left and right shoe.",
     description: "Waterproof membrane, lugged outsole.",
   },
   {
@@ -144,7 +140,6 @@ const PRODUCTS: Seed[] = [
     stockType: "B_GRADE",
     price: 7800,
     retail: 21000,
-    defect: "Scuff on the toe box, sole fully intact.",
     description: "Padded collar, herringbone outsole.",
   },
   {
@@ -172,7 +167,6 @@ const PRODUCTS: Seed[] = [
     stockType: "B_GRADE",
     price: 1900,
     retail: 7900,
-    defect: "One button slightly off-centre; small dye spot inside the hem.",
     description: "Cosmetic seconds.",
   },
   {
@@ -191,7 +185,6 @@ const PRODUCTS: Seed[] = [
     stockType: "B_GRADE",
     price: 4500,
     retail: 12500,
-    defect: "Uneven wash on the back panel.",
     description: "12 oz denim, classic fit.",
   },
   {
@@ -228,7 +221,6 @@ const PRODUCTS: Seed[] = [
     stockType: "B_GRADE",
     price: 1700,
     retail: 4900,
-    defect: "Embroidered logo slightly crooked.",
     description: "Piqué cotton.",
   },
   {
@@ -322,7 +314,6 @@ async function main() {
         stockType: p.stockType,
         price: p.price,
         retailPrice: p.retail,
-        defectNotes: p.defect ?? null,
         description: p.description,
         status: "LIVE",
         variants: {
@@ -506,7 +497,6 @@ async function main() {
       price: 3900,
       retailPrice: 8900,
       stockType: "B_GRADE",
-      defectNotes: "Small glue marks on the inner strap; not visible when worn",
       reviewNote: null,
     },
     {
@@ -530,7 +520,6 @@ async function main() {
         audience: p.audience,
         kind: p.kind,
         stockType: p.stockType,
-        defectNotes: "defectNotes" in p ? p.defectNotes : null,
         price: p.price,
         retailPrice: p.retailPrice,
         description: "Made in our Ja-Ela factory. Overrun from an export order.",

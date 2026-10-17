@@ -25,6 +25,16 @@ export function formatDateTime(date: Date | string | null | undefined): string {
   }).format(new Date(date));
 }
 
+/** "17 Oct" in Colombo time. */
+export function formatDate(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "numeric",
+    month: "short",
+    timeZone: "Asia/Colombo",
+  }).format(new Date(date));
+}
+
 /** Colombo is UTC+5:30 all year (no daylight saving). */
 const COLOMBO_OFFSET_MS = 5.5 * 3_600_000;
 const DAY_MS = 86_400_000;

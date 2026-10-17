@@ -35,9 +35,13 @@ heavy libraries, paid services or anything that needs an always-on worker.
    platform never charges, collects or refunds a delivery fee; `Delivery.paidBy` is always
    OWNER.
 9. **Visibility.** A cart is PUBLIC (shown on the "open carts" panel) or PRIVATE (reached only by
-   link). Every cart has a share link `/c/<code>` and a WhatsApp share. The invite-by-email/phone
-   form was removed from the cart page (product owner, 2026-10-17); sharing the link is the way in.
-10. **B-grade products must list their defects**, and the defects are shown up front.
+   link). Every cart has a share link `/c/<code>`. The invite-by-email/phone form and the share
+   icon (copy link / WhatsApp) were removed from the cart page (product owner, 2026-10-17); the
+   buyer dashboard's "Copy cart link" button (while the cart is filling) is the way to share; it
+   replaced "Share on WhatsApp" (product owner, 2026-10-17).
+10. **B-grade products are labelled "B-grade"; defects are not listed** (product owner,
+    2026-10-17: the defects box and field were removed). `Product.defectNotes` stays in the
+    schema, unused, so old notes aren't lost.
 11. **Three roles: buyer, factory seller, admin** (product owner, 2026-10-16).
     - **Buyers** (`CUSTOMER`) sign up themselves and land on `/dashboard`.
     - **Factory sellers** (`SELLER`) are created by an admin (or the seed) and land on `/seller`.
@@ -83,9 +87,8 @@ heavy libraries, paid services or anything that needs an always-on worker.
     Buyers aren't asked for a cart name; `createCart` sets it from the owner's name.
 
 Cart statuses: `OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED`,
-plus the dead ends `EXPIRED` and `CANCELLED`. 14. **Delivery-point map and owner chat** (product owner, 2026-10-17). A cart page has "See
-delivery point on map" (the owner's pin): members and admins see the exact spot, everyone else
-only an approximate area (coordinates rounded server-side). Any signed-in user can message the
+plus the dead ends `EXPIRED` and `CANCELLED`. 14. **Owner chat** (product owner, 2026-10-17). The cart page no longer shows a delivery-point map
+(removed 2026-10-17); the owner's pin is only used for "N km away" and the PickMe booking. Any signed-in user can message the
 cart's owner in a private thread (`CartMessage`, `src/server/carts/chat.ts`); the owner has an
 inbox of people who wrote and cannot start a thread. Max 500 characters, 10 messages a minute,
 one unread in-app notice per conversation. The sender sees WhatsApp-style ticks: one grey tick

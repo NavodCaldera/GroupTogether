@@ -33,7 +33,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - One PickMe drop, with the owner paying the driver; the platform never handles the fee.
 - In-app notice when the minimum is reached.
 - Private carts never on the public panel.
-- B-grade defects shown.
+- B-grade labelled with its badge; no defects listed anywhere (rule 10, 2026-10-17).
 - Roles: buyers land on `/dashboard`, sellers on `/seller`, admins on `/admin`; wrong-role pages redirect.
 - Sellers only publish stock: they see no buyers, carts or money, change only their own drafts, and nothing they list is on sale until an admin publishes it.
 

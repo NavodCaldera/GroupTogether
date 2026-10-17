@@ -8,7 +8,6 @@ type Money = { toString(): string };
 
 export function ProgressBar({ total, min }: { total: Money; min: Money }) {
   const p = progress(total.toString(), min.toString());
-  const left = remaining(total.toString(), min.toString());
   return (
     <div>
       <div
@@ -23,12 +22,9 @@ export function ProgressBar({ total, min }: { total: Money; min: Money }) {
           style={{ width: `${Math.max(2, p * 100)}%` }}
         />
       </div>
-      <div className="mt-1.5 flex justify-between gap-2 text-xs text-subtle">
-        <span>
-          <strong className="text-ink">{formatLKR(total)}</strong> of {formatLKR(min)}
-        </span>
-        <span>{left.gt(0) ? `${formatLKR(left)} to go` : "Minimum reached"}</span>
-      </div>
+      <p className="mt-1.5 text-xs text-subtle">
+        <strong className="text-ink">{formatLKR(total)}</strong> of {formatLKR(min)}
+      </p>
     </div>
   );
 }

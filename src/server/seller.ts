@@ -57,8 +57,6 @@ export async function sellerAdjustStock(
 export async function submitForReview(sellerId: string, productId: string) {
   const p = await ownProduct(sellerId, productId);
   assertDraft(p);
-  if (p.stockType === "B_GRADE" && !p.defectNotes)
-    throw new CatalogueError("Describe the defects of B-grade stock first");
   const stocked = await db.variant.count({ where: { productId, available: { gt: 0 } } });
   if (stocked === 0) throw new CatalogueError("Add stock for at least one size first");
   const r = await db.product.updateMany({
@@ -112,14 +110,11 @@ export async function publishProduct(productId: string) {
   if (r.count === 0) throw new CatalogueError("This product isn't waiting for review");
   const p = await db.product.findUniqueOrThrow({ where: { id: productId } });
   if (p.sellerId)
-    await notify(
-      [p.sellerId],
-      {
-        title: "Your product is live",
-        body: `${p.brand} ${p.title} is now on sale on GroupTogether.`,
-        href: `/seller/products/${p.id}`,
-      },
-    );
+    await notify([p.sellerId], {
+      title: "Your product is live",
+      body: `${p.brand} ${p.title} is now on sale on GroupTogether.`,
+      href: `/seller/products/${p.id}`,
+    });
 }
 
 /** IN_REVIEW → DRAFT with a note telling the seller what to fix. */
@@ -133,12 +128,9 @@ export async function returnToSeller(productId: string, note: string) {
   if (r.count === 0) throw new CatalogueError("This product isn't waiting for review");
   const p = await db.product.findUniqueOrThrow({ where: { id: productId } });
   if (p.sellerId)
-    await notify(
-      [p.sellerId],
-      {
-        title: "Your product needs changes",
-        body: `${p.brand} ${p.title}: ${reason}`,
-        href: `/seller/products/${p.id}`,
-      },
-    );
+    await notify([p.sellerId], {
+      title: "Your product needs changes",
+      body: `${p.brand} ${p.title}: ${reason}`,
+      href: `/seller/products/${p.id}`,
+    });
 }

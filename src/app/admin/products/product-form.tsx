@@ -11,7 +11,6 @@ type ProductValues = {
   audience: string | null;
   kind: string | null;
   stockType: string;
-  defectNotes: string | null;
   price: { toString(): string };
   retailPrice: { toString(): string } | null;
   status: string;
@@ -57,9 +56,6 @@ export function ProductForm({
           </Select>
         </Field>
       </div>
-      <Field label="Defects (required for B-grade, shown up front)" name="defectNotes">
-        <Input name="defectNotes" defaultValue={product?.defectNotes ?? ""} />
-      </Field>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={seller ? "Price on GroupTogether (LKR)" : "Our price (LKR)"} name="price">
           <Input

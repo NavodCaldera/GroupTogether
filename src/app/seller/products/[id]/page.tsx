@@ -79,12 +79,6 @@ export default async function SellerProductPage({
                 <dd>
                   <StockTypeBadge stockType={product.stockType} />
                 </dd>
-                {product.defectNotes && (
-                  <>
-                    <dt className="text-subtle">Defects</dt>
-                    <dd>{product.defectNotes}</dd>
-                  </>
-                )}
                 <dt className="text-subtle">Price</dt>
                 <dd>
                   {formatLKR(product.price)}

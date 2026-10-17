@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatusBadge } from "@/components/cart-bits";
-import { BackLink, Countdown, ShareMenu } from "@/components/client";
+import { BackLink, Countdown } from "@/components/client";
 import { Alert, Badge, Button, Card } from "@/components/ui";
 import {
   cartTotal,
@@ -11,7 +11,6 @@ import {
   mergeBlockReason,
   progress,
   remaining,
-  whatsappShareUrl,
 } from "@/lib/cart-rules";
 import { distanceKm, formatDistance } from "@/lib/distance";
 import { formatLKR } from "@/lib/format";
@@ -33,11 +32,9 @@ import {
   myMergeRequest,
 } from "@/server/carts/queries";
 import { sweep } from "@/server/carts/service";
-import { appUrl } from "@/server/notify";
 import { listMessages, threadsFor } from "@/server/carts/chat";
 import { ChatPanel } from "./chat";
 import { AcceptForm, JoinForm } from "./cart-forms";
-import { DeliveryMap } from "./delivery-map";
 
 export async function generateMetadata({ params }: PageProps<"/c/[code]">): Promise<Metadata> {
   const { code } = await params;
@@ -56,9 +53,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   const isOwner = user?.id === cart.ownerId;
   const isMember = !!user && cart.members.some((m) => m.userId === user.id);
   const editable = isEditable(cart.status);
-  const url = appUrl(`/c/${cart.code}`);
   const title = cart.name || `${cart.owner.name}'s group cart`;
-  const shareText = `Join my GroupTogether cart "${title}" and let's reach ${formatLKR(cart.minOrderValue)} together: ${url}`;
   const slip = cart.slips[0];
   const pct = progress(cart.total.toString(), cart.minOrderValue.toString());
   const toGo = remaining(cart.total.toString(), cart.minOrderValue.toString());
@@ -82,12 +77,10 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
         }
       : null;
 
-  // Delivery point: the owner's pin. Members (and admins) see it exactly, others only the area.
+  // The cart's delivery point (the owner's pin), used only for "X km away"; no map is shown.
   const ownerPin = cart.members.find((m) => m.userId === cart.ownerId);
   const pinLat = cart.deliveryLat ?? ownerPin?.lat ?? null;
   const pinLng = cart.deliveryLng ?? ownerPin?.lng ?? null;
-  const exactPin = isMember || user?.role === "ADMIN";
-  const round = (n: number) => Math.round(n * 100) / 100;
 
   // Chat with the owner. The owner has an inbox of people who wrote; everyone else one thread.
   const threads = user && isOwner ? await threadsFor(cart.id) : [];
@@ -120,7 +113,6 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
         <BackLink fallback="/carts" />
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="min-w-0 text-2xl font-semibold tracking-tight break-words">{title}</h1>
-          {editable && <ShareMenu url={url} whatsappUrl={whatsappShareUrl(shareText)} />}
           {cart.status !== "OPEN" && <StatusBadge status={cart.status} />}
           {cart.visibility === "PRIVATE" && <Badge>Private</Badge>}
         </div>
@@ -155,9 +147,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
             />
           </div>
           <p className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
-            <span className={`font-medium ${toGo.gt(0) ? "" : "text-accent"}`}>
-              {toGo.gt(0) ? `${formatLKR(toGo)} to go` : "Minimum reached"}
-            </span>
+            <span className="font-medium text-accent">{toGo.gt(0) ? "" : "Minimum reached"}</span>
             {editable && (
               <span className="text-warn">
                 <Countdown until={cart.expiresAt.toISOString()} />
@@ -335,17 +325,6 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
         </section>
       )}
 
-      {pinLat !== null && pinLng !== null && (
-        <section>
-          <h2 className="mb-2 text-lg font-semibold">Delivery point</h2>
-          <DeliveryMap
-            lat={exactPin ? pinLat : round(pinLat)}
-            lng={exactPin ? pinLng : round(pinLng)}
-            exact={exactPin}
-          />
-        </section>
-      )}
-
       {/* Rare, irreversible actions go last and stay quiet. */}
       {isMember && editable && !isOwner && (
         <form action={leaveAction}>
@@ -390,14 +369,6 @@ function StatusPanel({
     lng: number | null;
   } | null;
 }) {
-  const shopLink = (
-    <Link
-      href={`/shop?cart=${cart.code}`}
-      className="inline-flex min-h-11 items-center justify-center sm:min-h-10 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90"
-    >
-      Add items
-    </Link>
-  );
   switch (cart.status) {
     case "OPEN":
     case "READY":
@@ -442,17 +413,12 @@ function StatusPanel({
           </form>
         );
       if (!isMember) return <JoinForm cartId={cart.id} defaults={defaults} />;
-      if (cart.status === "OPEN") return <div>{shopLink}</div>;
+      // Members add items from the shop; an open cart needs no button here.
+      if (cart.status === "OPEN") return null;
       return isOwner ? (
-        <div className="flex flex-col gap-3">
-          <AcceptForm cartId={cart.id} back={`/c/${cart.code}`} defaults={defaults} />
-          <div>{shopLink}</div>
-        </div>
+        <AcceptForm cartId={cart.id} back={`/c/${cart.code}`} defaults={defaults} />
       ) : (
-        <div className="flex flex-col gap-3">
-          <p className="text-sm">Waiting for the owner to pay.</p>
-          <div>{shopLink}</div>
-        </div>
+        <p className="text-sm">Waiting for the owner to pay.</p>
       );
     case "AWAITING_SLIP":
       return isOwner ? (

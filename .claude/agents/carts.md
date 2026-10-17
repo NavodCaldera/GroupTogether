@@ -69,6 +69,6 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 Member location (rule 13): `joinCart(userId, cartId, location?)` stores address, city and map pin on `CartMember` and the profile; `createCart` and the implicit join in `setLine` copy the profile pin; `acceptAndPay` copies the owner's pin to `GroupCart.deliveryLat/deliveryLng`. Actions (`joinAction`, add-to-cart, create) require the pin; no pin sends the buyer to `/account/location`.
 Owner chat (rule 14): `src/server/carts/chat.ts` (`sendMessage`, `listMessages`, `threadsFor`), `GET /api/chat`. A thread is keyed by (cart, participant); the owner replies but cannot start one.
-Dashboard next step per status/role: `nextStep` and `journeyStep` in `src/lib/cart-rules.ts` (unit tests in `dashboard-step.test.ts`).
+Dashboard next step per status/role: `nextStep` and `journeyStep` in `src/lib/cart-rules.ts` (unit tests in `dashboard-step.test.ts`). An OPEN cart's button is "View cart" → `/c/<code>` (adding items happens from the cart page).
 Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.
 Accept & pay takes the drop-off from the owner's profile (address, city, phone) in `acceptAction`; there are no address fields on the cart page. Missing profile data → error pointing to the profile.

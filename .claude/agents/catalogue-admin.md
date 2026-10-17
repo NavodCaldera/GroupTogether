@@ -33,7 +33,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 **Catalogue:**
 
 - Products have a category (`SHOES` or `APPAREL`), a stock type (`FACTORY_SURPLUS` or `B_GRADE`), a price and an optional `retailPrice` (shown struck through; `retailSaving()` turns the live ones into the home page's "On average X% below retail", needing at least 3 products priced under retail), plus one photo (JPEG, PNG or WebP up to 5 MB, stored on local disk and served by `/api/photos/[id]` with an ETag).
-- **B-grade requires `defectNotes`**, which the zod refine in `productSchema` enforces. They are shown up front.
+- **B-grade is shown only as the "B-grade" badge.** Defects were removed (product owner, 2026-10-17): no `defectNotes` in `productSchema`, the forms or any page. The column stays, unused.
 - Only LIVE products are listed or can be added to carts. DRAFT is hidden and ARCHIVED is retired.
 - Variants are size plus colour, for example "UK 9" for shoes or "M" for apparel.
 - `adjustStock(product, size, colour, ±n)` creates the variant if it is missing and changes **free stock only** (`available`). It refuses to remove more than is free, so locked stock (`reserved`) and `sold` are never edited by hand.
@@ -58,7 +58,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Admin accounts come only from the seed. Public sign-up creates buyers (`CUSTOMER`) only. Factory sellers (`SELLER`) are created at `/admin/users/new-seller` (`createSeller`).
 - **Seller products** (`src/server/seller.ts`; product-owner rule, 2026-10-16):
   - `Product.sellerId` is null for our own listings. `ProductStatus` has `IN_REVIEW` between DRAFT and LIVE.
-  - The seller creates a draft, adds stock by size, and submits it (it needs free stock; B-grade needs defects). The admins get an in-app notice.
+  - The seller creates a draft, adds stock by size, and submits it (it needs free stock). The admins get an in-app notice.
   - The admin product page shows a review card: **Publish** (`IN_REVIEW → LIVE`, once the stock has reached our store) or **Return to seller** with a note (`→ DRAFT`, `reviewNote`). The seller is notified in the app either way.
   - Sellers change details and stock only on their own drafts. `saveProduct(..., sellerId)` re-checks `status: DRAFT` in the same update, and the transitions use guarded `updateMany`. Live products are managed by the admin, since we hold the stock.
   - Sellers never see buyers, carts or money. Their dashboard `/seller` shows their products, statuses and stock counts only.
