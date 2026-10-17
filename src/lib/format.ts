@@ -64,6 +64,16 @@ export function endsWithin(until: Date, hours: number, now = new Date()): boolea
   return until.getTime() - now.getTime() < hours * 3_600_000;
 }
 
+/** How long since `since`: "just now", "35m", "2h 5m", "3d". */
+export function waitedFor(since: Date, now = new Date()): string {
+  const mins = Math.floor((now.getTime() - since.getTime()) / 60_000);
+  if (mins < 1) return "just now";
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return mins % 60 ? `${h}h ${mins % 60}m` : `${h}h`;
+  return `${Math.floor(h / 24)}d`;
+}
+
 export function timeLeft(until: Date, now = new Date()): string {
   const ms = until.getTime() - now.getTime();
   if (ms <= 0) return "ended";

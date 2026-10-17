@@ -41,22 +41,25 @@ export async function approveSlipAction(_p: AdminState, fd: FormData): Promise<A
   const res = await attempt(() => approveSlip(admin.id, slipId));
   revalidatePath("/admin", "layout");
   if (res.error) return res;
-  // The slip leaves the queue; go to the cart, where the next step is booking the delivery.
-  const slip = await db.paymentSlip.findUnique({
-    where: { id: slipId },
-    select: { cart: { select: { code: true } } },
-  });
-  redirect(`/admin/carts/${slip?.cart.code}?approved=1`);
+  // Back to the queue, which says it's done and offers the delivery booking and the next slip.
+  redirect(`/admin/slips?done=approved&cart=${await slipCartCode(slipId)}`);
 }
 
 export async function rejectSlipAction(_p: AdminState, fd: FormData): Promise<AdminState> {
   const admin = await requireAdmin();
-  const res = await attempt(
-    () => rejectSlip(admin.id, str(fd, "slipId"), str(fd, "note")),
-    "Rejected: the owner has a new payment window",
-  );
+  const slipId = str(fd, "slipId");
+  const res = await attempt(() => rejectSlip(admin.id, slipId, str(fd, "note")));
   revalidatePath("/admin", "layout");
-  return res;
+  if (res.error) return res;
+  redirect(`/admin/slips?done=rejected&cart=${await slipCartCode(slipId)}`);
+}
+
+async function slipCartCode(slipId: string) {
+  const slip = await db.paymentSlip.findUnique({
+    where: { id: slipId },
+    select: { cart: { select: { code: true } } },
+  });
+  return slip?.cart.code ?? "";
 }
 
 export async function adminCancelAction(_p: AdminState, fd: FormData): Promise<AdminState> {

@@ -45,7 +45,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Pages (shared list pieces such as chips, search, pager and table are in `src/app/admin/list-bits.tsx`; filters are plain GET links, no client JS):
   - Layout nav with red count badges: slips to review and confirmed carts to book.
   - Overview (`src/server/admin-queries.ts` → `overviewStats`): needs-action tiles; confirmed sales today, last 7 and last 30 days (Colombo days, by `confirmedAt`, statuses in `PAID`) and the average order; value locked in unpaid carts; slip windows running and carts expiring within 6h; low stock (≤ `LOW_STOCK`); best sellers by units sold; recent orders; CSV export.
-  - Slips, as described in the `payments-slips` agent, plus a "Reviewed" tab (`?view=history`, the last 100 with reviewer and note).
+  - Slips, as described in the `payments-slips` agent: a review queue (list + open slip side by side from `lg`, separate screens on phones) and a "Reviewed" tab (`?view=history`, the last 100 with reviewer and note, filter by result, search by cart code or owner; cards on phones, a table from `md`).
   - Carts: search (code, name, owner name, email or mobile), status filter with counts (a `FilterSelect` dropdown on phones, chips from `sm` up), a due column (expiry or slip window), 50 per page. The cart page has the picking list, **members and their shares** (what each owes the owner), timeline, slips, delivery booking or status, and cancel with a reason.
   - Deliveries: confirmed carts to book (oldest first), drops in progress with status buttons, recently delivered.
   - Products: search, status chips, and "low stock" (live products with a size at ≤ 2 free); free / in carts / sold counts.
@@ -54,7 +54,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
   - `GET /admin/export/orders?days=30`: confirmed orders as CSV (UTF-8 BOM for Excel). `toCsv` prefixes cells that start with `= + - @` so they can't run as formulas.
 - Admin controls stay inside the business rules. There is no override of the 24h / 2h deadlines, no admin editing of members' lines and no refunds. Ask the product owner before adding any of these.
 - Settings: `minOrderValue` (applies to **new** carts only; existing carts keep their snapshot), `cartLifetimeHours` (24), `slipWindowHours` (2), and the bank account details shown to owners.
-- After an action removes its own form, redirect with a query flag and show a message. Otherwise the success message is lost. The admin cart page shows `?approved=1` / `?booked=1` as a `Toast` pop-up (5 s); other pages still use an `Alert` banner.
+- After an action removes its own form, redirect with a query flag and show a message. Otherwise the success message is lost. The admin cart page shows `?booked=1` and the slips page `?done=approved|rejected` as a `Toast` pop-up (5 s); other pages still use an `Alert` banner.
 - Admin accounts come only from the seed. Public sign-up creates buyers (`CUSTOMER`) only. Factory sellers (`SELLER`) are created at `/admin/users/new-seller` (`createSeller`).
 - **Seller products** (`src/server/seller.ts`; product-owner rule, 2026-10-16):
   - `Product.sellerId` is null for our own listings. `ProductStatus` has `IN_REVIEW` between DRAFT and LIVE.

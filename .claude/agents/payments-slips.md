@@ -29,9 +29,17 @@ There is no card gateway. Payment is a bank transfer only.
 - `src/server/carts/slips.ts`
 - `src/app/c/[code]/pay/page.tsx`
 - `SlipForm` in `src/app/c/[code]/cart-forms.tsx`
-- `src/app/admin/slips/page.tsx`
+- `src/app/admin/slips/page.tsx` (the review queue) and `slip-decision.tsx` (approve / reject island)
 - `src/app/api/slips/[id]/route.ts`
 - `approveSlipAction` and `rejectSlipAction` in `src/server/admin-actions.ts`
+
+**Admin review page (`/admin/slips`):**
+
+- Pending slips, oldest first, each with how long it has waited (`waitedFor`). `?slip=<id>` opens one; on desktop (`lg`) the oldest opens by itself beside the queue, on phones the queue and the slip are separate screens ("← All slips").
+- The open slip shows the image inline (tap for full size); a PDF is a tile that opens it in a new tab, because the route's sandbox CSP stops Chrome showing PDFs inside a page.
+- "Check these on the bank account": amount, cart code as the reference (copy button), our account from Settings (or a link to set it up), upload time. Then the owner (tap-to-call phone), the cart link with its member count, and any earlier rejected slips for the cart with their reasons.
+- The decision bar is docked at the bottom of the screen on phones and inline from `lg`.
+- With nothing to review: "No slips waiting" and "Expected soon" (AWAITING_SLIP carts with a countdown to `slipDueAt`).
 
 **Rules:**
 
@@ -44,10 +52,12 @@ There is no card gateway. Payment is a bank transfer only.
   - Slip APPROVED, cart CONFIRMED with `confirmedAt` set.
   - For every line: `reserved -= qty` and `sold += qty`.
   - Members are notified in the app.
-  - The action redirects to `/admin/carts/<code>?approved=1`, because the slip's card leaves the queue.
+  - The admin confirms in two taps ("Approve…" → "Yes, approve"), because approving can't be undone.
+  - The action redirects to `/admin/slips?done=approved&cart=<code>`: a pop-up, then "Book the PickMe delivery" (the cart page) and "Next slip →".
 - **Reject** (admin, a reason of at least 3 characters):
   - Slip REJECTED with `reviewNote`, cart back to AWAITING_SLIP with a **fresh** `slipDueAt = now + slipWindowHours`.
   - The owner gets an in-app notice asking them to re-upload. The pay page and the cart page show the rejection reason.
+  - The reason field suggests common reasons (a `datalist`, any text allowed). The action redirects to `/admin/slips?done=rejected&cart=<code>`.
 - A slip that is already reviewed can't be reviewed again ("already been reviewed").
 - The owner can't cancel during SLIP_REVIEW; an admin can.
 - **There are no refunds.**

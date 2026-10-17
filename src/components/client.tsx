@@ -51,8 +51,18 @@ export function SalesCounter({ initial }: { initial: Sales }) {
   );
 }
 
-/** Copies `url` to the clipboard; the label reads "Link copied" for 2s afterwards. */
-export function CopyLinkButton({ url, className }: { url: string; className?: string }) {
+/** Copies `url` to the clipboard; the label reads `copiedLabel` for 2s afterwards. */
+export function CopyLinkButton({
+  url,
+  className,
+  label = "Copy cart link",
+  copiedLabel = "Link copied",
+}: {
+  url: string;
+  className?: string;
+  label?: string;
+  copiedLabel?: string;
+}) {
   const [copied, setCopied] = useState(false);
   return (
     <Button
@@ -63,14 +73,14 @@ export function CopyLinkButton({ url, className }: { url: string; className?: st
         try {
           await navigator.clipboard.writeText(url);
         } catch {
-          window.prompt("Copy this link", url);
+          window.prompt(label, url);
           return;
         }
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       }}
     >
-      <span aria-live="polite">{copied ? "Link copied" : "Copy cart link"}</span>
+      <span aria-live="polite">{copied ? copiedLabel : label}</span>
     </Button>
   );
 }

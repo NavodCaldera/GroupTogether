@@ -49,8 +49,10 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
   // The admin approves the slip and books the PickMe drop.
   await signIn(page, "admin@grouptogether.lk");
   await page.goto("/admin/slips");
-  await page.getByRole("button", { name: "Approve and confirm order" }).click();
+  await page.getByRole("button", { name: "Approve…" }).click();
+  await page.getByRole("button", { name: "Yes, approve" }).click();
   await expect(page.getByText(/Slip approved/)).toBeVisible();
+  await page.getByRole("link", { name: "Book the PickMe delivery" }).click();
   await page.getByLabel(/Quoted fee/).fill("950");
   await page.getByRole("button", { name: "Mark as booked with PickMe" }).click();
   await expect(page.getByText(/Delivery booked/)).toBeVisible();

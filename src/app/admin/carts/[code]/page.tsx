@@ -26,7 +26,7 @@ export default async function AdminCartPage({
 }: PageProps<"/admin/carts/[code]">) {
   await requireAdmin();
   await sweep();
-  const [{ code }, { approved, booked }] = await Promise.all([params, searchParams]);
+  const [{ code }, { booked }] = await Promise.all([params, searchParams]);
   const cart = await db.groupCart.findUnique({
     where: { code: code.toUpperCase() },
     include: {
@@ -69,15 +69,9 @@ export default async function AdminCartPage({
             }
             actions={<StatusBadge status={cart.status} />}
           />
-          {/* After approving a slip or booking the drop: a pop-up, not a banner. */}
-          {booked ? (
+          {/* After booking the drop: a pop-up, not a banner. */}
+          {booked && (
             <Toast ms={5000}>Delivery booked. The owner has been told to pay the driver.</Toast>
-          ) : (
-            approved && (
-              <Toast ms={5000}>
-                Slip approved. The order is confirmed; book the PickMe delivery.
-              </Toast>
-            )
           )}
           <Card>
             <h2 className="mb-2 font-semibold">

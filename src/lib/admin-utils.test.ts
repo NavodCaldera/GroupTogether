@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toCsv } from "./csv";
-import { colomboDayStart, formatIsoDateTime } from "./format";
+import { colomboDayStart, formatIsoDateTime, waitedFor } from "./format";
 
 describe("colomboDayStart", () => {
   it("is midnight in Colombo (18:30 UTC the day before)", () => {
@@ -39,5 +39,17 @@ describe("toCsv", () => {
 
   it("leaves numbers alone", () => {
     expect(toCsv([[-5, 50000]])).toBe("-5,50000\r\n");
+  });
+});
+
+describe("waitedFor", () => {
+  const now = new Date("2026-10-18T10:00:00Z");
+  const ago = (mins: number) => new Date(now.getTime() - mins * 60_000);
+  it("reads like a queue age", () => {
+    expect(waitedFor(ago(0.5), now)).toBe("just now");
+    expect(waitedFor(ago(35), now)).toBe("35m");
+    expect(waitedFor(ago(60), now)).toBe("1h");
+    expect(waitedFor(ago(125), now)).toBe("2h 5m");
+    expect(waitedFor(ago(3 * 24 * 60 + 10), now)).toBe("3d");
   });
 });
