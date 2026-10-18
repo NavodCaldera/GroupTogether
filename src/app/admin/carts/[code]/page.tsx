@@ -132,15 +132,6 @@ export default async function AdminCartPage({
         <div className="flex min-w-0 flex-col gap-6">
           <PageHeader
             title={`Cart ${cart.code}`}
-            description={
-              <>
-                {cart.name && `${cart.name} · `}Owner{" "}
-                <Link href={`/admin/users/${cart.ownerId}`} className="text-accent underline">
-                  {cart.owner.name}
-                </Link>{" "}
-                · {cart.owner.phone ?? ""} · {cart.owner.email}
-              </>
-            }
             actions={<StatusBadge status={cart.status} />}
           />
           {/* After booking the drop: a pop-up, not a banner. */}
