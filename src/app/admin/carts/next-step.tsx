@@ -23,7 +23,7 @@ type Step = { text: string; action?: { label: string; href: string }; tone?: "wa
  * What happens next with a cart, from the admin's side. When it's the admin's move there is an
  * action; otherwise a line saying who is waited on and the deadline.
  */
-export function adminNextStep(c: StepCart, now: Date): Step {
+export function adminNextStep(c: StepCart, now: Date): Step | null {
   const page = `/admin/carts/${c.code}`;
   switch (c.status) {
     case "OPEN":
@@ -44,10 +44,7 @@ export function adminNextStep(c: StepCart, now: Date): Step {
         },
       };
     case "CONFIRMED":
-      return {
-        text: "Paid, not booked yet",
-        action: { label: "Book delivery", href: `${page}#book` },
-      };
+      return null;
     case "DISPATCHED":
       return c.delivery?.status === "FAILED"
         ? {
@@ -79,6 +76,7 @@ export function NextStep({
   className?: string;
 }) {
   const step = adminNextStep(cart, now);
+  if (!step) return null;
   return (
     <div className={cx("flex flex-wrap items-center gap-x-3 gap-y-2", className)}>
       <span
