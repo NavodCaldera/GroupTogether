@@ -15,8 +15,10 @@ export const metadata: Metadata = { title: "Shop" };
 const one = (v: string | string[] | undefined) => (typeof v === "string" && v ? v : undefined);
 
 export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
-  // Admins don't shop; their catalogue is Admin → Products.
-  if ((await getCurrentUser())?.role === "ADMIN") redirect("/admin/products");
+  // Admins don't shop; their catalogue is Admin → Products. Nor do packing staff.
+  const role = (await getCurrentUser())?.role;
+  if (role === "ADMIN") redirect("/admin/products");
+  if (role === "PACKER") redirect("/packing");
   const sp = await searchParams;
   const cart = one(sp.cart);
   const filters: ProductFilters = {

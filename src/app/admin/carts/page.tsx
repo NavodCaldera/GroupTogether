@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { StatusBadge } from "@/components/cart-bits";
+import { packingSummary } from "@/components/packing-bits";
 import { Badge, EmptyState, PageHeader, cx } from "@/components/ui";
 import type { Prisma } from "@/generated/prisma/client";
 import {
@@ -17,6 +18,7 @@ import { formatDateTime, formatLKR } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
+import { packingSelect } from "@/server/packing";
 import { FilterSelect } from "../filter-select";
 import {
   Chip,
@@ -83,6 +85,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
     ownerId: true,
     owner: { select: { name: true } },
     delivery: { select: { status: true } },
+    packing: { select: packingSelect },
     slips: { where: { status: "PENDING" }, select: { id: true }, take: 1 },
     _count: { select: { members: true } },
   } satisfies Prisma.GroupCartSelect;
@@ -237,6 +240,9 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
                   <p className="mt-2 font-semibold tabular-nums">{formatLKR(c.total)}</p>
                   {c.status === "OPEN" && <MiniProgress total={c.total} min={c.minOrderValue} />}
                   <NextStep cart={step} now={now} className="mt-2" />
+                  {c.packing && (
+                    <p className="mt-1 text-xs text-subtle">{packingSummary(c.packing)}</p>
+                  )}
                 </li>
               );
             })}
@@ -290,6 +296,9 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
                   </td>
                   <td className="max-w-72 whitespace-normal">
                     <NextStep cart={{ ...c, pendingSlipId: c.slips[0]?.id }} now={now} />
+                    {c.packing && (
+                      <p className="mt-1 text-xs text-subtle">{packingSummary(c.packing)}</p>
+                    )}
                   </td>
                   <td className="text-subtle">{formatDateTime(c.updatedAt)}</td>
                 </tr>

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { BackLink } from "@/components/client";
 import { Alert, Button, PageHeader } from "@/components/ui";
 import { signOutAction } from "@/server/auth/actions";
+import { homeFor } from "@/server/auth/service";
 import { requireUser } from "@/server/auth/session";
 import { ProfileForm } from "./profile-form";
 
@@ -15,13 +16,20 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
       <div>
-        <BackLink fallback="/dashboard" />
+        <BackLink fallback={homeFor(user.role)} />
         <PageHeader title="Profile" description={user.email} />
       </div>
       {back && user.lat == null && (
         <Alert tone="info">Pin your address on the map to continue.</Alert>
       )}
-      <ProfileForm next={back} defaults={user} />
+      {/* Packing staff have no drop-off address; an admin keeps their details. */}
+      {user.role === "PACKER" ? (
+        <p className="text-sm text-subtle">
+          {user.name} · {user.phone}. Ask an admin to change your details.
+        </p>
+      ) : (
+        <ProfileForm next={back} defaults={user} />
+      )}
       <form action={signOutAction} className="border-t border-line pt-4">
         <Button variant="secondary" className="w-full">
           Sign out

@@ -13,8 +13,9 @@ export default async function CartsPage({ searchParams }: PageProps<"/carts">) {
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim().slice(0, 60) : "";
   const user = await getCurrentUser();
-  // Admins don't join carts; theirs is Admin → Carts.
+  // Admins don't join carts; theirs is Admin → Carts. Nor do packing staff.
   if (user?.role === "ADMIN") redirect("/admin/carts");
+  if (user?.role === "PACKER") redirect("/packing");
   await sweep();
   const near =
     user && user.lat !== null && user.lng !== null ? { lat: user.lat, lng: user.lng } : null;

@@ -27,6 +27,7 @@ const PAGE = 50;
 const FILTERS = {
   customers: { role: "CUSTOMER" },
   sellers: { role: "SELLER" },
+  packers: { role: "PACKER" },
   admins: { role: "ADMIN" },
   locked: { locked: true },
 } satisfies Record<string, Prisma.UserWhereInput>;
@@ -34,6 +35,7 @@ type Filter = keyof typeof FILTERS;
 const FILTER_LABEL: Record<Filter, string> = {
   customers: "Buyers",
   sellers: "Factory sellers",
+  packers: "Packing staff",
   admins: "Admins",
   locked: "Locked",
 };
@@ -76,7 +78,9 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
         role: true,
         locked: true,
         createdAt: true,
-        _count: { select: { ownedCarts: true, memberships: true, products: true } },
+        _count: {
+          select: { ownedCarts: true, memberships: true, products: true, packingChecks: true },
+        },
       },
       orderBy: { createdAt: "desc" },
       skip: (page - 1) * PAGE,
@@ -102,6 +106,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
     all: byRole.reduce((n, r) => n + r._count, 0),
     customers: roleCount("CUSTOMER"),
     sellers: roleCount("SELLER"),
+    packers: roleCount("PACKER"),
     admins: roleCount("ADMIN"),
     locked: lockedCount,
   };
@@ -113,14 +118,22 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
     <>
       <PageHeader
         title="Users"
-        description="Buyers sign up themselves. Add factory sellers here; admins come only from the seed."
+        description="Buyers sign up themselves. Add factory sellers and packing staff here; admins come only from the seed."
         actions={
-          <Link
-            href="/admin/users/new-seller"
-            className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
-          >
-            <span aria-hidden>+</span> Add factory seller
-          </Link>
+          <>
+            <Link
+              href="/admin/users/new-packer"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line px-4 text-sm font-medium hover:bg-muted sm:min-h-10"
+            >
+              <span aria-hidden>+</span> Add packing staff
+            </Link>
+            <Link
+              href="/admin/users/new-seller"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
+            >
+              <span aria-hidden>+</span> Add factory seller
+            </Link>
+          </>
         }
       />
 
@@ -308,6 +321,7 @@ function Avatar({ name, role }: { name: string; role: Role }) {
         "grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold",
         role === "CUSTOMER" && "bg-muted text-ink",
         role === "SELLER" && "bg-accent/15 text-accent",
+        role === "PACKER" && "border border-accent text-accent",
         role === "ADMIN" && "bg-ink text-paper",
       )}
     >
@@ -325,6 +339,7 @@ function RoleBadge({ role, company }: { role: Role; company: string | null }) {
         {company && <span className="truncate text-xs text-subtle">{company}</span>}
       </span>
     );
+  if (role === "PACKER") return <Badge tone="info">Packing</Badge>;
   return <Badge>Buyer</Badge>;
 }
 
@@ -335,7 +350,7 @@ function Activity({
 }: {
   user: {
     role: Role;
-    _count: { ownedCarts: number; memberships: number; products: number };
+    _count: { ownedCarts: number; memberships: number; products: number; packingChecks: number };
   };
   cart?: { code: string; status: CartStatus };
 }) {
@@ -348,6 +363,14 @@ function Activity({
     );
   }
   if (user.role === "ADMIN") return <span className="text-subtle">Back office</span>;
+  if (user.role === "PACKER") {
+    const n = user._count.packingChecks;
+    return (
+      <span className="text-subtle">
+        {n} {n === 1 ? "order" : "orders"} checked
+      </span>
+    );
+  }
   const { ownedCarts, memberships } = user._count;
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

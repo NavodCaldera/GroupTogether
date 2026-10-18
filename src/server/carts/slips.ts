@@ -2,7 +2,7 @@ import "server-only";
 import { addHours } from "@/lib/cart-rules";
 import { formatLKR } from "@/lib/format";
 import { db } from "../db";
-import { notify } from "../notify";
+import { notify, notifyRole } from "../notify";
 import { getSettings } from "../settings";
 import { SLIP_TYPES, checkUpload, saveUpload } from "../storage";
 import { CartError } from "./service";
@@ -90,6 +90,11 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
       href: `/c/${cart.code}`,
     },
   );
+  await notifyRole("PACKER", {
+    title: "New order to pack",
+    body: `Cart ${cart.code} is paid. Pack it, then two of you check it.`,
+    href: `/packing/${cart.code}`,
+  });
 }
 
 /** SLIP_REVIEW → AWAITING_SLIP with a fresh payment window, so the owner can upload again. */

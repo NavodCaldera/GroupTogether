@@ -1,9 +1,11 @@
 import { toCsv } from "@/lib/csv";
 import { toD } from "@/lib/decimal";
 import { colomboDayStart, formatIsoDateTime } from "@/lib/format";
+import { namesList } from "@/lib/packing-rules";
 import { PAID } from "@/server/admin-queries";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
+import { packingSelect } from "@/server/packing";
 
 /** Confirmed orders of the last `days` days (Colombo days, default 30) as CSV, for the books. */
 export async function GET(req: Request) {
@@ -23,6 +25,7 @@ export async function GET(req: Request) {
       owner: { select: { name: true, email: true, phone: true } },
       lines: { select: { qty: true } },
       _count: { select: { members: true } },
+      packing: { select: packingSelect },
     },
     orderBy: { confirmedAt: "asc" },
   });
@@ -39,6 +42,9 @@ export async function GET(req: Request) {
       "Members",
       "Items",
       "Total (LKR)",
+      "Packed by",
+      "Checked by",
+      "Handed to PickMe by",
     ],
     ...carts.map((c) => [
       c.code,
@@ -52,6 +58,9 @@ export async function GET(req: Request) {
       c._count.members,
       c.lines.reduce((n, l) => n + l.qty, 0),
       toD(c.total).toFixed(2),
+      c.packing?.packedBy.name ?? "",
+      namesList(c.packing?.checks.map((k) => k.user.name) ?? []),
+      c.packing?.handedOverBy?.name ?? "",
     ]),
   ];
   const day = formatIsoDateTime(now).slice(0, 10);

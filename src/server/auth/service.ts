@@ -72,7 +72,33 @@ export async function createSeller(input: unknown): Promise<User> {
   });
 }
 
-/** Public sign-up creates customers only; admins come from the seed and sellers from an admin. */
+export const packerSchema = sellerSchema.omit({ company: true }).extend({
+  name: z.string().trim().min(2, "Enter their name").max(80),
+});
+
+/** Admins create packing staff accounts (CLAUDE.md rule 17). */
+export async function createPacker(input: unknown): Promise<User> {
+  const s = packerSchema.parse(input);
+  const clash = await db.user.findFirst({
+    where: { OR: [{ email: s.email }, { phone: s.phone }] },
+  });
+  if (clash?.email === s.email) throw new AuthError("An account with this email already exists");
+  if (clash) throw new AuthError("An account with this mobile number already exists");
+  return db.user.create({
+    data: {
+      role: "PACKER",
+      name: s.name,
+      email: s.email,
+      phone: s.phone,
+      passwordHash: await hashPassword(s.password),
+    },
+  });
+}
+
+/**
+ * Public sign-up creates customers only; admins come from the seed, and sellers and packing
+ * staff from an admin.
+ */
 export async function registerUser(input: SignUpInput): Promise<User> {
   const clash = await db.user.findFirst({
     where: { OR: [{ email: input.email }, { phone: input.phone }] },
@@ -177,5 +203,8 @@ export async function userForToken(token: string, now = new Date()): Promise<Ses
 }
 
 export function homeFor(role: Role): string {
-  return role === "ADMIN" ? "/admin" : role === "SELLER" ? "/seller" : "/dashboard";
+  if (role === "ADMIN") return "/admin";
+  if (role === "SELLER") return "/seller";
+  if (role === "PACKER") return "/packing";
+  return "/dashboard";
 }

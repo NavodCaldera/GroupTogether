@@ -52,6 +52,26 @@ export default async function AdminUserPage({
     },
   });
   if (!user) notFound();
+  // Packing staff: the orders they packed, checked or handed to PickMe (rule 17).
+  const packingWork =
+    user.role === "PACKER"
+      ? await db.packing.findMany({
+          where: {
+            OR: [{ packedById: id }, { handedOverById: id }, { checks: { some: { userId: id } } }],
+          },
+          select: {
+            id: true,
+            packedById: true,
+            packedAt: true,
+            handedOverById: true,
+            handedOverAt: true,
+            checks: { where: { userId: id }, select: { createdAt: true } },
+            cart: { select: { code: true, owner: { select: { name: true } } } },
+          },
+          orderBy: { packedAt: "desc" },
+          take: 50,
+        })
+      : [];
   const active = user.memberships.filter((m) => HOLDS_STOCK.includes(m.cart.status));
 
   return (
@@ -66,16 +86,60 @@ export default async function AdminUserPage({
               <>
                 {user.role === "ADMIN" && <Badge tone="info">Admin</Badge>}
                 {user.role === "SELLER" && <Badge tone="info">Factory seller</Badge>}
+                {user.role === "PACKER" && <Badge tone="info">Packing staff</Badge>}
                 {user.locked && <Badge tone="bad">Locked</Badge>}
               </>
             }
           />
 
-          {created && (
+          {created && user.role === "PACKER" && (
+            <Alert tone="good">
+              Packing staff account created. Send them their email and password; they sign in at
+              /sign-in on their phone and land on the packing list.
+            </Alert>
+          )}
+          {created && user.role !== "PACKER" && (
             <Alert tone="good">
               Seller account created. Send them their email and password; they sign in at /sign-in
               and land on their seller dashboard.
             </Alert>
+          )}
+          {user.role === "PACKER" && (
+            <section className="flex flex-col gap-3">
+              <h2 className="font-semibold">Packing work ({packingWork.length})</h2>
+              {packingWork.length === 0 ? (
+                <p className="text-sm text-subtle">Hasn&apos;t packed or checked an order yet.</p>
+              ) : (
+                <ul className="divide-y divide-line rounded-xl border border-line text-sm">
+                  {packingWork.map((p) => (
+                    <li
+                      key={p.id}
+                      className="flex flex-wrap justify-between gap-x-3 gap-y-1 px-3 py-2"
+                    >
+                      <span>
+                        <Link
+                          href={`/admin/carts/${p.cart.code}`}
+                          className="font-mono text-accent underline"
+                        >
+                          {p.cart.code}
+                        </Link>{" "}
+                        <span className="text-subtle">· {p.cart.owner.name}</span>
+                      </span>
+                      <span className="text-subtle">
+                        {[
+                          p.packedById === id && `Packed ${formatDateTime(p.packedAt)}`,
+                          p.checks[0] && `Checked ${formatDateTime(p.checks[0].createdAt)}`,
+                          p.handedOverById === id &&
+                            `Handed to PickMe ${formatDateTime(p.handedOverAt)}`,
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </section>
           )}
           {user.role === "SELLER" && (
             <Card className="text-sm">
@@ -89,46 +153,48 @@ export default async function AdminUserPage({
               </p>
             </Card>
           )}
-          <section className="flex flex-col gap-3">
-            <h2 className="font-semibold">Carts ({user.memberships.length})</h2>
-            {user.memberships.length === 0 ? (
-              <p className="text-sm text-subtle">Hasn&apos;t joined any cart.</p>
-            ) : (
-              <Table
-                head={
-                  <>
-                    <th>Cart</th>
-                    <th>Role</th>
-                    <th>Status</th>
-                    <th className="text-right">Their items</th>
-                    <th className="text-right">Cart total</th>
-                    <th>Updated</th>
-                  </>
-                }
-              >
-                {user.memberships.map((m) => (
-                  <tr key={m.id}>
-                    <td>
-                      <Link
-                        href={`/admin/carts/${m.cart.code}`}
-                        className="font-mono text-accent underline"
-                      >
-                        {m.cart.code}
-                      </Link>
-                      {m.cart.name && <span className="text-subtle"> · {m.cart.name}</span>}
-                    </td>
-                    <td>{m.cart.ownerId === user.id ? "Owner" : "Member"}</td>
-                    <td>
-                      <StatusBadge status={m.cart.status} />
-                    </td>
-                    <td className="text-right">{formatLKR(cartTotal(m.cart.lines))}</td>
-                    <td className="text-right">{formatLKR(m.cart.total)}</td>
-                    <td className="text-subtle">{formatDateTime(m.cart.updatedAt)}</td>
-                  </tr>
-                ))}
-              </Table>
-            )}
-          </section>
+          {user.role !== "PACKER" && (
+            <section className="flex flex-col gap-3">
+              <h2 className="font-semibold">Carts ({user.memberships.length})</h2>
+              {user.memberships.length === 0 ? (
+                <p className="text-sm text-subtle">Hasn&apos;t joined any cart.</p>
+              ) : (
+                <Table
+                  head={
+                    <>
+                      <th>Cart</th>
+                      <th>Role</th>
+                      <th>Status</th>
+                      <th className="text-right">Their items</th>
+                      <th className="text-right">Cart total</th>
+                      <th>Updated</th>
+                    </>
+                  }
+                >
+                  {user.memberships.map((m) => (
+                    <tr key={m.id}>
+                      <td>
+                        <Link
+                          href={`/admin/carts/${m.cart.code}`}
+                          className="font-mono text-accent underline"
+                        >
+                          {m.cart.code}
+                        </Link>
+                        {m.cart.name && <span className="text-subtle"> · {m.cart.name}</span>}
+                      </td>
+                      <td>{m.cart.ownerId === user.id ? "Owner" : "Member"}</td>
+                      <td>
+                        <StatusBadge status={m.cart.status} />
+                      </td>
+                      <td className="text-right">{formatLKR(cartTotal(m.cart.lines))}</td>
+                      <td className="text-right">{formatLKR(m.cart.total)}</td>
+                      <td className="text-subtle">{formatDateTime(m.cart.updatedAt)}</td>
+                    </tr>
+                  ))}
+                </Table>
+              )}
+            </section>
+          )}
 
           {user.slips.length > 0 && (
             <section className="flex flex-col gap-3">
@@ -151,7 +217,11 @@ export default async function AdminUserPage({
                     </span>
                     <Badge
                       tone={
-                        s.status === "APPROVED" ? "good" : s.status === "REJECTED" ? "bad" : "neutral"
+                        s.status === "APPROVED"
+                          ? "good"
+                          : s.status === "REJECTED"
+                            ? "bad"
+                            : "neutral"
                       }
                     >
                       {s.status.toLowerCase()}

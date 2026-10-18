@@ -8,10 +8,12 @@ describe("demo logins on the sign-in page", () => {
     expect(showDemoLogins({ NODE_ENV: "production", SHOW_DEMO_LOGINS: "true" })).toBe(true);
   });
 
-  it("cover the admin, the factory seller and the buyer", () => {
+  it("cover the admin, the factory seller, the packing staff and the buyers", () => {
     expect(DEMO_ACCOUNTS.map((a) => a.email)).toEqual([
       "admin@grouptogether.lk",
       "seller@example.com",
+      "packer@example.com",
+      "packer2@example.com",
       "buyer@example.com",
       "buyer2@example.com",
       "buyer3@example.com",

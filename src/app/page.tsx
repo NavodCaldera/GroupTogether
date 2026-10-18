@@ -9,8 +9,11 @@ import { sweep } from "@/server/carts/service";
 import { getSettings } from "@/server/settings";
 
 export default async function HomePage() {
-  // The home page is for shoppers; admins go straight to the back office.
-  if ((await getCurrentUser())?.role === "ADMIN") redirect("/admin");
+  // The home page is for shoppers; admins go straight to the back office, packing staff to
+  // their packing list.
+  const role = (await getCurrentUser())?.role;
+  if (role === "ADMIN") redirect("/admin");
+  if (role === "PACKER") redirect("/packing");
   await sweep();
   const [products, settings, sales, saving] = await Promise.all([
     listProducts({}, 8, "cheapest"),

@@ -16,6 +16,15 @@ export async function notify(userIds: string[], notice: Notice) {
   });
 }
 
+/** Every user with one of these roles (locked accounts left out), for staff notices. */
+export async function notifyRole(role: "ADMIN" | "PACKER", notice: Notice) {
+  const users = await db.user.findMany({ where: { role, locked: false }, select: { id: true } });
+  await notify(
+    users.map((u) => u.id),
+    notice,
+  );
+}
+
 export async function unreadCount(userId: string) {
   return db.notification.count({ where: { userId, readAt: null } });
 }

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ProgressBar, StatusBadge } from "@/components/cart-bits";
 import { CopyLinkButton, Countdown } from "@/components/client";
 import { Toast } from "@/components/toast";
@@ -24,6 +25,7 @@ const PAID = ["CONFIRMED", "DISPATCHED", "DELIVERED"] as const;
  */
 export default async function BuyerDashboard({ searchParams }: PageProps<"/dashboard">) {
   const user = await requireUser([], "/dashboard");
+  if (user.role === "PACKER") redirect("/packing");
   const sp = await searchParams;
   const error = typeof sp.error === "string" ? sp.error : null;
   await sweep();

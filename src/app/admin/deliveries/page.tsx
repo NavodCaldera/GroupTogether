@@ -1,11 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { packingSummary } from "@/components/packing-bits";
 import { Badge, Button, Card, EmptyState, PageHeader } from "@/components/ui";
 import type { DeliveryStatus } from "@/generated/prisma/client";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import { deliveryStatusAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
+import { packingSelect } from "@/server/packing";
 import { Table } from "../list-bits";
 
 export const metadata: Metadata = { title: "Deliveries" };
@@ -27,6 +29,7 @@ export default async function DeliveriesPage() {
     deliveryCity: true,
     deliveryPhone: true,
     owner: { select: { name: true } },
+    packing: { select: packingSelect },
   } as const;
   const [toBook, inFlight, delivered] = await Promise.all([
     db.groupCart.findMany({
@@ -76,6 +79,7 @@ export default async function DeliveriesPage() {
                   </span>
                 </p>
                 <p className="text-subtle">{c.lines.reduce((n, l) => n + l.qty, 0)} items</p>
+                <p className="text-xs">{packingSummary(c.packing)}</p>
                 <Link
                   href={`/admin/carts/${c.code}`}
                   className="mt-auto inline-flex min-h-11 items-center justify-center rounded-lg bg-accent px-4 font-medium text-on-accent hover:opacity-90 sm:min-h-10"
@@ -115,6 +119,9 @@ export default async function DeliveriesPage() {
                   </Link>
                   <span className="block text-xs text-subtle">
                     Booked {formatDateTime(d.createdAt)}
+                  </span>
+                  <span className="block max-w-64 text-xs whitespace-normal">
+                    {packingSummary(d.cart.packing)}
                   </span>
                 </td>
                 <td>
@@ -182,6 +189,9 @@ export default async function DeliveriesPage() {
                     {d.cart.code}
                   </Link>{" "}
                   {d.cart.owner.name} · {d.cart.deliveryCity}
+                  <span className="block text-xs text-subtle">
+                    {packingSummary(d.cart.packing)}
+                  </span>
                 </span>
                 <span className="text-subtle">{formatDateTime(d.updatedAt)}</span>
               </li>

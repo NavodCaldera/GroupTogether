@@ -1,12 +1,14 @@
 /**
- * Demo data: 1 admin, 1 factory seller, 3 buyers, about 20 products, and carts in several
+ * Demo data: 1 admin, 1 factory seller, 2 packing staff, 3 buyers, about 20 products, and carts in several
  * states. Every account's password is "password123". Resets the database first.
  *
  *   admin@grouptogether.lk  admin       → /admin
  *   seller@example.com      seller      → /seller (Ceylon Footwear Mills)
+ *   packer@example.com      packing     → /packing (Kasun: one paid order to pack)
+ *   packer2@example.com     packing     → /packing (Ishara: the second checker)
  *   buyer@example.com       buyer       → /dashboard (public cart at 49,800, delivered order, invite)
  *   buyer2@example.com      buyer       → /dashboard (private cart at the minimum)
- *   buyer3@example.com      buyer       → /dashboard (no active cart, free to join)
+ *   buyer3@example.com      buyer       → /dashboard (paid order being packed; no active cart, free to join)
  */
 import "dotenv/config";
 import { randomBytes } from "node:crypto";
@@ -262,6 +264,15 @@ async function main() {
       passwordHash,
     },
   });
+  // Packing staff (rule 17): they pack paid orders and check each other's packing.
+  const [kasun, ishara] = await Promise.all(
+    [
+      ["Kasun Perera", "packer@example.com", "0711111111"],
+      ["Ishara Fernando", "packer2@example.com", "0712222222"],
+    ].map(([name, email, phone]) =>
+      db.user.create({ data: { role: "PACKER", name, email, phone, passwordHash } }),
+    ),
+  );
   // The only buyers: Dilan, Sachini and Tharindu (all listed on the sign-in page).
   const people = [
     [
@@ -423,7 +434,7 @@ async function main() {
   ];
   const total = lines.reduce((n, [, v, q]) => n + variants[v].price * q, 0);
   const past = addHours(now, -30);
-  await db.groupCart.create({
+  const delivered = await db.groupCart.create({
     data: {
       code: newCartCode(randomBytes),
       name: "Dilan's first group order",
@@ -466,6 +477,67 @@ async function main() {
       data: { available: { decrement: q }, sold: { increment: q } },
     });
   }
+  // Kasun packed it, Kasun and Ishara checked it, Ishara handed it to the PickMe driver.
+  await db.packing.create({
+    data: {
+      cartId: delivered.id,
+      packedById: kasun.id,
+      packedAt: addHours(past, 2.5),
+      handedOverById: ishara.id,
+      handedOverAt: addHours(past, 4),
+      checks: {
+        create: [
+          { userId: kasun.id, createdAt: addHours(past, 2.6) },
+          { userId: ishara.id, createdAt: addHours(past, 3) },
+        ],
+      },
+    },
+  });
+
+  // Tharindu's paid order, confirmed an hour ago: waiting for the packing staff.
+  const pi = variants.findIndex(
+    (v, n) => !used.has(n) && v.available * v.price >= 50000 && v.price >= 3000,
+  );
+  if (pi < 0) throw new Error("seed: no variant for the order to pack");
+  used.add(pi);
+  const packQty = Math.ceil(50000 / variants[pi].price);
+  const paidAt = addHours(now, -3);
+  await db.groupCart.create({
+    data: {
+      code: newCartCode(randomBytes),
+      name: "Tharindu Senanayake's cart",
+      ownerId: users[THARINDU].id,
+      status: "CONFIRMED",
+      minOrderValue: 50000,
+      total: variants[pi].price * packQty,
+      createdAt: addHours(paidAt, -2),
+      expiresAt: addHours(paidAt, 24),
+      readyAt: paidAt,
+      acceptedAt: addHours(paidAt, 1),
+      slipDueAt: addHours(paidAt, 3),
+      confirmedAt: addHours(paidAt, 2),
+      deliveryAddress: users[THARINDU].address,
+      deliveryCity: users[THARINDU].city,
+      deliveryLat: users[THARINDU].lat,
+      deliveryLng: users[THARINDU].lng,
+      deliveryPhone: users[THARINDU].phone,
+      members: { create: [{ userId: users[THARINDU].id }] },
+      lines: {
+        create: [
+          {
+            userId: users[THARINDU].id,
+            variantId: variants[pi].id,
+            qty: packQty,
+            unitPrice: variants[pi].price,
+          },
+        ],
+      },
+    },
+  });
+  await db.variant.update({
+    where: { id: variants[pi].id },
+    data: { available: { decrement: packQty }, sold: { increment: packQty } },
+  });
 
   // ─── Demo factory seller: one product live, one in review, one returned ──
   const seller = await db.user.create({
@@ -534,9 +606,10 @@ async function main() {
   console.log(`Seeded. Every password is password123.
   Admin   admin@grouptogether.lk  → /admin
   Seller  seller@example.com      → /seller
+  Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)
   Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)
           buyer2@example.com (Sachini: private cart at the minimum)
-          buyer3@example.com (Tharindu: no active cart, free to join)`);
+          buyer3@example.com (Tharindu: a paid order to pack, no active cart, free to join)`);
 }
 
 main().finally(() => db.$disconnect());

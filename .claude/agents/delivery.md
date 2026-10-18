@@ -53,3 +53,5 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 The owner's map pin is stored on the cart as `deliveryLat/deliveryLng` (rule 13); the admin cart page links to it with `mapsLink`. A real PickMe request should send these coordinates once the API shape is known.
 The drop-off address/phone come from the owner's profile at accept time (`/account` to change).
+
+**Packing before the drop** (product owner, 2026-10-18, CLAUDE.md rule 17): packing staff pack each paid order and two different people check it (`src/server/packing.ts`). `handOver` is only allowed once the order is checked twice **and** booked (Delivery BOOKED or PICKED_UP); it records who handed it over and moves BOOKED → PICKED_UP, then tells the owner "Your order is with the PickMe driver". `bookDelivery` notifies every packer ("PickMe booked"). The deliveries page and the admin cart page show `packingSummary` / `PackingTrail` (who packed, who checked, who handed over). The admin's own "Mark picked up" button stays as an override.

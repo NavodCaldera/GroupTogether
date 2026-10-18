@@ -44,3 +44,4 @@ export async function requireUser(roles: Role[] = [], next?: string): Promise<Se
 
 export const requireAdmin = () => requireUser(["ADMIN"]);
 export const requireSeller = () => requireUser(["SELLER"]);
+export const requirePacker = () => requireUser(["PACKER"]);

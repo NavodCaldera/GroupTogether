@@ -5,12 +5,15 @@ import { NavLink } from "./nav-link";
 import { unreadMessageCount } from "@/server/carts/chat";
 import { unreadCount } from "@/server/notify";
 
+/** Staff with one section (Admin, or Packing), which the logo opens. They don't shop. */
+const STAFF_HOME: Record<string, string> = { ADMIN: "/admin", PACKER: "/packing" };
+
 /**
- * The phone tab bar is for shoppers and sellers. An admin's only section is Admin, which the
- * logo already opens, so they get no tab bar.
+ * The phone tab bar is for shoppers and sellers. Admins and packing staff have one section,
+ * which the logo already opens, so they get no tab bar.
  */
 export function hasTabBar(user: { role: string } | null) {
-  return user?.role !== "ADMIN";
+  return !(user && user.role in STAFF_HOME);
 }
 
 /**
@@ -29,8 +32,8 @@ export async function SiteHeader() {
     "relative text-ink after:absolute after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
   const sections: { href: string; label: string; icon: ReactNode; also?: string[] }[] = [
     // Admins have no home page, shop or buyer carts: `/` and `/my-carts` send them to /admin,
-    // `/shop` to /admin/products and `/carts` to /admin/carts.
-    ...(user?.role === "ADMIN"
+    // `/shop` to /admin/products and `/carts` to /admin/carts. Packing staff go to /packing.
+    ...(user && user.role in STAFF_HOME
       ? []
       : [
           { href: "/", label: "Home", icon: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" /> },
@@ -75,6 +78,15 @@ export async function SiteHeader() {
           },
         ]
       : []),
+    ...(user?.role === "PACKER"
+      ? [
+          {
+            href: "/packing",
+            label: "Packing",
+            icon: <path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" />,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -82,7 +94,7 @@ export async function SiteHeader() {
       <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <nav className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-1.5 text-sm sm:py-2.5">
           <Link
-            href={user?.role === "ADMIN" ? "/admin" : "/"}
+            href={(user && STAFF_HOME[user.role]) ?? "/"}
             className="mr-3 text-lg font-bold tracking-tight"
           >
             Group<span className="text-accent">Together</span>

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError, z } from "zod";
 import type { DeliveryStatus } from "@/generated/prisma/client";
-import { AuthError, createSeller, setUserLocked } from "./auth/service";
+import { AuthError, createPacker, createSeller, setUserLocked } from "./auth/service";
 import { requireAdmin } from "./auth/session";
 import { CartError, cancelCart } from "./carts/service";
 import { approveSlip, rejectSlip } from "./carts/slips";
@@ -195,6 +195,17 @@ export async function createSellerAction(_p: AdminState, fd: FormData): Promise<
   let id = "";
   const res = await attempt(async () => {
     id = (await createSeller(Object.fromEntries(fd))).id;
+  });
+  if (res.error) return res;
+  revalidatePath("/admin/users");
+  redirect(`/admin/users/${id}?created=1`);
+}
+
+export async function createPackerAction(_p: AdminState, fd: FormData): Promise<AdminState> {
+  await requireAdmin();
+  let id = "";
+  const res = await attempt(async () => {
+    id = (await createPacker(Object.fromEntries(fd))).id;
   });
   if (res.error) return res;
   revalidatePath("/admin/users");

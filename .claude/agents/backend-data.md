@@ -70,3 +70,5 @@ Rule 13 columns: `User.lat/lng`, `CartMember.address/city/lat/lng`, `GroupCart.d
 - Seeded carts are named `"<owner name>'s cart"` (the seed ignores its label argument).
 
 - `CartMessage.readAt` (null = unread by the non-author side), indexed with `participantId`.
+
+- Role `PACKER` (2026-10-18, rule 17). `Packing` (one per cart, `cartId` unique, cascade with the cart): `packedById`, `packedAt`, `handedOverById?`, `handedOverAt?`. `PackingCheck` (`packingId`, `userId`, unique together, cascade with the packing). Migration `20261018101541_packing_staff`. Seed: Kasun (`packer@`) and Ishara (`packer2@example.com`) packed/checked/handed over Dilan's delivered order; Tharindu has a CONFIRMED order to pack.

@@ -13,7 +13,7 @@ export async function resetDb() {
 }
 
 let n = 0;
-export async function makeUser(role: "CUSTOMER" | "ADMIN" = "CUSTOMER") {
+export async function makeUser(role: "CUSTOMER" | "ADMIN" | "PACKER" = "CUSTOMER") {
   n++;
   return db.user.create({
     data: {

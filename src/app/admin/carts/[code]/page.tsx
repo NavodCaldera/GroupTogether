@@ -4,10 +4,12 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { BackLink } from "@/components/client";
 import { StatusBadge } from "@/components/cart-bits";
+import { PackingTrail } from "@/components/packing-bits";
 import { Toast } from "@/components/toast";
 import { Badge, Button, Card, Field, Input, PageHeader, cx } from "@/components/ui";
 import { ADMIN_STAGES, CANCELLABLE, adminStage, cartTotal } from "@/lib/cart-rules";
 import { mapsLink } from "@/lib/location";
+import { PACKABLE } from "@/lib/packing-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import {
   adminCancelAction,
@@ -17,6 +19,7 @@ import {
 import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
+import { packingSelect } from "@/server/packing";
 import { AdminForm } from "../../admin-form";
 import { NextStep } from "../next-step";
 
@@ -51,6 +54,7 @@ export default async function AdminCartPage({
       },
       slips: { orderBy: { createdAt: "desc" } },
       delivery: true,
+      packing: { select: packingSelect },
     },
   });
   if (!cart) notFound();
@@ -99,6 +103,24 @@ export default async function AdminCartPage({
     ]),
     ...(cart.confirmedAt ? [{ at: cart.confirmedAt, text: "Order confirmed" }] : []),
     ...(cart.delivery ? [{ at: cart.delivery.createdAt, text: "PickMe drop booked" }] : []),
+    // Packing staff (rule 17): who packed it, the two who certified it, who handed it over.
+    ...(cart.packing
+      ? [
+          { at: cart.packing.packedAt, text: `Packed by ${cart.packing.packedBy.name}` },
+          ...cart.packing.checks.map((c) => ({
+            at: c.createdAt,
+            text: `Checked by ${c.user.name}: everything in order`,
+          })),
+          ...(cart.packing.handedOverAt
+            ? [
+                {
+                  at: cart.packing.handedOverAt,
+                  text: `Handed to PickMe by ${cart.packing.handedOverBy?.name}`,
+                },
+              ]
+            : []),
+        ]
+      : []),
     ...(cart.status === "DELIVERED" && cart.delivery
       ? [{ at: cart.delivery.updatedAt, text: "Delivered" }]
       : []),
@@ -130,10 +152,7 @@ export default async function AdminCartPage({
       <BackLink fallback="/admin/carts" />
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-6">
-          <PageHeader
-            title={`Cart ${cart.code}`}
-            actions={<StatusBadge status={cart.status} />}
-          />
+          <PageHeader title={`Cart ${cart.code}`} actions={<StatusBadge status={cart.status} />} />
           {/* After booking the drop: a pop-up, not a banner. */}
           {booked && (
             <Toast ms={5000}>Delivery booked. The owner has been told to pay the driver.</Toast>
@@ -291,6 +310,16 @@ export default async function AdminCartPage({
             </p>
           </Card>
 
+          {(cart.packing || PACKABLE.includes(cart.status)) && (
+            <Card id="packing" className="scroll-mt-4 text-sm">
+              <h2 className="mb-2 font-semibold">Packing</h2>
+              <PackingTrail packing={cart.packing} />
+              <p className="mt-2 text-xs text-subtle">
+                Packing staff pack it, two of them check it, then they hand it to PickMe.
+              </p>
+            </Card>
+          )}
+
           {cart.status === "CONFIRMED" && !cart.delivery && (
             <Card id="book" className="scroll-mt-4">
               <h2 className="mb-2 font-semibold">Book delivery</h2>
@@ -326,9 +355,7 @@ export default async function AdminCartPage({
               {cart.delivery.quotedFee && (
                 <p>Fee {formatLKR(cart.delivery.quotedFee)} (owner pays driver)</p>
               )}
-              {cart.delivery.driverName && (
-                <p>{cart.delivery.driverName}</p>
-              )}
+              {cart.delivery.driverName && <p>{cart.delivery.driverName}</p>}
               {cart.delivery.status !== "DELIVERED" && (
                 <div className="mt-3 flex flex-wrap gap-2">
                   {DELIVERY_BUTTONS.map(([s, text]) => (

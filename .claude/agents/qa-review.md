@@ -63,3 +63,5 @@ Rule 13 check: sign-up, join and start/add-to-cart all refuse without a pin; pin
   Rule 14 check: non-members never receive the owner's exact coordinates; chat threads are private per participant (`chat.int.test.ts`).
 
 - Messages: a buyer's message is unread for the owner, opening it reads it and clears the notice, the owner's reply reaches the buyer's inbox, and buyers' conversations stay separate. Tests: `tests/integration/messages.int.test.ts`.
+
+- Packing (rule 17): packed by one, checked by **two different** staff (the packer may be one, nobody twice), handover only after two checks and once PickMe is booked (moves the drop to PICKED_UP, owner notified), send-back clears packing and checks, only CONFIRMED/DISPATCHED carts. The admin sees who packed, checked and handed over. Tests: `src/lib/packing-rules.test.ts`, `tests/integration/packing.int.test.ts`.

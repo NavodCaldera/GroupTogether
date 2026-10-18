@@ -45,7 +45,8 @@ heavy libraries, paid services or anything that needs an always-on worker.
 10. **B-grade products are labelled "B-grade"; defects are not listed** (product owner,
     2026-10-17: the defects box and field were removed). `Product.defectNotes` stays in the
     schema, unused, so old notes aren't lost.
-11. **Three roles: buyer, factory seller, admin** (product owner, 2026-10-16).
+11. **Roles: buyer, factory seller, admin** (product owner, 2026-10-16), **and packing staff**
+    (`PACKER`, 2026-10-18, rule 17).
     - **Buyers** (`CUSTOMER`) sign up themselves and land on `/dashboard`.
     - **Factory sellers** (`SELLER`) are created by an admin (or the seed) and land on `/seller`.
       **A seller only publishes stock.** They see their own products and stock counts, never
@@ -88,6 +89,23 @@ heavy libraries, paid services or anything that needs an always-on worker.
     `carts/queries.ts`; page: `/carts`.
 16. **Carts are named after their owner** (product owner, 2026-10-17): "Navod Caldera's cart".
     Buyers aren't asked for a cart name; `createCart` sets it from the owner's name.
+17. **Packing staff** (product owner, 2026-10-18). People in our store who sort and pack orders
+    (`PACKER`) are created by an admin at `/admin/users/new-packer` (or the seed) and land on
+    `/packing`, a phone-first list of paid orders (CONFIRMED/DISPATCHED): **To pack → To check →
+    Ready for PickMe**, plus today's handovers. Every packer gets an in-app notice when a slip is
+    approved ("New order to pack") and when PickMe is booked. On an order (`/packing/<code>`, items
+    by member, no prices, the drop-off label) one person presses "I've packed it", then **two
+    different people** each press "Checked: everything is correct" (the packer may be one of them;
+    nobody checks twice). Only after two checks **and** once the admin has booked PickMe can someone
+    press "Handed to the PickMe driver", which records who handed it over, moves the drop to
+    PICKED_UP and tells the owner. Before handover a checker can send it back to be packed again
+    (clears the packing and its checks). **Who packed, who certified it and who handed it over are
+    shown with the order on the admin side**: cart page (Packing card + timeline), carts list,
+    deliveries and the orders CSV. Packing staff never see money; `/`, `/shop`, `/carts`,
+    `/my-carts` and `/dashboard` send them to `/packing`, and they have no phone tab bar. Rules:
+    `packingStage` / `checkBlockReason` / `handOverBlockReason` in `src/lib/packing-rules.ts`; flow:
+    `markPacked` / `checkPacking` / `repack` / `handOver` in `src/server/packing.ts` (cart row
+    locked); tables `Packing`, `PackingCheck`.
 
 Cart statuses: `OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED`,
 plus the dead ends `EXPIRED` and `CANCELLED`. 14. **Owner chat** (product owner, 2026-10-17). The cart page no longer shows a delivery-point map
@@ -124,7 +142,7 @@ tab is visible (no websocket or worker).
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                                                                      |
 | `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                                                             |
-| `npm run db:seed`    | Demo data, all `password123`: `admin@grouptogether.lk`, `seller@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
+| `npm run db:seed`    | Demo data, all `password123`: `admin@grouptogether.lk`, `seller@example.com`, `packer@example.com`, `packer2@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
 | `npm run dev`        | http://localhost:3002                                                                                                                                                                                              |
 | `npm run check`      | Typecheck, lint and unit tests                                                                                                                                                                                     |
 | `npm run test:int`   | Integration tests on the test DB                                                                                                                                                                                   |

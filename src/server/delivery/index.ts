@@ -3,7 +3,7 @@ import type { DeliveryStatus } from "@/generated/prisma/client";
 import { formatLKR } from "@/lib/format";
 import { CartError } from "../carts/service";
 import { db } from "../db";
-import { notify } from "../notify";
+import { notify, notifyRole } from "../notify";
 import { type Booking, deliveryProvider } from "./provider";
 
 /** CONFIRMED → DISPATCHED: books the one PickMe drop to the cart owner. */
@@ -48,6 +48,11 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
     title: "Your group order is on the way",
     body: `A PickMe driver is bringing your order to ${cart.deliveryAddress}. Please pay the delivery fee${fee} to the driver.`,
     href: `/c/${cart.code}`,
+  });
+  await notifyRole("PACKER", {
+    title: "PickMe booked",
+    body: `Cart ${cart.code}: hand the checked parcel to the driver${booking.driverName ? ` (${booking.driverName})` : ""} and mark it handed over.`,
+    href: `/packing/${cart.code}`,
   });
 }
 
