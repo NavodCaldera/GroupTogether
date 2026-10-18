@@ -142,9 +142,7 @@ export default async function DeliveriesPage() {
                 <td>
                   <Badge tone={STATUS_TONE[d.status]}>{label(d.status)}</Badge>
                   {d.driverName && (
-                    <span className="block text-xs text-subtle">
-                      {d.driverName} · {d.driverPhone}
-                    </span>
+                    <span className="block text-xs text-subtle">{d.driverName}</span>
                   )}
                 </td>
                 <td>

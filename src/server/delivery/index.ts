@@ -38,7 +38,6 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
         quotedFee: booking.quotedFee,
         trackingUrl: booking.trackingUrl,
         driverName: booking.driverName ?? null,
-        driverPhone: booking.driverPhone ?? null,
       },
     }),
     db.groupCart.update({ where: { id: cartId }, data: { status: "DISPATCHED" } }),

@@ -83,7 +83,6 @@ export async function bookDeliveryAction(_p: AdminState, fd: FormData): Promise<
       quotedFee: fee || null,
       trackingUrl: str(fd, "trackingUrl") || null,
       driverName: str(fd, "driverName") || null,
-      driverPhone: str(fd, "driverPhone") || null,
     });
   });
   revalidatePath("/admin", "layout");

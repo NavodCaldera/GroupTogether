@@ -321,9 +321,6 @@ export default async function AdminCartPage({
                 <Field label="Driver name" name="driverName">
                   <Input name="driverName" />
                 </Field>
-                <Field label="Driver phone" name="driverPhone">
-                  <Input name="driverPhone" />
-                </Field>
               </AdminForm>
             </Card>
           )}
@@ -339,9 +336,7 @@ export default async function AdminCartPage({
                 <p>Fee {formatLKR(cart.delivery.quotedFee)} (owner pays driver)</p>
               )}
               {cart.delivery.driverName && (
-                <p>
-                  {cart.delivery.driverName} · {cart.delivery.driverPhone}
-                </p>
+                <p>{cart.delivery.driverName}</p>
               )}
               {cart.delivery.status !== "DELIVERED" && (
                 <div className="mt-3 flex flex-wrap gap-2">

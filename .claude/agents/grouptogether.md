@@ -117,7 +117,7 @@ Money is `Decimal(14,2)`.
 - `CartInvite`: (cart, invited user), invitedBy.
 - `Notification`: user, title, body, href, readAt.
 - `Delivery`: one per cart.
-  - Fields: provider, externalRef, status `BOOKED|PICKED_UP|DELIVERED|FAILED|CANCELLED`, quotedFee, `paidBy = "OWNER"`, driverName, driverPhone, trackingUrl.
+  - Fields: provider, externalRef, status `BOOKED|PICKED_UP|DELIVERED|FAILED|CANCELLED`, quotedFee, `paidBy = "OWNER"`, driverName, trackingUrl (`driverPhone` stays in the schema, unused).
 - `Settings`: a single row, id 1.
   - Defaults: minOrderValue 50000, cartLifetimeHours 24, slipWindowHours 2.
   - Also holds bankName, bankBranch, accountName and accountNumber (shown on the pay page).

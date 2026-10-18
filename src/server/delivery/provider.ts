@@ -20,7 +20,6 @@ export type Booking = {
   quotedFee: string | null;
   trackingUrl: string | null;
   driverName?: string | null;
-  driverPhone?: string | null;
 };
 
 export interface DeliveryProvider {
@@ -38,7 +37,6 @@ export class ManualProvider implements DeliveryProvider {
       quotedFee: manual.quotedFee || null,
       trackingUrl: manual.trackingUrl || null,
       driverName: manual.driverName || null,
-      driverPhone: manual.driverPhone || null,
     };
   }
 }
