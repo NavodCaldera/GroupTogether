@@ -39,6 +39,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Members settle their share of the fee with the owner outside the platform.
 - `bookDelivery` needs status CONFIRMED and no existing Delivery. It creates the Delivery, moves the cart to DISPATCHED and notifies the owner.
 - `setDeliveryStatus(id, DELIVERED)` moves the cart to DELIVERED. It can be called from the admin buttons (picked up, delivered, failed) or the webhook.
+- The **cart owner** can also mark the drop delivered from `/dashboard` (product owner, 2026-10-18): `markReceived(userId, cartId)` in `src/server/delivery/index.ts`, under the cart row lock. Only the owner, only while DISPATCHED with the delivery BOOKED or PICKED_UP (not FAILED); a repeat press is a no-op. Other members get an in-app notice to collect their items from the owner. The dashboard button ("Mark as delivered" → "Yes, I've received it") is shown when `nextStep(...).received` is set.
 - After booking, the action redirects to `/admin/carts/<code>?booked=1`, because the form disappears.
 
 **Providers:**

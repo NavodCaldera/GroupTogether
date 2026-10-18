@@ -46,6 +46,8 @@ describe("nextStep", () => {
 
   it("offers tracking only when there is a link", () => {
     expect(nextStep({ ...base, status: "DISPATCHED" }).action).toBeUndefined();
+    expect(nextStep({ ...base, status: "DISPATCHED" }).received).toBe(true);
+    expect(nextStep({ ...base, status: "DISPATCHED", mine: false }).received).toBeUndefined();
     expect(
       nextStep({ ...base, status: "DISPATCHED", trackingUrl: "https://t.example" }).action,
     ).toMatchObject({ label: "Track delivery", external: true });

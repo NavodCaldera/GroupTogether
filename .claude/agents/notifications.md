@@ -61,3 +61,4 @@ Chat messages notify the recipient once per conversation while a notice for it i
 
 **Join requests:** after Accept / Decline on `/notifications`, the result is a `Toast` pop-up (`?done=accepted|declined`), not a banner. The "wants to join your cart" notice has an empty body (the page shows only its title, no time, then the buttons) and href `/c/<code>?request=<id>`; `/notifications` shows Accept / Decline on it while the request is PENDING (older notices are matched by cart code and requester name). The actions take `back=/notifications` to return there and mark that notice read.
 Opening a notice goes through `src/app/notifications/[id]/route.ts`: marks it read (own notices only), then redirects to its same-site `href`. Link to it with a plain `<a>`, never `next/link` (prefetch would mark it read).
+- **Owner marked the order delivered** (2026-10-18, `markReceived`): the other members get "Your group order was delivered" (collect your items from the owner).

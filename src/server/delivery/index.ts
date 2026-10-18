@@ -44,11 +44,47 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
   ]);
 
   const fee = booking.quotedFee ? ` of about ${formatLKR(booking.quotedFee)}` : "";
+  await notify([cart.ownerId], {
+    title: "Your group order is on the way",
+    body: `A PickMe driver is bringing your order to ${cart.deliveryAddress}. Please pay the delivery fee${fee} to the driver.`,
+    href: `/c/${cart.code}`,
+  });
+}
+
+/**
+ * The cart owner says the PickMe drop reached them (from their dashboard): DISPATCHED →
+ * DELIVERED, the same as the admin's "Mark delivered". Not after a failed drop.
+ */
+export async function markReceived(userId: string, cartId: string) {
+  const cart = await db.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${cartId} FOR UPDATE`;
+    const c = await tx.groupCart.findUnique({ where: { id: cartId }, include: { delivery: true } });
+    if (!c) throw new CartError("This cart no longer exists");
+    if (c.ownerId !== userId) throw new CartError("Only the cart owner can mark it delivered");
+    if (c.status === "DELIVERED") return null;
+    if (
+      c.status !== "DISPATCHED" ||
+      !c.delivery ||
+      !["BOOKED", "PICKED_UP"].includes(c.delivery.status)
+    )
+      throw new CartError("This order isn't on its way, so it can't be marked delivered");
+    await tx.delivery.update({ where: { id: c.delivery.id }, data: { status: "DELIVERED" } });
+    await tx.groupCart.update({ where: { id: cartId }, data: { status: "DELIVERED" } });
+    return tx.groupCart.findUnique({
+      where: { id: cartId },
+      select: {
+        code: true,
+        owner: { select: { name: true } },
+        members: { select: { userId: true } },
+      },
+    });
+  });
+  if (!cart) return;
   await notify(
-    [cart.ownerId],
+    cart.members.map((m) => m.userId).filter((id) => id !== userId),
     {
-      title: "Your group order is on the way",
-      body: `A PickMe driver is bringing your order to ${cart.deliveryAddress}. Please pay the delivery fee${fee} to the driver.`,
+      title: "Your group order was delivered",
+      body: `${cart.owner.name} has received the order. Collect your items from them.`,
       href: `/c/${cart.code}`,
     },
   );

@@ -188,6 +188,8 @@ export type NextStep = {
   deadline?: "expires" | "slip";
   /** Offer "Copy cart link" (only while the cart still needs people) */
   share?: boolean;
+  /** Offer the owner "Mark as delivered" (the order is on its way to them) */
+  received?: boolean;
 };
 
 /** The one sentence and one button for a buyer's current cart (rule 12: there is only one). */
@@ -248,6 +250,7 @@ export function nextStep(c: NextStepInput): NextStep {
         action: c.trackingUrl
           ? { label: "Track delivery", href: c.trackingUrl, external: true }
           : undefined,
+        received: c.mine || undefined,
       };
     default:
       return { text: "This cart is closed.", action: { label: "View cart", href: cart } };

@@ -33,7 +33,10 @@ heavy libraries, paid services or anything that needs an always-on worker.
    that is paid for is always in stock.
 8. **Delivery is one PickMe drop to the cart owner.** The owner pays the driver directly. The
    platform never charges, collects or refunds a delivery fee; `Delivery.paidBy` is always
-   OWNER.
+   OWNER. Once the drop is on its way (DISPATCHED, not failed), the **owner can mark it
+   delivered from their dashboard** (asks once more; other members are notified), the same as
+   the admin's "Mark delivered" (product owner, 2026-10-18; `markReceived` in
+   `src/server/delivery/index.ts`).
 9. **Visibility.** A cart is PUBLIC (shown on the "open carts" panel) or PRIVATE (reached only by
    link). Every cart has a share link `/c/<code>`. The invite-by-email/phone form and the share
    icon (copy link / WhatsApp) were removed from the cart page (product owner, 2026-10-17); the

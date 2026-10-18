@@ -23,6 +23,7 @@ import {
   setLine,
 } from "./service";
 import { uploadSlip } from "./slips";
+import { markReceived } from "../delivery";
 
 export type ActionState = {
   error?: string;
@@ -156,6 +157,15 @@ export async function cancelAction(fd: FormData) {
   const res = await attempt(() => cancelCart(user, cartId, str(fd, "reason")));
   if (res.error) redirect(`/c/${code}?error=${encodeURIComponent(res.error)}`);
   revalidatePath(`/c/${code}`);
+}
+
+/** The owner confirms the PickMe drop reached them (dashboard). */
+export async function markReceivedAction(fd: FormData) {
+  const user = await requireUser();
+  const res = await attempt(() => markReceived(user.id, str(fd, "cartId")));
+  if (res.error) redirect(`/dashboard?error=${encodeURIComponent(res.error)}`);
+  revalidatePath("/dashboard");
+  redirect("/dashboard?received=1");
 }
 
 /** Chat with a cart's owner (or, for the owner, with the person who wrote). */

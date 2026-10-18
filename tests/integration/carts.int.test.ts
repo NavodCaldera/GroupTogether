@@ -11,7 +11,7 @@ import {
   CartError,
 } from "@/server/carts/service";
 import { approveSlip, rejectSlip, uploadSlip } from "@/server/carts/slips";
-import { bookDelivery } from "@/server/delivery";
+import { bookDelivery, markReceived } from "@/server/delivery";
 import { db } from "@/server/db";
 import { cartRow, makeUser, makeVariant, resetDb, slipFile, variantRow } from "./helpers";
 
@@ -151,6 +151,28 @@ describe("one bank slip, then delivery", () => {
     const d = await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } });
     expect(d).toMatchObject({ paidBy: "OWNER", provider: "manual" });
     expect((await cartRow(cart.id)).status).toBe("DISPATCHED");
+  });
+
+  it("only the owner marks the drop delivered, and only while it is on its way", async () => {
+    const { owner, member, admin, cart } = await readyCart();
+    await acceptAndPay(owner.id, cart.id, drop);
+    await expect(markReceived(owner.id, cart.id)).rejects.toThrow(/isn't on its way/);
+    await uploadSlip(owner.id, cart.id, slipFile());
+    const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: cart.id } });
+    await approveSlip(admin.id, slip.id);
+    await bookDelivery(cart.id, {});
+
+    await expect(markReceived(member.id, cart.id)).rejects.toThrow(/Only the cart owner/);
+    await markReceived(owner.id, cart.id);
+    expect((await cartRow(cart.id)).status).toBe("DELIVERED");
+    const d = await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } });
+    expect(d.status).toBe("DELIVERED");
+    expect(
+      await db.notification.count({
+        where: { userId: member.id, title: { contains: "delivered" } },
+      }),
+    ).toBe(1);
+    await markReceived(owner.id, cart.id); // a second press does nothing
   });
 
   it("a rejected slip gives the owner a fresh window to upload again", async () => {

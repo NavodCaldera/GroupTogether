@@ -2,16 +2,12 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ProgressBar, StatusBadge } from "@/components/cart-bits";
 import { CopyLinkButton, Countdown } from "@/components/client";
-import { Card, LinkButton } from "@/components/ui";
-import {
-  HOLDS_STOCK,
-  JOURNEY,
-  cartTotal,
-  journeyStep,
-  nextStep,
-} from "@/lib/cart-rules";
+import { Toast } from "@/components/toast";
+import { Alert, Button, Card, LinkButton } from "@/components/ui";
+import { HOLDS_STOCK, JOURNEY, cartTotal, journeyStep, nextStep } from "@/lib/cart-rules";
 import { formatLKR } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
+import { markReceivedAction } from "@/server/carts/actions";
 import { buyerDashboard } from "@/server/carts/queries";
 import { sweep } from "@/server/carts/service";
 import { appUrl } from "@/server/notify";
@@ -26,8 +22,10 @@ const PAID = ["CONFIRMED", "DISPATCHED", "DELIVERED"] as const;
  * One card for the buyer's one cart (rule 12) with one sentence and one button, then a short list
  * of past orders. Nothing else: notices live behind the bell.
  */
-export default async function BuyerDashboard() {
+export default async function BuyerDashboard({ searchParams }: PageProps<"/dashboard">) {
   const user = await requireUser([], "/dashboard");
+  const sp = await searchParams;
+  const error = typeof sp.error === "string" ? sp.error : null;
   await sweep();
   const now = new Date();
   const [{ carts, invites }, settings] = await Promise.all([
@@ -51,6 +49,8 @@ export default async function BuyerDashboard() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
       <h1 className="text-2xl font-semibold tracking-tight">Hi, {user.name.split(" ")[0]}</h1>
+      {error && <Alert>{error}</Alert>}
+      {sp.received && <Toast>Marked as delivered. Enjoy your order!</Toast>}
 
       {current ? (
         <CurrentCart cart={current} />
@@ -198,9 +198,23 @@ function CurrentCart({ cart: c }: { cart: DashCart }) {
               {step.action.label}
             </LinkButton>
           ))}
-        {step.share && (
-          <CopyLinkButton url={appUrl(`/c/${c.code}`)} className="w-full sm:w-auto" />
+        {step.received && (
+          // Can't be undone, so it asks once more (no JavaScript needed).
+          <details className="group w-full sm:w-auto">
+            <summary className="inline-flex min-h-11 w-full cursor-pointer list-none items-center justify-center rounded-lg border border-line px-4 text-sm font-medium hover:bg-muted sm:min-h-10 sm:w-auto group-open:hidden">
+              Mark as delivered
+            </summary>
+            <form
+              action={markReceivedAction}
+              className="flex flex-col gap-2 sm:flex-row sm:items-center"
+            >
+              <input type="hidden" name="cartId" value={c.id} />
+              <span className="text-sm">Got everything from the driver?</span>
+              <Button className="w-full sm:w-auto">Yes, I&apos;ve received it</Button>
+            </form>
+          </details>
         )}
+        {step.share && <CopyLinkButton url={appUrl(`/c/${c.code}`)} className="w-full sm:w-auto" />}
         {step.action?.href !== `/c/${c.code}` && (
           <Link
             href={`/c/${c.code}`}
