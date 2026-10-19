@@ -23,10 +23,24 @@ export default async function AdminHome() {
   await requireAdmin();
   await sweep();
   const now = new Date();
-  const [s, days, offers] = await Promise.all([
+  const [s, days, offers, received, onTheWay] = await Promise.all([
     overviewStats(now),
     dailySales(now, 14),
     db.stockOffer.count({ where: { status: "IN_REVIEW" } }),
+    // Sellers' stock the packing staff marked Received, newest first (2026-10-20).
+    db.stockOffer.findMany({
+      where: { receivedAt: { not: null } },
+      orderBy: { receivedAt: "desc" },
+      take: 5,
+      select: {
+        id: true,
+        name: true,
+        receivedAt: true,
+        receivedBy: { select: { name: true } },
+        seller: { select: { company: true, name: true } },
+      },
+    }),
+    db.stockOffer.count({ where: { status: "ACCEPTED", receivedAt: null } }),
   ]);
 
   // Only what needs someone shows up; zeros stay out of the way.
@@ -173,6 +187,37 @@ export default async function AdminHome() {
         </div>
 
         <aside className="flex min-w-0 flex-col gap-4 sm:gap-6">
+          <Card>
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <h2 className="font-semibold">Stock received</h2>
+              <Link href="/admin/offers?tab=answered" className="text-xs text-accent">
+                Offers →
+              </Link>
+            </div>
+            {received.length === 0 ? (
+              <p className="text-sm text-subtle">Nothing received yet.</p>
+            ) : (
+              <ul className="divide-y divide-line text-sm">
+                {received.map((o) => (
+                  <li key={o.id}>
+                    <Link href={`/admin/offers/${o.id}`} className="block py-2 hover:underline">
+                      <span className="block truncate">{o.name}</span>
+                      <span className="block text-xs text-subtle">
+                        {o.seller.company || o.seller.name} · by{" "}
+                        {o.receivedBy?.name ?? "packing staff"} · {formatDateTime(o.receivedAt)}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            )}
+            {onTheWay > 0 && (
+              <p className="mt-2 text-xs text-subtle">
+                {plural(onTheWay, "accepted offer")} still on the way.
+              </p>
+            )}
+          </Card>
+
           <Card>
             <h2 className="mb-2 font-semibold">Recent orders</h2>
             {s.recentOrders.length === 0 ? (
