@@ -73,7 +73,7 @@ It is a standalone project: it shares no code, database or rules with any other 
       - An admin publishes it once the stock has reached our store, or returns it to `DRAFT` with a `reviewNote`. The seller is notified in the app either way.
       - Sellers change details and stock only while the product is a draft. **We hold the stock**, so a live product is managed by the admin.
       - A seller can withdraw a product from review, or delete a draft that never reached a cart.
-    - **Packing staff** (`PACKER`) are created by an admin at `/admin/users/new-packer`, or by the seed (`packer@`, `packer2@example.com`). They land on `/packing` (rule 12 below).
+    - **Packing staff** (`PACKER`) are created by an admin at `/admin/users/new-packer`, or by the seed (`packer@`, `packer2@`, `packer3@example.com`). They land on `/packing` (rule 12 below).
     - **Admins** only come from the seed.
     - Wrong-role visits redirect to the user's own home (`homeFor`).
 12. **Packing staff** (product owner, 2026-10-18). People in our store who sort and pack orders
@@ -82,8 +82,9 @@ It is a standalone project: it shares no code, database or rules with any other 
     Ready for PickMe**, plus today's handovers. Every packer gets an in-app notice when a slip is
     approved ("New order to pack") and when PickMe is booked. On an order (`/packing/<code>`, items
     by member, no prices, the drop-off label) one person presses "I've packed it", then **two
-    different people** each press "Checked: everything is correct" (the packer may be one of them;
-    nobody checks twice). Only after two checks **and** once the admin has booked PickMe can someone
+    other people** each press "Checked: everything is correct". **Checking and packing are never
+    done by the same person** (product owner, 2026-10-19), and nobody checks twice, so every order
+    takes three people. Only after two checks **and** once the admin has booked PickMe can someone
     press "Handed to the PickMe driver", which records who handed it over, moves the drop to
     PICKED_UP and tells the owner. Before handover a checker can send it back to be packed again
     (clears the packing and its checks). **Who packed, who certified it and who handed it over are
@@ -192,7 +193,7 @@ Money is `Decimal(14,2)`.
 - `src/server/storage/`: local-disk storage (`STORAGE_DIR`), `checkUpload` and `saveUpload`. Limit 5 MB; images, plus PDF for slips.
 - `src/server/settings.ts`: `getSettings()` creates the defaults row if it is missing.
 - `src/components/`: `ui.tsx` (Button, Field, Input, Select, Card, Badge, Alert…), `cart-bits.tsx` (ProgressBar, StatusBadge, CartCard, ProductImage, StockTypeBadge), `client.tsx` (Countdown, CopyLink), `site-header.tsx`.
-- `prisma/seed.ts`: 1 admin, 2 packing staff (Kasun `packer@`, Ishara `packer2@`; they packed and checked Dilan's delivered order), 1 seller (Ceylon Footwear Mills, with one product each live, in review and returned), exactly 3 buyers (Dilan `buyer@`, Sachini `buyer2@`, Tharindu `buyer3@example.com`), 20 products with variants, and the carts: Dilan's public one at 49,800, Sachini's private READY one, Dilan's delivered order, and Tharindu's paid (CONFIRMED) order waiting to be packed. Tharindu has no active cart.
+- `prisma/seed.ts`: 1 admin, 3 packing staff (Kasun `packer@`, Ishara `packer2@`, Ruwan `packer3@`; Kasun packed Dilan's delivered order, Ishara and Ruwan checked it), 1 seller (Ceylon Footwear Mills, with one product each live, in review and returned), exactly 3 buyers (Dilan `buyer@`, Sachini `buyer2@`, Tharindu `buyer3@example.com`), 20 products with variants, and the carts: Dilan's public one at 49,800, Sachini's private READY one, Dilan's delivered order, and Tharindu's paid (CONFIRMED) order waiting to be packed. Tharindu has no active cart.
 - `src/server/seller.ts`: the seller listing flow (`sellerSaveProduct`, `sellerAdjustStock`, `submitForReview`, `withdrawFromReview`, `deleteDraft`) and admin review (`publishProduct`, `returnToSeller`). `src/server/seller-actions.ts`: the seller server actions (`requireSeller`).
 - `src/lib/packing-rules.ts`: `CHECKS_NEEDED` (2), `PACKABLE`, `packingStage`, `checkBlockReason`, `handOverBlockReason`, `namesList` (tested). `src/server/packing.ts`: `markPacked`, `checkPacking`, `repack`, `handOver`, `packingQueue`, `packingOrder`, `packingSelect`. `src/server/packing-actions.ts`: packer server actions (`requirePacker`). `src/components/packing-bits.tsx`: `PackingTrail`, `packingSummary`, `checkedByText`.
 - `src/server/carts/queries.ts` → `buyerDashboard`: a buyer's carts with their own lines, latest slip and delivery, open invites and the latest notices.

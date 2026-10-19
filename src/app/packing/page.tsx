@@ -20,7 +20,11 @@ export default async function PackingPage({ searchParams }: PageProps<"/packing"
   const { done, cart } = await searchParams;
   const code = typeof cart === "string" ? cart : "";
   const { toPack, toCheck, ready, handedToday } = await packingQueue();
-  const mine = (c: QueueCart) => c.packing?.checks.some((k) => k.userId === staff.id) ?? false;
+  // Orders this person can't check: they packed it (never their own) or already checked it.
+  const packedByMe = (c: QueueCart) => c.packing?.packedById === staff.id;
+  const checkedByMe = (c: QueueCart) =>
+    c.packing?.checks.some((k) => k.userId === staff.id) ?? false;
+  const mine = (c: QueueCart) => packedByMe(c) || checkedByMe(c);
 
   return (
     <>
@@ -28,7 +32,7 @@ export default async function PackingPage({ searchParams }: PageProps<"/packing"
       {done === "handed" && <Toast>{code} handed to PickMe. Thank you!</Toast>}
       <PageHeader
         title="Packing"
-        description="Pack each paid order, have two people check it, then hand it to the PickMe driver."
+        description="Pack each paid order, have two other people check it, then hand it to the PickMe driver."
       />
       <div className="grid grid-cols-3 gap-2 text-center">
         <Tile n={toPack.length} label="To pack" href="#to-pack" />
@@ -49,7 +53,10 @@ export default async function PackingPage({ searchParams }: PageProps<"/packing"
           <OrderCard key={c.id} cart={c} faded={mine(c)}>
             Packed by {c.packing!.packedBy.name} · {c.packing!.checks.length} of {CHECKS_NEEDED}{" "}
             checks
-            {mine(c) && (
+            {packedByMe(c) && (
+              <span className="block">You packed it, so two other people check it.</span>
+            )}
+            {checkedByMe(c) && (
               <span className="block">You checked it. Someone else must check it too.</span>
             )}
           </OrderCard>

@@ -54,8 +54,9 @@ describe("packing staff accounts", () => {
 });
 
 describe("packing a confirmed order", () => {
-  it("packed by one, checked by two different people, then handed to PickMe", async () => {
-    const [amal, nimal, kamal] = [
+  it("packed by one, checked by two other people, then handed to PickMe", async () => {
+    const [amal, nimal, kamal, sunil] = [
+      await makeUser("PACKER"),
       await makeUser("PACKER"),
       await makeUser("PACKER"),
       await makeUser("PACKER"),
@@ -72,12 +73,14 @@ describe("packing a confirmed order", () => {
     await expect(markPacked(nimal.id, cart.id)).rejects.toThrow("already packed");
     expect((await packingQueue()).toCheck.map((c) => c.id)).toEqual([cart.id]);
 
-    // The packer may be one of the two checkers, but nobody checks twice.
-    await checkPacking(amal.id, cart.id);
-    await expect(checkPacking(amal.id, cart.id)).rejects.toThrow("Someone else must check");
-    await expect(handOver(amal.id, cart.id)).rejects.toThrow("1 more check");
+    // The packer never checks their own packing, and nobody checks twice.
+    await expect(checkPacking(amal.id, cart.id)).rejects.toThrow("You packed this order");
     await checkPacking(nimal.id, cart.id);
-    await expect(checkPacking(kamal.id, cart.id)).rejects.toThrow("checked twice");
+    await expect(checkPacking(nimal.id, cart.id)).rejects.toThrow("Someone else must check");
+    await expect(checkPacking(amal.id, cart.id)).rejects.toThrow("You packed this order");
+    await expect(handOver(amal.id, cart.id)).rejects.toThrow("1 more check");
+    await checkPacking(kamal.id, cart.id);
+    await expect(checkPacking(sunil.id, cart.id)).rejects.toThrow("checked twice");
     expect((await packingQueue()).ready.map((c) => c.id)).toEqual([cart.id]);
 
     // Not until the admin has booked PickMe.
@@ -92,7 +95,7 @@ describe("packing a confirmed order", () => {
 
     const p = await packingOf(cart.id);
     expect(p).toMatchObject({ packedById: amal.id, handedOverById: kamal.id });
-    expect(p.checks.map((c) => c.userId).sort()).toEqual([amal.id, nimal.id].sort());
+    expect(p.checks.map((c) => c.userId).sort()).toEqual([nimal.id, kamal.id].sort());
     expect((await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } })).status).toBe(
       "PICKED_UP",
     );

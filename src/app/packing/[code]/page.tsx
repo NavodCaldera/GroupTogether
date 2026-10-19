@@ -42,6 +42,7 @@ export default async function PackOrderPage({
   const canCheck = open && !checkBlockReason(cart.packing, staff.id);
   const handOverBlock = handOverBlockReason(cart.packing, cart.delivery);
   const iChecked = cart.packing?.checks.some((c) => c.userId === staff.id) ?? false;
+  const iPacked = cart.packing?.packedById === staff.id;
   const byMember = cart.members
     .map((m) => ({ ...m, lines: cart.lines.filter((l) => l.userId === m.userId) }))
     .filter((m) => m.lines.length > 0);
@@ -49,7 +50,7 @@ export default async function PackOrderPage({
   return (
     <>
       <BackLink fallback="/packing" />
-      {done === "packed" && <Toast>Packed. Now two people check it.</Toast>}
+      {done === "packed" && <Toast>Packed. Now two other people check it.</Toast>}
       {done === "repack" && <Toast>Sent back to be packed again.</Toast>}
       <PageHeader
         title={`Cart ${cart.code}`}
@@ -113,7 +114,7 @@ export default async function PackOrderPage({
             submit="I've packed it"
           >
             <p className="text-sm text-subtle">
-              Pack every item above, then press this. Two people then check the parcel.
+              Pack every item above, then press this. Two other people then check the parcel.
             </p>
           </PackingForm>
         )}
@@ -130,6 +131,11 @@ export default async function PackOrderPage({
               quantity is right. Your name goes on the order.
             </p>
           </PackingForm>
+        )}
+        {open && stage === "to-check" && iPacked && (
+          <Alert tone="info">
+            You packed this order, so you can&apos;t check it. Two other people must check it.
+          </Alert>
         )}
         {open && stage === "to-check" && iChecked && (
           <Alert tone="info">You checked this order. Another person must check it too.</Alert>

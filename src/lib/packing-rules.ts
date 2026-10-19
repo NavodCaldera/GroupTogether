@@ -2,8 +2,8 @@ import type { CartStatus } from "./cart-rules";
 
 /**
  * Packing in our store, with no database (CLAUDE.md rule 17, product owner 2026-10-18).
- * One of the packing staff packs a confirmed cart, two different staff check that everything is
- * in order (the packer can be one of them), and only then is it handed to the PickMe driver.
+ * One of the packing staff packs a confirmed cart, two other staff check that everything is in
+ * order (never the packer: product owner, 2026-10-19), and only then is it handed to PickMe.
  */
 export const CHECKS_NEEDED = 2;
 
@@ -23,6 +23,7 @@ export const PACKING_STAGE_LABEL: Record<PackingStage, string> = {
 };
 
 export type PackingLike = {
+  packedById: string;
   checks: readonly { userId: string }[];
   handedOverAt: Date | null;
 } | null;
@@ -37,6 +38,8 @@ export function packingStage(p: PackingLike): PackingStage {
 export function checkBlockReason(p: PackingLike, userId: string): string | null {
   if (!p) return "Pack this order first";
   if (p.handedOverAt) return "This order has already gone to PickMe";
+  if (p.packedById === userId)
+    return "You packed this order, so you can't check it. Two other people must check it.";
   if (p.checks.some((c) => c.userId === userId))
     return "You have already checked this order. Someone else must check it too.";
   if (p.checks.length >= CHECKS_NEEDED) return "This order has already been checked twice";

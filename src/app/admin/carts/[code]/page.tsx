@@ -315,7 +315,7 @@ export default async function AdminCartPage({
               <h2 className="mb-2 font-semibold">Packing</h2>
               <PackingTrail packing={cart.packing} />
               <p className="mt-2 text-xs text-subtle">
-                Packing staff pack it, two of them check it, then they hand it to PickMe.
+                One packer packs it, two others check it, then it goes to PickMe.
               </p>
             </Card>
           )}

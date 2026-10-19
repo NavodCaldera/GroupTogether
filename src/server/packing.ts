@@ -8,13 +8,14 @@ import { notify } from "./notify";
 
 /**
  * Packing staff (role PACKER, created by an admin) pack confirmed carts in our store
- * (CLAUDE.md rule 17): one person packs, two different people check it, then someone hands it
- * to the PickMe driver, which marks the drop picked up. Who did each step is kept and shown to
- * the admin. Each step locks the cart row, like every other cart change.
+ * (CLAUDE.md rule 17): one person packs, two other people check it (never the packer), then
+ * someone hands it to the PickMe driver, which marks the drop picked up. Who did each step is
+ * kept and shown to the admin. Each step locks the cart row, like every other cart change.
  */
 
 /** Who packed, checked and handed over: for the packing pages and the admin. */
 export const packingSelect = {
+  packedById: true,
   packedAt: true,
   handedOverAt: true,
   packedBy: { select: { id: true, name: true } },

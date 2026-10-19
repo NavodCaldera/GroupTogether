@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { checkBlockReason, handOverBlockReason, namesList, packingStage } from "./packing-rules";
 
+/** Packed by "p", checked by `checkers`. */
 const packed = (checkers: string[], handedOverAt: Date | null = null) => ({
+  packedById: "p",
   checks: checkers.map((userId) => ({ userId })),
   handedOverAt,
 });
@@ -17,8 +19,10 @@ describe("packing stages", () => {
 });
 
 describe("checking a packed order", () => {
-  it("needs two different people, and the packer can be one of them", () => {
+  it("needs two different people, never the one who packed it", () => {
     expect(checkBlockReason(null, "a")).toMatch("Pack this order first");
+    expect(checkBlockReason(packed([]), "p")).toMatch("You packed this order");
+    expect(checkBlockReason(packed(["a"]), "p")).toMatch("You packed this order");
     expect(checkBlockReason(packed([]), "a")).toBeNull();
     expect(checkBlockReason(packed(["a"]), "a")).toMatch("Someone else must check it");
     expect(checkBlockReason(packed(["a"]), "b")).toBeNull();

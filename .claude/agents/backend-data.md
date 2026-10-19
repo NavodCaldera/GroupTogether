@@ -71,4 +71,4 @@ Rule 13 columns: `User.lat/lng`, `CartMember.address/city/lat/lng`, `GroupCart.d
 
 - `CartMessage.readAt` (null = unread by the non-author side), indexed with `participantId`.
 
-- Role `PACKER` (2026-10-18, rule 17). `Packing` (one per cart, `cartId` unique, cascade with the cart): `packedById`, `packedAt`, `handedOverById?`, `handedOverAt?`. `PackingCheck` (`packingId`, `userId`, unique together, cascade with the packing). Migration `20261018101541_packing_staff`. Seed: Kasun (`packer@`) and Ishara (`packer2@example.com`) packed/checked/handed over Dilan's delivered order; Tharindu has a CONFIRMED order to pack.
+- Role `PACKER` (2026-10-18, rule 17). `Packing` (one per cart, `cartId` unique, cascade with the cart): `packedById`, `packedAt`, `handedOverById?`, `handedOverAt?`. `PackingCheck` (`packingId`, `userId`, unique together, cascade with the packing). Migration `20261018101541_packing_staff`. Seed: Kasun (`packer@`) packed Dilan's delivered order, Ishara (`packer2@`) and Ruwan (`packer3@example.com`) checked it, Ishara handed it over; Tharindu has a CONFIRMED order to pack.

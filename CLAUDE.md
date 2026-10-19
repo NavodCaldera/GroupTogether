@@ -95,8 +95,9 @@ heavy libraries, paid services or anything that needs an always-on worker.
     Ready for PickMe**, plus today's handovers. Every packer gets an in-app notice when a slip is
     approved ("New order to pack") and when PickMe is booked. On an order (`/packing/<code>`, items
     by member, no prices, the drop-off label) one person presses "I've packed it", then **two
-    different people** each press "Checked: everything is correct" (the packer may be one of them;
-    nobody checks twice). Only after two checks **and** once the admin has booked PickMe can someone
+    other people** each press "Checked: everything is correct". **Checking and packing are never
+    done by the same person** (product owner, 2026-10-19), and nobody checks twice, so every order
+    takes three people. Only after two checks **and** once the admin has booked PickMe can someone
     press "Handed to the PickMe driver", which records who handed it over, moves the drop to
     PICKED_UP and tells the owner. Before handover a checker can send it back to be packed again
     (clears the packing and its checks). **Who packed, who certified it and who handed it over are
@@ -142,7 +143,7 @@ tab is visible (no websocket or worker).
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                                                                      |
 | `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                                                             |
-| `npm run db:seed`    | Demo data, all `password123`: `admin@grouptogether.lk`, `seller@example.com`, `packer@example.com`, `packer2@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
+| `npm run db:seed`    | Demo data, all `password123`: `admin@grouptogether.lk`, `seller@example.com`, `packer@example.com`, `packer2@example.com`, `packer3@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
 | `npm run dev`        | http://localhost:3002                                                                                                                                                                                              |
 | `npm run check`      | Typecheck, lint and unit tests                                                                                                                                                                                     |
 | `npm run test:int`   | Integration tests on the test DB                                                                                                                                                                                   |

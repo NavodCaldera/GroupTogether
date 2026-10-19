@@ -14,6 +14,7 @@ describe("demo logins on the sign-in page", () => {
       "seller@example.com",
       "packer@example.com",
       "packer2@example.com",
+      "packer3@example.com",
       "buyer@example.com",
       "buyer2@example.com",
       "buyer3@example.com",
