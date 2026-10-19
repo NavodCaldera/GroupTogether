@@ -51,18 +51,21 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
   await sweep();
   const sp = await searchParams;
   const exact = STATUSES.find((s) => s === param(sp, "status"));
-  const stage = ADMIN_STAGES.find((s) => s.key === param(sp, "stage")) ?? ADMIN_STAGES[0];
+  const q = param(sp, "q");
+  // A search with no stage picked looks through every cart, so finished ones are found too.
+  const picked = param(sp, "stage");
+  const stage =
+    ADMIN_STAGES.find((s) => s.key === (picked ?? (q ? "all" : undefined))) ?? ADMIN_STAGES[0];
   const statuses = exact ? [exact] : stage.statuses;
   const canUrgency = statuses.every((s) => LIVE.includes(s));
   const urgency = canUrgency && param(sp, "sort") !== "latest";
-  const q = param(sp, "q");
   const page = pageNumber(sp);
   const now = new Date();
 
   const search: Prisma.GroupCartWhereInput | undefined = q
     ? {
         OR: [
-          { code: q.toUpperCase() },
+          { code: { contains: q, mode: "insensitive" } },
           { name: { contains: q, mode: "insensitive" } },
           { owner: { name: { contains: q, mode: "insensitive" } } },
           { owner: { email: { contains: q, mode: "insensitive" } } },
@@ -118,7 +121,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
   const turnCount = (s: CartStatus) => turn.find((t) => t.status === s)?._count ?? 0;
   const href = (values: Record<string, string | number | undefined>) =>
     hrefWith("/admin/carts", {
-      stage: exact || stage.key === "active" ? undefined : stage.key,
+      stage: exact || (stage.key === "active" && !q) ? undefined : stage.key,
       status: exact,
       q,
       sort: urgency ? undefined : canUrgency ? "latest" : undefined,
@@ -157,10 +160,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
         action="/admin/carts"
         q={q}
         placeholder="Code, cart name, owner name, email or mobile"
-        keep={{
-          stage: exact || stage.key === "active" ? undefined : stage.key,
-          status: exact,
-        }}
+        keep={{ stage: exact ? undefined : picked, status: exact }}
       />
       {/* Phones: one dropdown with counts. From sm up: the chips. */}
       <FilterSelect
@@ -181,7 +181,10 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
         {ADMIN_STAGES.map((s) => (
           <Chip
             key={s.key}
-            href={hrefWith("/admin/carts", { stage: s.key === "active" ? undefined : s.key, q })}
+            href={hrefWith("/admin/carts", {
+              stage: s.key === "active" && !q ? undefined : s.key,
+              q,
+            })}
             active={!exact && stage.key === s.key}
           >
             {s.label} <Count n={count(s.statuses)} />
