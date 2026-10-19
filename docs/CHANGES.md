@@ -5,6 +5,7 @@ relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
 ## 2026-10-20
 
+- **Admin products list: no Type column.** The B-grade / Factory surplus badge is gone from the Admin → Products table (Product, Seller, Price, Free, In carts, Sold, Status remain); the type still shows on the product page and in the shop. _Agent: catalogue-admin._
 - **No "Driver: <name>" line on the packing order page.** The "Handed to the PickMe driver" button stands alone. (The list still says "Booked · <driver>" under For PickMe.) _Agent: frontend._
 - **PickMe booking: tracking link is optional.** On an admin cart's Book delivery form the field is now labelled "Tracking link (optional)"; it can be left empty and the booking still goes through (the owner then sees no "Track delivery" button). If something is typed it must still be a full link (https://…). _Agents: delivery, catalogue-admin._
 - **Explanation lines removed from page titles.** Gone: Deliveries ("One PickMe drop per confirmed cart…"), Bank slips ("Check the amount and the reference…" and "The latest 100 decisions."), Users ("Buyers sign up themselves…"), New seller ("Sellers list their stock…"), New packing staff ("Packing staff see paid orders…"), Add product ("Add sizes and stock after creating it.") and Start a group cart ("Together your cart needs to reach…"). The Pay page keeps only the countdown under "Pay LKR …". Data lines (email, "Sent <time>", "Listed by", item count) stay. _Agents: frontend, catalogue-admin._

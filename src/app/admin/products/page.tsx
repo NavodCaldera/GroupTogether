@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PRODUCT_STATUS_LABEL, ProductStatusBadge, StockTypeBadge } from "@/components/cart-bits";
+import { PRODUCT_STATUS_LABEL, ProductStatusBadge } from "@/components/cart-bits";
 import { EmptyState, PageHeader } from "@/components/ui";
 import type { ProductStatus } from "@/generated/prisma/client";
 import { formatLKR } from "@/lib/format";
@@ -88,7 +88,6 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
               <tr>
                 <th className="px-3 py-2">Product</th>
                 <th className="px-3 py-2">Seller</th>
-                <th className="px-3 py-2">Type</th>
                 <th className="px-3 py-2 text-right">Price</th>
                 <th className="px-3 py-2 text-right">Free</th>
                 <th className="px-3 py-2 text-right">In carts</th>
@@ -115,9 +114,6 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                       ) : (
                         "Ours"
                       )}
-                    </td>
-                    <td className="px-3 py-2">
-                      <StockTypeBadge stockType={p.stockType} />
                     </td>
                     <td className="px-3 py-2 text-right">{formatLKR(p.price)}</td>
                     <td className="px-3 py-2 text-right">{sum("available")}</td>
