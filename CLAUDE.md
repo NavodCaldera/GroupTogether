@@ -125,7 +125,9 @@ heavy libraries, paid services or anything that needs an always-on worker.
     packed it is final, product owner 2026-10-20). **The two
     people who certified the order (gathered by, packed by) and who handed it over are shown with
     the order on the admin side**: cart page (Packing card + timeline), carts list, deliveries and
-    the orders CSV. Packing staff never see money; `/`, `/shop`, `/carts`, `/my-carts` and
+    the orders CSV. **Admin → Packing** (`/admin/packing`, product owner 2026-10-20) shows the same
+    board read-only: to gather, gathered (to pack), packed (for PickMe) and handed over today, each
+    order with who gathered, packed and handed it over and when. Packing staff never see money; `/`, `/shop`, `/carts`, `/my-carts` and
     `/dashboard` send them to `/packing`, and they have no phone tab bar. Rules: `packingStage` /
     `packBlockReason` / `handOverBlockReason` in `src/lib/packing-rules.ts`; flow: `markGathered` /
     `markPacked` / `sendBack` / `handOver` in `src/server/packing.ts` (cart row locked); table
