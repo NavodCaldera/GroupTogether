@@ -11,6 +11,7 @@ import { approveSlip, rejectSlip } from "./carts/slips";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
 import { db } from "./db";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
+import { decideOffer } from "./offers";
 import { publishProduct, returnToSeller } from "./seller";
 import { UploadError } from "./storage";
 
@@ -188,6 +189,17 @@ export async function returnProductAction(_p: AdminState, fd: FormData): Promise
   revalidatePath("/admin", "layout");
   if (res.error) return res;
   redirect(`/admin/products/${productId}?reviewed=returned`);
+}
+
+/** Accept or decline a factory seller's stock offer (`decision` = accept | decline). */
+export async function decideOfferAction(_p: AdminState, fd: FormData): Promise<AdminState> {
+  await requireAdmin();
+  const offerId = str(fd, "offerId");
+  const accept = str(fd, "decision") === "accept";
+  const res = await attempt(() => decideOffer(offerId, accept, str(fd, "note")));
+  revalidatePath("/admin", "layout");
+  if (res.error) return res;
+  redirect(`/admin/offers?done=${accept ? "accepted" : "declined"}`);
 }
 
 export async function createSellerAction(_p: AdminState, fd: FormData): Promise<AdminState> {

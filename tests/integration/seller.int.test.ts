@@ -1,29 +1,11 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createSeller, homeFor } from "@/server/auth/service";
 import { sendMessage } from "@/server/carts/chat";
-import { createCart, setLine } from "@/server/carts/service";
+import { createCart } from "@/server/carts/service";
 import { db } from "@/server/db";
-import {
-  deleteDraft,
-  publishProduct,
-  returnToSeller,
-  sellerSaveListing,
-  sellerSaveProduct,
-  submitForReview,
-  withdrawFromReview,
-} from "@/server/seller";
+import { createOffer, decideOffer } from "@/server/offers";
+import { publishProduct, returnToSeller } from "@/server/seller";
 import { makeUser, resetDb } from "./helpers";
-
-const shoe = {
-  title: "Factory loafer",
-  brand: "Ceylon",
-  audience: "MEN",
-  kind: "men-sneakers",
-  stockType: "FACTORY_SURPLUS",
-  price: "6200",
-  // A seller can't choose the status: this is ignored.
-  status: "LIVE",
-};
 
 let n = 0;
 beforeEach(async () => {
@@ -42,131 +24,50 @@ async function seller() {
   });
 }
 
-const product = (id: string) => db.product.findUniqueOrThrow({ where: { id } });
+const offer = { name: "Leather loafers", description: "600 pairs, sizes 6-11", amount: "250,000" };
 
-describe("factory seller listing flow", () => {
-  it("draft → stock → review → returned → resubmitted → live, and a buyer can add it", async () => {
-    const [s, admin, buyer] = [await seller(), await makeUser("ADMIN"), await makeUser()];
-    expect(s.role).toBe("SELLER");
+describe("factory seller stock offers", () => {
+  it("send → admins told → accept with a note → seller told", async () => {
+    const [s, admin] = [await seller(), await makeUser("ADMIN")];
     expect(homeFor(s.role)).toBe("/seller");
 
-    const p = await sellerSaveProduct(s.id, null, shoe, null);
-    expect(p).toMatchObject({ status: "DRAFT", sellerId: s.id });
-
-    await expect(submitForReview(s.id, p.id)).rejects.toThrow("Add stock");
-    await sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "5" }, false);
-    await submitForReview(s.id, p.id);
-    expect((await product(p.id)).status).toBe("IN_REVIEW");
-    expect(await db.notification.count({ where: { userId: admin.id } })).toBe(1);
-
-    // Locked while in review.
-    await expect(sellerSaveProduct(s.id, p.id, shoe, null)).rejects.toThrow("in review");
-    await expect(sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "1" }, false)).rejects.toThrow(
-      "in review",
-    );
-
-    await returnToSeller(p.id, "Add a photo");
-    expect(await product(p.id)).toMatchObject({ status: "DRAFT", reviewNote: "Add a photo" });
+    const o = await createOffer(s.id, offer);
+    expect(o).toMatchObject({ status: "IN_REVIEW", name: "Leather loafers", sellerId: s.id });
+    expect(o.amount.toString()).toBe("250000");
     expect(
-      await db.notification.count({ where: { userId: s.id, title: "Your product needs changes" } }),
+      await db.notification.count({ where: { userId: admin.id, title: "Stock offer to review" } }),
     ).toBe(1);
 
-    await sellerSaveProduct(s.id, p.id, { ...shoe, title: "Factory loafer v2" }, null);
-    await submitForReview(s.id, p.id);
-    expect((await product(p.id)).reviewNote).toBeNull();
-    await publishProduct(p.id);
-    expect(await product(p.id)).toMatchObject({ status: "LIVE", title: "Factory loafer v2" });
+    await decideOffer(o.id, true, "Deliver to our store on Monday");
+    expect(await db.stockOffer.findUniqueOrThrow({ where: { id: o.id } })).toMatchObject({
+      status: "ACCEPTED",
+      note: "Deliver to our store on Monday",
+    });
     expect(
-      await db.notification.count({ where: { userId: s.id, title: "Your product is live" } }),
+      await db.notification.count({ where: { userId: s.id, title: "Your offer was accepted" } }),
     ).toBe(1);
+    // Answered once only.
+    await expect(decideOffer(o.id, false, "")).rejects.toThrow("already been answered");
+  });
 
-    // Live: the seller can't change it any more; buyers can buy it.
-    await expect(sellerSaveProduct(s.id, p.id, shoe, null)).rejects.toThrow("live");
-    await expect(
-      sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "10" }, false),
-    ).rejects.toThrow("live");
-    const v = await db.variant.findFirstOrThrow({ where: { productId: p.id } });
-    const cart = await createCart(buyer.id, {});
-    await setLine(buyer.id, cart.id, v.id, 2);
-    expect(await db.variant.findUniqueOrThrow({ where: { id: v.id } })).toMatchObject({
-      available: 3,
-      reserved: 2,
+  it("declines without a note", async () => {
+    const s = await seller();
+    const o = await createOffer(s.id, offer);
+    await decideOffer(o.id, false, "  ");
+    expect(await db.stockOffer.findUniqueOrThrow({ where: { id: o.id } })).toMatchObject({
+      status: "DECLINED",
+      note: null,
     });
   });
 
-  it("a product in review is hidden from the shop and can't be added to carts", async () => {
+  it("checks the three fields, and only sellers can send", async () => {
     const [s, buyer] = [await seller(), await makeUser()];
-    const p = await sellerSaveProduct(s.id, null, shoe, null);
-    await sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "5" }, false);
-    await submitForReview(s.id, p.id);
-    const v = await db.variant.findFirstOrThrow({ where: { productId: p.id } });
-    const cart = await createCart(buyer.id, {});
-    await expect(setLine(buyer.id, cart.id, v.id, 1)).rejects.toThrow();
-  });
-
-  it("sellers only touch their own drafts", async () => {
-    const [a, b] = [await seller(), await seller()];
-    const p = await sellerSaveProduct(a.id, null, shoe, null);
-    await expect(sellerSaveProduct(b.id, p.id, shoe, null)).rejects.toThrow("not found");
-    await expect(sellerSaveListing(b.id, p.id, shoe, null, { "UK 9": "1" }, false)).rejects.toThrow(
-      "not found",
-    );
-    await expect(deleteDraft(b.id, p.id)).rejects.toThrow("not found");
-  });
-
-  it("withdraws from review and deletes a draft", async () => {
-    const s = await seller();
-    const p = await sellerSaveProduct(s.id, null, shoe, null);
-    await sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "1" }, false);
-    await submitForReview(s.id, p.id);
-    await withdrawFromReview(s.id, p.id);
-    expect((await product(p.id)).status).toBe("DRAFT");
-    await deleteDraft(s.id, p.id);
-    expect(await db.product.count({ where: { id: p.id } })).toBe(0);
-  });
-
-  it("B-grade needs no defects, and admins can only publish what is in review", async () => {
-    const s = await seller();
-    const b = await sellerSaveProduct(s.id, null, { ...shoe, stockType: "B_GRADE" }, null);
-    expect(b).toMatchObject({ stockType: "B_GRADE", defectNotes: null });
-    const p = await sellerSaveProduct(s.id, null, shoe, null);
-    await expect(publishProduct(p.id)).rejects.toThrow("isn't waiting for review");
-  });
-
-  it("saves details and every size in one go, and can send it straight for review", async () => {
-    const [s, admin] = [await seller(), await makeUser("ADMIN")];
-    await expect(
-      sellerSaveListing(s.id, null, shoe, null, { "UK 8": "", "UK 9": "0" }, true),
-    ).rejects.toThrow("at least one size");
-    await expect(
-      sellerSaveListing(s.id, null, shoe, null, { "UK 9": "2.5" }, false),
-    ).rejects.toThrow("whole number for size UK 9");
-    expect(await db.product.count({ where: { sellerId: s.id } })).toBe(0);
-
-    const p = await sellerSaveListing(s.id, null, shoe, null, { "UK 8": "3", "UK 9": "5" }, false);
-    const sizes = async () =>
-      (await db.variant.findMany({ where: { productId: p.id }, orderBy: { size: "asc" } })).map(
-        (v) => [v.size, v.available],
-      );
-    expect(await sizes()).toEqual([
-      ["UK 8", 3],
-      ["UK 9", 5],
-    ]);
-    // The numbers are how many they have, not changes; blank is 0.
-    await sellerSaveListing(s.id, p.id, shoe, null, { "UK 8": "", "UK 9": "7" }, false);
-    expect(await sizes()).toEqual([["UK 9", 7]]);
-    // A new category drops the old sizes.
-    await sellerSaveListing(
-      s.id,
-      p.id,
-      { ...shoe, kind: "men-tshirts" },
-      null,
-      { M: "4", "UK 9": "7" },
-      true,
-    );
-    expect(await sizes()).toEqual([["M", 4]]);
-    expect((await product(p.id)).status).toBe("IN_REVIEW");
-    expect(await db.notification.count({ where: { userId: admin.id } })).toBe(1);
+    await expect(createOffer(s.id, { ...offer, name: "" })).rejects.toThrow("product name");
+    await expect(createOffer(s.id, { ...offer, description: "" })).rejects.toThrow("details");
+    await expect(createOffer(s.id, { ...offer, amount: "0" })).rejects.toThrow("total price");
+    await expect(createOffer(s.id, { ...offer, amount: "abc" })).rejects.toThrow("total price");
+    await expect(createOffer(buyer.id, offer)).rejects.toThrow("Only factory sellers");
+    expect(await db.stockOffer.count()).toBe(0);
   });
 
   it("sellers and packing staff can't use carts or message shoppers", async () => {
@@ -175,6 +76,33 @@ describe("factory seller listing flow", () => {
     await expect(createCart(packer.id, {})).rejects.toThrow("Only shoppers");
     const cart = await createCart(buyer.id, {});
     await expect(sendMessage(s.id, cart.id, "Hello")).rejects.toThrow("Only shoppers");
+  });
+
+  it("an admin can still publish or return a seller's product in review", async () => {
+    const s = await seller();
+    const make = () =>
+      db.product.create({
+        data: {
+          title: "Loafer",
+          brand: "Ceylon",
+          category: "SHOES",
+          audience: "MEN",
+          kind: "men-formal",
+          stockType: "FACTORY_SURPLUS",
+          price: 6200,
+          status: "IN_REVIEW",
+          sellerId: s.id,
+        },
+      });
+    const [a, b] = [await make(), await make()];
+    await publishProduct(a.id);
+    expect((await db.product.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("LIVE");
+    await expect(publishProduct(a.id)).rejects.toThrow("isn't waiting for review");
+    await returnToSeller(b.id, "Not this season");
+    expect(await db.product.findUniqueOrThrow({ where: { id: b.id } })).toMatchObject({
+      status: "DRAFT",
+      reviewNote: "Not this season",
+    });
   });
 
   it("refuses a second account with the same email", async () => {

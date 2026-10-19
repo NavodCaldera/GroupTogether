@@ -566,7 +566,7 @@ async function main() {
   await paidOrder(SACHINI, 2, "pack");
   await paidOrder(DILAN, 1, "ready");
 
-  // ─── Demo factory seller: one product live, one in review, one returned ──
+  // ─── Demo factory seller: one product on sale and three stock offers ──
   const seller = await db.user.create({
     data: {
       role: "SELLER",
@@ -587,26 +587,6 @@ async function main() {
       retailPrice: 14500,
       stockType: "FACTORY_SURPLUS",
       reviewNote: null,
-    },
-    {
-      title: "Ladies block-heel sandal",
-      kind: "women-sandals",
-      audience: "WOMEN",
-      status: "IN_REVIEW",
-      price: 3900,
-      retailPrice: 8900,
-      stockType: "B_GRADE",
-      reviewNote: null,
-    },
-    {
-      title: "Kids school sneaker",
-      kind: "boy-shoes",
-      audience: "BOY",
-      status: "DRAFT",
-      price: 2800,
-      retailPrice: null,
-      stockType: "FACTORY_SURPLUS",
-      reviewNote: "Please add a photo and the sizes you can send this week.",
     },
   ] as const;
   for (const p of sellerProducts) {
@@ -629,6 +609,47 @@ async function main() {
       },
     });
   }
+
+  // Stock offers (product owner, 2026-10-19): one waiting for review, one accepted, one declined.
+  const offers = [
+    {
+      name: "Ladies block-heel sandals",
+      description: "420 pairs, sizes 5 to 9, black and tan. B-grade: small glue marks.",
+      amount: 840000,
+      status: "IN_REVIEW",
+      note: null,
+      ago: 3,
+    },
+    {
+      name: "Kids school sneakers",
+      description: "300 pairs, white, UK 10 to UK 3. Overrun from an export order.",
+      amount: 540000,
+      status: "ACCEPTED",
+      note: "Please deliver to our Colombo store on Monday.",
+      ago: 50,
+    },
+    {
+      name: "Men's canvas belts",
+      description: "1,000 belts, mixed colours.",
+      amount: 300000,
+      status: "DECLINED",
+      note: "We don't sell accessories yet.",
+      ago: 120,
+    },
+  ] as const;
+  for (const o of offers)
+    await db.stockOffer.create({
+      data: {
+        sellerId: seller.id,
+        name: o.name,
+        description: o.description,
+        amount: o.amount,
+        status: o.status,
+        note: o.note,
+        createdAt: addHours(now, -o.ago),
+        decidedAt: o.status === "IN_REVIEW" ? null : addHours(now, -o.ago + 4),
+      },
+    });
 
   console.log(`Seeded. Every password is password123.
   Admin   admin@groupbasket.lk  → /admin

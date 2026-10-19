@@ -159,10 +159,11 @@ export async function overviewStats(now = new Date()) {
 
 /** Counts for the admin nav badges. */
 export async function adminBadges() {
-  const [slips, toBook, inReview] = await Promise.all([
+  const [slips, toBook, inReview, offers] = await Promise.all([
     db.paymentSlip.count({ where: { status: "PENDING" } }),
     db.groupCart.count({ where: { status: "CONFIRMED", delivery: { is: null } } }),
     db.product.count({ where: { status: "IN_REVIEW" } }),
+    db.stockOffer.count({ where: { status: "IN_REVIEW" } }),
   ]);
-  return { slips, toBook, inReview };
+  return { slips, toBook, inReview, offers };
 }

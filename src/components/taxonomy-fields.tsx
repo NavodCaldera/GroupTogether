@@ -10,8 +10,6 @@ type Props = {
   /** Shop filter: every choice is optional and a size box follows. */
   withSize?: boolean;
   selectClass: string;
-  /** Told each time the category changes (the seller's size grid follows it). */
-  onKind?: (kind: string) => void;
 };
 
 /**
@@ -19,14 +17,7 @@ type Props = {
  * Each box stays disabled until the one before it has a choice.
  * Plain named selects, so the surrounding GET/POST form needs nothing else.
  */
-export function TaxonomyFields({
-  audience,
-  kind,
-  size,
-  withSize = false,
-  selectClass,
-  onKind,
-}: Props) {
+export function TaxonomyFields({ audience, kind, size, withSize = false, selectClass }: Props) {
   const [a, setA] = useState<Audience | "">(isAudience(audience) ? audience : "");
   const [k, setK] = useState(
     audience && kind && isAudience(audience) && kindFits(audience, kind) ? kind : "",
@@ -45,10 +36,7 @@ export function TaxonomyFields({
         onChange={(e) => {
           const v = e.target.value as Audience | "";
           setA(v);
-          if (!v || (k && !kindFits(v, k))) {
-            setK("");
-            onKind?.("");
-          }
+          if (!v || (k && !kindFits(v, k))) setK("");
         }}
       >
         <option value="">{optional ? "Audience" : "Choose…"}</option>
@@ -65,10 +53,7 @@ export function TaxonomyFields({
         required={!optional}
         aria-label="Category"
         className={selectClass}
-        onChange={(e) => {
-          setK(e.target.value);
-          onKind?.(e.target.value);
-        }}
+        onChange={(e) => setK(e.target.value)}
       >
         <option value="">
           {a ? (optional ? "All categories" : "Choose…") : "Choose audience first"}

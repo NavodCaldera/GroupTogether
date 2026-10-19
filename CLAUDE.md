@@ -54,23 +54,21 @@ heavy libraries, paid services or anything that needs an always-on worker.
     (`PACKER`, 2026-10-18, rule 17).
     - **Buyers** (`CUSTOMER`) sign up themselves and land on `/dashboard`.
     - **Factory sellers** (`SELLER`) are created by an admin (or the seed) and land on `/seller`.
-      **A seller only publishes stock.** They see their own products and stock counts, never
-      buyers, carts or money.
-    - A seller's product goes `DRAFT → IN_REVIEW` (seller submits; it needs stock in a size)
-      `→ LIVE` (an admin publishes it once the stock has reached our store). Alternatively the
-      admin returns it to `DRAFT` with a note. Sellers change details and stock only while it's a
-      draft. **We hold the stock**, so a live product is managed by the admin.
-    - **The seller's pages are as simple as possible** (product owner, 2026-10-19). `/seller` is a
-      card per product (status in plain words: Draft, Needs changes, Waiting for your stock, On
-      sale, Ended; "N left · N sold"), products needing changes first, one "Add product" button.
-      A product is **one screen**: photo, name, brand, category, condition, price, then **how many
-      they have in each size** of the category (absolute numbers, no colour: one product per
-      colour), then **Send for review** or **Save draft**. A product waiting for review has
-      **Edit** (back to draft). Sellers have one section like admins: no Home/Shop/Carts tabs, no
-      messages icon, no tab bar; `/`, `/shop`, `/carts`, `/my-carts`, `/dashboard`, `/messages`
-      and `/c/<code>` send them to `/seller`; their profile has no address or map. **Only buyers
-      (`CUSTOMER`) can start, join or add to a cart** (`assertOneCart`), and sellers and packing
-      staff can't send chat messages. `sellerSaveListing` in `src/server/seller.ts`.
+      They never see buyers, carts or money.
+    - **A seller sends stock offers** (product owner, 2026-10-19; how sellers will work is still
+      open, so it is kept as simple as possible). `/seller` lists their offers (name, total
+      amount, date, status: Waiting for review / Accepted / Declined, and our note) with a round
+      **+** "Add product" button. The form has three boxes: **Product name**, **Description**
+      (details about the stock) and **Amount** (the total selling price for all of it), then
+      **Send for review**. Admins get an in-app notice and answer at **Admin → Offers**: Accept
+      or Decline, each with an optional note; the seller is told in the app. An offer is not a
+      shop product: if we take the stock, the admin lists it as a product. Table `StockOffer`;
+      `createOffer` / `decideOffer` in `src/server/offers.ts`. (Products already listed under a
+      seller can still be published or returned by an admin: `src/server/seller.ts`.)
+    - Sellers have one section like admins: no Home/Shop/Carts tabs, no messages icon, no tab bar;
+      `/`, `/shop`, `/carts`, `/my-carts`, `/dashboard`, `/messages` and `/c/<code>` send them to
+      `/seller`; their profile has no address or map. **Only buyers (`CUSTOMER`) can start, join
+      or add to a cart** (`assertOneCart`), and sellers and packing staff can't send chat messages.
     - **Admins** come only from the seed. They have no home page, shop or buyer carts: `/` and `/my-carts` redirect them to `/admin`, `/shop` to `/admin/products`, `/carts` to `/admin/carts`; their header shows only Admin and on phones there is no bottom tab bar (the logo goes to `/admin`) (product owner, 2026-10-18).
 12. **One cart at a time** (product owner, 2026-10-17). A buyer can own or be in only one active
     cart. Active means `OPEN`/`READY` and not expired, `AWAITING_SLIP` inside its 2h window, or

@@ -53,6 +53,7 @@ model User {
   mergeRequests CartMergeRequest[]
   notifications Notification[]
   products      Product[]          @relation("SellerProducts")
+  stockOffers   StockOffer[]
   gathered      Packing[]          @relation("GatheredBy")
   packed        Packing[]          @relation("PackedBy")
   handedOver    Packing[]          @relation("HandedOverBy")
@@ -375,6 +376,34 @@ model Packing {
   handedOverById String?
   handedOverBy   User?     @relation("HandedOverBy", fields: [handedOverById], references: [id])
   handedOverAt   DateTime?
+}
+
+// ─── Stock offers ──────────────────────────────────────────────────────────
+
+enum OfferStatus {
+  IN_REVIEW
+  ACCEPTED
+  DECLINED
+}
+
+/// A factory seller's stock offer (product owner, 2026-10-19): a name, details about the stock and
+/// the total price they want for all of it. An admin accepts or declines it (with an optional
+/// note). It is not a shop product: if we take the stock, the admin lists it as a product.
+model StockOffer {
+  id          String      @id @default(cuid())
+  sellerId    String
+  seller      User        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  name        String
+  description String
+  /// Total selling price for the whole lot, LKR
+  amount      Decimal     @db.Decimal(14, 2)
+  status      OfferStatus @default(IN_REVIEW)
+  note        String?
+  decidedAt   DateTime?
+  createdAt   DateTime    @default(now())
+
+  @@index([sellerId, createdAt])
+  @@index([status, createdAt])
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────

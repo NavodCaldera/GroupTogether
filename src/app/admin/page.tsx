@@ -8,6 +8,7 @@ import { formatDateTime, formatLKR, timeLeft } from "@/lib/format";
 import { dailySales, overviewStats } from "@/server/admin-queries";
 import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
+import { db } from "@/server/db";
 import { SalesChart } from "./sales-chart";
 
 export const metadata: Metadata = { title: "Admin" };
@@ -22,7 +23,11 @@ export default async function AdminHome() {
   await requireAdmin();
   await sweep();
   const now = new Date();
-  const [s, days] = await Promise.all([overviewStats(now), dailySales(now, 14)]);
+  const [s, days, offers] = await Promise.all([
+    overviewStats(now),
+    dailySales(now, 14),
+    db.stockOffer.count({ where: { status: "IN_REVIEW" } }),
+  ]);
 
   // Only what needs someone shows up; zeros stay out of the way.
   const todo: { n: number; text: string; href: string; urgent?: boolean }[] = [
@@ -46,6 +51,11 @@ export default async function AdminHome() {
       text: s.productsToReview === 1 ? "seller product to review" : "seller products to review",
       href: "/admin/products?status=IN_REVIEW",
       urgent: true,
+    },
+    {
+      n: offers,
+      text: offers === 1 ? "stock offer from a seller" : "stock offers from sellers",
+      href: "/admin/offers",
     },
     {
       n: s.lowStockCount,

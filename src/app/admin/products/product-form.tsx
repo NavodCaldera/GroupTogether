@@ -16,7 +16,7 @@ type ProductValues = {
   status: string;
 };
 
-/** The admin's product details form. Factory sellers use their own one-screen `ListingForm`. */
+/** The admin's product details form. Factory sellers send stock offers instead (`src/server/offers.ts`). */
 export function ProductForm({
   product,
   action = saveProductAction,

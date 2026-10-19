@@ -50,7 +50,8 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 | Merge accepted                               | the requester                |
 | Merge declined                               | the requester                |
 | Delivery booked (pay the driver about LKR x) | owner                        |
-| Seller submits a product for review          | admins                       |
+| Seller sends a stock offer                   | admins                       |
+| Admin accepts or declines a stock offer      | that seller                  |
 | Admin publishes a seller's product           | that seller                  |
 | Admin returns a seller's product with a note | that seller                  |
 
