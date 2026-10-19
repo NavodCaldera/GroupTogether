@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { Toast } from "@/components/toast";
 import { PackingTrail } from "@/components/packing-bits";
-import { Alert, Badge, Card, PageHeader } from "@/components/ui";
+import { Alert, Badge, Card, PageHeader, cx } from "@/components/ui";
 import {
   PACKABLE,
   PACKING_STAGE_LABEL,
@@ -25,7 +25,7 @@ export const metadata: Metadata = { title: "Pack order" };
 
 /**
  * One order for the packing staff: every item by member (tick boxes are only for the packer's
- * eye and are not saved), the drop-off label, and the next step: check and gather, recheck and
+ * eye and are not saved; once packed they show as fixed ticks), the drop-off label, and the next step: check and gather, recheck and
  * pack (a different person), hand to the PickMe driver. No prices and the fewest words (product
  * owner, 2026-10-19): the staff only need what goes in the parcel.
  */
@@ -38,6 +38,8 @@ export default async function PackOrderPage({
   const cart = await packingOrder(code);
   if (!cart || (!cart.packing && !PACKABLE.includes(cart.status))) notFound();
   const stage = packingStage(cart.packing);
+  // Once packed every item is ticked for good (product owner, 2026-10-20).
+  const packed = stage === "ready" || stage === "handed-over";
   const items = cart.lines.reduce((n, l) => n + l.qty, 0);
   const open = PACKABLE.includes(cart.status);
   const canPack = open && !packBlockReason(cart.packing, staff.id);
@@ -69,8 +71,23 @@ export default async function PackOrderPage({
             <ul className="mt-1 divide-y divide-line">
               {m.lines.map((l) => (
                 <li key={l.id}>
-                  <label className="flex min-h-11 cursor-pointer items-center gap-3 py-1.5 text-sm">
-                    <input type="checkbox" className="size-5 shrink-0 accent-accent" />
+                  <label
+                    className={cx(
+                      "flex min-h-11 items-center gap-3 py-1.5 text-sm",
+                      !packed && "cursor-pointer",
+                    )}
+                  >
+                    {packed ? (
+                      <span
+                        role="img"
+                        aria-label="Packed"
+                        className="grid size-5 shrink-0 place-items-center rounded bg-accent text-xs font-bold text-on-accent"
+                      >
+                        ✓
+                      </span>
+                    ) : (
+                      <input type="checkbox" className="size-5 shrink-0 accent-accent" />
+                    )}
                     <span className="min-w-0 flex-1">
                       {l.variant.product.brand} {l.variant.product.title}
                       <span className="block text-xs text-subtle">

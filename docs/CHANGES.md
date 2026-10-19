@@ -5,6 +5,7 @@ relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
 ## 2026-10-20
 
+- **Item ticks are fixed once packed.** On a packing order the tick boxes beside each item stay as before (for the packer's eye, not saved) until "Rechecked and packed". From then on every item shows a fixed green tick that can't be unticked. _Agent: frontend._
 - **No "Something wrong?" once an order is packed.** On a packing order, "Something wrong?" → "Gather it again" now shows only between gathering and packing. After "Rechecked and packed" it is gone, and the server refuses to send a packed order back ("This order is already packed"). CLAUDE.md rule 17. _Agents: grouptogether, frontend._
 - **All received stock in one place.** Admin → Offers has a third tab, **Received (N)**: every offer whose stock the packing staff marked Received, newest first, with the seller, the amount and "Received by <name> · <time>"; each opens the offer. The Answered tab now shows a **Received** badge instead of Accepted once the stock is in, and the overview's Stock received card links to the new tab ("All →"). _Agents: catalogue-admin._
 - **Admin overview shows stock the packers received.** A new **Stock received** card on the admin overview (top of the right-hand column; on phones after sales) lists the last 5 receipts: offer name, seller, who received it and when, each opening the offer. Below it, "N accepted offers still on the way" when some haven't arrived. _Agents: catalogue-admin._
