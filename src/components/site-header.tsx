@@ -23,7 +23,9 @@ export function hasTabBar(user: { role: string } | null) {
  */
 export async function SiteHeader() {
   const user = await getCurrentUser();
-  const [unread, unreadMessages] = user
+  // Packing staff get no messages or bell: only their packing list and profile (2026-10-19).
+  const inbox = !!user && user.role !== "PACKER";
+  const [unread, unreadMessages] = inbox
     ? await Promise.all([unreadCount(user.id), unreadMessageCount(user.id)])
     : [0, 0];
   const tap = "min-h-11 items-center rounded-md px-2.5 hover:bg-muted sm:min-h-9";
@@ -113,59 +115,63 @@ export async function SiteHeader() {
           <span className="flex-1" />
           {user ? (
             <>
-              <NavLink
-                href="/messages"
-                className={link}
-                activeClassName={underline}
-                aria-label={`Messages, ${unreadMessages} unread`}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="20"
-                  height="20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                  className="text-ink"
-                >
-                  <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                </svg>
-                {unreadMessages > 0 && (
-                  <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
-                    {unreadMessages}
-                  </span>
-                )}
-              </NavLink>
-              <NavLink
-                href="/notifications"
-                className={link}
-                activeClassName={underline}
-                aria-label={`Notifications, ${unread} unread`}
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  width="20"
-                  height="20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                  className="text-ink"
-                >
-                  <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
-                  <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
-                </svg>
-                {unread > 0 && (
-                  <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
-                    {unread}
-                  </span>
-                )}
-              </NavLink>
+              {inbox && (
+                <>
+                  <NavLink
+                    href="/messages"
+                    className={link}
+                    activeClassName={underline}
+                    aria-label={`Messages, ${unreadMessages} unread`}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="20"
+                      height="20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className="text-ink"
+                    >
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                    </svg>
+                    {unreadMessages > 0 && (
+                      <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
+                        {unreadMessages}
+                      </span>
+                    )}
+                  </NavLink>
+                  <NavLink
+                    href="/notifications"
+                    className={link}
+                    activeClassName={underline}
+                    aria-label={`Notifications, ${unread} unread`}
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      width="20"
+                      height="20"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
+                      className="text-ink"
+                    >
+                      <path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9" />
+                      <path d="M10.3 21a1.94 1.94 0 0 0 3.4 0" />
+                    </svg>
+                    {unread > 0 && (
+                      <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
+                        {unread}
+                      </span>
+                    )}
+                  </NavLink>
+                </>
+              )}
               <NavLink
                 href="/account"
                 className={link}
