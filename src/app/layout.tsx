@@ -20,20 +20,27 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const tabBar = hasTabBar(await getCurrentUser());
+  const user = await getCurrentUser();
+  const tabBar = hasTabBar(user);
+  // Packing staff get no footer: their pages show only what they need (product owner, 2026-10-19).
+  const footer = user?.role !== "PACKER";
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col">
         <SiteHeader />
-        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:py-6">
+        <main
+          className={`mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-5 sm:pt-6 ${footer ? "pb-5 sm:pb-6" : "pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-6"}`}
+        >
           {children}
         </main>
         {/* Bottom padding on phones clears the fixed tab bar, when there is one, and the home indicator. */}
-        <footer
-          className={`border-t border-line px-4 pt-6 text-center text-xs text-subtle sm:pb-6 ${tabBar ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"}`}
-        >
-          GroupTogether · Bulk surplus, bought together · Delivered by PickMe
-        </footer>
+        {footer && (
+          <footer
+            className={`border-t border-line px-4 pt-6 text-center text-xs text-subtle sm:pb-6 ${tabBar ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"}`}
+          >
+            GroupTogether · Bulk surplus, bought together · Delivered by PickMe
+          </footer>
+        )}
       </body>
     </html>
   );
