@@ -9,6 +9,7 @@ import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { getSettings } from "@/server/settings";
+import { FilterSelect } from "../filter-select";
 import { Chip, ChipRow, Count, Table, hrefWith, param } from "../list-bits";
 import { SlipDecision } from "./slip-decision";
 
@@ -119,14 +120,27 @@ export default async function SlipsPage({ searchParams }: PageProps<"/admin/slip
 
 function Tabs({ history, pending }: { history: boolean; pending: number }) {
   return (
-    <ChipRow>
-      <Chip href="/admin/slips" active={!history}>
-        To review <Count n={pending} />
-      </Chip>
-      <Chip href="/admin/slips?view=history" active={history}>
-        Reviewed
-      </Chip>
-    </ChipRow>
+    <>
+      {/* Phones: one dropdown instead of the chips. */}
+      <FilterSelect
+        action="/admin/slips"
+        name="view"
+        label="Show slips"
+        value={history ? "history" : ""}
+        options={[
+          { value: "", label: pending > 0 ? `To review (${pending})` : "To review" },
+          { value: "history", label: "Reviewed" },
+        ]}
+      />
+      <ChipRow className="hidden sm:flex">
+        <Chip href="/admin/slips" active={!history}>
+          To review <Count n={pending} />
+        </Chip>
+        <Chip href="/admin/slips?view=history" active={history}>
+          Reviewed
+        </Chip>
+      </ChipRow>
+    </>
   );
 }
 
