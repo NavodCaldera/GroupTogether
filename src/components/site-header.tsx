@@ -179,6 +179,9 @@ export async function SiteHeader() {
                 aria-label="Profile"
                 title="Profile"
               >
+                {user.role === "PACKER" && (
+                  <span className="mr-2 max-w-32 truncate text-sm font-medium">{user.name}</span>
+                )}
                 <svg
                   viewBox="0 0 24 24"
                   width="22"
@@ -195,9 +198,6 @@ export async function SiteHeader() {
                   <circle cx="12" cy="10" r="3" />
                   <path d="M6.2 18.8a7 7 0 0 1 11.6 0" />
                 </svg>
-                {user.role === "PACKER" && (
-                  <span className="ml-2 max-w-32 truncate text-sm font-medium">{user.name}</span>
-                )}
               </NavLink>
             </>
           ) : (
