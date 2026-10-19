@@ -21,10 +21,7 @@ export default async function AdminPackingPage() {
 
   return (
     <>
-      <PageHeader
-        title="Packing"
-        description="Paid orders in the store: one person checks and gathers, someone else rechecks and packs, then it goes to the PickMe driver."
-      />
+      <PageHeader title="Packing" />
 
       <Section title="To gather" n={toGather.length} empty="No paid orders waiting">
         {toGather.map((c) => (

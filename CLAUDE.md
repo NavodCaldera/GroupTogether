@@ -153,6 +153,8 @@ tab is visible (no websocket or worker).
   `number` for money; convert Prisma decimals with `toD`.
 - Deadlines: `sweep()` runs from `POST /api/cron/sweep` (bearer `CRON_SECRET`) and also on page
   loads, so it works even without a cron.
+- **No explanation text anywhere** (product owner, 2026-10-20): no `PageHeader` description, no
+  lines explaining a page or a flow. Titles, data and actions only, in the fewest words.
 - **Success messages are pop-ups** (product owner, 2026-10-20): a server action calls
   `flash("…")` (`src/server/flash.ts`) and `FlashToast` in the root layout shows it as the
   green-bordered `Toast`. No inline success boxes; `Alert` is for errors.

@@ -5,6 +5,7 @@ relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
 ## 2026-10-20
 
+- **No explanation text anywhere.** Pages show no description line under the title and no text explaining a page or a flow; the admin Packing page's line ("Paid orders in the store: …") is gone. Applies to everything from now on. CLAUDE.md (Code). _Agents: frontend, catalogue-admin._
 - **Admins can see gathered and packed orders.** A new **Packing** tab in the admin (after Carts, `/admin/packing`) shows the packing staff's board: **To gather**, **Gathered, to pack**, **Packed, for PickMe** (with "PickMe booked · <driver>" or "PickMe not booked yet") and **Handed over today**, each with a count. Every order shows its code (opens the admin cart page), owner, city, item count, and who checked and gathered it, rechecked and packed it, and handed it to PickMe, with times. Read-only: admins don't pack. CLAUDE.md rule 17. _Agents: catalogue-admin, grouptogether._
 - **Item ticks are fixed once packed.** On a packing order the tick boxes beside each item stay as before (for the packer's eye, not saved) until "Rechecked and packed". From then on every item shows a fixed green tick that can't be unticked. _Agent: frontend._
 - **No "Something wrong?" once an order is packed.** On a packing order, "Something wrong?" → "Gather it again" now shows only between gathering and packing. After "Rechecked and packed" it is gone, and the server refuses to send a packed order back ("This order is already packed"). CLAUDE.md rule 17. _Agents: grouptogether, frontend._
