@@ -173,3 +173,14 @@ export async function packingOrder(code: string) {
     },
   });
 }
+
+/** What one packer did today (Colombo day), for their profile page. */
+export async function packerToday(staffId: string, now = new Date()) {
+  const since = colomboDayStart(now);
+  const [gathered, packed, handedOver] = await Promise.all([
+    db.packing.count({ where: { gatheredById: staffId, gatheredAt: { gte: since } } }),
+    db.packing.count({ where: { packedById: staffId, packedAt: { gte: since } } }),
+    db.packing.count({ where: { handedOverById: staffId, handedOverAt: { gte: since } } }),
+  ]);
+  return { gathered, packed, handedOver };
+}
