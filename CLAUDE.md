@@ -107,7 +107,11 @@ heavy libraries, paid services or anything that needs an always-on worker.
 17. **Packing staff** (product owner, 2026-10-18; two-person flow 2026-10-19). People in our
     store who sort and pack orders (`PACKER`) are created by an admin at `/admin/users/new-packer`
     (or the seed) and land on `/packing`, a phone-first list of paid orders (CONFIRMED/DISPATCHED):
-    **To gather → To pack → For PickMe**, plus today's handovers. Packing pages show only what the
+    **To gather → To pack → For PickMe**, plus today's handovers. Above them, **To receive** lists
+    sellers' stock offers an admin has accepted (product owner, 2026-10-20): a packer opens one
+    (details, seller contact and factory address, no amount) and presses **Received** when the
+    stock arrives, which records who and when and tells the seller and the admins
+    (`src/server/receiving.ts`, `/packing/stock/<id>`, `StockOffer.receivedBy/receivedAt`). Packing pages show only what the
     packer needs, in the fewest words (product owner, 2026-10-19): code, item count, one short
     status line; no owner, city, times or explanations. Every packer gets an in-app notice when a
     slip is approved ("New order to pack") and when PickMe is booked. On an order

@@ -53,7 +53,8 @@ model User {
   mergeRequests CartMergeRequest[]
   notifications Notification[]
   products      Product[]          @relation("SellerProducts")
-  stockOffers   StockOffer[]
+  stockOffers   StockOffer[]       @relation("OfferSeller")
+  stockReceived StockOffer[]       @relation("StockReceivedBy")
   gathered      Packing[]          @relation("GatheredBy")
   packed        Packing[]          @relation("PackedBy")
   handedOver    Packing[]          @relation("HandedOverBy")
@@ -390,17 +391,21 @@ enum OfferStatus {
 /// the total price they want for all of it. An admin accepts or declines it (with an optional
 /// note). It is not a shop product: if we take the stock, the admin lists it as a product.
 model StockOffer {
-  id          String      @id @default(cuid())
-  sellerId    String
-  seller      User        @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  name        String
-  description String
+  id           String      @id @default(cuid())
+  sellerId     String
+  seller       User        @relation("OfferSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  name         String
+  description  String
   /// Total selling price for the whole lot, LKR
-  amount      Decimal     @db.Decimal(14, 2)
-  status      OfferStatus @default(IN_REVIEW)
-  note        String?
-  decidedAt   DateTime?
-  createdAt   DateTime    @default(now())
+  amount       Decimal     @db.Decimal(14, 2)
+  status       OfferStatus @default(IN_REVIEW)
+  note         String?
+  decidedAt    DateTime?
+  /// Packing staff confirm an accepted offer's stock has reached our store (2026-10-20)
+  receivedById String?
+  receivedBy   User?       @relation("StockReceivedBy", fields: [receivedById], references: [id])
+  receivedAt   DateTime?
+  createdAt    DateTime    @default(now())
 
   @@index([sellerId, createdAt])
   @@index([status, createdAt])

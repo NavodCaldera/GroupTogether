@@ -52,6 +52,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 | Delivery booked (pay the driver about LKR x) | owner                        |
 | Seller sends a stock offer                   | admins                       |
 | Admin accepts or declines a stock offer      | that seller                  |
+| Packing staff press Received on the stock    | that seller, and the admins  |
 | Admin publishes a seller's product           | that seller                  |
 | Admin returns a seller's product with a note | that seller                  |
 

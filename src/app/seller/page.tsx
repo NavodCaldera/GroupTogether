@@ -12,6 +12,8 @@ const STATUS = {
   IN_REVIEW: { label: "Waiting for review", tone: "info" },
   ACCEPTED: { label: "Accepted", tone: "good" },
   DECLINED: { label: "Declined", tone: "bad" },
+  /** Accepted, and our packing staff have confirmed the stock arrived (2026-10-20). */
+  RECEIVED: { label: "Received", tone: "good" },
 } as const;
 
 /**
@@ -63,18 +65,21 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
         </EmptyState>
       ) : (
         <ul className="flex flex-col gap-2">
-          {offers.map((o) => (
-            <li key={o.id} className="rounded-xl border border-line p-3">
-              <div className="flex items-start justify-between gap-2">
-                <p className="min-w-0 font-medium break-words">{o.name}</p>
-                <Badge tone={STATUS[o.status].tone}>{STATUS[o.status].label}</Badge>
-              </div>
-              <p className="mt-0.5 text-sm text-subtle tabular-nums">
-                {formatLKR(o.amount)} · {formatDate(o.createdAt)}
-              </p>
-              {o.note && <p className="mt-1 text-sm">{o.note}</p>}
-            </li>
-          ))}
+          {offers.map((o) => {
+            const st = STATUS[o.receivedAt ? "RECEIVED" : o.status];
+            return (
+              <li key={o.id} className="rounded-xl border border-line p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="min-w-0 font-medium break-words">{o.name}</p>
+                  <Badge tone={st.tone}>{st.label}</Badge>
+                </div>
+                <p className="mt-0.5 text-sm text-subtle tabular-nums">
+                  {formatLKR(o.amount)} · {formatDate(o.createdAt)}
+                </p>
+                {o.note && <p className="mt-1 text-sm">{o.note}</p>}
+              </li>
+            );
+          })}
         </ul>
       )}
     </>

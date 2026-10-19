@@ -4,7 +4,9 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePacker } from "./auth/session";
 import { CartError } from "./carts/service";
+import { CatalogueError } from "./catalogue";
 import { handOver, markGathered, markPacked, sendBack } from "./packing";
+import { receiveStock } from "./receiving";
 
 export type PackingState = { error?: string };
 
@@ -55,4 +57,17 @@ export async function handedOverAction(_p: PackingState, fd: FormData): Promise<
     () => handOver(staff.id, field(fd, "cartId")),
     `/packing?done=handed&cart=${codeOf(fd)}`,
   );
+}
+
+/** The sellers' stock has reached our store (`PackingForm` sends the offer id as `cartId`). */
+export async function receivedAction(_p: PackingState, fd: FormData): Promise<PackingState> {
+  const staff = await requirePacker();
+  try {
+    await receiveStock(staff.id, field(fd, "cartId"));
+  } catch (e) {
+    if (e instanceof CatalogueError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath("/packing", "layout");
+  redirect(`/packing?done=received&cart=${codeOf(fd)}`);
 }

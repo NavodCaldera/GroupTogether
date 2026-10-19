@@ -17,6 +17,7 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
   const o = await db.stockOffer.findUnique({
     where: { id },
     include: {
+      receivedBy: { select: { name: true } },
       seller: {
         select: {
           id: true,
@@ -96,6 +97,13 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
             {o.status === "ACCEPTED" ? "Accepted" : "Declined"} {formatDateTime(o.decidedAt)}
           </p>
           {o.note && <p className="mt-1 text-subtle">Note: {o.note}</p>}
+          {o.status === "ACCEPTED" && (
+            <p className="mt-2">
+              {o.receivedAt
+                ? `Stock received by ${o.receivedBy?.name ?? "packing staff"} · ${formatDateTime(o.receivedAt)}`
+                : "Waiting for the stock to reach our store (packing staff press Received)."}
+            </p>
+          )}
         </Card>
       )}
     </div>
