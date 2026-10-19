@@ -12,21 +12,36 @@ export const metadata: Metadata = { title: "Stock offers" };
 
 /**
  * Factory sellers' stock offers (product owner, 2026-10-19): name, details and the total price
- * for the lot. "To review" (oldest first) or "Answered"; each opens to Accept or Decline.
+ * for the lot. "To review" (oldest first), "Answered", or "Received": every accepted offer whose
+ * stock the packing staff marked Received, newest first (2026-10-20). Each opens the offer.
  */
 export default async function OffersPage({ searchParams }: PageProps<"/admin/offers">) {
   await requireAdmin();
   const sp = await searchParams;
-  const answered = param(sp, "tab") === "answered";
+  const tab = param(sp, "tab");
+  const answered = tab === "answered";
+  const received = tab === "received";
   const done = param(sp, "done");
-  const [offers, toReview] = await Promise.all([
+  const [offers, toReview, receivedCount] = await Promise.all([
     db.stockOffer.findMany({
-      where: answered ? { status: { not: "IN_REVIEW" } } : { status: "IN_REVIEW" },
-      orderBy: answered ? { decidedAt: "desc" } : { createdAt: "asc" },
+      where: received
+        ? { receivedAt: { not: null } }
+        : answered
+          ? { status: { not: "IN_REVIEW" } }
+          : { status: "IN_REVIEW" },
+      orderBy: received
+        ? { receivedAt: "desc" }
+        : answered
+          ? { decidedAt: "desc" }
+          : { createdAt: "asc" },
       take: 100,
-      include: { seller: { select: { name: true, company: true } } },
+      include: {
+        seller: { select: { name: true, company: true } },
+        receivedBy: { select: { name: true } },
+      },
     }),
     db.stockOffer.count({ where: { status: "IN_REVIEW" } }),
+    db.stockOffer.count({ where: { receivedAt: { not: null } } }),
   ]);
 
   return (
@@ -35,15 +50,26 @@ export default async function OffersPage({ searchParams }: PageProps<"/admin/off
       {done === "declined" && <Toast>Offer declined. The seller has been told.</Toast>}
       <PageHeader title="Stock offers" />
       <ChipRow>
-        <Chip href="/admin/offers" active={!answered}>
+        <Chip href="/admin/offers" active={!answered && !received}>
           To review <Count n={toReview} />
         </Chip>
         <Chip href="/admin/offers?tab=answered" active={answered}>
           Answered
         </Chip>
+        <Chip href="/admin/offers?tab=received" active={received}>
+          Received <Count n={receivedCount} />
+        </Chip>
       </ChipRow>
       {offers.length === 0 ? (
-        <EmptyState title={answered ? "No answered offers yet" : "No offers to review"} />
+        <EmptyState
+          title={
+            received
+              ? "No stock received yet"
+              : answered
+                ? "No answered offers yet"
+                : "No offers to review"
+          }
+        />
       ) : (
         <ul className="flex flex-col gap-2">
           {offers.map((o) => (
@@ -60,10 +86,19 @@ export default async function OffersPage({ searchParams }: PageProps<"/admin/off
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-subtle">
                 <span>{o.seller.company || o.seller.name}</span>
                 <span>· {formatDateTime(o.createdAt)}</span>
-                {answered && (
-                  <Badge tone={OFFER_STATUS[o.status].tone}>{OFFER_STATUS[o.status].label}</Badge>
-                )}
+                {answered &&
+                  (o.receivedAt ? (
+                    <Badge tone="good">Received</Badge>
+                  ) : (
+                    <Badge tone={OFFER_STATUS[o.status].tone}>{OFFER_STATUS[o.status].label}</Badge>
+                  ))}
               </p>
+              {received && (
+                <p className="mt-0.5 text-sm">
+                  Received by {o.receivedBy?.name ?? "packing staff"} ·{" "}
+                  {formatDateTime(o.receivedAt)}
+                </p>
+              )}
             </li>
           ))}
         </ul>

@@ -190,8 +190,8 @@ export default async function AdminHome() {
           <Card>
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <h2 className="font-semibold">Stock received</h2>
-              <Link href="/admin/offers?tab=answered" className="text-xs text-accent">
-                Offers →
+              <Link href="/admin/offers?tab=received" className="text-xs text-accent">
+                All →
               </Link>
             </div>
             {received.length === 0 ? (
