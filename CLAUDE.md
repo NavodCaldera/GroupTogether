@@ -146,6 +146,9 @@ tab is visible (no websocket or worker).
   `number` for money; convert Prisma decimals with `toD`.
 - Deadlines: `sweep()` runs from `POST /api/cron/sweep` (bearer `CRON_SECRET`) and also on page
   loads, so it works even without a cron.
+- **Success messages are pop-ups** (product owner, 2026-10-20): a server action calls
+  `flash("…")` (`src/server/flash.ts`) and `FlashToast` in the root layout shows it as the
+  green-bordered `Toast`. No inline success boxes; `Alert` is for errors.
 - Notifications are in-app only: `src/server/notify/index.ts`. The product owner removed email
   sending (2026-10-17); email addresses are only used to sign in and to find users to invite.
 - Delivery: `src/server/delivery/provider.ts`. The default is the manual provider, where the admin

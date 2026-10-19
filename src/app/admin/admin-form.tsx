@@ -4,7 +4,7 @@ import { type ReactNode, useActionState } from "react";
 import { Alert, Button } from "@/components/ui";
 import type { AdminState } from "@/server/admin-actions";
 
-/** One admin form: posts to a server action and shows its error or success message. */
+/** One admin form: posts to a server action and shows its error (success pops up via flash). */
 export function AdminForm({
   action,
   submit,
@@ -26,7 +26,6 @@ export function AdminForm({
         {pending ? "Working…" : submit}
       </Button>
       {state.error && <Alert>{state.error}</Alert>}
-      {state.ok && <Alert tone="good">{state.ok}</Alert>}
     </form>
   );
 }

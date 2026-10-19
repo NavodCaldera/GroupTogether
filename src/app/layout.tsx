@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { SiteHeader, hasTabBar } from "@/components/site-header";
+import { FlashToast } from "@/components/toast";
 import { getCurrentUser } from "@/server/auth/session";
 import "./globals.css";
 
@@ -41,6 +42,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             GroupBasket · Bulk surplus, bought together · Delivered by PickMe
           </footer>
         )}
+        <FlashToast />
       </body>
     </html>
   );

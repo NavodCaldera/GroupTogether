@@ -113,10 +113,9 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
         </div>
       </div>
 
-      {sp.added && <Alert tone="good">Added and held for you.</Alert>}
+      {sp.added && <Toast>Added and held for you.</Toast>}
       {sp.paid && <Toast>Slip uploaded. We&apos;ll check it.</Toast>}
       {typeof sp.error === "string" && <Alert>{sp.error}</Alert>}
-      {sp.merge && <Toast>Done.</Toast>}
       {slip?.status === "REJECTED" && isOwner && cart.status === "AWAITING_SLIP" && (
         <Alert>Slip rejected: {slip.reviewNote}</Alert>
       )}

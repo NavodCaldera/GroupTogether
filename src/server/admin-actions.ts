@@ -11,16 +11,19 @@ import { approveSlip, rejectSlip } from "./carts/slips";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
 import { db } from "./db";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
+import { flash } from "./flash";
 import { decideOffer } from "./offers";
 import { publishProduct, returnToSeller } from "./seller";
 import { UploadError } from "./storage";
 
-export type AdminState = { error?: string; ok?: string };
+export type AdminState = { error?: string };
 
+/** Expected failures go back to the form; `ok` pops up as the success message. */
 async function attempt(fn: () => Promise<unknown>, ok?: string): Promise<AdminState> {
   try {
     await fn();
-    return ok ? { ok } : {};
+    if (ok) await flash(ok);
+    return {};
   } catch (e) {
     if (
       e instanceof CartError ||
@@ -106,6 +109,7 @@ export async function deliveryStatusAction(fd: FormData) {
   if (!DELIVERY_STATUSES.includes(status)) return;
   await setDeliveryStatus(str(fd, "deliveryId"), status);
   revalidatePath("/admin", "layout");
+  await flash(`Delivery marked ${status.replace("_", " ").toLowerCase()}`);
 }
 
 export async function saveProductAction(_p: AdminState, fd: FormData): Promise<AdminState> {
@@ -124,8 +128,9 @@ export async function saveProductAction(_p: AdminState, fd: FormData): Promise<A
   if (res.error) return res;
   revalidatePath("/admin/products");
   revalidatePath("/shop");
+  await flash(id ? "Saved" : "Product created");
   if (!id) redirect(`/admin/products/${savedId}`);
-  return { ok: "Saved" };
+  return {};
 }
 
 export async function adjustStockAction(_p: AdminState, fd: FormData): Promise<AdminState> {
@@ -178,8 +183,8 @@ export async function publishProductAction(_p: AdminState, fd: FormData): Promis
   revalidatePath("/admin", "layout");
   revalidatePath("/shop");
   if (res.error) return res;
-  // The review card goes away with the status, so say so on the reloaded page.
-  redirect(`/admin/products/${productId}?reviewed=published`);
+  await flash("Published: it is on sale now. The seller has been told.");
+  redirect(`/admin/products/${productId}`);
 }
 
 export async function returnProductAction(_p: AdminState, fd: FormData): Promise<AdminState> {
@@ -188,7 +193,8 @@ export async function returnProductAction(_p: AdminState, fd: FormData): Promise
   const res = await attempt(() => returnToSeller(productId, str(fd, "note")));
   revalidatePath("/admin", "layout");
   if (res.error) return res;
-  redirect(`/admin/products/${productId}?reviewed=returned`);
+  await flash("Returned to the seller. They have been told.");
+  redirect(`/admin/products/${productId}`);
 }
 
 /** Accept or decline a factory seller's stock offer (`decision` = accept | decline). */
@@ -210,7 +216,8 @@ export async function createSellerAction(_p: AdminState, fd: FormData): Promise<
   });
   if (res.error) return res;
   revalidatePath("/admin/users");
-  redirect(`/admin/users/${id}?created=1`);
+  await flash("Seller account created. Send them their email and password.");
+  redirect(`/admin/users/${id}`);
 }
 
 export async function createPackerAction(_p: AdminState, fd: FormData): Promise<AdminState> {
@@ -221,5 +228,6 @@ export async function createPackerAction(_p: AdminState, fd: FormData): Promise<
   });
   if (res.error) return res;
   revalidatePath("/admin/users");
-  redirect(`/admin/users/${id}?created=1`);
+  await flash("Packing staff account created. Send them their email and password.");
+  redirect(`/admin/users/${id}`);
 }

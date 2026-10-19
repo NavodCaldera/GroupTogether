@@ -23,7 +23,6 @@ export function ProfileForm({
   return (
     <form action={action} className="flex flex-col gap-4">
       {state.error && <Alert>{state.error}</Alert>}
-      {state.ok && <Alert tone="good">{state.ok}</Alert>}
       {next && <input type="hidden" name="next" value={next} />}
       <Field label="Name" name="name" error={e.name}>
         <Input name="name" autoComplete="name" defaultValue={defaults.name} required />

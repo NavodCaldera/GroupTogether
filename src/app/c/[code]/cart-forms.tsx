@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useActionState } from "react";
 import { LocationPicker, type LocationDefaults } from "@/components/location-picker";
+import { Toast } from "@/components/toast";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import {
   type ActionState,
@@ -33,7 +34,7 @@ export function InviteForm({ cartId }: { cartId: string }) {
         </Button>
       </div>
       {state.error && <Alert>{state.error}</Alert>}
-      {state.ok && <Alert tone="good">{state.ok}</Alert>}
+      {state.ok && <Toast key={state.at}>{state.ok}</Toast>}
     </form>
   );
 }

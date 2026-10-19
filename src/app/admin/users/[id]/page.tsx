@@ -14,12 +14,9 @@ import { Table } from "../../list-bits";
 
 export const metadata: Metadata = { title: "User" };
 
-export default async function AdminUserPage({
-  params,
-  searchParams,
-}: PageProps<"/admin/users/[id]">) {
+export default async function AdminUserPage({ params }: PageProps<"/admin/users/[id]">) {
   await requireAdmin();
-  const [{ id }, { created }] = await Promise.all([params, searchParams]);
+  const { id } = await params;
   const now = new Date();
   const user = await db.user.findUnique({
     where: { id },
@@ -93,18 +90,6 @@ export default async function AdminUserPage({
             }
           />
 
-          {created && user.role === "PACKER" && (
-            <Alert tone="good">
-              Packing staff account created. Send them their email and password; they sign in at
-              /sign-in on their phone and land on the packing list.
-            </Alert>
-          )}
-          {created && user.role !== "PACKER" && (
-            <Alert tone="good">
-              Seller account created. Send them their email and password; they sign in at /sign-in
-              and land on their seller dashboard.
-            </Alert>
-          )}
           {user.role === "PACKER" && (
             <section className="flex flex-col gap-3">
               <h2 className="font-semibold">Packing work ({packingWork.length})</h2>

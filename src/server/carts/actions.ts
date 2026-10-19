@@ -24,6 +24,7 @@ import {
 } from "./service";
 import { uploadSlip } from "./slips";
 import { markReceived } from "../delivery";
+import { flash } from "../flash";
 
 export type ActionState = {
   error?: string;
@@ -38,7 +39,7 @@ export type ActionState = {
 async function attempt(fn: () => Promise<string | void>): Promise<ActionState> {
   try {
     const ok = await fn();
-    return ok ? { ok } : {};
+    return ok ? { ok, at: Date.now() } : {};
   } catch (e) {
     if (e instanceof CartError || e instanceof UploadError) return { error: e.message };
     if (e instanceof ZodError) return { error: e.issues[0]?.message ?? "Check the form" };
@@ -70,6 +71,7 @@ export async function createCartAction(_p: ActionState, fd: FormData): Promise<A
     code = cart.code;
   });
   if (res.error) return res;
+  await flash("Cart started. Add items to fill it.");
   redirect(`/c/${code}`);
 }
 
@@ -103,12 +105,14 @@ export async function addToCartAction(_p: ActionState, fd: FormData): Promise<Ac
 export async function updateLineAction(fd: FormData) {
   const user = await requireUser();
   const cartId = str(fd, "cartId");
+  const qty = Number(str(fd, "qty"));
   const res = await attempt(() =>
-    setLine(user.id, cartId, str(fd, "variantId"), Number(str(fd, "qty"))).then(() => {}),
+    setLine(user.id, cartId, str(fd, "variantId"), qty).then(() => {}),
   );
   const code = await cartCode(cartId);
   revalidatePath(`/c/${code}`);
   if (res.error) redirect(`/c/${code}?error=${encodeURIComponent(res.error)}`);
+  await flash(qty === 0 ? "Removed from the cart" : "Quantity updated");
 }
 
 /** Join with an address and a mandatory map pin. */
@@ -121,6 +125,7 @@ export async function joinAction(_p: ActionState, fd: FormData): Promise<ActionS
     await joinCart(user.id, cartId, location);
   });
   if (res.error) return res;
+  await flash("You joined the cart. Add your items.");
   redirect(`/shop?cart=${code}`);
 }
 
@@ -130,6 +135,7 @@ export async function leaveAction(fd: FormData) {
   const code = await cartCode(cartId);
   const res = await attempt(() => leaveCart(user.id, cartId));
   if (res.error) redirect(`/c/${code}?error=${encodeURIComponent(res.error)}`);
+  await flash("You left the cart");
   redirect("/my-carts");
 }
 
@@ -147,6 +153,7 @@ export async function acceptAction(_p: ActionState, fd: FormData): Promise<Actio
     });
   });
   if (res.error) return res;
+  await flash("Cart accepted. Now upload your bank slip.");
   redirect(`/c/${await cartCode(cartId)}/pay`);
 }
 
@@ -157,6 +164,7 @@ export async function cancelAction(fd: FormData) {
   const res = await attempt(() => cancelCart(user, cartId, str(fd, "reason")));
   if (res.error) redirect(`/c/${code}?error=${encodeURIComponent(res.error)}`);
   revalidatePath(`/c/${code}`);
+  await flash("Cart cancelled");
 }
 
 /** The owner confirms the PickMe drop reached them (dashboard). */
@@ -200,6 +208,7 @@ export async function markAllReadAction() {
     data: { readAt: new Date() },
   });
   revalidatePath("/notifications");
+  await flash("All marked as read");
 }
 
 // ─── Merge into a friend's cart (the owner there must accept) ─────────────
@@ -209,6 +218,8 @@ async function mergeStep(
   codeOf: (fd: FormData) => Promise<string>,
   run: (userId: string, id: string) => Promise<unknown>,
   idKey: string,
+  /** The pop-up on the cart page afterwards */
+  done: string,
 ) {
   const code = await codeOf(fd);
   const user = await requireUser([], `/c/${code}`);
@@ -235,7 +246,9 @@ async function mergeStep(
         : `/notifications?done=${idKey === "requestId" ? str(fd, "verdict") : "1"}`,
     );
   }
-  redirect(res.error ? `/c/${code}?error=${encodeURIComponent(res.error)}` : `/c/${code}?merge=1`);
+  if (res.error) redirect(`/c/${code}?error=${encodeURIComponent(res.error)}`);
+  await flash(done);
+  redirect(`/c/${code}`);
 }
 
 const codeFromCart = (fd: FormData) => cartCode(str(fd, "cartId"));
@@ -249,14 +262,20 @@ async function codeFromRequest(fd: FormData) {
 }
 
 export async function requestMergeAction(fd: FormData) {
-  await mergeStep(fd, codeFromCart, requestMerge, "cartId");
+  await mergeStep(fd, codeFromCart, requestMerge, "cartId", "Request sent. The owner will answer.");
 }
 export async function acceptMergeAction(fd: FormData) {
-  await mergeStep(fd, codeFromRequest, acceptMerge, "requestId");
+  await mergeStep(
+    fd,
+    codeFromRequest,
+    acceptMerge,
+    "requestId",
+    "Accepted. Their items are now in your cart.",
+  );
 }
 export async function declineMergeAction(fd: FormData) {
-  await mergeStep(fd, codeFromRequest, declineMerge, "requestId");
+  await mergeStep(fd, codeFromRequest, declineMerge, "requestId", "Declined");
 }
 export async function cancelMergeAction(fd: FormData) {
-  await mergeStep(fd, codeFromRequest, cancelMerge, "requestId");
+  await mergeStep(fd, codeFromRequest, cancelMerge, "requestId", "Request cancelled");
 }

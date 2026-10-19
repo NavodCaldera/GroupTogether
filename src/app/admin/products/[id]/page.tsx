@@ -18,12 +18,9 @@ import { ProductForm } from "../product-form";
 
 export const metadata: Metadata = { title: "Edit product" };
 
-export default async function EditProductPage({
-  params,
-  searchParams,
-}: PageProps<"/admin/products/[id]">) {
+export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
   await requireAdmin();
-  const [{ id }, { reviewed }] = await Promise.all([params, searchParams]);
+  const { id } = await params;
   const product = await getProduct(id, { live: false });
   if (!product) notFound();
   const seller = product.sellerId
@@ -54,17 +51,9 @@ export default async function EditProductPage({
             }
             actions={<ProductStatusBadge status={product.status} />}
           />
-          {reviewed === "published" && (
-            <div className="mb-4">
-              <Alert tone="good">Published: it is on sale now. The seller has been notified.</Alert>
-            </div>
-          )}
           {product.status === "DRAFT" && product.reviewNote && (
             <div className="mb-4">
-              <Alert tone={reviewed === "returned" ? "good" : "info"}>
-                Returned to the seller{reviewed === "returned" ? " and notified them" : ""}:{" "}
-                {product.reviewNote}
-              </Alert>
+              <Alert tone="info">Returned to the seller: {product.reviewNote}</Alert>
             </div>
           )}
           <Card>

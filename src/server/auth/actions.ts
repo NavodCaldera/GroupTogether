@@ -10,6 +10,7 @@ import {
   signUpSchema,
   updateProfile,
 } from "./service";
+import { flash } from "../flash";
 import { requireUser, signInAs, signOut } from "./session";
 
 export type FormState = {
@@ -28,6 +29,7 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
     if (e instanceof AuthError) return { error: e.message };
     throw e;
   }
+  await flash("Account created. Welcome to GroupBasket!");
   redirect(safeNext(formData.get("next")) ?? "/");
 }
 
@@ -44,6 +46,7 @@ export async function signInAction(_prev: FormState, formData: FormData): Promis
     if (e instanceof AuthError) return { error: e.message };
     throw e;
   }
+  await flash("Signed in");
   redirect(safeNext(formData.get("next")) ?? homeFor(role));
 }
 
@@ -58,9 +61,10 @@ export async function saveProfileAction(_prev: FormState, formData: FormData): P
     if (e instanceof AuthError) return { error: e.message };
     throw e;
   }
+  await flash("Saved");
   const next = safeNext(formData.get("next"));
   if (next) redirect(next);
-  return { ok: "Saved" };
+  return {};
 }
 
 /** A same-site path to return to after sign-in, never another site. */
@@ -71,5 +75,6 @@ function safeNext(v: FormDataEntryValue | null) {
 
 export async function signOutAction() {
   await signOut();
+  await flash("Signed out");
   redirect("/");
 }
