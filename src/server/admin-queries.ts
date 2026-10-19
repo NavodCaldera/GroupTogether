@@ -1,8 +1,8 @@
 import "server-only";
-import type { CartStatus } from "@/generated/prisma/client";
-import { HOLDS_STOCK, addHours } from "@/lib/cart-rules";
+import type { CartStatus, Prisma } from "@/generated/prisma/client";
+import { HOLDS_STOCK, STATUS_LABEL, addHours } from "@/lib/cart-rules";
 import { toD } from "@/lib/decimal";
-import { colomboDayStart } from "@/lib/format";
+import { colomboDayStart, formatLKR } from "@/lib/format";
 import { IN_SHOP } from "./catalogue";
 import { db } from "./db";
 
@@ -153,6 +153,41 @@ export async function overviewStats(now = new Date()) {
     bestSellers,
     recentOrders,
   };
+}
+
+/** The admin carts search: part of the code, cart name, owner name, email or mobile. */
+export function cartSearch(q: string): Prisma.GroupCartWhereInput {
+  return {
+    OR: [
+      { code: { contains: q, mode: "insensitive" } },
+      { name: { contains: q, mode: "insensitive" } },
+      { owner: { name: { contains: q, mode: "insensitive" } } },
+      { owner: { email: { contains: q, mode: "insensitive" } } },
+      { owner: { phone: { contains: q.replace(/[\s-]/g, "").replace(/^\+94/, "0") } } },
+    ],
+  };
+}
+
+/** Up to 6 carts for the search dropdown while typing: codes starting with it first, then newest. */
+export async function suggestCarts(q: string) {
+  const term = q.trim().slice(0, 60);
+  if (term.length < 2) return [];
+  const rows = await db.groupCart.findMany({
+    where: cartSearch(term),
+    select: { code: true, status: true, total: true, owner: { select: { name: true } } },
+    orderBy: { updatedAt: "desc" },
+    take: 20,
+  });
+  const starts = (c: string) => (c.startsWith(term.toUpperCase()) ? 0 : 1);
+  return rows
+    .sort((a, b) => starts(a.code) - starts(b.code))
+    .slice(0, 6)
+    .map((c) => ({
+      href: `/admin/carts/${c.code}`,
+      main: c.code,
+      sub: `${c.owner.name} · ${STATUS_LABEL[c.status]}`,
+      side: formatLKR(c.total),
+    }));
 }
 
 /** Counts for the admin nav badges. */

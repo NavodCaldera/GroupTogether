@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { SuggestInput } from "@/components/suggest-input";
 import { Button, Input, cx } from "@/components/ui";
 
 /** Server-rendered pieces shared by the admin lists. Filters and search are plain GET links. */
@@ -61,6 +62,7 @@ export function SearchForm({
   placeholder,
   label = placeholder,
   keep = {},
+  suggest,
 }: {
   action: string;
   q?: string;
@@ -68,20 +70,33 @@ export function SearchForm({
   /** Screen-reader label, when the placeholder is shortened to fit a phone. */
   label?: string;
   keep?: Record<string, string | undefined>;
+  /** Route answering `?q=` with suggestions to show while typing. */
+  suggest?: string;
 }) {
   return (
     <form action={action} className="mb-4 flex gap-2" role="search">
       {Object.entries(keep).map(
         ([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />,
       )}
-      <Input
-        name="q"
-        type="search"
-        defaultValue={q}
-        placeholder={placeholder}
-        aria-label={label}
-        className="min-w-0 flex-1"
-      />
+      {suggest ? (
+        <SuggestInput
+          endpoint={suggest}
+          defaultValue={q}
+          placeholder={placeholder}
+          label={label}
+          className="min-w-0 flex-1"
+          inputClassName="outline-none focus:border-ink focus:ring-2 focus:ring-ink/10"
+        />
+      ) : (
+        <Input
+          name="q"
+          type="search"
+          defaultValue={q}
+          placeholder={placeholder}
+          aria-label={label}
+          className="min-w-0 flex-1"
+        />
+      )}
       <Button type="submit" variant="secondary">
         Search
       </Button>

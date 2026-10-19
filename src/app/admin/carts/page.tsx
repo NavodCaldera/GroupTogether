@@ -15,6 +15,7 @@ import {
 } from "@/lib/cart-rules";
 import { D } from "@/lib/decimal";
 import { formatDateTime, formatLKR } from "@/lib/format";
+import { cartSearch } from "@/server/admin-queries";
 import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
@@ -62,17 +63,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
   const page = pageNumber(sp);
   const now = new Date();
 
-  const search: Prisma.GroupCartWhereInput | undefined = q
-    ? {
-        OR: [
-          { code: { contains: q, mode: "insensitive" } },
-          { name: { contains: q, mode: "insensitive" } },
-          { owner: { name: { contains: q, mode: "insensitive" } } },
-          { owner: { email: { contains: q, mode: "insensitive" } } },
-          { owner: { phone: { contains: q.replace(/[\s-]/g, "").replace(/^\+94/, "0") } } },
-        ],
-      }
-    : undefined;
+  const search = q ? cartSearch(q) : undefined;
   const where: Prisma.GroupCartWhereInput = { status: { in: [...statuses] }, ...search };
   const select = {
     id: true,
@@ -160,6 +151,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
         action="/admin/carts"
         q={q}
         placeholder="Code, cart name, owner name, email or mobile"
+        suggest="/api/admin/carts/suggest"
         keep={{ stage: exact ? undefined : picked, status: exact }}
       />
       {/* Phones: one dropdown with counts. From sm up: the chips. */}
