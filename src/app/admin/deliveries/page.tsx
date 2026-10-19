@@ -126,6 +126,7 @@ export default async function DeliveriesPage() {
                   <span className="block text-xs text-subtle">{d.cart.deliveryCity}</span>
                 </td>
                 <td>
+                  {d.externalRef ?? d.provider}
                   {d.quotedFee && (
                     <span className="block text-xs text-subtle">
                       {formatLKR(d.quotedFee)} paid by owner
