@@ -138,11 +138,7 @@ export default async function PackOrderPage({
               cartId={cart.id}
               code={cart.code}
               submit="Handed to the PickMe driver"
-            >
-              {cart.delivery?.driverName && (
-                <p className="text-sm">Driver: {cart.delivery.driverName}</p>
-              )}
-            </PackingForm>
+            />
           ))}
 
         {/* Only between gathering and packing: once packed it is final (product owner, 2026-10-20). */}
