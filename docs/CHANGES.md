@@ -5,6 +5,7 @@ relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
 ## 2026-10-20
 
+- **Sellers' profile has their factory address and map pin.** A seller's Profile page now has their name, mobile ("We call this number about your offers"), **Factory address**, city and an **exact pin on the map** (the same map as buyers: tap, drag or "Use my location"; inside Sri Lanka), with Save. The admin sees the address and an "Open the pin in Google Maps" link with the seller's contact on each stock offer. Seed: the demo seller is at 42 Factory Road, Ekala Industrial Estate, Ja-Ela. `SellerProfile` reuses `ProfileForm` (new `phoneHint` / `addressLabel` / `addressHint` props; `LocationPicker` takes `addressLabel`). _Agents: frontend, catalogue-admin, grouptogether, backend-data._
 - **Stock offer: Decline is a button beside Accept, and asks once more.** On an offer, the note box sits above two equal buttons, **Decline** (red) and **Accept**. Decline opens a small window ("Decline this offer?" with the offer name) with **Cancel** and **Yes, decline**; tapping outside it closes it too. The note goes to the seller with either answer. `OfferDecision` in `src/app/admin/offers/offer-decision.tsx`. _Agent: catalogue-admin._
 
 ## 2026-10-19

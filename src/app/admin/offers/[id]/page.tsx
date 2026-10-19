@@ -17,7 +17,19 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
   const o = await db.stockOffer.findUnique({
     where: { id },
     include: {
-      seller: { select: { id: true, name: true, company: true, phone: true, email: true } },
+      seller: {
+        select: {
+          id: true,
+          name: true,
+          company: true,
+          phone: true,
+          email: true,
+          address: true,
+          city: true,
+          lat: true,
+          lng: true,
+        },
+      },
     },
   });
   if (!o) notFound();
@@ -54,6 +66,24 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
           </a>
         )}
         <p className="text-subtle">{o.seller.email}</p>
+        {o.seller.address ? (
+          <p className="mt-2">
+            {o.seller.address}
+            {o.seller.city && `, ${o.seller.city}`}
+          </p>
+        ) : (
+          <p className="mt-2 text-subtle">No factory address yet</p>
+        )}
+        {o.seller.lat != null && o.seller.lng != null && (
+          <a
+            href={`https://www.google.com/maps/search/?api=1&query=${o.seller.lat},${o.seller.lng}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-accent underline"
+          >
+            Open the pin in Google Maps
+          </a>
+        )}
       </Card>
 
       {open ? (

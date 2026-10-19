@@ -67,7 +67,8 @@ heavy libraries, paid services or anything that needs an always-on worker.
       seller can still be published or returned by an admin: `src/server/seller.ts`.)
     - Sellers have one section like admins: no Home/Shop/Carts tabs, no messages icon, no tab bar;
       `/`, `/shop`, `/carts`, `/my-carts`, `/dashboard`, `/messages` and `/c/<code>` send them to
-      `/seller`; their profile has no address or map. **Only buyers (`CUSTOMER`) can start, join
+      `/seller`. Their profile has their name, mobile, **factory address and an exact map pin**
+      (product owner, 2026-10-20), shown to the admin on their stock offers. **Only buyers (`CUSTOMER`) can start, join
       or add to a cart** (`assertOneCart`), and sellers and packing staff can't send chat messages.
     - **Admins** come only from the seed. They have no home page, shop or buyer carts: `/` and `/my-carts` redirect them to `/admin`, `/shop` to `/admin/products`, `/carts` to `/admin/carts`; their header shows only Admin and on phones there is no bottom tab bar (the logo goes to `/admin`) (product owner, 2026-10-18).
 12. **One cart at a time** (product owner, 2026-10-17). A buyer can own or be in only one active

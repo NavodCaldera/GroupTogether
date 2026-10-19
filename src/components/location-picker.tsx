@@ -43,7 +43,13 @@ async function searchPlaces(q: string, signal: AbortSignal): Promise<Suggestion[
   const data = (await res.json()) as {
     features: {
       geometry: { coordinates: [number, number] };
-      properties: { name?: string; state?: string; district?: string; countrycode?: string; type?: string };
+      properties: {
+        name?: string;
+        state?: string;
+        district?: string;
+        countrycode?: string;
+        type?: string;
+      };
     }[];
   };
   const seen = new Set<string>();
@@ -76,10 +82,12 @@ export type LocationDefaults = {
 export function LocationPicker({
   defaults,
   errors = {},
+  addressLabel = "Delivery address",
   addressHint,
 }: {
   defaults?: LocationDefaults | null;
   errors?: Record<string, string[] | undefined>;
+  addressLabel?: string;
   addressHint?: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
@@ -91,7 +99,9 @@ export function LocationPicker({
   const [active, setActive] = useState(-1);
   const typed = useRef(false);
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(
-    defaults?.lat != null && defaults?.lng != null ? { lat: defaults.lat, lng: defaults.lng } : null,
+    defaults?.lat != null && defaults?.lng != null
+      ? { lat: defaults.lat, lng: defaults.lng }
+      : null,
   );
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -167,7 +177,8 @@ export function LocationPicker({
   }
 
   function locate() {
-    if (!navigator.geolocation) return setNote("This device cannot share its location. Tap the map instead.");
+    if (!navigator.geolocation)
+      return setNote("This device cannot share its location. Tap the map instead.");
     setBusy(true);
     navigator.geolocation.getCurrentPosition(
       (p) => {
@@ -184,8 +195,13 @@ export function LocationPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <Field label="Delivery address" name="address" error={errors.address} hint={addressHint}>
-        <Input name="address" autoComplete="street-address" defaultValue={defaults?.address ?? ""} required />
+      <Field label={addressLabel} name="address" error={errors.address} hint={addressHint}>
+        <Input
+          name="address"
+          autoComplete="street-address"
+          defaultValue={defaults?.address ?? ""}
+          required
+        />
       </Field>
       <Field
         label="City"

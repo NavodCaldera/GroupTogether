@@ -8,9 +8,15 @@ import { type FormState, saveProfileAction } from "@/server/auth/actions";
 export function ProfileForm({
   next,
   defaults,
+  phoneHint = "The PickMe driver calls this number",
+  addressLabel,
+  addressHint,
 }: {
   next?: string;
   defaults: LocationDefaults & { name: string; phone: string | null };
+  phoneHint?: string;
+  addressLabel?: string;
+  addressHint?: string;
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveProfileAction, {});
   const e = state.fieldErrors ?? {};
@@ -22,7 +28,7 @@ export function ProfileForm({
       <Field label="Name" name="name" error={e.name}>
         <Input name="name" autoComplete="name" defaultValue={defaults.name} required />
       </Field>
-      <Field label="Mobile" name="phone" error={e.phone} hint="The PickMe driver calls this number">
+      <Field label="Mobile" name="phone" error={e.phone} hint={phoneHint}>
         <Input
           name="phone"
           type="tel"
@@ -32,7 +38,12 @@ export function ProfileForm({
           required
         />
       </Field>
-      <LocationPicker defaults={defaults} errors={e} />
+      <LocationPicker
+        defaults={defaults}
+        errors={e}
+        addressLabel={addressLabel}
+        addressHint={addressHint}
+      />
       <Button type="submit" disabled={pending}>
         {pending ? "Saving…" : "Save"}
       </Button>

@@ -574,6 +574,10 @@ async function main() {
       company: "Ceylon Footwear Mills",
       email: "seller@example.com",
       phone: "0776666666",
+      address: "42 Factory Road, Ekala Industrial Estate",
+      city: "Ja-Ela",
+      lat: 7.0827,
+      lng: 79.9021,
       passwordHash,
     },
   });
