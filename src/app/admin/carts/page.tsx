@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { StatusBadge } from "@/components/cart-bits";
 import { packingSummary } from "@/components/packing-bits";
-import { Badge, EmptyState, PageHeader, cx } from "@/components/ui";
+import { Badge, Button, EmptyState, Input, PageHeader, cx } from "@/components/ui";
 import type { Prisma } from "@/generated/prisma/client";
 import {
   ADMIN_STAGES,
@@ -14,7 +14,7 @@ import {
   byUrgency,
 } from "@/lib/cart-rules";
 import { D } from "@/lib/decimal";
-import { formatDateTime, formatLKR } from "@/lib/format";
+import { colomboDateRange, formatDateTime, formatLKR } from "@/lib/format";
 import { cartSearch } from "@/server/admin-queries";
 import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
@@ -53,17 +53,25 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
   const sp = await searchParams;
   const exact = STATUSES.find((s) => s === param(sp, "status"));
   const q = param(sp, "q");
-  // A search with no stage picked looks through every cart, so finished ones are found too.
+  // Started between these days (Colombo, both included; product owner 2026-10-20).
+  const dates = colomboDateRange(param(sp, "from"), param(sp, "to"));
+  const { from, to } = dates;
+  // A search or date filter with no stage picked looks through every cart, finished ones too.
+  const filtering = Boolean(q || dates.range);
   const picked = param(sp, "stage");
   const stage =
-    ADMIN_STAGES.find((s) => s.key === (picked ?? (q ? "all" : undefined))) ?? ADMIN_STAGES[0];
+    ADMIN_STAGES.find((s) => s.key === (picked ?? (filtering ? "all" : undefined))) ??
+    ADMIN_STAGES[0];
   const statuses = exact ? [exact] : stage.statuses;
   const canUrgency = statuses.every((s) => LIVE.includes(s));
   const urgency = canUrgency && param(sp, "sort") !== "latest";
   const page = pageNumber(sp);
   const now = new Date();
 
-  const search = q ? cartSearch(q) : undefined;
+  const search: Prisma.GroupCartWhereInput = {
+    ...(q ? cartSearch(q) : {}),
+    createdAt: dates.range,
+  };
   const where: Prisma.GroupCartWhereInput = { status: { in: [...statuses] }, ...search };
   const select = {
     id: true,
@@ -112,9 +120,11 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
   const turnCount = (s: CartStatus) => turn.find((t) => t.status === s)?._count ?? 0;
   const href = (values: Record<string, string | number | undefined>) =>
     hrefWith("/admin/carts", {
-      stage: exact || (stage.key === "active" && !q) ? undefined : stage.key,
+      stage: exact || (stage.key === "active" && !filtering) ? undefined : stage.key,
       status: exact,
       q,
+      from,
+      to,
       sort: urgency ? undefined : canUrgency ? "latest" : undefined,
       ...values,
     });
@@ -152,15 +162,39 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
         q={q}
         placeholder="Code, cart name, owner name, email or mobile"
         suggest="/api/admin/carts/suggest"
-        keep={{ stage: exact ? undefined : picked, status: exact }}
+        keep={{ stage: exact ? undefined : picked, status: exact, from, to }}
       />
+      <form action="/admin/carts" className="mb-4 grid grid-cols-[1fr_1fr_auto] items-end gap-2">
+        {Object.entries({ q, stage: exact ? undefined : picked, status: exact }).map(
+          ([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />,
+        )}
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-subtle">
+          From
+          <Input type="date" name="from" defaultValue={from} className="w-full min-w-0" />
+        </label>
+        <label className="flex min-w-0 flex-col gap-1 text-xs text-subtle">
+          To
+          <Input type="date" name="to" defaultValue={to} className="w-full min-w-0" />
+        </label>
+        <Button type="submit" variant="secondary">
+          Apply
+        </Button>
+        {(from || to) && (
+          <Link
+            href={href({ from: undefined, to: undefined, page: undefined, stage: picked })}
+            className="col-span-3 justify-self-start text-xs text-subtle underline"
+          >
+            Clear dates ✕
+          </Link>
+        )}
+      </form>
       {/* Phones: one dropdown with counts. From sm up: the chips. */}
       <FilterSelect
         action="/admin/carts"
         name="stage"
         label="Filter by stage"
         value={exact ? undefined : stage.key}
-        keep={{ q }}
+        keep={{ q, from, to }}
         options={[
           ...(exact ? [{ value: "", label: `${STATUS_LABEL[exact]} (${count([exact])})` }] : []),
           ...ADMIN_STAGES.map((s) => ({
@@ -174,8 +208,10 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
           <Chip
             key={s.key}
             href={hrefWith("/admin/carts", {
-              stage: s.key === "active" && !q ? undefined : s.key,
+              stage: s.key === "active" && !filtering ? undefined : s.key,
               q,
+              from,
+              to,
             })}
             active={!exact && stage.key === s.key}
           >
@@ -207,7 +243,9 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
       </div>
 
       {carts.length === 0 ? (
-        <EmptyState title={q ? `No carts match "${q}"` : "No carts here"} />
+        <EmptyState
+          title={q ? `No carts match "${q}"` : filtering ? "No carts match" : "No carts here"}
+        />
       ) : (
         <>
           {/* Phones: one card per cart. */}

@@ -45,6 +45,34 @@ export function colomboDayStart(now = new Date(), daysAgo = 0): Date {
   return new Date(local - (local % DAY_MS) - COLOMBO_OFFSET_MS - daysAgo * DAY_MS);
 }
 
+/** Midnight in Colombo starting the calendar day "2026-10-20", or null if it isn't a real date. */
+function colomboDay(day: string | undefined): Date | null {
+  const m = day?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const utc = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  if (new Date(utc).toISOString().slice(0, 10) !== day) return null;
+  return new Date(utc - COLOMBO_OFFSET_MS);
+}
+
+/**
+ * A date filter from two "YYYY-MM-DD" days, both included, in Colombo time. Bad days are dropped
+ * and a reversed pair is swapped. `from` / `to` are the days actually used (for the inputs).
+ */
+export function colomboDateRange(fromDay?: string, toDay?: string) {
+  let a = colomboDay(fromDay);
+  let b = colomboDay(toDay);
+  if (a && b && a > b) [a, b] = [b, a];
+  const day = (d: Date) => new Date(d.getTime() + COLOMBO_OFFSET_MS).toISOString().slice(0, 10);
+  return {
+    from: a ? day(a) : undefined,
+    to: b ? day(b) : undefined,
+    range:
+      a || b
+        ? { gte: a ?? undefined, lt: b ? new Date(b.getTime() + DAY_MS) : undefined }
+        : undefined,
+  };
+}
+
 /** "2026-10-16 14:05" in Colombo time, for exports. */
 export function formatIsoDateTime(date: Date | null | undefined): string {
   if (!date) return "";

@@ -1,6 +1,29 @@
 import { describe, expect, it } from "vitest";
 import { toCsv } from "./csv";
-import { colomboDayStart, formatIsoDateTime, waitedFor } from "./format";
+import { colomboDateRange, colomboDayStart, formatIsoDateTime, waitedFor } from "./format";
+
+describe("colomboDateRange", () => {
+  it("covers whole Colombo days, both ends included", () => {
+    const r = colomboDateRange("2026-10-01", "2026-10-20");
+    expect(r.from).toBe("2026-10-01");
+    expect(r.to).toBe("2026-10-20");
+    expect(r.range?.gte?.toISOString()).toBe("2026-09-30T18:30:00.000Z");
+    expect(r.range?.lt?.toISOString()).toBe("2026-10-20T18:30:00.000Z");
+  });
+
+  it("swaps a reversed pair and works with one end", () => {
+    expect(colomboDateRange("2026-10-20", "2026-10-01").from).toBe("2026-10-01");
+    const onlyFrom = colomboDateRange("2026-10-05");
+    expect(onlyFrom.range?.gte?.toISOString()).toBe("2026-10-04T18:30:00.000Z");
+    expect(onlyFrom.range?.lt).toBeUndefined();
+  });
+
+  it("ignores days that don't exist or aren't dates", () => {
+    const none = { from: undefined, to: undefined, range: undefined };
+    expect(colomboDateRange("2026-02-30", "soon")).toEqual(none);
+    expect(colomboDateRange()).toEqual(none);
+  });
+});
 
 describe("colomboDayStart", () => {
   it("is midnight in Colombo (18:30 UTC the day before)", () => {
