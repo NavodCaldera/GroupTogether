@@ -202,7 +202,7 @@ export async function setLine(
     if (delta > 0) {
       // Atomic: the row lock taken by UPDATE re-checks `available` against concurrent carts.
       const locked = await tx.variant.updateMany({
-        where: { id: variantId, available: { gte: delta }, product: { status: "LIVE" } },
+        where: { id: variantId, available: { gte: delta } },
         data: { available: { decrement: delta }, reserved: { increment: delta } },
       });
       if (locked.count === 0) {

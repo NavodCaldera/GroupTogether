@@ -35,7 +35,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 1. **Every cart change happens under the cart row lock**: `db.$transaction` plus `lockCart()`, which runs `SELECT … FOR UPDATE`. Re-check the status inside the lock.
 2. **Stock locks on add.** `setLine` changes the stock by the difference between the old and new quantity.
-   - Increase: `variant.updateMany({ where: { id, available: { gte: delta }, product: { status: "LIVE" } }, data: { available: -delta, reserved: +delta } })`. If the count is 0, throw "Only N more available" or "sold out".
+   - Increase: `variant.updateMany({ where: { id, available: { gte: delta } }, data: { available: -delta, reserved: +delta } })` (no product status since 2026-10-20: free stock decides). If the count is 0, throw "Only N more available" or "sold out".
    - Decrease: release the difference.
 3. Only OPEN and READY carts are editable, and only before `expiresAt`. Adding to a cart joins it (`cartMember` upsert). `setLine(..., { add: true })` adds to the existing quantity (at most 99).
    3b. **One cart at a time:** `createCart`, `joinCart` and `setLine` call `assertOneCart` (per-user advisory lock) and refuse when the buyer is already in another active cart (`isActiveCart` / `activeCartOf`). It also refuses anyone who isn't a buyer (`CUSTOMER`): sellers, packing staff and admins never use carts ("Only shoppers can use carts", product owner 2026-10-19).

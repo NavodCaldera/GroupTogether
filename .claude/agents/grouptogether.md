@@ -100,6 +100,10 @@ It is a standalone project: it shares no code, database or rules with any other 
     `packBlockReason` / `handOverBlockReason` in `src/lib/packing-rules.ts`; flow: `markGathered` /
     `markPacked` / `sendBack` / `handOver` in `src/server/packing.ts` (cart row locked); table
     `Packing` (`gatheredBy`, `packedBy`, `handedOverBy`).
+18. **No product statuses: stock decides** (product owner, 2026-10-20). A product is in the shop
+    while it has free stock in some size (`IN_SHOP`, catalogue.ts); none = hidden. Remove free
+    stock to stop selling; cart locks stay. Admin products filter: All / In the shop / Not in the
+    shop / Low stock. `Product.status`/`reviewNote` unused; `src/server/seller.ts` removed.
 
 ## 3. Cart lifecycle
 
@@ -126,7 +130,7 @@ Money is `Decimal(14,2)`.
   - Fields: role `CUSTOMER|ADMIN|SELLER|PACKER`, name, email (unique), phone (unique), passwordHash (scrypt), address, city, locked.
   - `Session`: id = SHA-256 of the cookie token, 30 days.
 - `Product`:
-  - Fields: title, brand, description, category `SHOES|APPAREL`, stockType `FACTORY_SURPLUS|B_GRADE`, defectNotes (unused since 2026-10-17), retailPrice, price, status `DRAFT|LIVE|ARCHIVED`, photoKey and photoType (one photo).
+  - Fields: title, brand, description, category `SHOES|APPAREL`, stockType `FACTORY_SURPLUS|B_GRADE`, defectNotes (unused since 2026-10-17), retailPrice, price, status (unused since 2026-10-20: free stock decides what is in the shop, rule 18), photoKey and photoType (one photo).
   - `Variant`: size, colour, `available`, `reserved`, `sold`, unique per (product, size, colour).
 - `GroupCart`:
   - Identity: code (unique), name, owner, visibility `PUBLIC|PRIVATE`, status.
@@ -168,7 +172,7 @@ Money is `Decimal(14,2)`.
 | `/admin/slips`                             | admin                | Pending slips; open the file; approve (redirects to the cart) or reject with a reason. `?view=history`: the last 100 decisions                                         |
 | `/admin/carts`, `/admin/carts/[code]`      | admin                | Needs-you tiles, search, stage tabs, next step per cart, urgency sort, paging; stage bar, picking list, members' shares, timeline, book PickMe, cancel                |
 | `/admin/deliveries`                        | admin                | Confirmed carts to book; drops in progress with status buttons; recently delivered                                                                                     |
-| `/admin/products`, `/new`, `/[id]`         | admin                | Search, status (incl. In review), seller and low-stock filters, free / in-cart / sold counts; edit; stock by size; publish or return a seller's product                |
+| `/admin/products`, `/new`, `/[id]`         | admin                | Search, filter (All / In the shop / Not in the shop / Low stock), seller filter, free / in-cart / sold counts; edit; stock by size                                  |
 | `/admin/users`, `/admin/users/[id]`        | admin                | Search and filter users (buyers, sellers, admins, locked); a user's carts, shares, slips and devices; lock or unlock; `/admin/users/new-seller` adds a factory seller  |
 | `/admin/settings`                          | admin                | Minimum, time windows, bank account; system status (delivery, cron)                                                                                                    |
 | `GET /admin/export/orders`                 | admin                | Confirmed orders of the last `?days=` (default 30) as CSV                                                                                                              |

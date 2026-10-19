@@ -4,7 +4,6 @@ import { sendMessage } from "@/server/carts/chat";
 import { createCart } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { createOffer, decideOffer } from "@/server/offers";
-import { publishProduct, returnToSeller } from "@/server/seller";
 import { makeUser, resetDb } from "./helpers";
 
 let n = 0;
@@ -76,33 +75,6 @@ describe("factory seller stock offers", () => {
     await expect(createCart(packer.id, {})).rejects.toThrow("Only shoppers");
     const cart = await createCart(buyer.id, {});
     await expect(sendMessage(s.id, cart.id, "Hello")).rejects.toThrow("Only shoppers");
-  });
-
-  it("an admin can still publish or return a seller's product in review", async () => {
-    const s = await seller();
-    const make = () =>
-      db.product.create({
-        data: {
-          title: "Loafer",
-          brand: "Ceylon",
-          category: "SHOES",
-          audience: "MEN",
-          kind: "men-formal",
-          stockType: "FACTORY_SURPLUS",
-          price: 6200,
-          status: "IN_REVIEW",
-          sellerId: s.id,
-        },
-      });
-    const [a, b] = [await make(), await make()];
-    await publishProduct(a.id);
-    expect((await db.product.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("LIVE");
-    await expect(publishProduct(a.id)).rejects.toThrow("isn't waiting for review");
-    await returnToSeller(b.id, "Not this season");
-    expect(await db.product.findUniqueOrThrow({ where: { id: b.id } })).toMatchObject({
-      status: "DRAFT",
-      reviewNote: "Not this season",
-    });
   });
 
   it("refuses a second account with the same email", async () => {

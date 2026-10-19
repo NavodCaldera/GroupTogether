@@ -1,31 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { PRODUCT_STATUS_LABEL, ProductStatusBadge } from "@/components/cart-bits";
 import { EmptyState, PageHeader } from "@/components/ui";
-import type { ProductStatus } from "@/generated/prisma/client";
+import type { Prisma } from "@/generated/prisma/client";
 import { formatLKR } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
 import { LOW_STOCK } from "@/server/admin-queries";
+import { IN_SHOP } from "@/server/catalogue";
 import { db } from "@/server/db";
-import { Chip, ChipRow, Count, SearchForm, hrefWith, param } from "../list-bits";
+import { Chip, ChipRow, SearchForm, hrefWith, param } from "../list-bits";
 
 export const metadata: Metadata = { title: "Products" };
 
-const STATUSES: ProductStatus[] = ["IN_REVIEW", "LIVE", "DRAFT", "ARCHIVED"];
+/** No product statuses (product owner, 2026-10-20): stock decides what is in the shop. */
+const FILTERS: Record<string, Prisma.ProductWhereInput> = {
+  shop: IN_SHOP,
+  none: { variants: { none: { available: { gt: 0 } } } },
+  low: { ...IN_SHOP, AND: { variants: { some: { available: { lte: LOW_STOCK } } } } },
+};
 
 export default async function AdminProductsPage({ searchParams }: PageProps<"/admin/products">) {
   await requireAdmin();
   const sp = await searchParams;
-  const status = STATUSES.find((s) => s === param(sp, "status"));
-  const low = param(sp, "stock") === "low";
+  const f = param(sp, "filter") || (param(sp, "stock") === "low" ? "low" : undefined);
+  const filter = f && f in FILTERS ? f : undefined;
   const q = param(sp, "q");
   const sellerId = param(sp, "seller");
-  const [products, inReview, seller] = await Promise.all([
+  const [products, seller] = await Promise.all([
     db.product.findMany({
       where: {
         sellerId,
-        status: low ? "LIVE" : status,
-        variants: low ? { some: { available: { lte: LOW_STOCK } } } : undefined,
+        ...(filter ? FILTERS[filter] : {}),
         OR: q
           ? [
               { title: { contains: q, mode: "insensitive" } },
@@ -39,13 +43,12 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
       },
       orderBy: { updatedAt: "desc" },
     }),
-    db.product.count({ where: { status: "IN_REVIEW" } }),
     sellerId
       ? db.user.findUnique({ where: { id: sellerId }, select: { name: true, company: true } })
       : null,
   ]);
   const href = (values: Record<string, string | undefined>) =>
-    hrefWith("/admin/products", { q, seller: sellerId, ...values });
+    hrefWith("/admin/products", { q, filter, seller: sellerId, ...values });
   return (
     <>
       <PageHeader
@@ -61,26 +64,26 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
       />
       <SearchForm action="/admin/products" q={q} placeholder="Title or brand" />
       <ChipRow>
-        <Chip href={href({})} active={!status && !low}>
+        <Chip href={href({ filter: undefined })} active={!filter}>
           All
         </Chip>
-        {STATUSES.map((s) => (
-          <Chip key={s} href={href({ status: s })} active={status === s && !low}>
-            {PRODUCT_STATUS_LABEL[s]}
-            {s === "IN_REVIEW" && <Count n={inReview} tone="alert" />}
-          </Chip>
-        ))}
+        <Chip href={href({ filter: "shop" })} active={filter === "shop"}>
+          In the shop
+        </Chip>
+        <Chip href={href({ filter: "none" })} active={filter === "none"}>
+          Not in the shop
+        </Chip>
         {sellerId && (
-          <Chip href={hrefWith("/admin/products", { q, status })} active={false}>
+          <Chip href={hrefWith("/admin/products", { q, filter })} active={false}>
             All sellers ✕
           </Chip>
         )}
-        <Chip href={href({ stock: "low" })} active={low}>
+        <Chip href={href({ filter: "low" })} active={filter === "low"}>
           Low stock (≤ {LOW_STOCK} free in a size)
         </Chip>
       </ChipRow>
       {products.length === 0 ? (
-        <EmptyState title={q || status || low ? "No products match" : "No products yet"} />
+        <EmptyState title={q || filter ? "No products match" : "No products yet"} />
       ) : (
         <div className="overflow-x-auto rounded-xl border border-line">
           <table className="w-full text-sm whitespace-nowrap">
@@ -92,7 +95,6 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                 <th className="px-3 py-2 text-right">Free</th>
                 <th className="px-3 py-2 text-right">In carts</th>
                 <th className="px-3 py-2 text-right">Sold</th>
-                <th className="px-3 py-2">Status</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -119,9 +121,6 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
                     <td className="px-3 py-2 text-right">{sum("available")}</td>
                     <td className="px-3 py-2 text-right">{sum("reserved")}</td>
                     <td className="px-3 py-2 text-right">{sum("sold")}</td>
-                    <td className="px-3 py-2">
-                      <ProductStatusBadge status={p.status} />
-                    </td>
                   </tr>
                 );
               })}

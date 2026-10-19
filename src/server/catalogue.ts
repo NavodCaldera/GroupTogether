@@ -30,7 +30,15 @@ const listSelect = {
   variants: { select: { size: true, available: true }, orderBy: { size: "asc" } },
 } satisfies Prisma.ProductSelect;
 
-/** Live products for the shop. Sizes with no free stock are still listed but marked sold out. */
+/**
+ * A product is in the shop while it has free stock in some size (product owner, 2026-10-20: no
+ * product statuses). New, emptied and sold-out products are hidden. `Product.status` is unused.
+ */
+export const IN_SHOP = {
+  variants: { some: { available: { gt: 0 } } },
+} satisfies Prisma.ProductWhereInput;
+
+/** Products in the shop. Sizes with no free stock are still listed but marked sold out. */
 export async function listProducts(
   f: ProductFilters = {},
   take = 60,
@@ -38,12 +46,11 @@ export async function listProducts(
 ) {
   return db.product.findMany({
     where: {
-      status: "LIVE",
       audience: f.audience,
       kind: f.kind,
       stockType: f.stockType,
       brand: f.brand ? { equals: f.brand, mode: "insensitive" } : undefined,
-      variants: f.size ? { some: { size: f.size, available: { gt: 0 } } } : undefined,
+      variants: f.size ? { some: { size: f.size, available: { gt: 0 } } } : IN_SHOP.variants,
       OR: f.q
         ? [
             { title: { contains: f.q, mode: "insensitive" } },
@@ -58,13 +65,13 @@ export async function listProducts(
   });
 }
 
-/** A few live products matching what the shopper has typed, for the search dropdown. */
+/** A few products in the shop matching what the shopper has typed, for the search dropdown. */
 export async function suggestProducts(q: string, take = 6) {
   const term = q.trim().slice(0, 60);
   if (term.length < 2) return [];
   const rows = await db.product.findMany({
     where: {
-      status: "LIVE",
+      ...IN_SHOP,
       OR: [
         { title: { contains: term, mode: "insensitive" } },
         { brand: { contains: term, mode: "insensitive" } },
@@ -82,13 +89,13 @@ export async function suggestProducts(q: string, take = 6) {
 export async function shopFacets() {
   const [brands, sizes] = await Promise.all([
     db.product.findMany({
-      where: { status: "LIVE" },
+      where: IN_SHOP,
       distinct: ["brand"],
       select: { brand: true },
       orderBy: { brand: "asc" },
     }),
     db.variant.findMany({
-      where: { product: { status: "LIVE" }, available: { gt: 0 } },
+      where: { available: { gt: 0 } },
       distinct: ["size"],
       select: { size: true },
       orderBy: { size: "asc" },
@@ -97,9 +104,10 @@ export async function shopFacets() {
   return { brands: brands.map((b) => b.brand), sizes: sizes.map((s) => s.size) };
 }
 
-export async function getProduct(id: string, { live = true } = {}) {
+/** One product with its sizes. Opens even when sold out, so links from carts keep working. */
+export async function getProduct(id: string) {
   return db.product.findFirst({
-    where: { id, status: live ? "LIVE" : undefined },
+    where: { id },
     include: { variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] } },
   });
 }
@@ -122,23 +130,14 @@ export const productSchema = z
     stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]).optional(),
     price: money,
     retailPrice: money.optional().or(z.literal("")),
-    status: z.enum(["DRAFT", "IN_REVIEW", "LIVE", "ARCHIVED"]).default("DRAFT"),
   })
   .refine((v) => kindFits(v.audience, v.kind), {
     message: "That category isn't offered for this audience",
     path: ["kind"],
   });
 
-/**
- * Creates or updates a product. A seller passes `sellerId`: a new product becomes theirs, and an
- * update applies only while it is still their draft (checked in the same statement).
- */
-export async function saveProduct(
-  id: string | null,
-  input: unknown,
-  photo: File | null,
-  sellerId?: string,
-) {
+/** Creates or updates a product (admin). It shows in the shop once it has free stock. */
+export async function saveProduct(id: string | null, input: unknown, photo: File | null) {
   const p = productSchema.parse(input);
   const data = {
     ...p,
@@ -154,12 +153,9 @@ export async function saveProduct(
   };
   if (!id)
     return db.product.create({
-      data: { ...data, stockType: p.stockType ?? "FACTORY_SURPLUS", sellerId },
+      data: { ...data, stockType: p.stockType ?? "FACTORY_SURPLUS" },
     });
-  return db.product.update({
-    where: sellerId ? { id, sellerId, status: "DRAFT" } : { id },
-    data,
-  });
+  return db.product.update({ where: { id }, data });
 }
 
 /** Adds (or with a negative number, removes) free stock of a size. Never touches locked stock. */
@@ -190,7 +186,7 @@ export async function adjustStock(productId: string, size: string, colour: strin
  */
 export async function retailSaving() {
   const rows = await db.product.findMany({
-    where: { status: "LIVE", retailPrice: { not: null } },
+    where: { ...IN_SHOP, retailPrice: { not: null } },
     select: { price: true, retailPrice: true },
   });
   let retail = new D(0);

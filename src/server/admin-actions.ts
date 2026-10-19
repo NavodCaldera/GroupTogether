@@ -13,7 +13,6 @@ import { db } from "./db";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
 import { flash } from "./flash";
 import { decideOffer } from "./offers";
-import { publishProduct, returnToSeller } from "./seller";
 import { UploadError } from "./storage";
 
 export type AdminState = { error?: string };
@@ -141,6 +140,8 @@ export async function adjustStockAction(_p: AdminState, fd: FormData): Promise<A
     "Stock updated",
   );
   revalidatePath(`/admin/products/${productId}`);
+  // Stock decides whether it shows in the shop.
+  revalidatePath("/shop");
   return res;
 }
 
@@ -174,27 +175,6 @@ export async function lockUserAction(_p: AdminState, fd: FormData): Promise<Admi
   );
   revalidatePath("/admin/users", "layout");
   return res;
-}
-
-export async function publishProductAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
-  const productId = str(fd, "productId");
-  const res = await attempt(() => publishProduct(productId));
-  revalidatePath("/admin", "layout");
-  revalidatePath("/shop");
-  if (res.error) return res;
-  await flash("Published: it is on sale now. The seller has been told.");
-  redirect(`/admin/products/${productId}`);
-}
-
-export async function returnProductAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
-  const productId = str(fd, "productId");
-  const res = await attempt(() => returnToSeller(productId, str(fd, "note")));
-  revalidatePath("/admin", "layout");
-  if (res.error) return res;
-  await flash("Returned to the seller. They have been told.");
-  redirect(`/admin/products/${productId}`);
 }
 
 /** Accept or decline a factory seller's stock offer (`decision` = accept | decline). */

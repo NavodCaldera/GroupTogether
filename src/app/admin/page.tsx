@@ -61,12 +61,6 @@ export default async function AdminHome() {
       urgent: true,
     },
     {
-      n: s.productsToReview,
-      text: s.productsToReview === 1 ? "seller product to review" : "seller products to review",
-      href: "/admin/products?status=IN_REVIEW",
-      urgent: true,
-    },
-    {
       n: offers,
       text: offers === 1 ? "stock offer from a seller" : "stock offers from sellers",
       href: "/admin/offers",

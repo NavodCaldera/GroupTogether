@@ -126,17 +126,3 @@ export function ProductImage({
     </div>
   );
 }
-
-export type ProductStatus = "DRAFT" | "IN_REVIEW" | "LIVE" | "ARCHIVED";
-
-export const PRODUCT_STATUS_LABEL: Record<ProductStatus, string> = {
-  DRAFT: "Draft",
-  IN_REVIEW: "In review",
-  LIVE: "Live",
-  ARCHIVED: "Archived",
-};
-
-export function ProductStatusBadge({ status }: { status: ProductStatus }) {
-  const tone = status === "LIVE" ? "good" : status === "IN_REVIEW" ? "info" : "neutral";
-  return <Badge tone={tone}>{PRODUCT_STATUS_LABEL[status]}</Badge>;
-}

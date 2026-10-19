@@ -65,8 +65,7 @@ heavy libraries, paid services or anything that needs an always-on worker.
       **Send for review**. Admins get an in-app notice and answer at **Admin → Offers**: Accept
       or Decline, each with an optional note; the seller is told in the app. An offer is not a
       shop product: if we take the stock, the admin lists it as a product. Table `StockOffer`;
-      `createOffer` / `decideOffer` in `src/server/offers.ts`. (Products already listed under a
-      seller can still be published or returned by an admin: `src/server/seller.ts`.)
+      `createOffer` / `decideOffer` in `src/server/offers.ts`.
     - Sellers have one section like admins: no Home/Shop/Carts tabs, no messages icon, no tab bar;
       `/`, `/shop`, `/carts`, `/my-carts`, `/dashboard`, `/messages` and `/c/<code>` send them to
       `/seller`. Their profile has their name, mobile, **factory address and an exact map pin**
@@ -134,6 +133,15 @@ heavy libraries, paid services or anything that needs an always-on worker.
     `packBlockReason` / `handOverBlockReason` in `src/lib/packing-rules.ts`; flow: `markGathered` /
     `markPacked` / `sendBack` / `handOver` in `src/server/packing.ts` (cart row locked); table
     `Packing` (`gatheredBy`, `packedBy`, `handedOverBy`).
+
+18. **No product statuses: stock decides** (product owner, 2026-10-20). Draft, In review, Live and
+    Archived are gone. A product is in the shop (listing, search, home page, brands) while it has
+    free stock in some size (`IN_SHOP` in `src/server/catalogue.ts`); a new product shows once
+    stock is added, and one with no free stock (emptied or sold out) is hidden. To stop selling
+    something, remove its free stock; pieces already in carts stay locked. Product pages still
+    open by link. Admin → Products filters: All / In the shop / Not in the shop / Low stock.
+    `Product.status` and `reviewNote` stay in the schema, unused; the seller-product review
+    (`src/server/seller.ts`, publish / return) was removed.
 
 Cart statuses: `OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED`,
 plus the dead ends `EXPIRED` and `CANCELLED`. 14. **Owner chat** (product owner, 2026-10-17). The cart page no longer shows a delivery-point map

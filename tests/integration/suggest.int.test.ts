@@ -7,7 +7,7 @@ beforeEach(resetDb);
 afterAll(() => db.$disconnect());
 
 describe("search suggestions", () => {
-  it("matches live products by title or brand, prefix first, and ignores short input", async () => {
+  it("matches products in the shop by title or brand, prefix first, and ignores short input", async () => {
     const v = await makeVariant("1000", 5);
     await db.product.update({
       where: { id: v.productId },
@@ -16,7 +16,7 @@ describe("search suggestions", () => {
     expect((await suggestProducts("velo")).map((p) => p.title)).toEqual(["Velocity runner"]);
     expect(await suggestProducts("acm")).toHaveLength(1);
     expect(await suggestProducts("v")).toHaveLength(0);
-    await db.product.update({ where: { id: v.productId }, data: { status: "DRAFT" } });
+    await db.variant.update({ where: { id: v.id }, data: { available: 0 } });
     expect(await suggestProducts("velo")).toHaveLength(0);
   });
 });

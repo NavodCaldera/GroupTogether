@@ -1,5 +1,5 @@
 import { TaxonomyFields } from "@/components/taxonomy-fields";
-import { Field, Input, Select, Textarea } from "@/components/ui";
+import { Field, Input, Textarea } from "@/components/ui";
 import { type AdminState, saveProductAction } from "@/server/admin-actions";
 import { AdminForm } from "../admin-form";
 
@@ -12,7 +12,6 @@ type ProductValues = {
   kind: string | null;
   price: { toString(): string };
   retailPrice: { toString(): string } | null;
-  status: string;
 };
 
 /** The admin's product details form. Factory sellers send stock offers instead (`src/server/offers.ts`). */
@@ -67,14 +66,6 @@ export function ProductForm({
           accept="image/jpeg,image/png,image/webp"
           className="text-sm"
         />
-      </Field>
-      <Field label="Status" name="status">
-        <Select name="status" defaultValue={product?.status ?? "DRAFT"}>
-          <option value="DRAFT">Draft (hidden)</option>
-          <option value="IN_REVIEW">In review (seller submitted)</option>
-          <option value="LIVE">Live</option>
-          <option value="ARCHIVED">Archived</option>
-        </Select>
       </Field>
     </AdminForm>
   );

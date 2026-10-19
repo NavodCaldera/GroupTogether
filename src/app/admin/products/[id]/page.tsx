@@ -2,14 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { BackLink } from "@/components/client";
-import { ProductStatusBadge } from "@/components/cart-bits";
 import { StockTable } from "@/components/stock-table";
-import { Alert, Card, Field, Input, PageHeader } from "@/components/ui";
-import {
-  adjustStockAction,
-  publishProductAction,
-  returnProductAction,
-} from "@/server/admin-actions";
+import { Card, Field, Input, PageHeader } from "@/components/ui";
+import { adjustStockAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { getProduct } from "@/server/catalogue";
 import { db } from "@/server/db";
@@ -21,7 +16,7 @@ export const metadata: Metadata = { title: "Edit product" };
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
   await requireAdmin();
   const { id } = await params;
-  const product = await getProduct(id, { live: false });
+  const product = await getProduct(id);
   if (!product) notFound();
   const seller = product.sellerId
     ? await db.user.findUnique({
@@ -49,40 +44,12 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
                 "Our own listing"
               )
             }
-            actions={<ProductStatusBadge status={product.status} />}
           />
-          {product.status === "DRAFT" && product.reviewNote && (
-            <div className="mb-4">
-              <Alert tone="info">Returned to the seller: {product.reviewNote}</Alert>
-            </div>
-          )}
           <Card>
             <ProductForm product={product} />
           </Card>
         </div>
         <div className="flex flex-col gap-4">
-          {product.status === "IN_REVIEW" && (
-            <Card className="border-accent">
-              <h2 className="mb-1 font-semibold">Seller submitted this for review</h2>
-              <p className="mb-3 text-sm text-subtle">
-                Check the details, and that the stock below has reached our store, before
-                publishing.
-              </p>
-              <div className="flex flex-col gap-3">
-                <AdminForm action={publishProductAction} submit="Publish: put it on sale">
-                  <input type="hidden" name="productId" value={product.id} />
-                </AdminForm>
-                <AdminForm
-                  action={returnProductAction}
-                  submit="Return to seller"
-                  variant="secondary"
-                >
-                  <input type="hidden" name="productId" value={product.id} />
-                  <Input name="note" placeholder="What should they change?" required />
-                </AdminForm>
-              </div>
-            </Card>
-          )}
           <Card>
             <h2 className="mb-2 font-semibold">Stock by size</h2>
             <StockTable variants={product.variants} />
