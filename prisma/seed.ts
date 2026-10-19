@@ -490,50 +490,81 @@ async function main() {
     },
   });
 
-  // Tharindu's paid order, confirmed an hour ago: waiting for the packing staff.
-  const pi = variants.findIndex(
-    (v, n) => !used.has(n) && v.available * v.price >= 50000 && v.price >= 3000,
-  );
-  if (pi < 0) throw new Error("seed: no variant for the order to pack");
-  used.add(pi);
-  const packQty = Math.ceil(50000 / variants[pi].price);
-  const paidAt = addHours(now, -3);
-  await db.groupCart.create({
-    data: {
-      code: newCartCode(randomBytes),
-      name: "Tharindu Senanayake's cart",
-      ownerId: users[THARINDU].id,
-      status: "CONFIRMED",
-      minOrderValue: 50000,
-      total: variants[pi].price * packQty,
-      createdAt: addHours(paidAt, -2),
-      expiresAt: addHours(paidAt, 24),
-      readyAt: paidAt,
-      acceptedAt: addHours(paidAt, 1),
-      slipDueAt: addHours(paidAt, 3),
-      confirmedAt: addHours(paidAt, 2),
-      deliveryAddress: users[THARINDU].address,
-      deliveryCity: users[THARINDU].city,
-      deliveryLat: users[THARINDU].lat,
-      deliveryLng: users[THARINDU].lng,
-      deliveryPhone: users[THARINDU].phone,
-      members: { create: [{ userId: users[THARINDU].id }] },
-      lines: {
-        create: [
-          {
-            userId: users[THARINDU].id,
-            variantId: variants[pi].id,
-            qty: packQty,
-            unitPrice: variants[pi].price,
-          },
-        ],
+  // Paid orders at each packing stage, so the packing staff's list is never empty: to gather
+  // (Tharindu), to pack (Sachini, gathered by Kasun), for PickMe (Dilan, packed by Ishara and
+  // booked with PickMe). The delivered order above is the "handed over" one.
+  const paidOrder = async (ui: number, hoursAgo: number, stage: "gather" | "pack" | "ready") => {
+    const pi = variants.findIndex(
+      (v, n) => !used.has(n) && v.available * v.price >= 50000 && v.price >= 3000,
+    );
+    if (pi < 0) throw new Error("seed: no variant for the order to pack");
+    used.add(pi);
+    const owner = users[ui];
+    const packQty = Math.ceil(50000 / variants[pi].price);
+    const paidAt = addHours(now, -hoursAgo);
+    const c = await db.groupCart.create({
+      data: {
+        code: newCartCode(randomBytes),
+        name: `${owner.name}'s cart`,
+        ownerId: owner.id,
+        status: stage === "ready" ? "DISPATCHED" : "CONFIRMED",
+        minOrderValue: 50000,
+        total: variants[pi].price * packQty,
+        createdAt: addHours(paidAt, -2),
+        expiresAt: addHours(paidAt, 24),
+        readyAt: paidAt,
+        acceptedAt: addHours(paidAt, 1),
+        slipDueAt: addHours(paidAt, 3),
+        confirmedAt: addHours(paidAt, 2),
+        deliveryAddress: owner.address,
+        deliveryCity: owner.city,
+        deliveryLat: owner.lat,
+        deliveryLng: owner.lng,
+        deliveryPhone: owner.phone,
+        members: { create: [{ userId: owner.id }] },
+        lines: {
+          create: [
+            {
+              userId: owner.id,
+              variantId: variants[pi].id,
+              qty: packQty,
+              unitPrice: variants[pi].price,
+            },
+          ],
+        },
+        ...(stage === "ready"
+          ? {
+              delivery: {
+                create: {
+                  provider: "manual",
+                  status: "BOOKED",
+                  externalRef: "PM-DEMO-2",
+                  quotedFee: 850,
+                  driverName: "Nimal",
+                },
+              },
+            }
+          : {}),
       },
-    },
-  });
-  await db.variant.update({
-    where: { id: variants[pi].id },
-    data: { available: { decrement: packQty }, sold: { increment: packQty } },
-  });
+    });
+    await db.variant.update({
+      where: { id: variants[pi].id },
+      data: { available: { decrement: packQty }, sold: { increment: packQty } },
+    });
+    if (stage !== "gather") {
+      await db.packing.create({
+        data: {
+          cartId: c.id,
+          gatheredById: kasun.id,
+          gatheredAt: addHours(paidAt, 2.5),
+          ...(stage === "ready" ? { packedById: ishara.id, packedAt: addHours(paidAt, 3) } : {}),
+        },
+      });
+    }
+  };
+  await paidOrder(THARINDU, 3, "gather");
+  await paidOrder(SACHINI, 2, "pack");
+  await paidOrder(DILAN, 1, "ready");
 
   // ─── Demo factory seller: one product live, one in review, one returned ──
   const seller = await db.user.create({
@@ -605,7 +636,8 @@ async function main() {
   Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)
   Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)
           buyer2@example.com (Sachini: private cart at the minimum)
-          buyer3@example.com (Tharindu: a paid order to pack, no active cart, free to join)`);
+          buyer3@example.com (Tharindu: a paid order to gather, no active cart, free to join)
+  Packing orders: Tharindu's to gather, Sachini's to pack, Dilan's for PickMe, plus one handed over`);
 }
 
 main().finally(() => db.$disconnect());
