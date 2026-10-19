@@ -365,7 +365,12 @@ export default async function AdminCartPage({
               {cart.delivery.driverName && <p>{cart.delivery.driverName}</p>}
               {cart.delivery.status !== "DELIVERED" && (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {DELIVERY_BUTTONS.map(([s, text]) => (
+                  {DELIVERY_BUTTONS.filter(
+                    // A packer's handover already marked it picked up (product owner, 2026-10-20).
+                    ([s]) =>
+                      s !== "PICKED_UP" ||
+                      (cart.delivery!.status !== "PICKED_UP" && !cart.packing?.handedOverAt),
+                  ).map(([s, text]) => (
                     <form key={s} action={deliveryStatusAction}>
                       <input type="hidden" name="deliveryId" value={cart.delivery!.id} />
                       <input type="hidden" name="status" value={s} />

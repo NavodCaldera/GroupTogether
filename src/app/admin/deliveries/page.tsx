@@ -153,6 +153,8 @@ export default async function DeliveriesPage() {
                   <div className="flex gap-2">
                     {(["PICKED_UP", "DELIVERED", "FAILED"] as const)
                       .filter((s) => s !== d.status)
+                      // A packer's handover already marked it picked up (product owner, 2026-10-20).
+                      .filter((s) => s !== "PICKED_UP" || !d.cart.packing?.handedOverAt)
                       .map((s) => (
                         <form key={s} action={deliveryStatusAction}>
                           <input type="hidden" name="deliveryId" value={d.id} />
