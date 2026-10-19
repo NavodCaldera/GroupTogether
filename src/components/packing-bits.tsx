@@ -1,18 +1,18 @@
-import { CHECKS_NEEDED, namesList } from "@/lib/packing-rules";
 import { formatDateTime } from "@/lib/format";
 import { cx } from "./ui";
 
-/** What the packing pages and the admin need to show who packed, checked and handed over. */
+/** Who checked and gathered, rechecked and packed, and handed over (CLAUDE.md rule 17). */
 export type PackingTrailView = {
-  packedAt: Date;
+  gatheredAt: Date;
+  packedAt: Date | null;
   handedOverAt: Date | null;
-  packedBy: { name: string };
-  handedOverBy: { name: string } | null;
-  checks: { userId: string; createdAt: Date; user: { name: string } }[];
+  gatheredBy: { id: string; name: string };
+  packedBy: { id: string; name: string } | null;
+  handedOverBy: { id: string; name: string } | null;
 } | null;
 
 /**
- * Packed by, each check, and the PickMe handover, with times. "You" marks the viewer's own steps.
+ * The two checks and the PickMe handover, with times. "You" marks the viewer's own steps.
  * `brief` (packing staff) shows only the steps done, without times.
  */
 export function PackingTrail({
@@ -27,23 +27,24 @@ export function PackingTrail({
   className?: string;
 }) {
   if (!packing)
-    return brief ? null : <p className={cx("text-sm text-subtle", className)}>Not packed yet.</p>;
-  const missing = CHECKS_NEEDED - packing.checks.length;
+    return brief ? null : <p className={cx("text-sm text-subtle", className)}>Not gathered yet.</p>;
+  const me = (u: { id: string } | null) => (u && u.id === you ? " (you)" : "");
   const rows = [
-    { text: `Packed by ${packing.packedBy.name}`, at: packing.packedAt, done: true },
-    ...packing.checks.map((c) => ({
-      text: `Checked by ${c.user.name}${c.userId === you ? " (you)" : ""}`,
-      at: c.createdAt,
+    {
+      text: `Checked and gathered by ${packing.gatheredBy.name}${me(packing.gatheredBy)}`,
+      at: packing.gatheredAt,
       done: true,
-    })),
-    ...Array.from({ length: Math.max(0, missing) }, () => ({
-      text: "Waiting for a check",
-      at: null,
-      done: false,
-    })),
+    },
+    packing.packedAt && packing.packedBy
+      ? {
+          text: `Rechecked and packed by ${packing.packedBy.name}${me(packing.packedBy)}`,
+          at: packing.packedAt,
+          done: true,
+        }
+      : { text: "Not packed yet", at: null, done: false },
     packing.handedOverAt && packing.handedOverBy
       ? {
-          text: `Handed to PickMe by ${packing.handedOverBy.name}`,
+          text: `Handed to PickMe by ${packing.handedOverBy.name}${me(packing.handedOverBy)}`,
           at: packing.handedOverAt,
           done: true,
         }
@@ -68,12 +69,11 @@ export function PackingTrail({
   );
 }
 
-/** One line for admin lists: where packing is, naming who certified the order. */
+/** One line for admin lists: where packing is, naming the two people who certified the order. */
 export function packingSummary(p: PackingTrailView): string {
-  if (!p) return "Not packed yet";
-  const names = namesList(p.checks.map((c) => c.user.name));
-  if (p.checks.length < CHECKS_NEEDED)
-    return `Packed by ${p.packedBy.name} · ${p.checks.length} of ${CHECKS_NEEDED} checks${names ? ` (${names})` : ""}`;
-  const checked = `Checked by ${names}`;
-  return p.handedOverBy ? `${checked} · handed to PickMe by ${p.handedOverBy.name}` : checked;
+  if (!p) return "Not gathered yet";
+  const gathered = `Gathered by ${p.gatheredBy.name}`;
+  if (!p.packedBy) return `${gathered} · not packed yet`;
+  const packed = `${gathered} · packed by ${p.packedBy.name}`;
+  return p.handedOverBy ? `${packed} · handed to PickMe by ${p.handedOverBy.name}` : packed;
 }

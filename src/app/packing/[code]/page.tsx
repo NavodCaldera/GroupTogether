@@ -7,17 +7,17 @@ import { Alert, Badge, Card, PageHeader } from "@/components/ui";
 import {
   PACKABLE,
   PACKING_STAGE_LABEL,
-  checkBlockReason,
   handOverBlockReason,
+  packBlockReason,
   packingStage,
 } from "@/lib/packing-rules";
 import { requirePacker } from "@/server/auth/session";
 import { packingOrder } from "@/server/packing";
 import {
-  checkedAction,
+  gatheredAction,
   handedOverAction,
   packedAction,
-  repackAction,
+  sendBackAction,
 } from "@/server/packing-actions";
 import { PackingForm } from "../packing-form";
 
@@ -25,9 +25,9 @@ export const metadata: Metadata = { title: "Pack order" };
 
 /**
  * One order for the packing staff: every item by member (tick boxes are only for the packer's
- * eye and are not saved), the drop-off label, and the next step: pack, check (two different
- * people), hand to the PickMe driver. No prices and the fewest words (product owner,
- * 2026-10-19): the staff only need what goes in the parcel.
+ * eye and are not saved), the drop-off label, and the next step: check and gather, recheck and
+ * pack (a different person), hand to the PickMe driver. No prices and the fewest words (product
+ * owner, 2026-10-19): the staff only need what goes in the parcel.
  */
 export default async function PackOrderPage({
   params,
@@ -40,10 +40,9 @@ export default async function PackOrderPage({
   const stage = packingStage(cart.packing);
   const items = cart.lines.reduce((n, l) => n + l.qty, 0);
   const open = PACKABLE.includes(cart.status);
-  const canCheck = open && !checkBlockReason(cart.packing, staff.id);
+  const canPack = open && !packBlockReason(cart.packing, staff.id);
   const handOverBlock = handOverBlockReason(cart.packing, cart.delivery);
-  const iChecked = cart.packing?.checks.some((c) => c.userId === staff.id) ?? false;
-  const iPacked = cart.packing?.packedById === staff.id;
+  const iGathered = cart.packing?.gatheredById === staff.id;
   const byMember = cart.members
     .map((m) => ({ ...m, lines: cart.lines.filter((l) => l.userId === m.userId) }))
     .filter((m) => m.lines.length > 0);
@@ -52,7 +51,7 @@ export default async function PackOrderPage({
     <>
       <BackLink fallback="/packing" />
       {done === "packed" && <Toast>Packed.</Toast>}
-      {done === "repack" && <Toast>Sent back to pack.</Toast>}
+      {done === "sent-back" && <Toast>Sent back to gather.</Toast>}
       <PageHeader
         title={cart.code}
         description={`${items} ${items === 1 ? "item" : "items"}`}
@@ -91,28 +90,25 @@ export default async function PackOrderPage({
       <Card className="flex flex-col gap-3">
         <PackingTrail packing={cart.packing} you={staff.id} brief />
 
-        {open && stage === "to-pack" && (
+        {open && stage === "to-gather" && (
+          <PackingForm
+            action={gatheredAction}
+            cartId={cart.id}
+            code={cart.code}
+            submit="Checked and gathered"
+          />
+        )}
+
+        {open && stage === "to-pack" && canPack && (
           <PackingForm
             action={packedAction}
             cartId={cart.id}
             code={cart.code}
-            submit="I've packed it"
+            submit="Rechecked and packed"
           />
         )}
-
-        {open && stage === "to-check" && canCheck && (
-          <PackingForm
-            action={checkedAction}
-            cartId={cart.id}
-            code={cart.code}
-            submit="Checked: everything is correct"
-          />
-        )}
-        {open && stage === "to-check" && iPacked && (
-          <Alert tone="info">You packed it, so two others check it.</Alert>
-        )}
-        {open && stage === "to-check" && iChecked && (
-          <Alert tone="info">You checked it. One more person must check.</Alert>
+        {open && stage === "to-pack" && iGathered && (
+          <Alert tone="info">You gathered it, so someone else packs it.</Alert>
         )}
 
         {open &&
@@ -132,14 +128,14 @@ export default async function PackOrderPage({
             </PackingForm>
           ))}
 
-        {open && (stage === "to-check" || stage === "ready") && (
+        {open && (stage === "to-pack" || stage === "ready") && (
           <details className="text-sm">
             <summary className="cursor-pointer py-2 text-danger">Something wrong?</summary>
             <PackingForm
-              action={repackAction}
+              action={sendBackAction}
               cartId={cart.id}
               code={cart.code}
-              submit="Pack it again"
+              submit="Gather it again"
               variant="secondary"
             />
           </details>

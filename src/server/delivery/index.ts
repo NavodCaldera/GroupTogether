@@ -51,7 +51,7 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
   });
   await notifyRole("PACKER", {
     title: "PickMe booked",
-    body: `Cart ${cart.code}: hand the checked parcel to the driver${booking.driverName ? ` (${booking.driverName})` : ""} and mark it handed over.`,
+    body: `Cart ${cart.code}: hand the packed parcel to the driver${booking.driverName ? ` (${booking.driverName})` : ""} and mark it handed over.`,
     href: `/packing/${cart.code}`,
   });
 }

@@ -79,7 +79,13 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
         locked: true,
         createdAt: true,
         _count: {
-          select: { ownedCarts: true, memberships: true, products: true, packingChecks: true },
+          select: {
+            ownedCarts: true,
+            memberships: true,
+            products: true,
+            gathered: true,
+            packed: true,
+          },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -350,7 +356,13 @@ function Activity({
 }: {
   user: {
     role: Role;
-    _count: { ownedCarts: number; memberships: number; products: number; packingChecks: number };
+    _count: {
+      ownedCarts: number;
+      memberships: number;
+      products: number;
+      gathered: number;
+      packed: number;
+    };
   };
   cart?: { code: string; status: CartStatus };
 }) {
@@ -364,7 +376,8 @@ function Activity({
   }
   if (user.role === "ADMIN") return <span className="text-subtle">Back office</span>;
   if (user.role === "PACKER") {
-    const n = user._count.packingChecks;
+    // Each order they gathered or packed is one they certified.
+    const n = user._count.gathered + user._count.packed;
     return (
       <span className="text-subtle">
         {n} {n === 1 ? "order" : "orders"} checked

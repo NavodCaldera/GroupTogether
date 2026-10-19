@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requirePacker } from "./auth/session";
 import { CartError } from "./carts/service";
-import { checkPacking, handOver, markPacked, repack } from "./packing";
+import { handOver, markGathered, markPacked, sendBack } from "./packing";
 
 export type PackingState = { error?: string };
 
@@ -26,6 +26,16 @@ async function step(fn: () => Promise<unknown>, next: string): Promise<PackingSt
 const field = (fd: FormData, k: string) => String(fd.get(k) ?? "");
 const codeOf = (fd: FormData) => encodeURIComponent(field(fd, "code"));
 
+/** The gatherer is done with the order (someone else packs it): back to the list. */
+export async function gatheredAction(_p: PackingState, fd: FormData): Promise<PackingState> {
+  const staff = await requirePacker();
+  return step(
+    () => markGathered(staff.id, field(fd, "cartId")),
+    `/packing?done=gathered&cart=${codeOf(fd)}`,
+  );
+}
+
+/** Rechecked and packed by a second person: stays on the order, ready for PickMe. */
 export async function packedAction(_p: PackingState, fd: FormData): Promise<PackingState> {
   const staff = await requirePacker();
   return step(
@@ -34,18 +44,9 @@ export async function packedAction(_p: PackingState, fd: FormData): Promise<Pack
   );
 }
 
-/** After checking, the checker is done with the order: back to the list. */
-export async function checkedAction(_p: PackingState, fd: FormData): Promise<PackingState> {
-  const staff = await requirePacker();
-  return step(
-    () => checkPacking(staff.id, field(fd, "cartId")),
-    `/packing?done=checked&cart=${codeOf(fd)}`,
-  );
-}
-
-export async function repackAction(_p: PackingState, fd: FormData): Promise<PackingState> {
+export async function sendBackAction(_p: PackingState, fd: FormData): Promise<PackingState> {
   await requirePacker();
-  return step(() => repack(field(fd, "cartId")), `/packing/${codeOf(fd)}?done=repack`);
+  return step(() => sendBack(field(fd, "cartId")), `/packing/${codeOf(fd)}?done=sent-back`);
 }
 
 export async function handedOverAction(_p: PackingState, fd: FormData): Promise<PackingState> {

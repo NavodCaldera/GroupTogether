@@ -1,12 +1,11 @@
 /**
- * Demo data: 1 admin, 1 factory seller, 3 packing staff, 3 buyers, about 20 products, and carts in several
+ * Demo data: 1 admin, 1 factory seller, 2 packing staff, 3 buyers, about 20 products, and carts in several
  * states. Every account's password is "password123". Resets the database first.
  *
  *   admin@grouptogether.lk  admin       → /admin
  *   seller@example.com      seller      → /seller (Ceylon Footwear Mills)
- *   packer@example.com      packing     → /packing (Kasun: one paid order to pack)
- *   packer2@example.com     packing     → /packing (Ishara: a checker)
- *   packer3@example.com     packing     → /packing (Ruwan: the other checker; never the packer)
+ *   packer@example.com      packing     → /packing (Kasun: one paid order to check and gather)
+ *   packer2@example.com     packing     → /packing (Ishara: rechecks and packs what Kasun gathered)
  *   buyer@example.com       buyer       → /dashboard (public cart at 49,800, delivered order, invite)
  *   buyer2@example.com      buyer       → /dashboard (private cart at the minimum)
  *   buyer3@example.com      buyer       → /dashboard (paid order being packed; no active cart, free to join)
@@ -266,11 +265,10 @@ async function main() {
     },
   });
   // Packing staff (rule 17): they pack paid orders and check each other's packing.
-  const [kasun, ishara, ruwan] = await Promise.all(
+  const [kasun, ishara] = await Promise.all(
     [
       ["Kasun Perera", "packer@example.com", "0711111111"],
       ["Ishara Fernando", "packer2@example.com", "0712222222"],
-      ["Ruwan Silva", "packer3@example.com", "0713333333"],
     ].map(([name, email, phone]) =>
       db.user.create({ data: { role: "PACKER", name, email, phone, passwordHash } }),
     ),
@@ -479,20 +477,16 @@ async function main() {
       data: { available: { decrement: q }, sold: { increment: q } },
     });
   }
-  // Kasun packed it, Ruwan and Ishara checked it, Ishara handed it to the PickMe driver.
+  // Kasun checked and gathered it, Ishara rechecked and packed it and handed it to PickMe.
   await db.packing.create({
     data: {
       cartId: delivered.id,
-      packedById: kasun.id,
-      packedAt: addHours(past, 2.5),
+      gatheredById: kasun.id,
+      gatheredAt: addHours(past, 2.5),
+      packedById: ishara.id,
+      packedAt: addHours(past, 3),
       handedOverById: ishara.id,
       handedOverAt: addHours(past, 4),
-      checks: {
-        create: [
-          { userId: ruwan.id, createdAt: addHours(past, 2.6) },
-          { userId: ishara.id, createdAt: addHours(past, 3) },
-        ],
-      },
     },
   });
 
@@ -608,7 +602,7 @@ async function main() {
   console.log(`Seeded. Every password is password123.
   Admin   admin@grouptogether.lk  → /admin
   Seller  seller@example.com      → /seller
-  Packing packer@example.com      → /packing (Kasun; packer2@ is Ishara, packer3@ is Ruwan)
+  Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)
   Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)
           buyer2@example.com (Sachini: private cart at the minimum)
           buyer3@example.com (Tharindu: a paid order to pack, no active cart, free to join)`);

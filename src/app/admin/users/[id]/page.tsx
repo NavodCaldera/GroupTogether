@@ -52,23 +52,24 @@ export default async function AdminUserPage({
     },
   });
   if (!user) notFound();
-  // Packing staff: the orders they packed, checked or handed to PickMe (rule 17).
+  // Packing staff: the orders they gathered, packed or handed to PickMe (rule 17).
   const packingWork =
     user.role === "PACKER"
       ? await db.packing.findMany({
           where: {
-            OR: [{ packedById: id }, { handedOverById: id }, { checks: { some: { userId: id } } }],
+            OR: [{ gatheredById: id }, { packedById: id }, { handedOverById: id }],
           },
           select: {
             id: true,
+            gatheredById: true,
+            gatheredAt: true,
             packedById: true,
             packedAt: true,
             handedOverById: true,
             handedOverAt: true,
-            checks: { where: { userId: id }, select: { createdAt: true } },
             cart: { select: { code: true, owner: { select: { name: true } } } },
           },
-          orderBy: { packedAt: "desc" },
+          orderBy: { gatheredAt: "desc" },
           take: 50,
         })
       : [];
@@ -108,7 +109,7 @@ export default async function AdminUserPage({
             <section className="flex flex-col gap-3">
               <h2 className="font-semibold">Packing work ({packingWork.length})</h2>
               {packingWork.length === 0 ? (
-                <p className="text-sm text-subtle">Hasn&apos;t packed or checked an order yet.</p>
+                <p className="text-sm text-subtle">Hasn&apos;t gathered or packed an order yet.</p>
               ) : (
                 <ul className="divide-y divide-line rounded-xl border border-line text-sm">
                   {packingWork.map((p) => (
@@ -127,8 +128,10 @@ export default async function AdminUserPage({
                       </span>
                       <span className="text-subtle">
                         {[
-                          p.packedById === id && `Packed ${formatDateTime(p.packedAt)}`,
-                          p.checks[0] && `Checked ${formatDateTime(p.checks[0].createdAt)}`,
+                          p.gatheredById === id &&
+                            `Checked and gathered ${formatDateTime(p.gatheredAt)}`,
+                          p.packedById === id &&
+                            `Rechecked and packed ${formatDateTime(p.packedAt)}`,
                           p.handedOverById === id &&
                             `Handed to PickMe ${formatDateTime(p.handedOverAt)}`,
                         ]

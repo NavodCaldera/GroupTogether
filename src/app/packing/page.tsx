@@ -3,7 +3,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Toast } from "@/components/toast";
 import { PageHeader, cx } from "@/components/ui";
-import { CHECKS_NEEDED } from "@/lib/packing-rules";
 import { formatDateTime } from "@/lib/format";
 import { requirePacker } from "@/server/auth/session";
 import { type QueueCart, packingQueue } from "@/server/packing";
@@ -11,38 +10,34 @@ import { type QueueCart, packingQueue } from "@/server/packing";
 export const metadata: Metadata = { title: "Packing" };
 
 /**
- * The packing staff's list on their phones: paid orders to pack, to check (two people) and to
- * hand to PickMe, oldest first. Kept to the fewest words (product owner, 2026-10-19). Each card
- * opens the order's picking list.
+ * The packing staff's list on their phones: paid orders to check and gather, to recheck and pack
+ * (someone else), and to hand to PickMe, oldest first. Kept to the fewest words (product owner,
+ * 2026-10-19). Each card opens the order's picking list.
  */
 export default async function PackingPage({ searchParams }: PageProps<"/packing">) {
   const staff = await requirePacker();
   const { done, cart } = await searchParams;
   const code = typeof cart === "string" ? cart : "";
-  const { toPack, toCheck, ready, handedToday } = await packingQueue();
-  // Orders this person can't check: they packed it (never their own) or already checked it.
-  const packedByMe = (c: QueueCart) => c.packing?.packedById === staff.id;
-  const checkedByMe = (c: QueueCart) =>
-    c.packing?.checks.some((k) => k.userId === staff.id) ?? false;
+  const { toGather, toPack, ready, handedToday } = await packingQueue();
+  // Someone else packs what this person gathered.
+  const gatheredByMe = (c: QueueCart) => c.packing?.gatheredById === staff.id;
 
   return (
     <>
-      {done === "checked" && <Toast>{code} checked.</Toast>}
+      {done === "gathered" && <Toast>{code} gathered.</Toast>}
       {done === "handed" && <Toast>{code} handed over.</Toast>}
       <PageHeader title="Packing" />
 
-      <Section title="To pack" n={toPack.length}>
-        {toPack.map((c) => (
+      <Section title="To gather" n={toGather.length}>
+        {toGather.map((c) => (
           <OrderCard key={c.id} cart={c} />
         ))}
       </Section>
 
-      <Section title="To check" n={toCheck.length}>
-        {toCheck.map((c) => (
-          <OrderCard key={c.id} cart={c} faded={packedByMe(c) || checkedByMe(c)}>
-            {c.packing!.checks.length}/{CHECKS_NEEDED} checked
-            {packedByMe(c) && " · packed by you"}
-            {checkedByMe(c) && " · checked by you"}
+      <Section title="To pack" n={toPack.length}>
+        {toPack.map((c) => (
+          <OrderCard key={c.id} cart={c} faded={gatheredByMe(c)}>
+            {gatheredByMe(c) && "Gathered by you"}
           </OrderCard>
         ))}
       </Section>

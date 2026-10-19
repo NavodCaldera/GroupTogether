@@ -92,7 +92,7 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
   );
   await notifyRole("PACKER", {
     title: "New order to pack",
-    body: `Cart ${cart.code} is paid. One of you packs it, two others check it.`,
+    body: `Cart ${cart.code} is paid. One of you checks and gathers it, someone else rechecks and packs it.`,
     href: `/packing/${cart.code}`,
   });
 }

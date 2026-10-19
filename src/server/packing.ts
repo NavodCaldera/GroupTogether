@@ -1,29 +1,29 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
-import { PACKABLE, checkBlockReason, handOverBlockReason, packingStage } from "@/lib/packing-rules";
+import { PACKABLE, handOverBlockReason, packBlockReason, packingStage } from "@/lib/packing-rules";
 import { colomboDayStart } from "@/lib/format";
 import { CartError } from "./carts/service";
 import { db } from "./db";
 import { notify } from "./notify";
 
 /**
- * Packing staff (role PACKER, created by an admin) pack confirmed carts in our store
- * (CLAUDE.md rule 17): one person packs, two other people check it (never the packer), then
- * someone hands it to the PickMe driver, which marks the drop picked up. Who did each step is
- * kept and shown to the admin. Each step locks the cart row, like every other cart change.
+ * Packing staff (role PACKER, created by an admin) prepare confirmed carts in our store
+ * (CLAUDE.md rule 17, product owner 2026-10-19): one person checks every item and gathers it all
+ * together, then a different person rechecks it and packs it, and only then is it handed to the
+ * PickMe driver, which marks the drop picked up. Who did each step is kept and shown to the
+ * admin. Each step locks the cart row, like every other cart change.
  */
 
-/** Who packed, checked and handed over: for the packing pages and the admin. */
+/** Who gathered, packed and handed over: for the packing pages and the admin. */
 export const packingSelect = {
+  gatheredById: true,
+  gatheredAt: true,
   packedById: true,
   packedAt: true,
   handedOverAt: true,
+  gatheredBy: { select: { id: true, name: true } },
   packedBy: { select: { id: true, name: true } },
   handedOverBy: { select: { id: true, name: true } },
-  checks: {
-    select: { userId: true, createdAt: true, user: { select: { name: true } } },
-    orderBy: { createdAt: "asc" },
-  },
 } satisfies Prisma.PackingSelect;
 
 export type PackingView = Prisma.PackingGetPayload<{ select: typeof packingSelect }>;
@@ -32,44 +32,46 @@ async function lockedCart(tx: Prisma.TransactionClient, cartId: string) {
   await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${cartId} FOR UPDATE`;
   const cart = await tx.groupCart.findUnique({
     where: { id: cartId },
-    include: { packing: { include: { checks: true } }, delivery: true },
+    include: { packing: true, delivery: true },
   });
   if (!cart) throw new CartError("This order no longer exists");
   if (!PACKABLE.includes(cart.status)) throw new CartError("This order isn't waiting to be packed");
   return cart;
 }
 
-export async function markPacked(staffId: string, cartId: string, now = new Date()) {
+/** First check: every item is here and gathered together. */
+export async function markGathered(staffId: string, cartId: string, now = new Date()) {
   await db.$transaction(async (tx) => {
     const cart = await lockedCart(tx, cartId);
-    if (cart.packing) throw new CartError("This order is already packed");
-    await tx.packing.create({ data: { cartId, packedById: staffId, packedAt: now } });
+    if (cart.packing) throw new CartError("Already gathered");
+    await tx.packing.create({ data: { cartId, gatheredById: staffId, gatheredAt: now } });
   });
 }
 
-/** One staff member certifies that everything in the parcel is correct. */
-export async function checkPacking(staffId: string, cartId: string, now = new Date()) {
+/** Second check, by someone else: rechecked every item, then packed it. */
+export async function markPacked(staffId: string, cartId: string, now = new Date()) {
   await db.$transaction(async (tx) => {
     const cart = await lockedCart(tx, cartId);
-    const reason = checkBlockReason(cart.packing, staffId);
+    const reason = packBlockReason(cart.packing, staffId);
     if (reason) throw new CartError(reason);
-    await tx.packingCheck.create({
-      data: { packingId: cart.packing!.id, userId: staffId, createdAt: now },
+    await tx.packing.update({
+      where: { id: cart.packing!.id },
+      data: { packedById: staffId, packedAt: now },
     });
   });
 }
 
-/** A checker found something wrong: the packing and its checks go, and it is packed again. */
-export async function repack(cartId: string) {
+/** Something was wrong: the gathering and packing are cleared, and it starts again. */
+export async function sendBack(cartId: string) {
   await db.$transaction(async (tx) => {
     const cart = await lockedCart(tx, cartId);
-    if (!cart.packing) throw new CartError("This order isn't packed yet");
+    if (!cart.packing) throw new CartError("This order isn't gathered yet");
     if (cart.packing.handedOverAt) throw new CartError("This order has already gone to PickMe");
     await tx.packing.delete({ where: { id: cart.packing.id } });
   });
 }
 
-/** The checked parcel goes to the PickMe driver: the drop is now picked up. */
+/** The packed parcel goes to the PickMe driver: the drop is now picked up. */
 export async function handOver(staffId: string, cartId: string, now = new Date()) {
   const cart = await db.$transaction(async (tx) => {
     const cart = await lockedCart(tx, cartId);
@@ -85,7 +87,7 @@ export async function handOver(staffId: string, cartId: string, now = new Date()
   });
   await notify([cart.ownerId], {
     title: "Your order is with the PickMe driver",
-    body: "We packed and checked your order and handed it to the PickMe driver. Pay the delivery fee to the driver when it arrives.",
+    body: "We checked and packed your order and handed it to the PickMe driver. Pay the delivery fee to the driver when it arrives.",
     href: `/c/${cart.code}`,
   });
 }
@@ -124,8 +126,8 @@ export async function packingQueue(now = new Date()) {
     stage: packingStage(c.packing),
   }));
   return {
+    toGather: rows.filter((c) => c.stage === "to-gather"),
     toPack: rows.filter((c) => c.stage === "to-pack"),
-    toCheck: rows.filter((c) => c.stage === "to-check"),
     ready: rows.filter((c) => c.stage === "ready"),
     handedToday: handed.map((c) => ({ ...c, items: c.lines.reduce((n, l) => n + l.qty, 0) })),
   };

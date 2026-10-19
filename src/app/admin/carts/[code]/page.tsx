@@ -103,14 +103,21 @@ export default async function AdminCartPage({
     ]),
     ...(cart.confirmedAt ? [{ at: cart.confirmedAt, text: "Order confirmed" }] : []),
     ...(cart.delivery ? [{ at: cart.delivery.createdAt, text: "PickMe drop booked" }] : []),
-    // Packing staff (rule 17): who packed it, the two who certified it, who handed it over.
+    // Packing staff (rule 17): the two people who certified it, and who handed it over.
     ...(cart.packing
       ? [
-          { at: cart.packing.packedAt, text: `Packed by ${cart.packing.packedBy.name}` },
-          ...cart.packing.checks.map((c) => ({
-            at: c.createdAt,
-            text: `Checked by ${c.user.name}: everything in order`,
-          })),
+          {
+            at: cart.packing.gatheredAt,
+            text: `Checked and gathered by ${cart.packing.gatheredBy.name}`,
+          },
+          ...(cart.packing.packedAt && cart.packing.packedBy
+            ? [
+                {
+                  at: cart.packing.packedAt,
+                  text: `Rechecked and packed by ${cart.packing.packedBy.name}`,
+                },
+              ]
+            : []),
           ...(cart.packing.handedOverAt
             ? [
                 {
@@ -315,7 +322,7 @@ export default async function AdminCartPage({
               <h2 className="mb-2 font-semibold">Packing</h2>
               <PackingTrail packing={cart.packing} />
               <p className="mt-2 text-xs text-subtle">
-                One packer packs it, two others check it, then it goes to PickMe.
+                One person checks and gathers it, someone else rechecks and packs it.
               </p>
             </Card>
           )}

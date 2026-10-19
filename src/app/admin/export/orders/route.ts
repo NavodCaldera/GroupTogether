@@ -1,7 +1,6 @@
 import { toCsv } from "@/lib/csv";
 import { toD } from "@/lib/decimal";
 import { colomboDayStart, formatIsoDateTime } from "@/lib/format";
-import { namesList } from "@/lib/packing-rules";
 import { PAID } from "@/server/admin-queries";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -42,8 +41,8 @@ export async function GET(req: Request) {
       "Members",
       "Items",
       "Total (LKR)",
-      "Packed by",
-      "Checked by",
+      "Checked and gathered by",
+      "Rechecked and packed by",
       "Handed to PickMe by",
     ],
     ...carts.map((c) => [
@@ -58,8 +57,8 @@ export async function GET(req: Request) {
       c._count.members,
       c.lines.reduce((n, l) => n + l.qty, 0),
       toD(c.total).toFixed(2),
-      c.packing?.packedBy.name ?? "",
-      namesList(c.packing?.checks.map((k) => k.user.name) ?? []),
+      c.packing?.gatheredBy.name ?? "",
+      c.packing?.packedBy?.name ?? "",
       c.packing?.handedOverBy?.name ?? "",
     ]),
   ];
