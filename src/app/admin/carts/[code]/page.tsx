@@ -342,7 +342,7 @@ export default async function AdminCartPage({
                 <Field label="Quoted fee (LKR, shown to the owner)" name="quotedFee">
                   <Input name="quotedFee" inputMode="decimal" />
                 </Field>
-                <Field label="Tracking link" name="trackingUrl">
+                <Field label="Tracking link (optional)" name="trackingUrl">
                   <Input name="trackingUrl" type="url" />
                 </Field>
                 <Field label="Driver name" name="driverName">

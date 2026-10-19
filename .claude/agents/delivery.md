@@ -55,3 +55,5 @@ The owner's map pin is stored on the cart as `deliveryLat/deliveryLng` (rule 13)
 The drop-off address/phone come from the owner's profile at accept time (`/account` to change).
 
 **Packing before the drop** (product owner, 2026-10-18, CLAUDE.md rule 17): one packer checks and gathers each paid order, a different one rechecks and packs it (2026-10-19, `src/server/packing.ts`). `handOver` is only allowed once the order is packed **and** booked (Delivery BOOKED or PICKED_UP); it records who handed it over and moves BOOKED → PICKED_UP, then tells the owner "Your order is with the PickMe driver". `bookDelivery` notifies every packer ("PickMe booked"). The deliveries page and the admin cart page show `packingSummary` / `PackingTrail` (who gathered, who packed, who handed over). The admin's own "Mark picked up" button stays as an override.
+
+**Tracking link is optional** (product owner, 2026-10-20): the admin's Book delivery form labels it "Tracking link (optional)"; empty books fine (`trackingUrl` null, no "Track delivery" for the owner). A typed value must be a full URL (`type="url"`).
