@@ -3,6 +3,10 @@
 Every change the product owner asks for is written here **and** reflected in `CLAUDE.md` and the
 relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
+## 2026-10-20
+
+- **Stock offer: Decline is a button beside Accept, and asks once more.** On an offer, the note box sits above two equal buttons, **Decline** (red) and **Accept**. Decline opens a small window ("Decline this offer?" with the offer name) with **Cancel** and **Yes, decline**; tapping outside it closes it too. The note goes to the seller with either answer. `OfferDecision` in `src/app/admin/offers/offer-decision.tsx`. _Agent: catalogue-admin._
+
 ## 2026-10-19
 
 - **Sellers send stock offers instead of listing products.** How the seller side should work is still open, so it is as simple as possible. The seller's page lists what they have sent (name, total amount, date, status: Waiting for review / Accepted / Declined, and our note) with a round **+** "Add product" button. The form has three boxes: **Product name**, **Description** (details about the stock) and **Amount** (the total selling price for all of it), then **Send for review**. The admins get an in-app notice; the new **Admin → Offers** page (nav badge, a To do line on the overview) lists offers to review and answered ones, and each offer shows the amount, details and the seller's contact with **Accept** or **Decline**, each with an optional note. The seller is told in the app. An offer is not a shop product: if we take the stock, the admin lists it. This replaces the one-screen product form with sizes, the product cards, Edit and Delete draft from earlier today. New table `StockOffer` (migration `stock_offers`); `src/server/offers.ts`. Seed: three demo offers (waiting, accepted, declined). CLAUDE.md rule 11. _Agents: grouptogether, catalogue-admin, frontend, notifications, backend-data, qa-review._

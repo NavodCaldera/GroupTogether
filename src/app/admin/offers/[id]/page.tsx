@@ -1,17 +1,16 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
-import { Badge, Card, Field, PageHeader, Textarea } from "@/components/ui";
+import { Badge, Card, PageHeader } from "@/components/ui";
 import { formatDateTime, formatLKR } from "@/lib/format";
-import { decideOfferAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { AdminForm } from "../../admin-form";
+import { OfferDecision } from "../offer-decision";
 import { OFFER_STATUS } from "../offer-status";
 
 export const metadata: Metadata = { title: "Stock offer" };
 
-/** One stock offer: what the seller sent, who they are, and Accept / Decline with a note. */
+/** One stock offer: what the seller sent, who they are, and Accept / Decline (confirmed) with a note. */
 export default async function OfferPage({ params }: PageProps<"/admin/offers/[id]">) {
   await requireAdmin();
   const { id } = await params;
@@ -59,29 +58,7 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
 
       {open ? (
         <Card>
-          <AdminForm action={decideOfferAction} submit="Accept">
-            <input type="hidden" name="offerId" value={o.id} />
-            <input type="hidden" name="decision" value="accept" />
-            <Field label="Note to the seller (optional)" name="note-accept">
-              <Textarea
-                id="note-accept"
-                name="note"
-                rows={2}
-                maxLength={500}
-                placeholder="e.g. Please deliver to our store on Monday"
-              />
-            </Field>
-          </AdminForm>
-          <details className="mt-3 text-sm">
-            <summary className="cursor-pointer py-2 text-danger">Decline</summary>
-            <AdminForm action={decideOfferAction} submit="Decline" variant="danger">
-              <input type="hidden" name="offerId" value={o.id} />
-              <input type="hidden" name="decision" value="decline" />
-              <Field label="Reason (optional)" name="note-decline">
-                <Textarea id="note-decline" name="note" rows={2} maxLength={500} />
-              </Field>
-            </AdminForm>
-          </details>
+          <OfferDecision offerId={o.id} name={o.name} />
         </Card>
       ) : (
         <Card className="text-sm">
