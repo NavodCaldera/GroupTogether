@@ -105,7 +105,7 @@ export async function SiteHeader() {
             href={(user && STAFF_HOME[user.role]) ?? "/"}
             className="mr-3 text-lg font-bold tracking-tight"
           >
-            Group<span className="text-accent">Together</span>
+            Group<span className="text-accent">Basket</span>
           </Link>
           {sections.slice(1).map((s) => (
             <NavLink

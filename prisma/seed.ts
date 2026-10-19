@@ -2,7 +2,7 @@
  * Demo data: 1 admin, 1 factory seller, 2 packing staff, 3 buyers, about 20 products, and carts in several
  * states. Every account's password is "password123". Resets the database first.
  *
- *   admin@grouptogether.lk  admin       → /admin
+ *   admin@groupbasket.lk  admin       → /admin
  *   seller@example.com      seller      → /seller (Ceylon Footwear Mills)
  *   packer@example.com      packing     → /packing (Kasun: one paid order to check and gather)
  *   packer2@example.com     packing     → /packing (Ishara: rechecks and packs what Kasun gathered)
@@ -249,7 +249,7 @@ async function main() {
       id: 1,
       bankName: "Commercial Bank",
       bankBranch: "Colombo 03",
-      accountName: "GroupTogether (Pvt) Ltd",
+      accountName: "GroupBasket (Pvt) Ltd",
       accountNumber: "1000 2345 6789",
     },
   });
@@ -259,7 +259,7 @@ async function main() {
     data: {
       role: "ADMIN",
       name: "Admin",
-      email: "admin@grouptogether.lk",
+      email: "admin@groupbasket.lk",
       phone: "0700000000",
       passwordHash,
     },
@@ -631,7 +631,7 @@ async function main() {
   }
 
   console.log(`Seeded. Every password is password123.
-  Admin   admin@grouptogether.lk  → /admin
+  Admin   admin@groupbasket.lk  → /admin
   Seller  seller@example.com      → /seller
   Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)
   Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)

@@ -1,11 +1,11 @@
 ---
 name: catalogue-admin
-description: "Products, variants/stock and the admin back office of GroupTogether (overview, carts, products, settings). Use for src/server/catalogue.ts, src/server/admin-actions.ts and src/app/admin/."
+description: "Products, variants/stock and the admin back office of GroupBasket (overview, carts, products, settings). Use for src/server/catalogue.ts, src/server/admin-actions.ts and src/app/admin/."
 ---
 
 ## Project at a glance
 
-GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
 - **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.

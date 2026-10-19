@@ -1,10 +1,15 @@
-# GroupTogether
+# GroupBasket
 
 Group buying for **factory-surplus and B-grade shoes and apparel** in Sri Lanka. We buy stock in
 bulk; every order must reach a minimum value, so shoppers fill **shared carts** together. Every
 amount is in LKR.
 
 This is a standalone project. It shares no code, database or rules with any other site.
+
+**The site is called GroupBasket** (product owner, 2026-10-19; it was GroupTogether). Everything
+users see says GroupBasket, and the admin is `admin@groupbasket.lk`. The folder, repo, npm package,
+database names (`grouptogether`, `grouptogether_test`) and the `grouptogether` agent keep the old
+name.
 
 **Priorities: speed and low running cost.** Pages are server-rendered and use system fonts.
 Client JavaScript is limited to small islands: forms, the countdown and copy-link. Don't add
@@ -157,7 +162,7 @@ tab is visible (no websocket or worker).
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                                                                      |
 | `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                                                             |
-| `npm run db:seed`    | Demo data, all `password123`: `admin@grouptogether.lk`, `seller@example.com`, `packer@example.com`, `packer2@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
+| `npm run db:seed`    | Demo data, all `password123`: `admin@groupbasket.lk`, `seller@example.com`, `packer@example.com`, `packer2@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
 | `npm run dev`        | http://localhost:3002                                                                                                                                                                                              |
 | `npm run check`      | Typecheck, lint and unit tests                                                                                                                                                                                     |
 | `npm run test:int`   | Integration tests on the test DB                                                                                                                                                                                   |

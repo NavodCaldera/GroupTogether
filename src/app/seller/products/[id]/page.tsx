@@ -16,7 +16,7 @@ export const metadata: Metadata = { title: "My product" };
 /**
  * One of the seller's products. A draft is its one-screen form (with the admin's note if it came
  * back). After that it is read-only: sizes with pieces left and sold, and "Edit" while it is
- * still waiting for review. A live product is managed by GroupTogether (rule 11).
+ * still waiting for review. A live product is managed by GroupBasket (rule 11).
  */
 export default async function SellerProductPage({ params }: PageProps<"/seller/products/[id]">) {
   const seller = await requireSeller();
@@ -74,7 +74,7 @@ export default async function SellerProductPage({ params }: PageProps<"/seller/p
         {product.status === "IN_REVIEW"
           ? "Send the stock to our store. We put it on sale when it arrives."
           : product.status === "LIVE"
-            ? "On sale. To change it, contact GroupTogether."
+            ? "On sale. To change it, contact GroupBasket."
             : "No longer on sale."}
       </p>
 

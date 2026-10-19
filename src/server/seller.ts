@@ -22,7 +22,7 @@ function assertDraft(p: Product) {
   if (p.status === "IN_REVIEW")
     throw new CatalogueError("This product is in review. Withdraw it to make changes.");
   if (p.status !== "DRAFT")
-    throw new CatalogueError("This product is live. Ask GroupTogether to change it.");
+    throw new CatalogueError("This product is live. Ask GroupBasket to change it.");
 }
 
 const notDraft = (e: unknown) =>
@@ -169,7 +169,7 @@ export async function publishProduct(productId: string) {
   if (p.sellerId)
     await notify([p.sellerId], {
       title: "Your product is live",
-      body: `${p.brand} ${p.title} is now on sale on GroupTogether.`,
+      body: `${p.brand} ${p.title} is now on sale on GroupBasket.`,
       href: `/seller/products/${p.id}`,
     });
 }

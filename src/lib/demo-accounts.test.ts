@@ -10,7 +10,7 @@ describe("demo logins on the sign-in page", () => {
 
   it("cover the admin, the factory seller, the packing staff and the buyers", () => {
     expect(DEMO_ACCOUNTS.map((a) => a.email)).toEqual([
-      "admin@grouptogether.lk",
+      "admin@groupbasket.lk",
       "seller@example.com",
       "packer@example.com",
       "packer2@example.com",

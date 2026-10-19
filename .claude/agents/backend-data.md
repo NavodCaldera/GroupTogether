@@ -1,11 +1,11 @@
 ---
 name: backend-data
-description: "Database schema, Prisma migrations, seed data and data-access conventions for GroupTogether. Use for prisma/schema.prisma, prisma/migrations, prisma/seed.ts, src/server/db.ts and src/server/settings.ts."
+description: "Database schema, Prisma migrations, seed data and data-access conventions for GroupBasket. Use for prisma/schema.prisma, prisma/migrations, prisma/seed.ts, src/server/db.ts and src/server/settings.ts."
 ---
 
 ## Project at a glance
 
-GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
 - **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
@@ -48,7 +48,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 **Seed** (`npm run db:seed`):
 
-- Empties every table, then loads the bank details, 1 admin (`admin@grouptogether.lk`) and the only 3 buyers (`buyer@`, `buyer2@` and `buyer3@example.com`: Dilan, Sachini, Tharindu), all with the password `password123`.
+- Empties every table, then loads the bank details, 1 admin (`admin@groupbasket.lk`) and the only 3 buyers (`buyer@`, `buyer2@` and `buyer3@example.com`: Dilan, Sachini, Tharindu), all with the password `password123`.
 - Then 20 LIVE products (10 shoes in UK 6–11, 10 apparel in S–XL; mixed surplus and B-grade).
 - Then the carts, locking stock exactly as the app does and keeping rule 12 (one active cart per buyer): Dilan's public "Office sneaker run" at 49,800 and Sachini's PRIVATE "Sachini's friends only" (READY). Tharindu is in no active cart, so the e2e journey has him join Dilan's cart.
 - Dilan also has a DELIVERED order (with Tharindu; its stock is `sold`, with a manual delivery and no slip file) and an invite to Sachini's private cart.

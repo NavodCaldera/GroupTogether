@@ -67,7 +67,7 @@ export async function GET(req: Request) {
   return new Response(`﻿${toCsv(rows)}`, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="grouptogether-orders-${day}.csv"`,
+      "Content-Disposition": `attachment; filename="groupbasket-orders-${day}.csv"`,
       "Cache-Control": "private, no-store",
     },
   });

@@ -1,11 +1,11 @@
 ---
 name: carts
-description: "Group-cart lifecycle in GroupTogether: create/join/leave, stock locking, the OPEN/READY threshold, accept & pay, cancel, the 24h/2h deadlines (sweep) and invites. Use for src/lib/cart-rules.ts and src/server/carts/service.ts, invites.ts, queries.ts and actions.ts."
+description: "Group-cart lifecycle in GroupBasket: create/join/leave, stock locking, the OPEN/READY threshold, accept & pay, cancel, the 24h/2h deadlines (sweep) and invites. Use for src/lib/cart-rules.ts and src/server/carts/service.ts, invites.ts, queries.ts and actions.ts."
 ---
 
 ## Project at a glance
 
-GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
 - **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.

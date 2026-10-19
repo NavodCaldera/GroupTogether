@@ -1,4 +1,4 @@
-# GroupTogether
+# GroupBasket
 
 Group buying for factory-surplus and B-grade shoes and apparel. Shoppers share carts to reach the
 LKR 50,000 minimum order. The cart owner pays the whole cart by bank transfer, and the order
@@ -17,7 +17,7 @@ npm run dev           # http://localhost:3002
 
 Demo accounts:
 
-- `admin@grouptogether.lk`, the admin.
+- `admin@groupbasket.lk`, the admin.
 - `buyer@example.com` (Dilan), `buyer2@example.com` (Sachini) and `buyer3@example.com`
   (Tharindu), the buyers. `seller@example.com` is the factory seller.
 

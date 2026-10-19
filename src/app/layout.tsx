@@ -4,7 +4,7 @@ import { getCurrentUser } from "@/server/auth/session";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: { default: "GroupTogether", template: "%s · GroupTogether" },
+  title: { default: "GroupBasket", template: "%s · GroupBasket" },
   description:
     "Factory-surplus and B-grade shoes and apparel at bulk prices. Share a cart, reach the minimum together.",
 };
@@ -38,7 +38,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <footer
             className={`border-t border-line px-4 pt-6 text-center text-xs text-subtle sm:pb-6 ${tabBar ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"}`}
           >
-            GroupTogether · Bulk surplus, bought together · Delivered by PickMe
+            GroupBasket · Bulk surplus, bought together · Delivered by PickMe
           </footer>
         )}
       </body>

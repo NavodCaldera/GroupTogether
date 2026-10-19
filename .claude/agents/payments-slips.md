@@ -1,11 +1,11 @@
 ---
 name: payments-slips
-description: "Bank-slip payment flow in GroupTogether: the owner's single slip upload within 2h, admin approve/reject, slip file access, bank details. Use for src/server/carts/slips.ts, /c/[code]/pay, /admin/slips and /api/slips."
+description: "Bank-slip payment flow in GroupBasket: the owner's single slip upload within 2h, admin approve/reject, slip file access, bank details. Use for src/server/carts/slips.ts, /c/[code]/pay, /admin/slips and /api/slips."
 ---
 
 ## Project at a glance
 
-GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
 - **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.

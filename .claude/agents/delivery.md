@@ -1,11 +1,11 @@
 ---
 name: delivery
-description: "PickMe delivery for GroupTogether: one drop per confirmed cart to the owner, the owner pays the driver, manual vs PickMe provider, webhook. Use for src/server/delivery/, /api/webhooks/pickme and the admin booking form."
+description: "PickMe delivery for GroupBasket: one drop per confirmed cart to the owner, the owner pays the driver, manual vs PickMe provider, webhook. Use for src/server/delivery/, /api/webhooks/pickme and the admin booking form."
 ---
 
 ## Project at a glance
 
-GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
 - **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.

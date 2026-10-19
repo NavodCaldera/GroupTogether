@@ -345,7 +345,7 @@ export async function cancelCart(actor: { id: string; role: Role }, cartId: stri
       tx,
       cart,
       "CANCELLED",
-      reason || (isAdmin ? "Cancelled by GroupTogether" : "Cancelled by the owner"),
+      reason || (isAdmin ? "Cancelled by GroupBasket" : "Cancelled by the owner"),
     );
     return { cart, members };
   });

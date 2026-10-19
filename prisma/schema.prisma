@@ -1,4 +1,4 @@
-// GroupTogether data model. See CLAUDE.md "Business rules".
+// GroupBasket data model. See CLAUDE.md "Business rules".
 // Money is Decimal(14, 2), never Float.
 
 generator client {

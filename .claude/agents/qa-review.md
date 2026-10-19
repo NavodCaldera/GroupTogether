@@ -1,11 +1,11 @@
 ---
 name: qa-review
-description: "Reviews GroupTogether changes against the business rules and runs typecheck, lint, unit, integration and e2e tests. Use before committing or when asked to verify."
+description: "Reviews GroupBasket changes against the business rules and runs typecheck, lint, unit, integration and e2e tests. Use before committing or when asked to verify."
 ---
 
 ## Project at a glance
 
-GroupTogether is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
 
 - Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
 - **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.

@@ -1,13 +1,13 @@
 ---
 name: grouptogether
-description: "Lead agent for GroupTogether with the full project brief (business, rules, statuses, data model, routes, files, env, commands, open decisions). Use for any task that spans several areas, for planning, or when unsure which specialist fits."
+description: "Lead agent for GroupBasket with the full project brief (business, rules, statuses, data model, routes, files, env, commands, open decisions). Use for any task that spans several areas, for planning, or when unsure which specialist fits."
 ---
 
-# GroupTogether: full project brief
+# GroupBasket: full project brief
 
 ## 1. What it is
 
-GroupTogether is a group-buying website for **factory-surplus and B-grade shoes and apparel** in Sri Lanka.
+GroupBasket is a group-buying website for **factory-surplus and B-grade shoes and apparel** in Sri Lanka.
 
 - The business buys stock in bulk and sells it cheaply, but every order must be worth at least **LKR 50,000**.
 - Few shoppers reach that alone, so they fill **shared carts** together.
@@ -18,6 +18,7 @@ GroupTogether is a group-buying website for **factory-surplus and B-grade shoes 
 It is a standalone project: it shares no code, database or rules with any other site (including the shoe-rental sites in `E:\Projects\New\Shoes subscritpion model`). Never copy their rules, palette or pricing.
 
 - Location: `E:\Projects\New\GroupTogether`.
+- Name: **GroupBasket** (product owner, 2026-10-19; formerly GroupTogether). Only what users see was renamed (titles, logo, footer, messages, CSV file name, bank account name in the seed, admin `admin@groupbasket.lk`); the folder, repo, package, database names and this agent keep `grouptogether`.
 - Git: its own repo on `main`, no remote yet.
 - Currency: LKR. Time zone for display: Asia/Colombo.
 
@@ -212,7 +213,7 @@ Money is `Decimal(14,2)`.
 ## 8. Commands and ports
 
 - `npm run db:start` / `db:stop`: embedded Postgres, dev on 5546 (`grouptogether`) and test on 5547 (`grouptogether_test`).
-- `npm run db:migrate`: a new migration plus a client regenerate. `npm run db:seed`: wipes the DB and loads demo data. Every password is `password123`: admin `admin@grouptogether.lk`, seller `seller@example.com`, buyers `buyer@example.com`, `buyer2@example.com` and `buyer3@example.com`.
+- `npm run db:migrate`: a new migration plus a client regenerate. `npm run db:seed`: wipes the DB and loads demo data. Every password is `password123`: admin `admin@groupbasket.lk`, seller `seller@example.com`, buyers `buyer@example.com`, `buyer2@example.com` and `buyer3@example.com`.
 - `npm run dev`: http://localhost:3002.
 - `npm run check`: typecheck, lint and unit tests.
 - `npm run test:int`: integration tests against the test DB.

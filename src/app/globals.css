@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 :root {
-  /* GroupTogether: ink + one green accent, amber for deadlines. Follows the device's day/night. */
+  /* GroupBasket: ink + one green accent, amber for deadlines. Follows the device's day/night. */
   color-scheme: light dark;
   --paper: light-dark(#ffffff, #0d1110);
   --ink: light-dark(#111614, #eef2f0);

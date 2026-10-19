@@ -15,7 +15,7 @@ export async function inviteToCart(fromId: string, cartId: string, contact: stri
   });
   if (!target)
     throw new CartError(
-      "No GroupTogether account has that email or number. Share the link instead.",
+      "No GroupBasket account has that email or number. Share the link instead.",
     );
 
   const cart = await db.groupCart.findUnique({
