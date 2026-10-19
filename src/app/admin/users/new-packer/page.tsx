@@ -12,10 +12,7 @@ export default async function NewPackerPage() {
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/users" />
-      <PageHeader
-        title="Add packing staff"
-        description="Packing staff see paid orders on their phones, pack them, check each other's packing and hand it to PickMe. They never see money."
-      />
+      <PageHeader title="Add packing staff" />
       <Card>
         <AdminForm action={createPackerAction} submit="Create packing staff account">
           <Field label="Name" name="name">

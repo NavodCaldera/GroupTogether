@@ -27,13 +27,9 @@ export default async function PayPage({ params }: PageProps<"/c/[code]/pay">) {
       <PageHeader
         title={`Pay ${formatLKR(cart.total)}`}
         description={
-          <>
-            Transfer the full amount, then upload the slip.{" "}
-            <strong className="text-warn">
-              <Countdown until={cart.slipDueAt!.toISOString()} />
-            </strong>
-            . After that the order is cancelled and its items go back on sale.
-          </>
+          <strong className="text-warn">
+            <Countdown until={cart.slipDueAt!.toISOString()} />
+          </strong>
         }
       />
       {rejected && (

@@ -69,10 +69,7 @@ export default async function SlipsPage({ searchParams }: PageProps<"/admin/slip
 
   return (
     <>
-      <PageHeader
-        title="Bank slips"
-        description="Check the amount and the reference (the cart code) against the bank account before approving."
-      />
+      <PageHeader title="Bank slips" />
       <Tabs history={false} pending={queue.length} />
       {notice}
       {queue.length === 0 ? (
@@ -460,7 +457,7 @@ async function SlipHistory({ sp }: { sp: Params }) {
 
   return (
     <>
-      <PageHeader title="Bank slips" description="The latest 100 decisions." />
+      <PageHeader title="Bank slips" />
       <Tabs history pending={pending} />
       <form action="/admin/slips" role="search" className="mb-4 flex flex-wrap gap-2">
         <input type="hidden" name="view" value="history" />

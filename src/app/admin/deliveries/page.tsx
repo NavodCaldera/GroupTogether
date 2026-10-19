@@ -52,10 +52,7 @@ export default async function DeliveriesPage() {
 
   return (
     <>
-      <PageHeader
-        title="Deliveries"
-        description="One PickMe drop per confirmed cart, to the owner. The owner pays the driver; we never collect the fee."
-      />
+      <PageHeader title="Deliveries" />
 
       <section className="flex flex-col gap-3">
         <h2 className="font-semibold">To book ({toBook.length})</h2>

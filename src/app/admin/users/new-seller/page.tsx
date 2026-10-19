@@ -12,10 +12,7 @@ export default async function NewSellerPage() {
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/users" />
-      <PageHeader
-        title="Add a factory seller"
-        description="Sellers list their stock for us to review and publish. They never see buyers or sales."
-      />
+      <PageHeader title="Add a factory seller" />
       <Card>
         <AdminForm action={createSellerAction} submit="Create seller account">
           <Field label="Factory or company name" name="company">

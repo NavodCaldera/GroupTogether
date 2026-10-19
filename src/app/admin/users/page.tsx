@@ -124,7 +124,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
     <>
       <PageHeader
         title="Users"
-        description="Buyers sign up themselves. Add factory sellers and packing staff here; admins come only from the seed."
         actions={
           <>
             <Link

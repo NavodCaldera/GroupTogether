@@ -11,7 +11,7 @@ export default async function NewProductPage() {
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/products" />
-      <PageHeader title="Add product" description="Add sizes and stock after creating it." />
+      <PageHeader title="Add product" />
       <Card>
         <ProductForm />
       </Card>
