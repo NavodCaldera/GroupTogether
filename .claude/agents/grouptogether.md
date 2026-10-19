@@ -89,7 +89,8 @@ It is a standalone project: it shares no code, database or rules with any other 
     and packs it ("Rechecked and packed"). The person who gathered an order can't pack it. Only
     once it is packed **and** the admin has booked PickMe can someone press "Handed to the PickMe
     driver", which records who handed it over, moves the drop to PICKED_UP and tells the owner.
-    Before handover anyone can send it back to be gathered again (clears both steps). **The two
+    Until it is packed anyone can send it back to be gathered again ("Something wrong?"; once
+    packed it is final, product owner 2026-10-20). **The two
     people who certified the order (gathered by, packed by) and who handed it over are shown with
     the order on the admin side**: cart page (Packing card + timeline), carts list, deliveries and
     the orders CSV. Packing staff never see money; `/`, `/shop`, `/carts`, `/my-carts` and

@@ -61,12 +61,14 @@ export async function markPacked(staffId: string, cartId: string, now = new Date
   });
 }
 
-/** Something was wrong: the gathering and packing are cleared, and it starts again. */
+/** Something was wrong before packing: the gathering is cleared, and it starts again. */
 export async function sendBack(cartId: string) {
   await db.$transaction(async (tx) => {
     const cart = await lockedCart(tx, cartId);
     if (!cart.packing) throw new CartError("This order isn't gathered yet");
     if (cart.packing.handedOverAt) throw new CartError("This order has already gone to PickMe");
+    // Once packed it can't be sent back (product owner, 2026-10-20).
+    if (cart.packing.packedAt) throw new CartError("This order is already packed");
     await tx.packing.delete({ where: { id: cart.packing.id } });
   });
 }

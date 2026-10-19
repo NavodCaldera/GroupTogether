@@ -102,14 +102,17 @@ describe("packing a confirmed order", () => {
     expect(q.handedToday.map((c) => c.id)).toEqual([cart.id]);
   });
 
-  it("something wrong: it is sent back and gathered again from the start", async () => {
+  it("something wrong before packing: it is sent back and gathered again from the start", async () => {
     const [amal, nimal] = [await makeUser("PACKER"), await makeUser("PACKER")];
     const { cart } = await confirmedCart();
     await markGathered(amal.id, cart.id);
-    await markPacked(nimal.id, cart.id);
     await sendBack(cart.id);
     expect(await db.packing.count()).toBe(0);
     expect((await packingQueue()).toGather.map((c) => c.id)).toEqual([cart.id]);
+    // Once packed it is final.
+    await markGathered(amal.id, cart.id);
+    await markPacked(nimal.id, cart.id);
+    await expect(sendBack(cart.id)).rejects.toThrow("already packed");
   });
 
   it("only paid orders can be packed", async () => {

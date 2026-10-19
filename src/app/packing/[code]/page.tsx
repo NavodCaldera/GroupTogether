@@ -128,7 +128,8 @@ export default async function PackOrderPage({
             </PackingForm>
           ))}
 
-        {open && (stage === "to-pack" || stage === "ready") && (
+        {/* Only between gathering and packing: once packed it is final (product owner, 2026-10-20). */}
+        {open && stage === "to-pack" && (
           <details className="text-sm">
             <summary className="cursor-pointer py-2 text-danger">Something wrong?</summary>
             <PackingForm
