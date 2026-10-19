@@ -18,7 +18,7 @@ enum Role {
   ADMIN
   /// A factory that supplies stock: lists products for an admin to review and publish
   SELLER
-  /// Our packing staff: pack confirmed orders, check each other's packing, hand it to PickMe
+  /// Our packing staff: one checks and gathers a paid order, another rechecks and packs it
   PACKER
 }
 
@@ -53,9 +53,9 @@ model User {
   mergeRequests CartMergeRequest[]
   notifications Notification[]
   products      Product[]          @relation("SellerProducts")
+  gathered      Packing[]          @relation("GatheredBy")
   packed        Packing[]          @relation("PackedBy")
   handedOver    Packing[]          @relation("HandedOverBy")
-  packingChecks PackingCheck[]
 }
 
 model Session {
@@ -357,32 +357,24 @@ model Delivery {
   updatedAt   DateTime       @updatedAt
 }
 
-/// Packing a confirmed cart in our store (product owner, 2026-10-18): one of the packing staff
-/// packs it, two different staff check that everything is in order, then it is handed to the
-/// PickMe driver. Deleted if a checker sends it back to be packed again.
+/// Packing a confirmed cart in our store (product owner, 2026-10-19): one of the packing staff
+/// checks every item and gathers it all together, then a different person rechecks it and packs
+/// it; only then is it handed to the PickMe driver. Deleted if it is sent back to be gathered again.
 model Packing {
-  id             String         @id @default(cuid())
-  cartId         String         @unique
-  cart           GroupCart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  packedById     String
-  packedBy       User           @relation("PackedBy", fields: [packedById], references: [id])
-  packedAt       DateTime       @default(now())
+  id             String    @id @default(cuid())
+  cartId         String    @unique
+  cart           GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  /// First check: who checked the items and gathered them
+  gatheredById   String
+  gatheredBy     User      @relation("GatheredBy", fields: [gatheredById], references: [id])
+  gatheredAt     DateTime  @default(now())
+  /// Second check, by someone else: who rechecked and packed it
+  packedById     String?
+  packedBy       User?     @relation("PackedBy", fields: [packedById], references: [id])
+  packedAt       DateTime?
   handedOverById String?
-  handedOverBy   User?          @relation("HandedOverBy", fields: [handedOverById], references: [id])
+  handedOverBy   User?     @relation("HandedOverBy", fields: [handedOverById], references: [id])
   handedOverAt   DateTime?
-  checks         PackingCheck[]
-}
-
-/// One staff member certifying that a packed order is correct. Two different people are needed.
-model PackingCheck {
-  id        String   @id @default(cuid())
-  packingId String
-  packing   Packing  @relation(fields: [packingId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  createdAt DateTime @default(now())
-
-  @@unique([packingId, userId])
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────

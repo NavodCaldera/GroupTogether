@@ -26,7 +26,8 @@ export const metadata: Metadata = { title: "Pack order" };
 /**
  * One order for the packing staff: every item by member (tick boxes are only for the packer's
  * eye and are not saved), the drop-off label, and the next step: pack, check (two different
- * people), hand to the PickMe driver. No prices: the staff only need what goes in the parcel.
+ * people), hand to the PickMe driver. No prices and the fewest words (product owner,
+ * 2026-10-19): the staff only need what goes in the parcel.
  */
 export default async function PackOrderPage({
   params,
@@ -50,11 +51,11 @@ export default async function PackOrderPage({
   return (
     <>
       <BackLink fallback="/packing" />
-      {done === "packed" && <Toast>Packed. Now two other people check it.</Toast>}
-      {done === "repack" && <Toast>Sent back to be packed again.</Toast>}
+      {done === "packed" && <Toast>Packed.</Toast>}
+      {done === "repack" && <Toast>Sent back to pack.</Toast>}
       <PageHeader
-        title={`Cart ${cart.code}`}
-        description={`For ${cart.owner.name} · ${items} ${items === 1 ? "item" : "items"}`}
+        title={cart.code}
+        description={`${items} ${items === 1 ? "item" : "items"}`}
         actions={
           <Badge tone={stage === "handed-over" ? "good" : "info"}>
             {PACKING_STAGE_LABEL[stage]}
@@ -63,48 +64,32 @@ export default async function PackOrderPage({
       />
 
       <Card className="flex flex-col gap-4">
-        <h2 className="font-semibold">What goes in the parcel</h2>
-        {byMember.map((m) => {
-          const n = m.lines.reduce((k, l) => k + l.qty, 0);
-          return (
-            <div key={m.userId}>
-              <h3 className="text-sm font-medium">
-                {m.user.name}
-                {m.userId === cart.ownerId && " (owner)"}
-                <span className="font-normal text-subtle">
-                  {" "}
-                  · {n} {n === 1 ? "item" : "items"}
-                </span>
-              </h3>
-              <ul className="mt-1 divide-y divide-line">
-                {m.lines.map((l) => (
-                  <li key={l.id}>
-                    <label className="flex min-h-11 cursor-pointer items-center gap-3 py-1.5 text-sm">
-                      <input type="checkbox" className="size-5 shrink-0 accent-accent" />
-                      <span className="min-w-0 flex-1">
-                        {l.variant.product.brand} {l.variant.product.title}
-                        <span className="block text-xs text-subtle">
-                          Size {l.variant.size}
-                          {l.variant.colour && ` · ${l.variant.colour}`}
-                        </span>
+        {byMember.map((m) => (
+          <div key={m.userId}>
+            <h3 className="text-sm font-medium">{m.user.name}</h3>
+            <ul className="mt-1 divide-y divide-line">
+              {m.lines.map((l) => (
+                <li key={l.id}>
+                  <label className="flex min-h-11 cursor-pointer items-center gap-3 py-1.5 text-sm">
+                    <input type="checkbox" className="size-5 shrink-0 accent-accent" />
+                    <span className="min-w-0 flex-1">
+                      {l.variant.product.brand} {l.variant.product.title}
+                      <span className="block text-xs text-subtle">
+                        Size {l.variant.size}
+                        {l.variant.colour && ` · ${l.variant.colour}`}
                       </span>
-                      <span className="shrink-0 font-semibold tabular-nums">× {l.qty}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-        <p className="text-xs text-subtle">
-          Everything goes in one parcel to {cart.owner.name}, who hands the other members their
-          items.
-        </p>
+                    </span>
+                    <span className="shrink-0 font-semibold tabular-nums">× {l.qty}</span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </Card>
 
       <Card className="flex flex-col gap-3">
-        <h2 className="font-semibold">Packing</h2>
-        <PackingTrail packing={cart.packing} you={staff.id} />
+        <PackingTrail packing={cart.packing} you={staff.id} brief />
 
         {open && stage === "to-pack" && (
           <PackingForm
@@ -112,11 +97,7 @@ export default async function PackOrderPage({
             cartId={cart.id}
             code={cart.code}
             submit="I've packed it"
-          >
-            <p className="text-sm text-subtle">
-              Pack every item above, then press this. Two other people then check the parcel.
-            </p>
-          </PackingForm>
+          />
         )}
 
         {open && stage === "to-check" && canCheck && (
@@ -125,20 +106,13 @@ export default async function PackOrderPage({
             cartId={cart.id}
             code={cart.code}
             submit="Checked: everything is correct"
-          >
-            <p className="text-sm text-subtle">
-              Open the parcel and compare it with the list. Press this only if every item, size and
-              quantity is right. Your name goes on the order.
-            </p>
-          </PackingForm>
+          />
         )}
         {open && stage === "to-check" && iPacked && (
-          <Alert tone="info">
-            You packed this order, so you can&apos;t check it. Two other people must check it.
-          </Alert>
+          <Alert tone="info">You packed it, so two others check it.</Alert>
         )}
         {open && stage === "to-check" && iChecked && (
-          <Alert tone="info">You checked this order. Another person must check it too.</Alert>
+          <Alert tone="info">You checked it. One more person must check.</Alert>
         )}
 
         {open &&
@@ -152,35 +126,28 @@ export default async function PackOrderPage({
               code={cart.code}
               submit="Handed to the PickMe driver"
             >
-              <p className="text-sm">
-                PickMe booked
-                {cart.delivery?.externalRef && ` · ${cart.delivery.externalRef}`}
-                {cart.delivery?.driverName && ` · driver ${cart.delivery.driverName}`}
-              </p>
+              {cart.delivery?.driverName && (
+                <p className="text-sm">Driver: {cart.delivery.driverName}</p>
+              )}
             </PackingForm>
           ))}
 
         {open && (stage === "to-check" || stage === "ready") && (
           <details className="text-sm">
-            <summary className="cursor-pointer py-2 text-danger">Something is wrong?</summary>
+            <summary className="cursor-pointer py-2 text-danger">Something wrong?</summary>
             <PackingForm
               action={repackAction}
               cartId={cart.id}
               code={cart.code}
-              submit="Send it back to be packed again"
+              submit="Pack it again"
               variant="secondary"
-            >
-              <p className="text-subtle">
-                This clears the packing and every check, so it is packed and checked again.
-              </p>
-            </PackingForm>
+            />
           </details>
         )}
       </Card>
 
       <Card className="text-sm">
-        <h2 className="mb-2 font-semibold">Label for the parcel</h2>
-        <p className="font-mono text-xs text-subtle">Cart {cart.code}</p>
+        <h2 className="mb-1 font-semibold">Label</h2>
         <p className="font-medium">
           {cart.owner.name}
           {cart.deliveryPhone && ` · ${cart.deliveryPhone}`}
@@ -188,9 +155,6 @@ export default async function PackOrderPage({
         <p>
           {cart.deliveryAddress}
           {cart.deliveryCity && `, ${cart.deliveryCity}`}
-        </p>
-        <p className="mt-2 text-xs text-subtle">
-          The owner pays the PickMe driver. Never take money for delivery.
         </p>
       </Card>
     </>

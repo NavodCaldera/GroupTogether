@@ -11,23 +11,23 @@ export type PackingTrailView = {
   checks: { userId: string; createdAt: Date; user: { name: string } }[];
 } | null;
 
-/** "Checked by Amal and Nimal", or null before anyone has checked it. */
-export function checkedByText(p: PackingTrailView): string | null {
-  if (!p || p.checks.length === 0) return null;
-  return `Checked by ${namesList(p.checks.map((c) => c.user.name))}`;
-}
-
-/** Packed by, each check, and the PickMe handover, with times. "You" marks the viewer's own steps. */
+/**
+ * Packed by, each check, and the PickMe handover, with times. "You" marks the viewer's own steps.
+ * `brief` (packing staff) shows only the steps done, without times.
+ */
 export function PackingTrail({
   packing,
   you,
+  brief,
   className,
 }: {
   packing: PackingTrailView;
   you?: string;
+  brief?: boolean;
   className?: string;
 }) {
-  if (!packing) return <p className={cx("text-sm text-subtle", className)}>Not packed yet.</p>;
+  if (!packing)
+    return brief ? null : <p className={cx("text-sm text-subtle", className)}>Not packed yet.</p>;
   const missing = CHECKS_NEEDED - packing.checks.length;
   const rows = [
     { text: `Packed by ${packing.packedBy.name}`, at: packing.packedAt, done: true },
@@ -48,7 +48,7 @@ export function PackingTrail({
           done: true,
         }
       : { text: "Not handed to PickMe yet", at: null, done: false },
-  ];
+  ].filter((r) => !brief || r.done);
   return (
     <ol className={cx("flex flex-col gap-1.5 text-sm", className)}>
       {rows.map((r, i) => (
@@ -58,7 +58,9 @@ export function PackingTrail({
           </span>
           <span>
             {r.text}
-            {r.at && <span className="block text-xs text-subtle">{formatDateTime(r.at)}</span>}
+            {r.at && !brief && (
+              <span className="block text-xs text-subtle">{formatDateTime(r.at)}</span>
+            )}
           </span>
         </li>
       ))}

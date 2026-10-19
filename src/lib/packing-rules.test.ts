@@ -26,7 +26,7 @@ describe("checking a packed order", () => {
     expect(checkBlockReason(packed([]), "a")).toBeNull();
     expect(checkBlockReason(packed(["a"]), "a")).toMatch("Someone else must check it");
     expect(checkBlockReason(packed(["a"]), "b")).toBeNull();
-    expect(checkBlockReason(packed(["a", "b"]), "c")).toMatch("already been checked twice");
+    expect(checkBlockReason(packed(["a", "b"]), "c")).toMatch("checked twice");
     expect(checkBlockReason(packed(["a", "b"], new Date()), "c")).toMatch("already gone");
   });
 });
@@ -36,7 +36,7 @@ describe("handing over to PickMe", () => {
   it("only after two checks and once PickMe is booked", () => {
     expect(handOverBlockReason(null, booked)).toMatch("Pack this order first");
     expect(handOverBlockReason(packed([]), booked)).toMatch("2 more checks");
-    expect(handOverBlockReason(packed(["a"]), booked)).toMatch("1 more check ");
+    expect(handOverBlockReason(packed(["a"]), booked)).toMatch(/1 more check$/);
     expect(handOverBlockReason(packed(["a", "b"]), null)).toMatch("isn't booked yet");
     expect(handOverBlockReason(packed(["a", "b"]), { status: "FAILED" })).toMatch("closed");
     expect(handOverBlockReason(packed(["a", "b"]), booked)).toBeNull();

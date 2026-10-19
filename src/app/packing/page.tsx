@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { checkedByText } from "@/components/packing-bits";
 import { Toast } from "@/components/toast";
-import { EmptyState, PageHeader, cx } from "@/components/ui";
+import { PageHeader, cx } from "@/components/ui";
 import { CHECKS_NEEDED } from "@/lib/packing-rules";
 import { formatDateTime } from "@/lib/format";
 import { requirePacker } from "@/server/auth/session";
@@ -13,7 +12,8 @@ export const metadata: Metadata = { title: "Packing" };
 
 /**
  * The packing staff's list on their phones: paid orders to pack, to check (two people) and to
- * hand to PickMe, oldest first. Each card opens the order's picking list.
+ * hand to PickMe, oldest first. Kept to the fewest words (product owner, 2026-10-19). Each card
+ * opens the order's picking list.
  */
 export default async function PackingPage({ searchParams }: PageProps<"/packing">) {
   const staff = await requirePacker();
@@ -24,68 +24,48 @@ export default async function PackingPage({ searchParams }: PageProps<"/packing"
   const packedByMe = (c: QueueCart) => c.packing?.packedById === staff.id;
   const checkedByMe = (c: QueueCart) =>
     c.packing?.checks.some((k) => k.userId === staff.id) ?? false;
-  const mine = (c: QueueCart) => packedByMe(c) || checkedByMe(c);
 
   return (
     <>
-      {done === "checked" && <Toast>Your check on {code} is saved.</Toast>}
-      {done === "handed" && <Toast>{code} handed to PickMe. Thank you!</Toast>}
-      <PageHeader
-        title="Packing"
-        description="Pack each paid order, have two other people check it, then hand it to the PickMe driver."
-      />
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <Tile n={toPack.length} label="To pack" href="#to-pack" />
-        <Tile n={toCheck.filter((c) => !mine(c)).length} label="To check" href="#to-check" />
-        <Tile n={ready.length} label="For PickMe" href="#ready" />
-      </div>
+      {done === "checked" && <Toast>{code} checked.</Toast>}
+      {done === "handed" && <Toast>{code} handed over.</Toast>}
+      <PageHeader title="Packing" />
 
-      <Section id="to-pack" title="To pack" n={toPack.length} empty="Nothing to pack">
+      <Section title="To pack" n={toPack.length}>
         {toPack.map((c) => (
-          <OrderCard key={c.id} cart={c}>
-            Paid {formatDateTime(c.confirmedAt)}
-          </OrderCard>
+          <OrderCard key={c.id} cart={c} />
         ))}
       </Section>
 
-      <Section id="to-check" title="To check" n={toCheck.length} empty="Nothing to check">
+      <Section title="To check" n={toCheck.length}>
         {toCheck.map((c) => (
-          <OrderCard key={c.id} cart={c} faded={mine(c)}>
-            Packed by {c.packing!.packedBy.name} · {c.packing!.checks.length} of {CHECKS_NEEDED}{" "}
-            checks
-            {packedByMe(c) && (
-              <span className="block">You packed it, so two other people check it.</span>
-            )}
-            {checkedByMe(c) && (
-              <span className="block">You checked it. Someone else must check it too.</span>
-            )}
+          <OrderCard key={c.id} cart={c} faded={packedByMe(c) || checkedByMe(c)}>
+            {c.packing!.checks.length}/{CHECKS_NEEDED} checked
+            {packedByMe(c) && " · packed by you"}
+            {checkedByMe(c) && " · checked by you"}
           </OrderCard>
         ))}
       </Section>
 
-      <Section
-        id="ready"
-        title="Ready for PickMe"
-        n={ready.length}
-        empty="Nothing waiting for PickMe"
-      >
+      <Section title="For PickMe" n={ready.length}>
         {ready.map((c) => (
           <OrderCard key={c.id} cart={c}>
-            {checkedByText(c.packing)}
-            <span className={cx("block", c.delivery && "font-medium text-accent")}>
-              {c.delivery
-                ? `PickMe booked${c.delivery.externalRef ? ` · ${c.delivery.externalRef}` : ""}${c.delivery.driverName ? ` · ${c.delivery.driverName}` : ""}`
-                : "Waiting for the PickMe booking"}
-            </span>
+            {c.delivery ? (
+              <span className="font-medium text-accent">
+                Booked{c.delivery.driverName && ` · ${c.delivery.driverName}`}
+              </span>
+            ) : (
+              "Not booked yet"
+            )}
           </OrderCard>
         ))}
       </Section>
 
       {handedToday.length > 0 && (
-        <Section id="done" title="Handed to PickMe today" n={handedToday.length} empty="">
+        <Section title="Handed over today" n={handedToday.length}>
           {handedToday.map((c) => (
             <OrderCard key={c.id} cart={c} faded>
-              By {c.packing!.handedOverBy?.name} · {formatDateTime(c.packing!.handedOverAt)}
+              {formatDateTime(c.packing!.handedOverAt)}
             </OrderCard>
           ))}
         </Section>
@@ -94,42 +74,17 @@ export default async function PackingPage({ searchParams }: PageProps<"/packing"
   );
 }
 
-function Tile({ n, label, href }: { n: number; label: string; href: string }) {
+function Section({ title, n, children }: { title: string; n: number; children: ReactNode }) {
   return (
-    <a
-      href={href}
-      className={cx(
-        "rounded-xl border p-3 hover:bg-muted",
-        n > 0 ? "border-accent" : "border-line text-subtle",
-      )}
-    >
-      <span className={cx("block text-2xl font-semibold tabular-nums", n > 0 && "text-accent")}>
-        {n}
-      </span>
-      <span className="text-xs">{label}</span>
-    </a>
-  );
-}
-
-function Section({
-  id,
-  title,
-  n,
-  empty,
-  children,
-}: {
-  id: string;
-  title: string;
-  n: number;
-  empty: string;
-  children: ReactNode;
-}) {
-  return (
-    <section id={id} className="flex scroll-mt-20 flex-col gap-2">
+    <section className="flex flex-col gap-2">
       <h2 className="font-semibold">
-        {title} ({n})
+        {title} <span className="font-normal text-subtle tabular-nums">{n}</span>
       </h2>
-      {n === 0 ? <EmptyState title={empty} /> : <ul className="flex flex-col gap-2">{children}</ul>}
+      {n === 0 ? (
+        <p className="text-sm text-subtle">None</p>
+      ) : (
+        <ul className="flex flex-col gap-2">{children}</ul>
+      )}
     </section>
   );
 }
@@ -142,7 +97,7 @@ function OrderCard({
 }: {
   cart: QueueCart;
   faded?: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 }) {
   return (
     <li
@@ -162,11 +117,7 @@ function OrderCard({
           {cart.items} {cart.items === 1 ? "item" : "items"} <span aria-hidden>›</span>
         </span>
       </div>
-      <p className="truncate text-sm">
-        {cart.owner.name}
-        {cart.deliveryCity && <span className="text-subtle"> · {cart.deliveryCity}</span>}
-      </p>
-      <p className="mt-1 text-xs text-subtle">{children}</p>
+      {children && <p className="mt-1 text-xs text-subtle">{children}</p>}
     </li>
   );
 }

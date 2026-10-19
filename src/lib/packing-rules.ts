@@ -38,11 +38,10 @@ export function packingStage(p: PackingLike): PackingStage {
 export function checkBlockReason(p: PackingLike, userId: string): string | null {
   if (!p) return "Pack this order first";
   if (p.handedOverAt) return "This order has already gone to PickMe";
-  if (p.packedById === userId)
-    return "You packed this order, so you can't check it. Two other people must check it.";
+  if (p.packedById === userId) return "You packed this order, so you can't check it";
   if (p.checks.some((c) => c.userId === userId))
-    return "You have already checked this order. Someone else must check it too.";
-  if (p.checks.length >= CHECKS_NEEDED) return "This order has already been checked twice";
+    return "You already checked it. Someone else must check it.";
+  if (p.checks.length >= CHECKS_NEEDED) return "Already checked twice";
   return null;
 }
 
@@ -54,11 +53,9 @@ export function handOverBlockReason(
   if (!p) return "Pack this order first";
   if (p.handedOverAt) return "This order has already gone to PickMe";
   const missing = CHECKS_NEEDED - p.checks.length;
-  if (missing > 0)
-    return `It needs ${missing === 1 ? "1 more check" : `${missing} more checks`} before it goes to PickMe`;
-  if (!delivery) return "PickMe isn't booked yet. Wait for the admin to book the driver.";
-  if (!HANDOVER_DELIVERY.includes(delivery.status))
-    return "This PickMe drop is closed. Ask the admin.";
+  if (missing > 0) return `Needs ${missing === 1 ? "1 more check" : `${missing} more checks`}`;
+  if (!delivery) return "PickMe isn't booked yet";
+  if (!HANDOVER_DELIVERY.includes(delivery.status)) return "PickMe drop closed. Ask the admin.";
   return null;
 }
 

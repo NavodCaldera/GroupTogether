@@ -92,7 +92,7 @@ heavy libraries, paid services or anything that needs an always-on worker.
 17. **Packing staff** (product owner, 2026-10-18). People in our store who sort and pack orders
     (`PACKER`) are created by an admin at `/admin/users/new-packer` (or the seed) and land on
     `/packing`, a phone-first list of paid orders (CONFIRMED/DISPATCHED): **To pack → To check →
-    Ready for PickMe**, plus today's handovers. Every packer gets an in-app notice when a slip is
+    For PickMe**, plus today's handovers. Packing pages show only what the packer needs, in the fewest words (product owner, 2026-10-19): code, item count, one short status line; no owner, city, times or explanations. Every packer gets an in-app notice when a slip is
     approved ("New order to pack") and when PickMe is booked. On an order (`/packing/<code>`, items
     by member, no prices, the drop-off label) one person presses "I've packed it", then **two
     other people** each press "Checked: everything is correct". **Checking and packing are never
