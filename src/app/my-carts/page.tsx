@@ -22,6 +22,7 @@ export default async function PastOrdersPage() {
   // Admins have no carts of their own; their view of carts is Admin → Carts.
   if (user.role === "ADMIN") redirect("/admin");
   if (user.role === "PACKER") redirect("/packing");
+  if (user.role === "SELLER") redirect("/seller");
   const carts = await myCarts(user.id);
   const orders = carts.filter((c) => DONE.includes(c.status));
   const closed = carts.filter((c) => !DONE.includes(c.status));

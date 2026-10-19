@@ -19,6 +19,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   const role = (await getCurrentUser())?.role;
   if (role === "ADMIN") redirect("/admin/products");
   if (role === "PACKER") redirect("/packing");
+  if (role === "SELLER") redirect("/seller");
   const sp = await searchParams;
   const cart = one(sp.cart);
   const filters: ProductFilters = {

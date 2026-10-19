@@ -35,7 +35,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Private carts never on the public panel.
 - B-grade labelled with its badge; no defects listed anywhere (rule 10, 2026-10-17).
 - Roles: buyers land on `/dashboard`, sellers on `/seller`, admins on `/admin`; wrong-role pages redirect.
-- Sellers only publish stock: they see no buyers, carts or money, change only their own drafts, and nothing they list is on sale until an admin publishes it.
+- Sellers only publish stock: they see no buyers, carts or money, change only their own drafts, and nothing they list is on sale until an admin publishes it. Only buyers can start/join/add to carts; sellers and packers can't send chat messages; buyer pages redirect sellers to `/seller` (seller.int.test.ts).
 
 **Look for:**
 

@@ -16,24 +16,16 @@ type ProductValues = {
   status: string;
 };
 
-/**
- * The product details form, for admins and (with `seller`) factory sellers. Sellers don't set
- * the status: their products stay drafts until they submit them for review.
- */
+/** The admin's product details form. Factory sellers use their own one-screen `ListingForm`. */
 export function ProductForm({
   product,
   action = saveProductAction,
-  seller = false,
 }: {
   product?: ProductValues;
   action?: (prev: AdminState, fd: FormData) => Promise<AdminState>;
-  seller?: boolean;
 }) {
   return (
-    <AdminForm
-      action={action}
-      submit={product ? "Save product" : seller ? "Create draft" : "Create product"}
-    >
+    <AdminForm action={action} submit={product ? "Save product" : "Create product"}>
       {product && <input type="hidden" name="id" value={product.id} />}
       <Field label="Title" name="title">
         <Input name="title" defaultValue={product?.title} required />
@@ -57,7 +49,7 @@ export function ProductForm({
         </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={seller ? "Price on GroupTogether (LKR)" : "Our price (LKR)"} name="price">
+        <Field label="Our price (LKR)" name="price">
           <Input
             name="price"
             inputMode="decimal"
@@ -85,16 +77,14 @@ export function ProductForm({
           className="text-sm"
         />
       </Field>
-      {!seller && (
-        <Field label="Status" name="status">
-          <Select name="status" defaultValue={product?.status ?? "DRAFT"}>
-            <option value="DRAFT">Draft (hidden)</option>
-            <option value="IN_REVIEW">In review (seller submitted)</option>
-            <option value="LIVE">Live</option>
-            <option value="ARCHIVED">Archived</option>
-          </Select>
-        </Field>
-      )}
+      <Field label="Status" name="status">
+        <Select name="status" defaultValue={product?.status ?? "DRAFT"}>
+          <option value="DRAFT">Draft (hidden)</option>
+          <option value="IN_REVIEW">In review (seller submitted)</option>
+          <option value="LIVE">Live</option>
+          <option value="ARCHIVED">Archived</option>
+        </Select>
+      </Field>
     </AdminForm>
   );
 }

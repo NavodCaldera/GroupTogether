@@ -40,9 +40,12 @@ function assertEditable(cart: GroupCart, now: Date) {
 /**
  * A buyer can own or be in only one active cart at a time. Takes a per-user lock so two requests
  * can't both pass the check. Pass `cartId` to allow the cart they are already in.
+ * Only shoppers use carts: sellers, packing staff and admins are refused (rule 11).
  */
 async function assertOneCart(tx: Tx, userId: string, now: Date, cartId?: string) {
   await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${userId}))) AS l`;
+  const me = await tx.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (me?.role !== "CUSTOMER") throw new CartError("Only shoppers can use carts");
   const other = await tx.groupCart.findFirst({
     where: {
       id: cartId ? { not: cartId } : undefined,

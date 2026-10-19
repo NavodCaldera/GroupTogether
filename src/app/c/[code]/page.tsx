@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { StatusBadge } from "@/components/cart-bits";
 import { BackLink, Countdown } from "@/components/client";
 import { Toast } from "@/components/toast";
@@ -49,6 +49,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   const swept = await sweep(new Date(), found.id);
   const cart = swept.closed ? (await cartByCode(code))! : found;
   const user = await getCurrentUser();
+  if (user?.role === "SELLER") redirect("/seller");
 
   const isOwner = user?.id === cart.ownerId;
   const isMember = !!user && cart.members.some((m) => m.userId === user.id);

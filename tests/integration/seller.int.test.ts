@@ -1,12 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createSeller, homeFor } from "@/server/auth/service";
+import { sendMessage } from "@/server/carts/chat";
 import { createCart, setLine } from "@/server/carts/service";
 import { db } from "@/server/db";
 import {
   deleteDraft,
   publishProduct,
   returnToSeller,
-  sellerAdjustStock,
+  sellerSaveListing,
   sellerSaveProduct,
   submitForReview,
   withdrawFromReview,
@@ -53,14 +54,16 @@ describe("factory seller listing flow", () => {
     expect(p).toMatchObject({ status: "DRAFT", sellerId: s.id });
 
     await expect(submitForReview(s.id, p.id)).rejects.toThrow("Add stock");
-    await sellerAdjustStock(s.id, p.id, "UK 9", "", 5);
+    await sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "5" }, false);
     await submitForReview(s.id, p.id);
     expect((await product(p.id)).status).toBe("IN_REVIEW");
     expect(await db.notification.count({ where: { userId: admin.id } })).toBe(1);
 
     // Locked while in review.
     await expect(sellerSaveProduct(s.id, p.id, shoe, null)).rejects.toThrow("in review");
-    await expect(sellerAdjustStock(s.id, p.id, "UK 9", "", 1)).rejects.toThrow("in review");
+    await expect(sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "1" }, false)).rejects.toThrow(
+      "in review",
+    );
 
     await returnToSeller(p.id, "Add a photo");
     expect(await product(p.id)).toMatchObject({ status: "DRAFT", reviewNote: "Add a photo" });
@@ -79,7 +82,9 @@ describe("factory seller listing flow", () => {
 
     // Live: the seller can't change it any more; buyers can buy it.
     await expect(sellerSaveProduct(s.id, p.id, shoe, null)).rejects.toThrow("live");
-    await expect(sellerAdjustStock(s.id, p.id, "UK 9", "", 10)).rejects.toThrow("live");
+    await expect(
+      sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "10" }, false),
+    ).rejects.toThrow("live");
     const v = await db.variant.findFirstOrThrow({ where: { productId: p.id } });
     const cart = await createCart(buyer.id, {});
     await setLine(buyer.id, cart.id, v.id, 2);
@@ -92,7 +97,7 @@ describe("factory seller listing flow", () => {
   it("a product in review is hidden from the shop and can't be added to carts", async () => {
     const [s, buyer] = [await seller(), await makeUser()];
     const p = await sellerSaveProduct(s.id, null, shoe, null);
-    await sellerAdjustStock(s.id, p.id, "UK 9", "", 5);
+    await sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "5" }, false);
     await submitForReview(s.id, p.id);
     const v = await db.variant.findFirstOrThrow({ where: { productId: p.id } });
     const cart = await createCart(buyer.id, {});
@@ -103,14 +108,16 @@ describe("factory seller listing flow", () => {
     const [a, b] = [await seller(), await seller()];
     const p = await sellerSaveProduct(a.id, null, shoe, null);
     await expect(sellerSaveProduct(b.id, p.id, shoe, null)).rejects.toThrow("not found");
-    await expect(sellerAdjustStock(b.id, p.id, "UK 9", "", 1)).rejects.toThrow("not found");
+    await expect(sellerSaveListing(b.id, p.id, shoe, null, { "UK 9": "1" }, false)).rejects.toThrow(
+      "not found",
+    );
     await expect(deleteDraft(b.id, p.id)).rejects.toThrow("not found");
   });
 
   it("withdraws from review and deletes a draft", async () => {
     const s = await seller();
     const p = await sellerSaveProduct(s.id, null, shoe, null);
-    await sellerAdjustStock(s.id, p.id, "UK 9", "", 1);
+    await sellerSaveListing(s.id, p.id, shoe, null, { "UK 9": "1" }, false);
     await submitForReview(s.id, p.id);
     await withdrawFromReview(s.id, p.id);
     expect((await product(p.id)).status).toBe("DRAFT");
@@ -124,6 +131,50 @@ describe("factory seller listing flow", () => {
     expect(b).toMatchObject({ stockType: "B_GRADE", defectNotes: null });
     const p = await sellerSaveProduct(s.id, null, shoe, null);
     await expect(publishProduct(p.id)).rejects.toThrow("isn't waiting for review");
+  });
+
+  it("saves details and every size in one go, and can send it straight for review", async () => {
+    const [s, admin] = [await seller(), await makeUser("ADMIN")];
+    await expect(
+      sellerSaveListing(s.id, null, shoe, null, { "UK 8": "", "UK 9": "0" }, true),
+    ).rejects.toThrow("at least one size");
+    await expect(
+      sellerSaveListing(s.id, null, shoe, null, { "UK 9": "2.5" }, false),
+    ).rejects.toThrow("whole number for size UK 9");
+    expect(await db.product.count({ where: { sellerId: s.id } })).toBe(0);
+
+    const p = await sellerSaveListing(s.id, null, shoe, null, { "UK 8": "3", "UK 9": "5" }, false);
+    const sizes = async () =>
+      (await db.variant.findMany({ where: { productId: p.id }, orderBy: { size: "asc" } })).map(
+        (v) => [v.size, v.available],
+      );
+    expect(await sizes()).toEqual([
+      ["UK 8", 3],
+      ["UK 9", 5],
+    ]);
+    // The numbers are how many they have, not changes; blank is 0.
+    await sellerSaveListing(s.id, p.id, shoe, null, { "UK 8": "", "UK 9": "7" }, false);
+    expect(await sizes()).toEqual([["UK 9", 7]]);
+    // A new category drops the old sizes.
+    await sellerSaveListing(
+      s.id,
+      p.id,
+      { ...shoe, kind: "men-tshirts" },
+      null,
+      { M: "4", "UK 9": "7" },
+      true,
+    );
+    expect(await sizes()).toEqual([["M", 4]]);
+    expect((await product(p.id)).status).toBe("IN_REVIEW");
+    expect(await db.notification.count({ where: { userId: admin.id } })).toBe(1);
+  });
+
+  it("sellers and packing staff can't use carts or message shoppers", async () => {
+    const [s, packer, buyer] = [await seller(), await makeUser("PACKER"), await makeUser()];
+    await expect(createCart(s.id, {})).rejects.toThrow("Only shoppers");
+    await expect(createCart(packer.id, {})).rejects.toThrow("Only shoppers");
+    const cart = await createCart(buyer.id, {});
+    await expect(sendMessage(s.id, cart.id, "Hello")).rejects.toThrow("Only shoppers");
   });
 
   it("refuses a second account with the same email", async () => {

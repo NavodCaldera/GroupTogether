@@ -6,6 +6,7 @@ import { homeFor } from "@/server/auth/service";
 import { requireUser } from "@/server/auth/session";
 import { PackerProfile } from "./packer-profile";
 import { ProfileForm } from "./profile-form";
+import { SellerProfile } from "./seller-profile";
 
 export const metadata: Metadata = { title: "Profile" };
 
@@ -23,6 +24,17 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
           <PageHeader title="Profile" />
         </div>
         <PackerProfile user={user} />
+      </div>
+    );
+  // Factory sellers never join carts, so no address or map pin either (rule 11).
+  if (user.role === "SELLER")
+    return (
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
+        <div>
+          <BackLink fallback="/seller" />
+          <PageHeader title="Profile" />
+        </div>
+        <SellerProfile user={user} />
       </div>
     );
   return (

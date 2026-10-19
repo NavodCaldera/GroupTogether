@@ -28,6 +28,10 @@ export async function sendMessage(userId: string, cartId: string, body: string, 
     select: { id: true, code: true, name: true, ownerId: true },
   });
   if (!cart) throw new CartError("Cart not found");
+  // Sellers and packing staff never deal with shoppers (rules 11 and 17).
+  const me = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
+  if (me?.role === "SELLER" || me?.role === "PACKER")
+    throw new CartError("Only shoppers can send messages");
   const participantId = threadParticipant(cart, userId, withId);
   if (userId === cart.ownerId) {
     const known = await db.cartMessage.count({ where: { cartId, participantId } });

@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { EmptyState, PageHeader } from "@/components/ui";
@@ -14,6 +15,7 @@ export const metadata: Metadata = { title: "Messages" };
  */
 export default async function MessagesPage({ searchParams }: PageProps<"/messages">) {
   const user = await requireUser([], "/messages");
+  if (user.role === "SELLER") redirect("/seller");
   const sp = await searchParams;
   const c = typeof sp.c === "string" ? sp.c : undefined;
   const w = typeof sp.with === "string" ? sp.with : undefined;

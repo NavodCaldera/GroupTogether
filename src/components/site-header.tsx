@@ -5,11 +5,15 @@ import { NavLink } from "./nav-link";
 import { unreadMessageCount } from "@/server/carts/chat";
 import { unreadCount } from "@/server/notify";
 
-/** Staff with one section (Admin, or Packing), which the logo opens. They don't shop. */
-const STAFF_HOME: Record<string, string> = { ADMIN: "/admin", PACKER: "/packing" };
+/** Roles with one section (Admin, Packing or My products), which the logo opens. They don't shop. */
+const STAFF_HOME: Record<string, string> = {
+  ADMIN: "/admin",
+  PACKER: "/packing",
+  SELLER: "/seller",
+};
 
 /**
- * The phone tab bar is for shoppers and sellers. Admins and packing staff have one section,
+ * The phone tab bar is for shoppers. Admins, packing staff and factory sellers have one section,
  * which the logo already opens, so they get no tab bar.
  */
 export function hasTabBar(user: { role: string } | null) {
@@ -24,9 +28,11 @@ export function hasTabBar(user: { role: string } | null) {
 export async function SiteHeader() {
   const user = await getCurrentUser();
   // Packing staff get no messages or bell: only their packing list and profile (2026-10-19).
+  // Factory sellers keep the bell (product live / needs changes) but never message shoppers.
   const inbox = !!user && user.role !== "PACKER";
-  const [unread, unreadMessages] = inbox
-    ? await Promise.all([unreadCount(user.id), unreadMessageCount(user.id)])
+  const chat = inbox && user.role !== "SELLER";
+  const [unread, unreadMessages] = user
+    ? await Promise.all([inbox ? unreadCount(user.id) : 0, chat ? unreadMessageCount(user.id) : 0])
     : [0, 0];
   const tap = "min-h-11 items-center rounded-md px-2.5 hover:bg-muted sm:min-h-9";
   const link = `inline-flex ${tap}`;
@@ -66,7 +72,7 @@ export async function SiteHeader() {
       ? [
           {
             href: "/seller",
-            label: "Seller",
+            label: "My products",
             icon: <path d="M3 21V9l6-4v4l6-4v4l6-4v16zM7 17h2M11 17h2M15 17h2" />,
           },
         ]
@@ -117,32 +123,34 @@ export async function SiteHeader() {
             <>
               {inbox && (
                 <>
-                  <NavLink
-                    href="/messages"
-                    className={link}
-                    activeClassName={underline}
-                    aria-label={`Messages, ${unreadMessages} unread`}
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      width="20"
-                      height="20"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                      className="text-ink"
+                  {chat && (
+                    <NavLink
+                      href="/messages"
+                      className={link}
+                      activeClassName={underline}
+                      aria-label={`Messages, ${unreadMessages} unread`}
                     >
-                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                    </svg>
-                    {unreadMessages > 0 && (
-                      <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
-                        {unreadMessages}
-                      </span>
-                    )}
-                  </NavLink>
+                      <svg
+                        viewBox="0 0 24 24"
+                        width="20"
+                        height="20"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                        className="text-ink"
+                      >
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                      </svg>
+                      {unreadMessages > 0 && (
+                        <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
+                          {unreadMessages}
+                        </span>
+                      )}
+                    </NavLink>
+                  )}
                   <NavLink
                     href="/notifications"
                     className={link}

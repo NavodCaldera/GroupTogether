@@ -1,6 +1,7 @@
 import "server-only";
 import { Prisma, type Product } from "@/generated/prisma/client";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
+import { sizesFor } from "@/lib/taxonomy";
 import { db } from "./db";
 import { notify } from "./notify";
 
@@ -42,15 +43,71 @@ export async function sellerSaveProduct(
   }
 }
 
-export async function sellerAdjustStock(
-  sellerId: string,
+/** The seller's size grid: blank is 0, otherwise a whole number of pieces. */
+export function parseSizeCounts(raw: Record<string, unknown>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [size, v] of Object.entries(raw)) {
+    const text = String(v ?? "").trim();
+    const n = text === "" ? 0 : Number(text);
+    if (!Number.isInteger(n) || n < 0 || n > 100_000)
+      throw new CatalogueError(`Enter a whole number for size ${size}`);
+    out[size] = n;
+  }
+  return out;
+}
+
+/**
+ * Sets each size of the product's category to the number of pieces the seller has (sizes with
+ * no colour; one product per colour). Sizes outside the category, left over from a change of
+ * category, lose their free stock, and empty sizes that never reached a cart are dropped. Never
+ * touches locked stock.
+ */
+async function setSellerStock(
   productId: string,
-  size: string,
-  colour: string,
-  delta: number,
+  kind: string | null,
+  counts: Record<string, number>,
 ) {
-  assertDraft(await ownProduct(sellerId, productId));
-  return adjustStock(productId, size, colour, delta);
+  const sizes = sizesFor(kind ?? undefined);
+  const rows = await db.variant.findMany({ where: { productId, colour: "" } });
+  const have = (size: string) => rows.find((r) => r.size === size)?.available ?? 0;
+  for (const size of sizes) {
+    const want = counts[size] ?? 0;
+    if (want !== have(size)) await adjustStock(productId, size, "", want - have(size));
+  }
+  for (const r of rows)
+    if (!sizes.includes(r.size) && r.available > 0)
+      await adjustStock(productId, r.size, "", -r.available);
+  await db.variant.deleteMany({
+    where: {
+      productId,
+      colour: "",
+      available: 0,
+      reserved: 0,
+      sold: 0,
+      lines: { none: {} },
+    },
+  });
+}
+
+/**
+ * The seller's one-screen listing (product owner, 2026-10-19): details, photo and how many they
+ * have in each size, saved together. With `send` it also goes for review, which needs stock.
+ */
+export async function sellerSaveListing(
+  sellerId: string,
+  id: string | null,
+  input: Record<string, unknown>,
+  photo: File | null,
+  sizes: Record<string, unknown>,
+  send: boolean,
+) {
+  const counts = parseSizeCounts(sizes);
+  if (send && !Object.values(counts).some((n) => n > 0))
+    throw new CatalogueError("Enter how many you have in at least one size");
+  const p = await sellerSaveProduct(sellerId, id, input, photo);
+  await setSellerStock(p.id, p.kind, counts);
+  if (send) await submitForReview(sellerId, p.id);
+  return p;
 }
 
 /** DRAFT → IN_REVIEW. Needs stock in at least one size; tells the admins. */
@@ -79,7 +136,7 @@ export async function submitForReview(sellerId: string, productId: string) {
   );
 }
 
-/** IN_REVIEW → DRAFT, so the seller can change it. */
+/** IN_REVIEW → DRAFT, so the seller can change it ("Edit" on a product waiting for review). */
 export async function withdrawFromReview(sellerId: string, productId: string) {
   await ownProduct(sellerId, productId);
   const r = await db.product.updateMany({
