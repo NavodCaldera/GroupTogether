@@ -47,9 +47,11 @@ heavy libraries, paid services or anything that needs an always-on worker.
    icon (copy link / WhatsApp) were removed from the cart page (product owner, 2026-10-17); the
    buyer dashboard's "Copy cart link" button (while the cart is filling) is the way to share; it
    replaced "Share on WhatsApp" (product owner, 2026-10-17).
-10. **B-grade products are labelled "B-grade"; defects are not listed** (product owner,
-    2026-10-17: the defects box and field were removed). `Product.defectNotes` stays in the
-    schema, unused, so old notes aren't lost.
+10. **No stock type and no defects shown** (product owner: defects removed 2026-10-17; the
+    "Stock type" box (Factory surplus / B-grade) removed from the admin product form and the Type
+    column from the products list, 2026-10-20). `Product.stockType` stays in the schema: existing
+    products keep theirs, new ones are stored as FACTORY_SURPLUS. `Product.defectNotes` stays,
+    unused, so old notes aren't lost.
 11. **Roles: buyer, factory seller, admin** (product owner, 2026-10-16), **and packing staff**
     (`PACKER`, 2026-10-18, rule 17).
     - **Buyers** (`CUSTOMER`) sign up themselves and land on `/dashboard`.

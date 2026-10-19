@@ -93,14 +93,6 @@ export function CartCard({ cart }: { cart: PanelCartView }) {
   );
 }
 
-export function StockTypeBadge({ stockType }: { stockType: "FACTORY_SURPLUS" | "B_GRADE" }) {
-  return stockType === "B_GRADE" ? (
-    <Badge>B-grade</Badge>
-  ) : (
-    <Badge tone="info">Factory surplus</Badge>
-  );
-}
-
 export function ProductImage({
   photoKey,
   id,

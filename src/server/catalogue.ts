@@ -118,7 +118,8 @@ export const productSchema = z
     description: z.string().trim().max(2000).default(""),
     audience: z.enum(["MEN", "WOMEN", "GIRL", "BOY", "KID"], { message: "Choose who it is for" }),
     kind: z.string().min(1, "Choose a category"),
-    stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]),
+    // No longer chosen in the form (product owner, 2026-10-20): kept as stored, new ones surplus.
+    stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]).optional(),
     price: money,
     retailPrice: money.optional().or(z.literal("")),
     status: z.enum(["DRAFT", "IN_REVIEW", "LIVE", "ARCHIVED"]).default("DRAFT"),
@@ -151,7 +152,10 @@ export async function saveProduct(
         })()
       : {}),
   };
-  if (!id) return db.product.create({ data: { ...data, sellerId } });
+  if (!id)
+    return db.product.create({
+      data: { ...data, stockType: p.stockType ?? "FACTORY_SURPLUS", sellerId },
+    });
   return db.product.update({
     where: sellerId ? { id, sellerId, status: "DRAFT" } : { id },
     data,

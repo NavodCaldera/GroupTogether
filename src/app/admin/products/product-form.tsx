@@ -10,7 +10,6 @@ type ProductValues = {
   description: string;
   audience: string | null;
   kind: string | null;
-  stockType: string;
   price: { toString(): string };
   retailPrice: { toString(): string } | null;
   status: string;
@@ -39,14 +38,6 @@ export function ProductForm({
           kind={product?.kind}
           selectClass="min-h-11 rounded-lg border border-line bg-paper px-3 text-base outline-none focus:border-ink sm:min-h-10 sm:text-sm"
         />
-      </div>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <Field label="Stock type" name="stockType">
-          <Select name="stockType" defaultValue={product?.stockType ?? "FACTORY_SURPLUS"}>
-            <option value="FACTORY_SURPLUS">Factory surplus</option>
-            <option value="B_GRADE">B-grade</option>
-          </Select>
-        </Field>
       </div>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label="Our price (LKR)" name="price">

@@ -5,6 +5,7 @@ relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
 ## 2026-10-20
 
+- **No Stock type box on products.** The admin's add/edit product form no longer has "Stock type" (Factory surplus / B-grade). Saving a product keeps the type it already had; new products are stored as Factory surplus. Nothing shows the type any more (the unused B-grade badge was removed). CLAUDE.md rule 10. _Agents: catalogue-admin, grouptogether, frontend._
 - **Admin products list: no Type column.** The B-grade / Factory surplus badge is gone from the Admin → Products table (Product, Seller, Price, Free, In carts, Sold, Status remain); the type still shows on the product page and in the shop. _Agent: catalogue-admin._
 - **No "Driver: <name>" line on the packing order page.** The "Handed to the PickMe driver" button stands alone. (The list still says "Booked · <driver>" under For PickMe.) _Agent: frontend._
 - **PickMe booking: tracking link is optional.** On an admin cart's Book delivery form the field is now labelled "Tracking link (optional)"; it can be left empty and the booking still goes through (the owner then sees no "Track delivery" button). If something is typed it must still be a full link (https://…). _Agents: delivery, catalogue-admin._

@@ -26,7 +26,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 - `src/app/**`: the pages listed in `grouptogether.md` §5
 - `src/components/ui.tsx`: Button, LinkButton, Field, Input, Select, Textarea, Card, PageHeader, Badge, Alert, EmptyState, `cx`
-- `src/components/cart-bits.tsx`: ProgressBar (shows "LKR N to go" only while below the minimum; no "Minimum reached" text, the status badge says it), StatusBadge, CartCard, StockTypeBadge, ProductImage
+- `src/components/cart-bits.tsx`: ProgressBar (shows "LKR N to go" only while below the minimum; no "Minimum reached" text, the status badge says it), StatusBadge, CartCard, ProductImage
 - `src/components/client.tsx`: Countdown, CopyLink
 - `src/components/site-header.tsx`, `src/components/password-input.tsx`
 - `src/app/globals.css`

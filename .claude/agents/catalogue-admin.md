@@ -66,3 +66,5 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 **No explanation text anywhere** (product owner, 2026-10-20): no `PageHeader` description, no lines explaining a page or a flow. Titles, data and actions only.
 
 **Admin → Products table has no Type column** (product owner, 2026-10-20): Product, Seller, Price, Free, In carts, Sold, Status.
+
+**No Stock type box** (product owner, 2026-10-20): the admin product form has no Factory surplus / B-grade choice. `productSchema.stockType` is optional: an edit keeps the stored value, a new product is FACTORY_SURPLUS. `StockTypeBadge` was removed.
