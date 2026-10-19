@@ -336,9 +336,6 @@ export default async function AdminCartPage({
                   Manual mode: book the trip in the PickMe business app, then enter what it shows.
                   With PickMe API keys set, booking happens automatically.
                 </p>
-                <Field label="PickMe booking ref" name="externalRef">
-                  <Input name="externalRef" />
-                </Field>
                 <Field label="Quoted fee (LKR, shown to the owner)" name="quotedFee">
                   <Input name="quotedFee" inputMode="decimal" />
                 </Field>
@@ -355,10 +352,6 @@ export default async function AdminCartPage({
           {cart.delivery && (
             <Card id="delivery" className="scroll-mt-4 text-sm">
               <h2 className="mb-2 font-semibold">Delivery · {cart.delivery.status}</h2>
-              <p>
-                {cart.delivery.provider}{" "}
-                {cart.delivery.externalRef && `· ${cart.delivery.externalRef}`}
-              </p>
               {cart.delivery.quotedFee && (
                 <p>Fee {formatLKR(cart.delivery.quotedFee)} (owner pays driver)</p>
               )}

@@ -41,7 +41,10 @@ heavy libraries, paid services or anything that needs an always-on worker.
    OWNER. Once the drop is on its way (DISPATCHED, not failed), the **owner can mark it
    delivered from their dashboard** (asks once more; other members are notified), the same as
    the admin's "Mark delivered" (product owner, 2026-10-18; `markReceived` in
-   `src/server/delivery/index.ts`).
+   `src/server/delivery/index.ts`). **The cart code is the package's only code** (product owner,
+   2026-10-20): packing, the drop-off label, deliveries, the CSV and the PickMe booking reference
+   all use it; the admin's booking form has no separate "PickMe booking ref" and none is shown.
+   (`Delivery.externalRef` stays internal: the PickMe API's own id, for its webhook.)
 9. **Visibility.** A cart is PUBLIC (shown on the "open carts" panel) or PRIVATE (reached only by
    link). Every cart has a share link `/c/<code>`. The invite-by-email/phone form and the share
    icon (copy link / WhatsApp) were removed from the cart page (product owner, 2026-10-17); the
