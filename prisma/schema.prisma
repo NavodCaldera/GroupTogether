@@ -121,6 +121,9 @@ model Product {
   seller      User?         @relation("SellerProducts", fields: [sellerId], references: [id])
   /// Why an admin returned it to the seller (shown to the seller)
   reviewNote  String?
+  /// The bulk lot it came from; its price then follows the lot's cost and margin
+  lotId       String?
+  lot         Lot?          @relation(fields: [lotId], references: [id], onDelete: SetNull)
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -129,6 +132,35 @@ model Product {
   @@index([status, category])
   @@index([sellerId])
   @@index([status, audience, kind])
+  @@index([lotId])
+}
+
+/// A bulk we bought (product owner, 2026-10-21). Bulk cost + transport + wages over its pieces is
+/// the cost per piece. Its products sell at cost + fullMarginPct until reduceAt (7 days after it
+/// reached our store), then at cost + reducedMarginPct. Margins and days are snapshotted from
+/// Settings when the lot is created.
+model Lot {
+  id               String    @id @default(cuid())
+  name             String
+  pieces           Int
+  bulkCost         Decimal   @db.Decimal(14, 2)
+  transportCost    Decimal   @default(0) @db.Decimal(14, 2)
+  wages            Decimal   @default(0) @db.Decimal(14, 2)
+  /// Midnight (Colombo) of the day the bulk reached our store
+  receivedAt       DateTime
+  fullMarginPct    Int
+  reducedMarginPct Int
+  /// When its products drop to the reduced margin
+  reduceAt         DateTime
+  /// Set once the sweep has moved its products to the reduced price
+  reducedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  products Product[]
+
+  @@index([reducedAt, reduceAt])
+  @@index([receivedAt])
 }
 
 /// One size/colour of a product. available + reserved + sold is everything ever stocked.
@@ -423,6 +455,12 @@ model Settings {
   bankBranch        String  @default("")
   accountName       String  @default("")
   accountNumber     String  @default("")
+  /// Pieces our store holds (product owner, 2026-10-21: 6,000)
+  storeCapacity     Int     @default(6000)
+  /// New lots: margin on cost for the first days, then the reduced margin (20% for 7 days, then 10%)
+  fullMarginPct     Int     @default(20)
+  reducedMarginPct  Int     @default(10)
+  fullMarginDays    Int     @default(7)
 }
 
 /// A private conversation between a cart's owner and one other user (a member or someone asking

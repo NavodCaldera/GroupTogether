@@ -13,8 +13,10 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   const active =
     "font-medium text-ink after:absolute after:inset-x-3 after:bottom-1.5 after:h-0.5 after:rounded-full after:bg-accent sm:after:bottom-1";
   // One home per task (product owner, 2026-10-21). Red counts: work waiting; grey: low stock.
+  // Stock is the landing page and Lots the bulks we bought (2026-10-21: empty the store fast).
   const items: [string, string, number, ("alert" | "muted")?][] = [
-    ["/admin", "Sales", 0],
+    ["/admin", "Stock", 0],
+    ["/admin/lots", "Lots", 0],
     ["/admin/slips", "Slips", badges.slips],
     ["/admin/orders", "Orders", badges.orders],
     ["/admin/carts", "Carts", 0],

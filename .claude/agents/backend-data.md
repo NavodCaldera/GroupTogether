@@ -24,7 +24,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 **Files:** `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`, `prisma.config.ts`, `src/server/db.ts` (exports `db` and the `Tx` type; in dev the client cached on `globalThis` is replaced when `prisma generate` produces a new `PrismaClient` class, so a migration doesn't need a dev-server restart), `src/server/settings.ts`, `scripts/local-db.mjs`.
 
-**Models:** User, Session, Product, Variant, GroupCart, CartMember, CartLine, PaymentSlip, CartInvite, Notification, Delivery, Settings.
+**Models:** User, Session, Product, Variant, GroupCart, CartMember, CartLine, PaymentSlip, CartInvite, Notification, Delivery, Lot, Settings.
 
 - Money is `Decimal(14,2)`. Convert it with `toD()` from `src/lib/decimal.ts`, never `Number()`.
 - `Variant` has three counters that together make up everything ever stocked: `available` (free), `reserved` (locked in carts that hold stock) and `sold`.
@@ -32,7 +32,8 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - `CartLine.unitPrice` is a snapshot taken when the line is first added. `GroupCart.minOrderValue` is a snapshot of Settings.
 - Closed carts (EXPIRED, CANCELLED) keep their lines as history but hold no stock.
 - `Delivery.paidBy` is always `"OWNER"`.
-- `Settings` is a single row with id 1. `getSettings()` creates it with the defaults (50000, 24h, 2h) if it is missing.
+- `Settings` is a single row with id 1. `getSettings()` creates it with the defaults (50000, 24h, 2h; store 6,000 pieces, margins 20% for 7 days then 10%) if it is missing.
+- `Lot` (2026-10-21, migration `lots`, CLAUDE.md rule 20): a bulk we bought: `pieces`, `bulkCost`, `transportCost`, `wages` (Decimal), `receivedAt` (Colombo midnight), the snapshotted `fullMarginPct` / `reducedMarginPct`, `reduceAt` (arrival + full-margin days) and `reducedAt` (set once the sweep has dropped its price). `Product.lotId` (optional, SetNull): such a product's `price` is kept equal to the lot's price by `src/server/lots.ts`.
 - Useful indexes: `GroupCart(status, visibility, createdAt)` for the panel, and `(status, expiresAt)` / `(status, slipDueAt)` for the sweep.
 
 **Migrations:**

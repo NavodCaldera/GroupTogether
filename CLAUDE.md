@@ -142,11 +142,10 @@ heavy libraries, paid services or anything that needs an always-on worker.
     `Product.status` and `reviewNote` stay in the schema, unused; the seller-product review
     (`src/server/seller.ts`, publish / return) was removed.
 
-19. **Admin: one home per task** (product owner, 2026-10-21). Tabs: **Sales · Slips · Orders ·
-    Carts · Products · Offers · Users · Settings**; red counts on Slips (slips to review), Orders
+19. **Admin: one home per task** (product owner, 2026-10-21). Tabs: **Stock · Lots · Slips ·
+    Orders · Carts · Products · Offers · Users · Settings** (Stock and Lots replaced Sales, rule 20); red counts on Slips (slips to review), Orders
     (PickMe to book + failed drops) and Offers (to answer), a grey one on Products (low-stock
-    sizes). **Sales** (`/admin`, landing) shows only figures: today / 7 / 30 days / average order,
-    the 14-day chart, best sellers, money in carts, buyers, and the only Export CSV. **Orders**
+    sizes). **Stock** (`/admin`, landing, rule 20) holds the only Export CSV. **Orders**
     (`/admin/orders`, replaces Packing and Deliveries, which redirect there) holds every paid order
     by stage: To book / In store / On the way / Failed / Delivered (`orderStage` in
     `src/lib/packing-rules.ts`). It is the only place to book PickMe (form on the order's card),
@@ -155,6 +154,27 @@ heavy libraries, paid services or anything that needs an always-on worker.
     the list (one line of what happens next); a cart's page has its details, items, shares,
     timeline (including PickMe and packing steps) and drop-off, and its only action is Cancel.
     Slips, Products, Offers, Users and Settings keep their own tasks. No explanation text.
+
+20. **Empty the store fast: bulk lots and the Stock page** (product owner, 2026-10-21). The goal
+    is not to know the best sellers but to clear each bulk from our store (**6,000 pieces**) as
+    fast as possible so the next bulk can come in. **Admin → Lots** (`/admin/lots`): an admin
+    enters each bulk we buy: name, pieces, **bulk cost, transport and wages** (LKR) and the day it
+    arrived. Total cost ÷ pieces = cost per piece. A product picks its lot on the product form
+    (`Product.lotId`) and then has no typed price: it sells at **cost + 20% for the first 7 days
+    after the lot arrived, then cost + 10%**, rounded up to the whole rupee. The drop happens in
+    `sweep()` (`reduceDueLots`), so it needs no worker; cart lines keep the price they were
+    added at. Products with no lot keep a typed price. Store size and the margins/days are in
+    **Settings → Stock**; each lot snapshots the margins and days when it is created (edits keep
+    them). **Stock** (`/admin`, the landing page, replaced Sales) shows pieces: in store (free +
+    in carts + paid but not handed to PickMe + a lot's pieces not listed yet) against the store
+    size, average age, pieces out in 7 days (handed to PickMe), days to clear at the 28-day pace,
+    age bands (0–7 / 8–14 / 15–30 / over 30 days), pieces in (lots) and out per week for 8 weeks,
+    the oldest stock (free pieces × days, red over 30 days), lots (days, in store, sold %, cost
+    back %), room for the next lot with offers waiting, carts short of the minimum closing within
+    6h, odd sizes left, carts over 30 days (paid vs back to the shelf), and one sales card
+    (today / 7 / 30 days, in carts). No best sellers. Rules: `src/lib/stock-rules.ts`; lots:
+    `src/server/lots.ts`; figures: `storeSnapshot` / `stockDashboard` in `src/server/stock.ts`;
+    table `Lot`.
 
 Cart statuses: `OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED`,
 plus the dead ends `EXPIRED` and `CANCELLED`. 14. **Owner chat** (product owner, 2026-10-17). The cart page no longer shows a delivery-point map

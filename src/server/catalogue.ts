@@ -4,6 +4,7 @@ import type { Prisma, StockType } from "@/generated/prisma/client";
 import { type Audience, findKind, kindFits } from "@/lib/taxonomy";
 import { D, toD } from "@/lib/decimal";
 import { formatLKR } from "@/lib/format";
+import { lotPrice } from "@/lib/stock-rules";
 import { db } from "./db";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
@@ -128,19 +129,37 @@ export const productSchema = z
     kind: z.string().min(1, "Choose a category"),
     // No longer chosen in the form (product owner, 2026-10-20): kept as stored, new ones surplus.
     stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]).optional(),
-    price: money,
+    // A product from a lot takes the lot's price (cost + margin); others need one typed in.
+    lotId: z.string().trim().optional(),
+    price: money.optional().or(z.literal("")),
     retailPrice: money.optional().or(z.literal("")),
   })
   .refine((v) => kindFits(v.audience, v.kind), {
     message: "That category isn't offered for this audience",
     path: ["kind"],
+  })
+  .refine((v) => v.lotId || v.price, {
+    message: "Enter our price, or choose the lot it came from",
+    path: ["price"],
   });
 
-/** Creates or updates a product (admin). It shows in the shop once it has free stock. */
+/**
+ * Creates or updates a product (admin). It shows in the shop once it has free stock. With a lot,
+ * the price is the lot's price now (`src/server/lots.ts` keeps it in step).
+ */
 export async function saveProduct(id: string | null, input: unknown, photo: File | null) {
-  const p = productSchema.parse(input);
+  const { lotId, price, ...p } = productSchema.parse(input);
+  let lotData: { lotId: string | null; price: string };
+  if (lotId) {
+    const lot = await db.lot.findUnique({ where: { id: lotId } });
+    if (!lot) throw new CatalogueError("Choose a lot from the list");
+    lotData = { lotId, price: lotPrice(lot, new Date()).toString() };
+  } else {
+    lotData = { lotId: null, price: price! };
+  }
   const data = {
     ...p,
+    ...lotData,
     category: findKind(p.kind)!.category,
     retailPrice: p.retailPrice || null,
     ...(photo && photo.size > 0

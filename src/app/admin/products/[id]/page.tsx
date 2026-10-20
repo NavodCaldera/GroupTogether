@@ -8,6 +8,7 @@ import { adjustStockAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { getProduct } from "@/server/catalogue";
 import { db } from "@/server/db";
+import { lotChoices } from "@/server/lots";
 import { AdminForm } from "../../admin-form";
 import { ProductForm } from "../product-form";
 
@@ -16,7 +17,7 @@ export const metadata: Metadata = { title: "Edit product" };
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
   await requireAdmin();
   const { id } = await params;
-  const product = await getProduct(id);
+  const [product, lots] = await Promise.all([getProduct(id), lotChoices()]);
   if (!product) notFound();
   const seller = product.sellerId
     ? await db.user.findUnique({
@@ -46,7 +47,7 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
             }
           />
           <Card>
-            <ProductForm product={product} />
+            <ProductForm product={product} lots={lots} />
           </Card>
         </div>
         <div className="flex flex-col gap-4">

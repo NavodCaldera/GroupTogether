@@ -18,6 +18,7 @@ import { formatLKR } from "@/lib/format";
 import { toD } from "@/lib/decimal";
 import { phoneSchema } from "../auth/service";
 import { db, type Tx } from "../db";
+import { reduceDueLots } from "../lots";
 import { type Notice, notify } from "../notify";
 import { getSettings } from "../settings";
 
@@ -362,9 +363,11 @@ export async function cancelCart(actor: { id: string; role: Role }, cartId: stri
 /**
  * Expires carts past their 24h lifetime and cancels accepted carts whose owner missed the slip
  * window, releasing their stock. Run by cron and on page loads (cheap when nothing is due).
- * `cartId` limits it to one cart.
+ * `cartId` limits it to one cart. A full sweep also drops lots past their full-margin days to
+ * the reduced price (`reduceDueLots`).
  */
 export async function sweep(now = new Date(), cartId?: string) {
+  if (!cartId) await reduceDueLots(now);
   const due = await db.groupCart.findMany({
     where: {
       id: cartId,

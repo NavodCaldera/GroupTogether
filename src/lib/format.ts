@@ -46,12 +46,17 @@ export function colomboDayStart(now = new Date(), daysAgo = 0): Date {
 }
 
 /** Midnight in Colombo starting the calendar day "2026-10-20", or null if it isn't a real date. */
-function colomboDay(day: string | undefined): Date | null {
+export function colomboDay(day: string | undefined): Date | null {
   const m = day?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
   const utc = Date.UTC(+m[1], +m[2] - 1, +m[3]);
   if (new Date(utc).toISOString().slice(0, 10) !== day) return null;
   return new Date(utc - COLOMBO_OFFSET_MS);
+}
+
+/** "2026-10-20": the Colombo calendar day `date` falls on (for date inputs). */
+export function colomboIsoDay(date = new Date()): string {
+  return new Date(colomboDayStart(date).getTime() + COLOMBO_OFFSET_MS).toISOString().slice(0, 10);
 }
 
 /**

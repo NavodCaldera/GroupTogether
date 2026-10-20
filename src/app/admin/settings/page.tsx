@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
 import { saveSettingsAction } from "@/server/admin-actions";
+import { saveStockSettingsAction } from "@/server/lot-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { deliveryProvider } from "@/server/delivery/provider";
 import { appUrl } from "@/server/notify";
@@ -84,6 +85,49 @@ export default async function SettingsPage() {
             <Field label="Account number" name="accountNumber">
               <Input name="accountNumber" defaultValue={s.accountNumber} />
             </Field>
+          </AdminForm>
+        </Card>
+        <Card className="mt-6">
+          <h2 className="mb-3 font-semibold">Stock</h2>
+          <AdminForm action={saveStockSettingsAction} submit="Save stock settings">
+            <Field label="Store size (pieces)" name="storeCapacity">
+              <Input
+                name="storeCapacity"
+                type="number"
+                min={1}
+                defaultValue={s.storeCapacity}
+                required
+              />
+            </Field>
+            <div className="grid gap-3 sm:grid-cols-3">
+              <Field label="First margin (%)" name="fullMarginPct">
+                <Input
+                  name="fullMarginPct"
+                  type="number"
+                  min={0}
+                  defaultValue={s.fullMarginPct}
+                  required
+                />
+              </Field>
+              <Field label="For (days)" name="fullMarginDays">
+                <Input
+                  name="fullMarginDays"
+                  type="number"
+                  min={0}
+                  defaultValue={s.fullMarginDays}
+                  required
+                />
+              </Field>
+              <Field label="Then margin (%)" name="reducedMarginPct">
+                <Input
+                  name="reducedMarginPct"
+                  type="number"
+                  min={0}
+                  defaultValue={s.reducedMarginPct}
+                  required
+                />
+              </Field>
+            </div>
           </AdminForm>
         </Card>
       </div>

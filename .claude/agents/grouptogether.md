@@ -94,8 +94,8 @@ It is a standalone project: it shares no code, database or rules with any other 
     people who certified the order (gathered by, packed by) and who handed it over are shown with
     the order on the admin side**: each card on Admin → Orders, the cart page's timeline, the
     packer's user page and the orders CSV (2026-10-21).
-19. **Admin: one home per task** (product owner, 2026-10-21). Tabs Sales · Slips · Orders · Carts
-    · Products · Offers · Users · Settings. Sales = figures + Export CSV only. Orders (replaces
+19. **Admin: one home per task** (product owner, 2026-10-21). Tabs Stock · Lots · Slips · Orders
+    · Carts · Products · Offers · Users · Settings. Stock (rule 20) holds the only Export CSV. Orders (replaces
     Packing and Deliveries) = every paid order by stage (To book / In store / On the way / Failed /
     Delivered), the only place to book PickMe, book a failed drop again, and mark Delivered /
     Failed. Carts = find and look; a cart's only action is Cancel. No explanation text. Packing staff never see money; `/`, `/shop`, `/carts`, `/my-carts` and
@@ -103,6 +103,14 @@ It is a standalone project: it shares no code, database or rules with any other 
     `packBlockReason` / `handOverBlockReason` in `src/lib/packing-rules.ts`; flow: `markGathered` /
     `markPacked` / `sendBack` / `handOver` in `src/server/packing.ts` (cart row locked); table
     `Packing` (`gatheredBy`, `packedBy`, `handedOverBy`).
+20. **Empty the store fast** (product owner, 2026-10-21): the aim is to clear each bulk from our
+    6,000-piece store quickly, not to know best sellers. Admin → Lots records each bulk (pieces,
+    bulk cost, transport, wages, arrival day); cost per piece = total ÷ pieces. Products picked
+    under a lot sell at cost + 20% for 7 days from arrival, then cost + 10% (rounded up to the
+    rupee; `sweep()` → `reduceDueLots`; cart lines keep their price). Settings → Stock holds the
+    store size and margins (snapshotted per lot). The admin landing page is **Stock** (pieces in
+    store, age, out, days to clear, oldest stock, lots, room for the next lot, carts closing
+    soon, odd sizes, cart outcomes, a sales card). See CLAUDE.md rule 20.
 18. **No product statuses: stock decides** (product owner, 2026-10-20). A product is in the shop
     while it has free stock in some size (`IN_SHOP`, catalogue.ts); none = hidden. Remove free
     stock to stop selling; cart locks stay. Admin products filter: All / In the shop / Not in the
@@ -171,7 +179,8 @@ Money is `Decimal(14,2)`.
 | `/seller`, `/seller/new`                   | seller               | Their stock offers with status and our note; + opens the 3-box form (name, description, total amount) → Send for review |
 | `/packing`, `/packing/[code]`              | packing staff        | Paid orders to pack, to check (two people) and to hand to PickMe; an order's items by member, label, and the next step                                               |
 | `/sign-in`, `/sign-up`                     | anyone               | `?next=` returns to where you were                                                                                                                                     |
-| `/admin`                                   | admin                | Sales: today / 7 / 30 days / avg order, 14-day chart, best sellers, money in carts, buyers; Export CSV (2026-10-21) |
+| `/admin`                                   | admin                | Stock (rule 20): pieces in store vs 6,000, avg age, out 7 days, days to clear, age bands, in/out per week, oldest stock, lots, room for the next lot, carts closing soon, odd sizes, cart outcomes, sales card; Export CSV (2026-10-21) |
+| `/admin/lots`, `/admin/lots/new`, `/admin/lots/[id]` | admin       | Bulk lots: bulk cost + transport + wages over pieces = cost per piece; products sell at +20% for 7 days, then +10% (rule 20) |
 | `/admin/slips`                             | admin                | Pending slips; open the file; approve (then "Book PickMe" → Orders) or reject with a reason. `?view=history`: the last 100 decisions                                         |
 | `/admin/carts`, `/admin/carts/[code]`      | admin                | Find carts: search + suggestions, dates, stage tabs, next-step text, urgency sort, paging; a cart: stage bar, items, shares, timeline, drop-off, cancel |
 | `/admin/orders`                            | admin                | Paid orders by stage (To book / In store / On the way / Failed / Delivered); book PickMe on the card; Delivered / Failed; `/admin/packing`, `/admin/deliveries` redirect |
@@ -198,7 +207,9 @@ Money is `Decimal(14,2)`.
 - `src/server/carts/queries.ts`: `recentCarts`, `cartByCode`, `editableCartsFor`, `joinableCart`, `myCarts`.
 - `src/server/carts/actions.ts`: customer server actions. `src/server/admin-actions.ts`: admin server actions.
   - Expected errors (`CartError`, `UploadError`, `CatalogueError`, `AuthError`, `ZodError`) become form messages.
-- `src/server/admin-queries.ts`: `salesStats`, `dailySales`, `adminBadges` (tab counts), `cartSearch` / `suggestCarts`, `PAID` (CONFIRMED/DISPATCHED/DELIVERED, what sales count), `LOW_STOCK` (2).
+- `src/lib/stock-rules.ts`: lot cost, `priceAtMargin` (rounded up to the rupee), `lotPrice` / `lotMarginPct`, `reduceAtFor`, age bands, `averageAgeDays`, `daysToClear`, `percentOf`, `oddSizesLeft` (unit tested).
+- `src/server/lots.ts`: `saveLot` (snapshots Settings margins/days, reprices its products), `reduceDueLots` (called by `sweep()`), `lotChoices`; actions in `src/server/lot-actions.ts`. `src/server/stock.ts`: `storeSnapshot` (pieces in store by product and lot, cost back), `stockDashboard` (the Stock page).
+- `src/server/admin-queries.ts`: `salesStats` (today / 7 / 30 days, money in carts), `adminBadges` (tab counts), `cartSearch` / `suggestCarts`, `PAID` (CONFIRMED/DISPATCHED/DELIVERED, what sales count), `LOW_STOCK` (2).
 - `src/server/catalogue.ts`: `listProducts`, `shopFacets`, `getProduct`, `saveProduct`, `adjustStock` (changes free stock only, never locked stock).
 - `src/server/delivery/provider.ts`: `DeliveryProvider` with `ManualProvider` (the default) and `PickMeProvider` (request shape ASSUMED). `delivery/index.ts`: `bookDelivery`, `setDeliveryStatus`.
 - `src/server/notify/index.ts`: `notify(userIds, notice)` writes the in-app rows. There is no email sending.

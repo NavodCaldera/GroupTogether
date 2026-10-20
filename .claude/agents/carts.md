@@ -52,7 +52,8 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
    - Expires OPEN and READY carts past `expiresAt`.
    - Cancels AWAITING_SLIP carts past `slipDueAt`.
    - Re-checks with `overdue()` under the lock, then notifies the members .
-   - It runs from `/api/cron/sweep` and at the top of `/`, `/carts`, `/admin`, `/c/[code]` and the pay page.
+   - A full sweep (no `cartId`) first calls `reduceDueLots` (`src/server/lots.ts`): lots past their 7 full-margin days drop their products to cost + 10% (CLAUDE.md rule 20). Lines already in carts keep their `unitPrice`.
+   - It runs from `/api/cron/sweep` and at the top of `/`, `/carts`, `/admin`, `/admin/lots`, `/c/[code]` and the pay page.
 8. Invites: the inviter must be a member, the cart must be editable, and the target must be a registered user found by email or phone. The invite row is upserted and the target is notified and emailed.
 9. **There are no refunds.** Never add a refund path.
 

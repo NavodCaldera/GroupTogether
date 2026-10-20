@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { adminBadges, dailySales, salesStats } from "@/server/admin-queries";
+import { adminBadges, salesStats } from "@/server/admin-queries";
 import {
   authenticate,
   hashToken,
@@ -71,18 +71,8 @@ describe("sales figures and tab counts", () => {
     expect(s.sales.month.orders).toBe(1);
     expect(s.locked.carts).toBe(1);
     expect(s.locked.total.toFixed(2)).toBe("25000.00");
-    expect(s.bestSellers).toEqual([
-      { product: expect.objectContaining({ id: v.productId }), sold: 2 },
-    ]);
 
     // The Orders tab counts the paid cart waiting for PickMe.
     expect((await adminBadges()).orders).toBe(1);
-
-    // The chart: 14 days, oldest first; today's bar holds the confirmed cart, the rest are 0.
-    const days = await dailySales();
-    expect(days).toHaveLength(14);
-    expect(days[13].total.toFixed(2)).toBe("50000.00");
-    expect(days[13].orders).toBe(1);
-    expect(days.slice(0, 13).every((d) => d.orders === 0 && d.total.isZero())).toBe(true);
   });
 });

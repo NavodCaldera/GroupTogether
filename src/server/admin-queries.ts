@@ -21,31 +21,9 @@ async function salesSince(from: Date) {
   return { orders: r._count._all, total: toD(r._sum.total ?? 0) };
 }
 
-/** Confirmed sales per Colombo day for the last `days` days, oldest first (empty days are 0). */
-export async function dailySales(now = new Date(), days = 14) {
-  const from = colomboDayStart(now, days - 1);
-  const carts = await db.groupCart.findMany({
-    where: { status: { in: PAID }, confirmedAt: { gte: from } },
-    select: { confirmedAt: true, total: true },
-  });
-  const out = Array.from({ length: days }, (_, i) => ({
-    day: colomboDayStart(now, days - 1 - i),
-    total: toD(0),
-    orders: 0,
-  }));
-  for (const c of carts) {
-    const i = Math.floor((colomboDayStart(c.confirmedAt!).getTime() - from.getTime()) / 86_400_000);
-    if (out[i]) {
-      out[i].total = out[i].total.plus(toD(c.total));
-      out[i].orders++;
-    }
-  }
-  return out;
-}
-
-/** The admin Sales page (product owner, 2026-10-21): sales, money in carts, buyers, best sellers. */
+/** The sales line on the admin Stock page: confirmed sales today, 7 days, 30 days, and money in carts. */
 export async function salesStats(now = new Date()) {
-  const [today, week, month, locked, customers, newCustomers, bestSellerRows] = await Promise.all([
+  const [today, week, month, locked] = await Promise.all([
     salesSince(colomboDayStart(now)),
     salesSince(colomboDayStart(now, 6)),
     salesSince(colomboDayStart(now, 29)),
@@ -54,32 +32,10 @@ export async function salesStats(now = new Date()) {
       _sum: { total: true },
       _count: { _all: true },
     }),
-    db.user.count({ where: { role: "CUSTOMER" } }),
-    db.user.count({ where: { role: "CUSTOMER", createdAt: { gte: colomboDayStart(now, 6) } } }),
-    db.variant.groupBy({
-      by: ["productId"],
-      _sum: { sold: true },
-      where: { sold: { gt: 0 } },
-      orderBy: { _sum: { sold: "desc" } },
-      take: 5,
-    }),
   ]);
-
-  const products = await db.product.findMany({
-    where: { id: { in: bestSellerRows.map((b) => b.productId) } },
-    select: { id: true, brand: true, title: true },
-  });
-  const bestSellers = bestSellerRows.map((b) => ({
-    product: products.find((p) => p.id === b.productId),
-    sold: b._sum.sold ?? 0,
-  }));
-
   return {
     sales: { today, week, month },
     locked: { carts: locked._count._all, total: toD(locked._sum.total ?? 0) },
-    customers,
-    newCustomers,
-    bestSellers,
   };
 }
 
