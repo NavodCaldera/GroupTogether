@@ -2,12 +2,10 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { StatusBadge } from "@/components/cart-bits";
-import { packingSummary } from "@/components/packing-bits";
 import { Badge, Button, EmptyState, Input, PageHeader, cx } from "@/components/ui";
 import type { Prisma } from "@/generated/prisma/client";
 import {
   ADMIN_STAGES,
-  ADMIN_TURN,
   type CartStatus,
   HOLDS_STOCK,
   STATUS_LABEL,
@@ -19,7 +17,6 @@ import { cartSearch } from "@/server/admin-queries";
 import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
-import { packingSelect } from "@/server/packing";
 import { FilterSelect } from "../filter-select";
 import {
   Chip,
@@ -87,12 +84,10 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
     ownerId: true,
     owner: { select: { name: true } },
     delivery: { select: { status: true } },
-    packing: { select: packingSelect },
-    slips: { where: { status: "PENDING" }, select: { id: true }, take: 1 },
     _count: { select: { members: true } },
   } satisfies Prisma.GroupCartSelect;
 
-  const [rows, byStatus, turn] = await Promise.all([
+  const [rows, byStatus] = await Promise.all([
     urgency
       ? db.groupCart
           .findMany({ where, select, take: LIVE_CAP })
@@ -105,11 +100,6 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
           take: PAGE + 1,
         }),
     db.groupCart.groupBy({ by: ["status"], where: search, _count: true, _sum: { total: true } }),
-    db.groupCart.groupBy({
-      by: ["status"],
-      where: { status: { in: [...ADMIN_TURN] } },
-      _count: true,
-    }),
   ]);
   const carts = rows.slice(0, PAGE);
   const count = (list: readonly CartStatus[]) =>
@@ -117,7 +107,6 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
   const inView = byStatus.filter((b) => statuses.includes(b.status));
   const viewTotal = inView.reduce((sum, b) => sum.plus(b._sum.total?.toString() ?? 0), new D(0));
   const holding = count(statuses.filter((s) => HOLDS_STOCK.includes(s)));
-  const turnCount = (s: CartStatus) => turn.find((t) => t.status === s)?._count ?? 0;
   const href = (values: Record<string, string | number | undefined>) =>
     hrefWith("/admin/carts", {
       stage: exact || (stage.key === "active" && !filtering) ? undefined : stage.key,
@@ -131,31 +120,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
 
   return (
     <>
-      <PageHeader
-        title="Carts"
-        actions={
-          <a
-            href="/admin/export/orders?days=30"
-            className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm hover:bg-muted sm:min-h-10"
-          >
-            Export orders (CSV)
-          </a>
-        }
-      />
-
-      <section aria-label="Needs you" className="mb-5 grid grid-cols-3 gap-2 sm:gap-3">
-        <NeedsTile n={turnCount("SLIP_REVIEW")} label="Slips to review" href="/admin/slips" />
-        <NeedsTile
-          n={turnCount("CONFIRMED")}
-          label="To book"
-          href="/admin/carts?status=CONFIRMED"
-        />
-        <NeedsTile
-          n={turnCount("DISPATCHED")}
-          label="Out for delivery"
-          href="/admin/carts?status=DISPATCHED"
-        />
-      </section>
+      <PageHeader title="Carts" />
 
       <SearchForm
         action="/admin/carts"
@@ -251,7 +216,6 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
           {/* Phones: one card per cart. */}
           <ul className="flex flex-col gap-2 md:hidden">
             {carts.map((c) => {
-              const step = { ...c, pendingSlipId: c.slips[0]?.id };
               return (
                 <li key={c.id} className="rounded-xl border border-line p-3">
                   <div className="flex items-center justify-between gap-2">
@@ -272,10 +236,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
                   </p>
                   <p className="mt-2 font-semibold tabular-nums">{formatLKR(c.total)}</p>
                   {c.status === "OPEN" && <MiniProgress total={c.total} min={c.minOrderValue} />}
-                  <NextStep cart={step} now={now} className="mt-2" />
-                  {c.packing && (
-                    <p className="mt-1 text-xs text-subtle">{packingSummary(c.packing)}</p>
-                  )}
+                  <NextStep cart={c} now={now} className="mt-2" />
                 </li>
               );
             })}
@@ -328,10 +289,7 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
                     <StatusBadge status={c.status} />
                   </td>
                   <td className="max-w-72 whitespace-normal">
-                    <NextStep cart={{ ...c, pendingSlipId: c.slips[0]?.id }} now={now} />
-                    {c.packing && (
-                      <p className="mt-1 text-xs text-subtle">{packingSummary(c.packing)}</p>
-                    )}
+                    <NextStep cart={c} now={now} />
                   </td>
                   <td className="text-subtle">{formatDateTime(c.updatedAt)}</td>
                 </tr>
@@ -342,26 +300,6 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
       )}
       <Pager page={page} hasNext={rows.length > PAGE} href={(p) => href({ page: p })} />
     </>
-  );
-}
-
-/** One "Needs you" count; greyed out when there is nothing to do. */
-function NeedsTile({ n, label, href }: { n: number; label: string; href: string }) {
-  return (
-    <Link
-      href={href}
-      className={cx(
-        "flex flex-col justify-between gap-1 rounded-xl border p-3 hover:bg-muted sm:flex-row sm:items-center",
-        n > 0 ? "border-accent" : "border-line text-subtle",
-      )}
-    >
-      <span className="text-xs leading-tight sm:text-sm">{label}</span>
-      <span
-        className={cx("text-2xl font-semibold tabular-nums sm:text-xl", n > 0 && "text-accent")}
-      >
-        {n}
-      </span>
-    </Link>
   );
 }
 

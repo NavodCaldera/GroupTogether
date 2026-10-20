@@ -90,8 +90,8 @@ export async function bookDeliveryAction(_p: AdminState, fd: FormData): Promise<
   });
   revalidatePath("/admin", "layout");
   if (res.error) return res;
-  const cart = await db.groupCart.findUnique({ where: { id: cartId }, select: { code: true } });
-  redirect(`/admin/carts/${cart?.code}?booked=1`);
+  await flash("Delivery booked");
+  redirect("/admin/orders");
 }
 
 const DELIVERY_STATUSES: DeliveryStatus[] = [

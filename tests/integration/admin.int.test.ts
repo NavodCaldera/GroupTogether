@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { dailySales, overviewStats } from "@/server/admin-queries";
+import { adminBadges, dailySales, salesStats } from "@/server/admin-queries";
 import {
   authenticate,
   hashToken,
@@ -45,7 +45,7 @@ describe("locking a customer", () => {
   });
 });
 
-describe("overview figures", () => {
+describe("sales figures and tab counts", () => {
   it("counts a confirmed cart as a sale and open carts as locked stock", async () => {
     const [owner, member, admin] = [await makeUser(), await makeUser(), await makeUser("ADMIN")];
     const v = await makeVariant("25000", 10);
@@ -65,17 +65,18 @@ describe("overview figures", () => {
     const open = await createCart(member.id, {});
     await setLine(member.id, open.id, v.id, 1);
 
-    const s = await overviewStats();
+    const s = await salesStats();
     expect(s.sales.today).toMatchObject({ orders: 1 });
     expect(s.sales.today.total.toFixed(2)).toBe("50000.00");
     expect(s.sales.month.orders).toBe(1);
     expect(s.locked.carts).toBe(1);
     expect(s.locked.total.toFixed(2)).toBe("25000.00");
-    expect(s.toBook).toBe(1);
-    expect(s.count("OPEN")).toBe(1);
     expect(s.bestSellers).toEqual([
       { product: expect.objectContaining({ id: v.productId }), sold: 2 },
     ]);
+
+    // The Orders tab counts the paid cart waiting for PickMe.
+    expect((await adminBadges()).orders).toBe(1);
 
     // The chart: 14 days, oldest first; today's bar holds the confirmed cart, the rest are 0.
     const days = await dailySales();

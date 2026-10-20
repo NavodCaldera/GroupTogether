@@ -244,21 +244,11 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
               <h2 className="mb-2 font-semibold">
                 {user.locked ? "Unlock account" : "Lock account"}
               </h2>
-              {user.locked ? (
-                <p className="mb-3 text-sm text-subtle">
-                  This account can&apos;t sign in. Unlocking lets them sign in again.
-                </p>
-              ) : (
-                <p className="mb-3 text-sm text-subtle">
-                  Locking signs them out everywhere and stops them signing in. Their carts stay as
-                  they are.
-                </p>
-              )}
               {!user.locked && active.length > 0 && (
                 <div className="mb-3">
                   <Alert tone="info">
-                    They are in {active.length} unpaid {active.length === 1 ? "cart" : "carts"}{" "}
-                    holding stock. Cancel those from the cart page if they should not go ahead.
+                    In {active.length} unpaid {active.length === 1 ? "cart" : "carts"} holding
+                    stock.
                   </Alert>
                 </div>
               )}

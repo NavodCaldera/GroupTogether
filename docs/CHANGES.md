@@ -3,6 +3,15 @@
 Every change the product owner asks for is written here **and** reflected in `CLAUDE.md` and the
 relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
+## 2026-10-21
+
+- **Admin rebuilt: one home per task.** Tabs are now **Sales · Slips · Orders · Carts · Products · Offers · Users · Settings** (9 → 8). Red counts on Slips, Orders (PickMe to book + failed drops) and Offers; a grey count on Products (sizes with 2 or fewer left).
+  - **Sales** (the landing page, was Overview): Today / 7 days / 30 days / Avg order, the 14-day chart, best sellers, money in carts now, buyers, and the only **Export CSV**. Gone from it: the To do list and deadlines (the tab counts do that), the status counts and recent orders (Carts), low stock (Products), stock received (Offers), the delivered / expired / cancelled line.
+  - **Orders** (new, replaces Packing and Deliveries; their old addresses redirect): every paid order by stage, **To book / In store / On the way / Failed / Delivered**, with who gathered, packed and handed it over. The only place to **book PickMe** (the form opens on the order's card), mark a drop **Delivered** or **Failed**, and **Book again** after a failure (same delivery back to booked; the packers hand it over again).
+  - **Carts**: find and look only. No tiles, no export button, no Review slip / Mark delivered buttons, no packing line under each cart; each cart has one line of what happens next ("PickMe to book", "In store", "On the way", "Delivery failed", …). Stage "Delivering" is now "Paid". A cart's page keeps its details, items, shares, timeline (now with "PickMe booked · ref · driver" and "Delivery failed") and drop-off (with the PickMe fee); its only action is **Cancel**. The Packing, Book delivery and Delivery cards are gone.
+  - **Slips**: after approving, **Book PickMe** goes to Orders. Explanation text removed across the admin: slip confirmations, the reject-reason hint, "Tap to open full size", "These owners accepted…", "New slips show up here…", "Only the owner pays us…", "(fixed when the cart started)", "The owner pays the driver…", the lock / unlock explanations, "Set these in the server environment".
+  - CLAUDE.md rules 8, 17 and new rule 19. `orderStage` (`src/lib/packing-rules.ts`, unit tested), `ordersBoard` (`src/server/orders.ts`), `salesStats`; rebooking in `bookDelivery` (integration tested). _Agents: catalogue-admin, delivery, grouptogether, frontend, payments-slips._
+
 ## 2026-10-20
 
 - **No "Mark picked up" after the packer's handover.** Once packing staff press "Handed to the PickMe driver" (which already marks the drop picked up), the admin cart page's Delivery card and the Deliveries list no longer offer "Mark picked up"; "Mark delivered" and "Delivery failed" stay. The cart page also hides it whenever the drop is already picked up. _Agents: delivery, catalogue-admin._

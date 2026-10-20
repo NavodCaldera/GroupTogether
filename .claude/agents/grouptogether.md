@@ -92,10 +92,13 @@ It is a standalone project: it shares no code, database or rules with any other 
     Until it is packed anyone can send it back to be gathered again ("Something wrong?"; once
     packed it is final, product owner 2026-10-20). **The two
     people who certified the order (gathered by, packed by) and who handed it over are shown with
-    the order on the admin side**: cart page (Packing card + timeline), carts list, deliveries and
-    the orders CSV. **Admin → Packing** (`/admin/packing`, 2026-10-20) shows the same board
-    read-only: to gather, gathered (to pack), packed (for PickMe), handed over today, with who did
-    each step and when. Packing staff never see money; `/`, `/shop`, `/carts`, `/my-carts` and
+    the order on the admin side**: each card on Admin → Orders, the cart page's timeline, the
+    packer's user page and the orders CSV (2026-10-21).
+19. **Admin: one home per task** (product owner, 2026-10-21). Tabs Sales · Slips · Orders · Carts
+    · Products · Offers · Users · Settings. Sales = figures + Export CSV only. Orders (replaces
+    Packing and Deliveries) = every paid order by stage (To book / In store / On the way / Failed /
+    Delivered), the only place to book PickMe, book a failed drop again, and mark Delivered /
+    Failed. Carts = find and look; a cart's only action is Cancel. No explanation text. Packing staff never see money; `/`, `/shop`, `/carts`, `/my-carts` and
     `/dashboard` send them to `/packing`, and they have no phone tab bar. Rules: `packingStage` /
     `packBlockReason` / `handOverBlockReason` in `src/lib/packing-rules.ts`; flow: `markGathered` /
     `markPacked` / `sendBack` / `handOver` in `src/server/packing.ts` (cart row locked); table
@@ -168,10 +171,10 @@ Money is `Decimal(14,2)`.
 | `/seller`, `/seller/new`                   | seller               | Their stock offers with status and our note; + opens the 3-box form (name, description, total amount) → Send for review |
 | `/packing`, `/packing/[code]`              | packing staff        | Paid orders to pack, to check (two people) and to hand to PickMe; an order's items by member, label, and the next step                                               |
 | `/sign-in`, `/sign-up`                     | anyone               | `?next=` returns to where you were                                                                                                                                     |
-| `/admin`                                   | admin                | To do (only non-zero items + running deadlines) and pipeline line; confirmed sales with a 14-day chart; recent orders, low stock, best sellers. Two columns on desktop |
-| `/admin/slips`                             | admin                | Pending slips; open the file; approve (redirects to the cart) or reject with a reason. `?view=history`: the last 100 decisions                                         |
-| `/admin/carts`, `/admin/carts/[code]`      | admin                | Needs-you tiles, search, stage tabs, next step per cart, urgency sort, paging; stage bar, picking list, members' shares, timeline, book PickMe, cancel                |
-| `/admin/deliveries`                        | admin                | Confirmed carts to book; drops in progress with status buttons; recently delivered                                                                                     |
+| `/admin`                                   | admin                | Sales: today / 7 / 30 days / avg order, 14-day chart, best sellers, money in carts, buyers; Export CSV (2026-10-21) |
+| `/admin/slips`                             | admin                | Pending slips; open the file; approve (then "Book PickMe" → Orders) or reject with a reason. `?view=history`: the last 100 decisions                                         |
+| `/admin/carts`, `/admin/carts/[code]`      | admin                | Find carts: search + suggestions, dates, stage tabs, next-step text, urgency sort, paging; a cart: stage bar, items, shares, timeline, drop-off, cancel |
+| `/admin/orders`                            | admin                | Paid orders by stage (To book / In store / On the way / Failed / Delivered); book PickMe on the card; Delivered / Failed; `/admin/packing`, `/admin/deliveries` redirect |
 | `/admin/products`, `/new`, `/[id]`         | admin                | Search, filter (All / In the shop / Not in the shop / Low stock), seller filter, free / in-cart / sold counts; edit; stock by size                                  |
 | `/admin/users`, `/admin/users/[id]`        | admin                | Search and filter users (buyers, sellers, admins, locked); a user's carts, shares, slips and devices; lock or unlock; `/admin/users/new-seller` adds a factory seller  |
 | `/admin/settings`                          | admin                | Minimum, time windows, bank account; system status (delivery, cron)                                                                                                    |
@@ -195,7 +198,7 @@ Money is `Decimal(14,2)`.
 - `src/server/carts/queries.ts`: `recentCarts`, `cartByCode`, `editableCartsFor`, `joinableCart`, `myCarts`.
 - `src/server/carts/actions.ts`: customer server actions. `src/server/admin-actions.ts`: admin server actions.
   - Expected errors (`CartError`, `UploadError`, `CatalogueError`, `AuthError`, `ZodError`) become form messages.
-- `src/server/admin-queries.ts`: `overviewStats`, `adminBadges` (nav counts), `PAID` (CONFIRMED/DISPATCHED/DELIVERED, what sales count), `LOW_STOCK` (2).
+- `src/server/admin-queries.ts`: `salesStats`, `dailySales`, `adminBadges` (tab counts), `cartSearch` / `suggestCarts`, `PAID` (CONFIRMED/DISPATCHED/DELIVERED, what sales count), `LOW_STOCK` (2).
 - `src/server/catalogue.ts`: `listProducts`, `shopFacets`, `getProduct`, `saveProduct`, `adjustStock` (changes free stock only, never locked stock).
 - `src/server/delivery/provider.ts`: `DeliveryProvider` with `ManualProvider` (the default) and `PickMeProvider` (request shape ASSUMED). `delivery/index.ts`: `bookDelivery`, `setDeliveryStatus`.
 - `src/server/notify/index.ts`: `notify(userIds, notice)` writes the in-app rows. There is no email sending.
@@ -205,7 +208,7 @@ Money is `Decimal(14,2)`.
 - `src/components/`: `ui.tsx` (Button, Field, Input, Select, Card, Badge, Alert…), `cart-bits.tsx` (ProgressBar, StatusBadge, CartCard, ProductImage), `client.tsx` (Countdown, CopyLink), `site-header.tsx`.
 - `prisma/seed.ts`: 1 admin, 2 packing staff (Kasun `packer@`, Ishara `packer2@`; Kasun checked and gathered Dilan's delivered order, Ishara rechecked, packed and handed it over), 1 seller (Ceylon Footwear Mills, with one product each live, in review and returned), exactly 3 buyers (Dilan `buyer@`, Sachini `buyer2@`, Tharindu `buyer3@example.com`), 20 products with variants, and the carts: Dilan's public one at 49,800, Sachini's private READY one, Dilan's delivered order, and Tharindu's paid (CONFIRMED) order waiting to be packed. Tharindu has no active cart.
 - `src/server/offers.ts`: stock offers (`createOffer`, `decideOffer`). `src/server/seller.ts`: admin review of products listed under a seller (`publishProduct`, `returnToSeller`). `src/server/seller-actions.ts`: the seller server actions (`requireSeller`).
-- `src/lib/packing-rules.ts`: `PACKABLE`, `packingStage`, `packBlockReason`, `handOverBlockReason` (tested). `src/server/packing.ts`: `markGathered`, `markPacked`, `sendBack`, `handOver`, `packingQueue`, `packingOrder`, `packingSelect`. `src/server/packing-actions.ts`: packer server actions (`requirePacker`). `src/components/packing-bits.tsx`: `PackingTrail`, `packingSummary`.
+- `src/lib/packing-rules.ts`: `PACKABLE`, `packingStage`, `packBlockReason`, `handOverBlockReason`, `orderStage` (tested). `src/server/orders.ts`: `ordersBoard` (Admin → Orders). `src/server/packing.ts`: `markGathered`, `markPacked`, `sendBack`, `handOver`, `packingQueue`, `packingOrder`, `packingSelect`. `src/server/packing-actions.ts`: packer server actions (`requirePacker`). `src/components/packing-bits.tsx`: `PackingTrail`, `packingSummary`.
 - `src/server/carts/queries.ts` → `buyerDashboard`: a buyer's carts with their own lines, latest slip and delivery, open invites and the latest notices.
 
 ## 7. Environment (`.env.example`)

@@ -71,3 +71,5 @@ There is no card gateway. Payment is a bank transfer only.
 **Tests:** the integration file covers upload → approve → stock sold, reject → fresh window, a missed window → cancelled, and an owner cancelling during review being refused.
 
 **Phones** (product owner, 2026-10-20): the To review / Reviewed chips on `/admin/slips` are a `FilterSelect` dropdown below `sm` ("To review (N)" / "Reviewed", `?view=history`); chips from `sm` up.
+
+**After approving** (2026-10-21): the confirmation shows the cart code with **Book PickMe** (→ `/admin/orders?stage=to-book`) and Next slip; no explanation text (also gone: the reject-reason hint, "Tap to open full size", the Expected soon line and the empty-state sentence).

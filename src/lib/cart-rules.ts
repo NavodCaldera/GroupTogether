@@ -273,7 +273,7 @@ export const ADMIN_STAGES: readonly {
   { key: "active", label: "Active", statuses: [...HOLDS_STOCK, "CONFIRMED", "DISPATCHED"] },
   { key: "filling", label: "Filling", statuses: EDITABLE },
   { key: "paying", label: "Paying", statuses: ["AWAITING_SLIP", "SLIP_REVIEW"] },
-  { key: "delivering", label: "Delivering", statuses: ["CONFIRMED", "DISPATCHED"] },
+  { key: "delivering", label: "Paid", statuses: ["CONFIRMED", "DISPATCHED"] },
   { key: "done", label: "Done", statuses: ["DELIVERED"] },
   { key: "closed", label: "Closed", statuses: ["EXPIRED", "CANCELLED"] },
   { key: "all", label: "All", statuses: Object.keys(STATUS_LABEL) as CartStatus[] },

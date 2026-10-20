@@ -54,3 +54,28 @@ export function handOverBlockReason(
   if (!HANDOVER_DELIVERY.includes(delivery.status)) return "PickMe drop closed. Ask the admin.";
   return null;
 }
+
+/**
+ * Where a paid order is on the admin's Orders tab (product owner, 2026-10-21): no PickMe yet,
+ * booked and still in our store, with the driver, failed (to book again), or delivered.
+ */
+export type OrderStage = "to-book" | "in-store" | "on-the-way" | "failed" | "delivered";
+
+export const ORDER_STAGE_LABEL: Record<OrderStage, string> = {
+  "to-book": "To book",
+  "in-store": "In store",
+  "on-the-way": "On the way",
+  failed: "Failed",
+  delivered: "Delivered",
+};
+
+export function orderStage(
+  delivery: { status: string } | null,
+  packing: { handedOverAt: Date | null } | null,
+): OrderStage {
+  if (!delivery) return "to-book";
+  if (delivery.status === "DELIVERED") return "delivered";
+  if (delivery.status === "FAILED" || delivery.status === "CANCELLED") return "failed";
+  if (delivery.status === "PICKED_UP" || packing?.handedOverAt) return "on-the-way";
+  return "in-store";
+}

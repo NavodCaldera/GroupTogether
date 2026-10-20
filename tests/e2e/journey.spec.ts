@@ -52,10 +52,13 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
   await page.getByRole("button", { name: "Approve…" }).click();
   await page.getByRole("button", { name: "Yes, approve" }).click();
   await expect(page.getByText(/Slip approved/)).toBeVisible();
-  await page.getByRole("link", { name: "Book the PickMe delivery" }).click();
-  await page.getByLabel(/Quoted fee/).fill("950");
-  await page.getByRole("button", { name: "Mark as booked with PickMe" }).click();
-  await expect(page.getByText(/Delivery booked/)).toBeVisible();
+  // PickMe is booked on Admin → Orders, on the order's own card.
+  await page.getByRole("link", { name: "Book PickMe" }).click();
+  const order = page.getByRole("listitem").filter({ hasText: cartUrl.split("/").pop()! });
+  await order.getByText("Book PickMe").click();
+  await order.getByLabel("Fee (LKR)").fill("950");
+  await order.getByRole("button", { name: "Mark as booked" }).click();
+  await expect(page.getByText("Delivery booked")).toBeVisible();
 
   // The owner sees it on the way, with the fee they pay the driver.
   await signIn(page, "buyer@example.com");

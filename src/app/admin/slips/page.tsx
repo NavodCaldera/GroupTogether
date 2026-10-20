@@ -76,9 +76,7 @@ export default async function SlipsPage({ searchParams }: PageProps<"/admin/slip
       {queue.length === 0 ? (
         <div className="flex flex-col gap-4">
           {panel}
-          <EmptyState title="No slips waiting">
-            New slips show up here as owners upload them.
-          </EmptyState>
+          <EmptyState title="No slips waiting" />
           <ExpectedSoon />
         </div>
       ) : (
@@ -181,27 +179,15 @@ function DonePanel({ done, code, nextId }: { done: string; code: string; nextId?
         <p className="text-lg font-semibold">
           {approved ? "Order confirmed" : "Sent back to the owner"}
         </p>
-        <p className="mt-1 text-sm text-subtle">
-          {approved ? (
-            <>
-              Cart <span className="font-mono">{code}</span> is paid and its members have been told.
-              Next, book its PickMe drop.
-            </>
-          ) : (
-            <>
-              The owner of cart <span className="font-mono">{code}</span> sees your reason and can
-              upload a new slip.
-            </>
-          )}
-        </p>
+        <p className="mt-1 font-mono text-sm text-subtle">{code}</p>
       </div>
       <div className="flex flex-wrap gap-2">
         {approved && (
           <Link
-            href={`/admin/carts/${code}`}
+            href="/admin/orders?stage=to-book"
             className="inline-flex min-h-11 items-center justify-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
           >
-            Book the PickMe delivery
+            Book PickMe
           </Link>
         )}
         <NextSlipLink id={nextId} primary={!approved} />
@@ -313,9 +299,6 @@ async function SlipReview({
               decoding="async"
               className="max-h-[70vh] w-full rounded-xl border border-line bg-muted object-contain"
             />
-            <span className="mt-1 block text-center text-xs text-subtle group-hover:text-ink">
-              Tap to open full size
-            </span>
           </a>
         )}
 
@@ -377,12 +360,7 @@ async function SlipReview({
       </div>
 
       <div className="mt-4">
-        <SlipDecision
-          slipId={slip.id}
-          amount={formatLKR(slip.amount)}
-          code={code}
-          windowHours={settings.slipWindowHours}
-        />
+        <SlipDecision slipId={slip.id} amount={formatLKR(slip.amount)} code={code} />
       </div>
       {/* Room for the decision bar docked at the bottom on phones. */}
       <div className="h-24 lg:hidden" aria-hidden />
@@ -402,9 +380,6 @@ async function ExpectedSoon() {
   return (
     <section>
       <h2 className="mb-2 text-sm font-semibold">Expected soon</h2>
-      <p className="mb-3 text-xs text-subtle">
-        These owners accepted and still have to upload a slip.
-      </p>
       <ul className="flex flex-col gap-2">
         {carts.map((c) => (
           <li key={c.code}>

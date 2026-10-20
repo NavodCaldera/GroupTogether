@@ -6,14 +6,22 @@ import { db } from "../db";
 import { notify, notifyRole } from "../notify";
 import { type Booking, deliveryProvider } from "./provider";
 
-/** CONFIRMED → DISPATCHED: books the one PickMe drop to the cart owner. */
+/** Drops that failed (or were cancelled) can be booked again (product owner, 2026-10-21). */
+const REBOOKABLE: readonly string[] = ["FAILED", "CANCELLED"];
+
+/**
+ * CONFIRMED → DISPATCHED: books the one PickMe drop to the cart owner. A failed drop is booked
+ * again on the same record; the parcel is back with us, so the packers hand it over again.
+ */
 export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
   const cart = await db.groupCart.findUnique({
     where: { id: cartId },
     include: { owner: true, lines: { select: { qty: true } }, delivery: true },
   });
   if (!cart) throw new CartError("Cart not found");
-  if (cart.status !== "CONFIRMED" || cart.delivery)
+  const again =
+    cart.status === "DISPATCHED" && !!cart.delivery && REBOOKABLE.includes(cart.delivery.status);
+  if (!again && (cart.status !== "CONFIRMED" || cart.delivery))
     throw new CartError("Only a confirmed cart without a delivery can be booked");
 
   const provider = deliveryProvider();
@@ -29,17 +37,25 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
     manual,
   );
 
+  const data = {
+    provider: provider.name,
+    externalRef: booking.externalRef,
+    quotedFee: booking.quotedFee,
+    trackingUrl: booking.trackingUrl,
+    driverName: booking.driverName ?? null,
+  };
   await db.$transaction([
-    db.delivery.create({
-      data: {
-        cartId,
-        provider: provider.name,
-        externalRef: booking.externalRef,
-        quotedFee: booking.quotedFee,
-        trackingUrl: booking.trackingUrl,
-        driverName: booking.driverName ?? null,
-      },
-    }),
+    again
+      ? db.delivery.update({ where: { cartId }, data: { ...data, status: "BOOKED" } })
+      : db.delivery.create({ data: { ...data, cartId } }),
+    ...(again
+      ? [
+          db.packing.updateMany({
+            where: { cartId },
+            data: { handedOverAt: null, handedOverById: null },
+          }),
+        ]
+      : []),
     db.groupCart.update({ where: { id: cartId }, data: { status: "DISPATCHED" } }),
   ]);
 

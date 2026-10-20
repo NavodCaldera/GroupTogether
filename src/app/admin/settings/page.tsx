@@ -98,7 +98,6 @@ export default async function SettingsPage() {
               </div>
             ))}
           </dl>
-          <p className="mt-3 text-xs text-subtle">Set these in the server environment (.env).</p>
         </Card>
       </aside>
     </div>

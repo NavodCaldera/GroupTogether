@@ -68,12 +68,3 @@ export function PackingTrail({
     </ol>
   );
 }
-
-/** One line for admin lists: where packing is, naming the two people who certified the order. */
-export function packingSummary(p: PackingTrailView): string {
-  if (!p) return "Not gathered yet";
-  const gathered = `Gathered by ${p.gatheredBy.name}`;
-  if (!p.packedBy) return `${gathered} · not packed yet`;
-  const packed = `${gathered} · packed by ${p.packedBy.name}`;
-  return p.handedOverBy ? `${packed} · handed to PickMe by ${p.handedOverBy.name}` : packed;
-}

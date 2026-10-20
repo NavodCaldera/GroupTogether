@@ -3,7 +3,7 @@ import { createPacker, homeFor } from "@/server/auth/service";
 import { acceptAndPay, createCart, setLine } from "@/server/carts/service";
 import { approveSlip, uploadSlip } from "@/server/carts/slips";
 import { db } from "@/server/db";
-import { bookDelivery } from "@/server/delivery";
+import { bookDelivery, setDeliveryStatus } from "@/server/delivery";
 import { handOver, markGathered, markPacked, packingQueue, sendBack } from "@/server/packing";
 import { makeUser, makeVariant, resetDb, slipFile } from "./helpers";
 
@@ -100,6 +100,31 @@ describe("packing a confirmed order", () => {
     const q = await packingQueue();
     expect([...q.toGather, ...q.toPack, ...q.ready]).toEqual([]);
     expect(q.handedToday.map((c) => c.id)).toEqual([cart.id]);
+  });
+
+  it("a failed drop is booked again and handed over again", async () => {
+    const [amal, nimal] = [await makeUser("PACKER"), await makeUser("PACKER")];
+    const { cart } = await confirmedCart();
+    await markGathered(amal.id, cart.id);
+    await markPacked(nimal.id, cart.id);
+    await bookDelivery(cart.id, { externalRef: "PM-1" });
+    await handOver(amal.id, cart.id);
+    const d = await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } });
+    await expect(bookDelivery(cart.id, {})).rejects.toThrow("Only a confirmed cart");
+    await setDeliveryStatus(d.id, "FAILED");
+
+    await bookDelivery(cart.id, { externalRef: "PM-2", driverName: "Sunil" });
+    expect(await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } })).toMatchObject({
+      id: d.id,
+      status: "BOOKED",
+      externalRef: "PM-2",
+      driverName: "Sunil",
+    });
+    expect(await packingOf(cart.id)).toMatchObject({ handedOverAt: null, packedById: nimal.id });
+    await handOver(nimal.id, cart.id);
+    expect((await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } })).status).toBe(
+      "PICKED_UP",
+    );
   });
 
   it("something wrong before packing: it is sent back and gathered again from the start", async () => {

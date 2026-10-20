@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { type CartStatus, progress } from "@/lib/cart-rules";
 import { formatDate, formatLKR, timeLeft } from "@/lib/format";
 import { cx } from "@/components/ui";
@@ -13,18 +12,15 @@ export type StepCart = {
   updatedAt: Date;
   closedReason: string | null;
   delivery: { status: string } | null;
-  /** The slip waiting for review, if any */
-  pendingSlipId?: string | null;
 };
 
-type Step = { text: string; action?: { label: string; href: string }; tone?: "warn" | "bad" };
+type Step = { text: string; tone?: "warn" | "bad" };
 
 /**
- * What happens next with a cart, from the admin's side. When it's the admin's move there is an
- * action; otherwise a line saying who is waited on and the deadline.
+ * What happens next with a cart, as one line of text: who is waited on and the deadline. No
+ * buttons: slips are reviewed in Slips, PickMe is handled in Orders (product owner, 2026-10-21).
  */
 export function adminNextStep(c: StepCart, now: Date): Step | null {
-  const page = `/admin/carts/${c.code}`;
   switch (c.status) {
     case "OPEN":
       return { text: `Filling · ${timeLeft(c.expiresAt, now)}` };
@@ -36,26 +32,13 @@ export function adminNextStep(c: StepCart, now: Date): Step | null {
         tone: "warn",
       };
     case "SLIP_REVIEW":
-      return {
-        text: "Slip waiting for review",
-        action: {
-          label: "Review slip",
-          href: c.pendingSlipId ? `/admin/slips?slip=${c.pendingSlipId}` : "/admin/slips",
-        },
-      };
+      return { text: "Slip waiting for review", tone: "warn" };
     case "CONFIRMED":
-      return null;
+      return { text: "PickMe to book", tone: "warn" };
     case "DISPATCHED":
-      return c.delivery?.status === "FAILED"
-        ? {
-            text: "Delivery failed",
-            tone: "bad",
-            action: { label: "Open", href: `${page}#delivery` },
-          }
-        : {
-            text: c.delivery?.status === "PICKED_UP" ? "Picked up by PickMe" : "Booked with PickMe",
-            action: { label: "Mark delivered", href: `${page}#delivery` },
-          };
+      return c.delivery?.status === "FAILED" || c.delivery?.status === "CANCELLED"
+        ? { text: "Delivery failed", tone: "bad" }
+        : { text: c.delivery?.status === "PICKED_UP" ? "On the way" : "In store" };
     case "DELIVERED":
       return { text: `Delivered ${formatDate(c.updatedAt)}` };
     case "EXPIRED":
@@ -89,14 +72,6 @@ export function NextStep({
       >
         {step.text}
       </span>
-      {step.action && (
-        <Link
-          href={step.action.href}
-          className="inline-flex min-h-11 items-center rounded-lg bg-accent px-3 text-sm font-medium whitespace-nowrap text-on-accent hover:opacity-90 sm:min-h-8"
-        >
-          {step.action.label} →
-        </Link>
-      )}
     </div>
   );
 }

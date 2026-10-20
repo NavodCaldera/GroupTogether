@@ -21,12 +21,10 @@ export function SlipDecision({
   slipId,
   amount,
   code,
-  windowHours,
 }: {
   slipId: string;
   amount: string;
   code: string;
-  windowHours: number;
 }) {
   const [step, setStep] = useState<"choose" | "approve" | "reject">("choose");
   const [approveState, approve, approving] = useActionState(approveSlipAction, {});
@@ -90,9 +88,6 @@ export function SlipDecision({
                   <option key={r} value={r} />
                 ))}
               </datalist>
-              <span className="text-xs text-subtle">
-                The owner sees this and gets a fresh {windowHours}-hour window to upload again.
-              </span>
             </label>
             <div className="grid grid-cols-2 gap-3">
               <Button

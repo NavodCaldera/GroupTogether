@@ -40,8 +40,9 @@ heavy libraries, paid services or anything that needs an always-on worker.
    platform never charges, collects or refunds a delivery fee; `Delivery.paidBy` is always
    OWNER. Once the drop is on its way (DISPATCHED, not failed), the **owner can mark it
    delivered from their dashboard** (asks once more; other members are notified), the same as
-   the admin's "Mark delivered" (product owner, 2026-10-18; `markReceived` in
-   `src/server/delivery/index.ts`).
+   the admin's "Delivered" on Admin → Orders (product owner, 2026-10-18; `markReceived` in
+   `src/server/delivery/index.ts`). A failed drop can be booked again from Orders (2026-10-21):
+   the same delivery goes back to BOOKED and the packers hand it over again.
 9. **Visibility.** A cart is PUBLIC (shown on the "open carts" panel) or PRIVATE (reached only by
    link). Every cart has a share link `/c/<code>`. The invite-by-email/phone form and the share
    icon (copy link / WhatsApp) were removed from the cart page (product owner, 2026-10-17); the
@@ -125,10 +126,8 @@ heavy libraries, paid services or anything that needs an always-on worker.
     Until it is packed anyone can send it back to be gathered again ("Something wrong?"; once
     packed it is final, product owner 2026-10-20). **The two
     people who certified the order (gathered by, packed by) and who handed it over are shown with
-    the order on the admin side**: cart page (Packing card + timeline), carts list, deliveries and
-    the orders CSV. **Admin → Packing** (`/admin/packing`, product owner 2026-10-20) shows the same
-    board read-only: to gather, gathered (to pack), packed (for PickMe) and handed over today, each
-    order with who gathered, packed and handed it over and when. Packing staff never see money; `/`, `/shop`, `/carts`, `/my-carts` and
+    the order on the admin side**: each order's card on **Admin → Orders**, the cart page's
+    timeline, the packer's user page and the orders CSV (product owner, 2026-10-21, rule 19). Packing staff never see money; `/`, `/shop`, `/carts`, `/my-carts` and
     `/dashboard` send them to `/packing`, and they have no phone tab bar. Rules: `packingStage` /
     `packBlockReason` / `handOverBlockReason` in `src/lib/packing-rules.ts`; flow: `markGathered` /
     `markPacked` / `sendBack` / `handOver` in `src/server/packing.ts` (cart row locked); table
@@ -142,6 +141,20 @@ heavy libraries, paid services or anything that needs an always-on worker.
     open by link. Admin → Products filters: All / In the shop / Not in the shop / Low stock.
     `Product.status` and `reviewNote` stay in the schema, unused; the seller-product review
     (`src/server/seller.ts`, publish / return) was removed.
+
+19. **Admin: one home per task** (product owner, 2026-10-21). Tabs: **Sales · Slips · Orders ·
+    Carts · Products · Offers · Users · Settings**; red counts on Slips (slips to review), Orders
+    (PickMe to book + failed drops) and Offers (to answer), a grey one on Products (low-stock
+    sizes). **Sales** (`/admin`, landing) shows only figures: today / 7 / 30 days / average order,
+    the 14-day chart, best sellers, money in carts, buyers, and the only Export CSV. **Orders**
+    (`/admin/orders`, replaces Packing and Deliveries, which redirect there) holds every paid order
+    by stage: To book / In store / On the way / Failed / Delivered (`orderStage` in
+    `src/lib/packing-rules.ts`). It is the only place to book PickMe (form on the order's card),
+    to mark a drop Delivered or Failed, and to book a failed drop again; it shows who gathered,
+    packed and handed it over. **Carts** finds and shows carts: no tiles, no export, no buttons in
+    the list (one line of what happens next); a cart's page has its details, items, shares,
+    timeline (including PickMe and packing steps) and drop-off, and its only action is Cancel.
+    Slips, Products, Offers, Users and Settings keep their own tasks. No explanation text.
 
 Cart statuses: `OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED`,
 plus the dead ends `EXPIRED` and `CANCELLED`. 14. **Owner chat** (product owner, 2026-10-17). The cart page no longer shows a delivery-point map

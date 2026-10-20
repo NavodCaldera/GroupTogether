@@ -4,18 +4,11 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { BackLink } from "@/components/client";
 import { StatusBadge } from "@/components/cart-bits";
-import { PackingTrail } from "@/components/packing-bits";
-import { Toast } from "@/components/toast";
-import { Badge, Button, Card, Field, Input, PageHeader, cx } from "@/components/ui";
+import { Badge, Card, Input, PageHeader, cx } from "@/components/ui";
 import { ADMIN_STAGES, CANCELLABLE, adminStage, cartTotal } from "@/lib/cart-rules";
 import { mapsLink } from "@/lib/location";
-import { PACKABLE } from "@/lib/packing-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
-import {
-  adminCancelAction,
-  bookDeliveryAction,
-  deliveryStatusAction,
-} from "@/server/admin-actions";
+import { adminCancelAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
@@ -27,19 +20,11 @@ export const metadata: Metadata = { title: "Cart" };
 
 /** The stepper on top: Filling, Paying, Delivering, Done. */
 const STEPS = ADMIN_STAGES.slice(1, 5);
-const DELIVERY_BUTTONS = [
-  ["PICKED_UP", "Mark picked up"],
-  ["DELIVERED", "Mark delivered"],
-  ["FAILED", "Delivery failed"],
-] as const;
 
-export default async function AdminCartPage({
-  params,
-  searchParams,
-}: PageProps<"/admin/carts/[code]">) {
+export default async function AdminCartPage({ params }: PageProps<"/admin/carts/[code]">) {
   await requireAdmin();
   await sweep();
-  const [{ code }, { booked }] = await Promise.all([params, searchParams]);
+  const { code } = await params;
   const cart = await db.groupCart.findUnique({
     where: { code: code.toUpperCase() },
     include: {
@@ -63,7 +48,6 @@ export default async function AdminCartPage({
   const stage = adminStage(cart.status);
   const closed = stage === "closed";
   const step = STEPS.findIndex((st) => st.key === stage);
-  const pendingSlipId = cart.slips.find((s) => s.status === "PENDING")?.id;
   // What happened, oldest first.
   const events: { at: Date; text: ReactNode; bad?: boolean }[] = [
     { at: cart.createdAt, text: `Started by ${cart.owner.name}` },
@@ -102,7 +86,19 @@ export default async function AdminCartPage({
         : []),
     ]),
     ...(cart.confirmedAt ? [{ at: cart.confirmedAt, text: "Order confirmed" }] : []),
-    ...(cart.delivery ? [{ at: cart.delivery.createdAt, text: "PickMe drop booked" }] : []),
+    ...(cart.delivery
+      ? [
+          {
+            at: cart.delivery.createdAt,
+            text: ["PickMe booked", cart.delivery.externalRef, cart.delivery.driverName]
+              .filter(Boolean)
+              .join(" · "),
+          },
+        ]
+      : []),
+    ...(cart.delivery && ["FAILED", "CANCELLED"].includes(cart.delivery.status)
+      ? [{ at: cart.delivery.updatedAt, text: "Delivery failed", bad: true }]
+      : []),
     // Packing staff (rule 17): the two people who certified it, and who handed it over.
     ...(cart.packing
       ? [
@@ -160,10 +156,6 @@ export default async function AdminCartPage({
       <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
         <div className="flex min-w-0 flex-col gap-6">
           <PageHeader title={`Cart ${cart.code}`} actions={<StatusBadge status={cart.status} />} />
-          {/* After booking the drop: a pop-up, not a banner. */}
-          {booked && (
-            <Toast ms={5000}>Delivery booked. The owner has been told to pay the driver.</Toast>
-          )}
           <Card className="flex flex-col gap-3">
             {closed ? (
               <p className="text-sm font-medium text-danger">
@@ -189,7 +181,7 @@ export default async function AdminCartPage({
                     </li>
                   ))}
                 </ol>
-                <NextStep cart={{ ...cart, pendingSlipId }} now={now} />
+                <NextStep cart={cart} now={now} />
               </>
             )}
           </Card>
@@ -250,15 +242,12 @@ export default async function AdminCartPage({
                 ))}
               </tbody>
             </table>
-            <p className="mt-2 text-xs text-subtle">
-              Only the owner pays us. Members settle their share with the owner directly.
-            </p>
           </Card>
           <Card className="text-sm">
             <h2 className="mb-2 font-semibold">Timeline</h2>
             <p className="mb-1 text-subtle">
               {cart.visibility === "PRIVATE" ? "Private" : "Public"} · minimum{" "}
-              {formatLKR(cart.minOrderValue)} (fixed when the cart started) ·{" "}
+              {formatLKR(cart.minOrderValue)} ·{" "}
               <a href={`/c/${cart.code}`} className="text-accent underline">
                 open the shopper view
               </a>
@@ -310,79 +299,14 @@ export default async function AdminCartPage({
                 )}
               </p>
             ) : (
-              <p className="text-subtle">Set when the owner accepts.</p>
+              <p className="text-subtle">Not set yet</p>
             )}
-            <p className="mt-2 text-xs text-subtle">
-              The owner pays the driver. We never collect the fee.
-            </p>
-          </Card>
-
-          {(cart.packing || PACKABLE.includes(cart.status)) && (
-            <Card id="packing" className="scroll-mt-4 text-sm">
-              <h2 className="mb-2 font-semibold">Packing</h2>
-              <PackingTrail packing={cart.packing} />
+            {cart.delivery?.quotedFee && (
               <p className="mt-2 text-xs text-subtle">
-                One person checks and gathers it, someone else rechecks and packs it.
+                PickMe fee {formatLKR(cart.delivery.quotedFee)}
               </p>
-            </Card>
-          )}
-
-          {cart.status === "CONFIRMED" && !cart.delivery && (
-            <Card id="book" className="scroll-mt-4">
-              <h2 className="mb-2 font-semibold">Book delivery</h2>
-              <AdminForm action={bookDeliveryAction} submit="Mark as booked with PickMe">
-                <input type="hidden" name="cartId" value={cart.id} />
-                <p className="text-xs text-subtle">
-                  Manual mode: book the trip in the PickMe business app, then enter what it shows.
-                  With PickMe API keys set, booking happens automatically.
-                </p>
-                <Field label="PickMe booking ref" name="externalRef">
-                  <Input name="externalRef" />
-                </Field>
-                <Field label="Quoted fee (LKR, shown to the owner)" name="quotedFee">
-                  <Input name="quotedFee" inputMode="decimal" />
-                </Field>
-                <Field label="Tracking link (optional)" name="trackingUrl">
-                  <Input name="trackingUrl" type="url" />
-                </Field>
-                <Field label="Driver name" name="driverName">
-                  <Input name="driverName" />
-                </Field>
-              </AdminForm>
-            </Card>
-          )}
-
-          {cart.delivery && (
-            <Card id="delivery" className="scroll-mt-4 text-sm">
-              <h2 className="mb-2 font-semibold">Delivery · {cart.delivery.status}</h2>
-              <p>
-                {cart.delivery.provider}{" "}
-                {cart.delivery.externalRef && `· ${cart.delivery.externalRef}`}
-              </p>
-              {cart.delivery.quotedFee && (
-                <p>Fee {formatLKR(cart.delivery.quotedFee)} (owner pays driver)</p>
-              )}
-              {cart.delivery.driverName && <p>{cart.delivery.driverName}</p>}
-              {cart.delivery.status !== "DELIVERED" && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {DELIVERY_BUTTONS.filter(
-                    // A packer's handover already marked it picked up (product owner, 2026-10-20).
-                    ([s]) =>
-                      s !== "PICKED_UP" ||
-                      (cart.delivery!.status !== "PICKED_UP" && !cart.packing?.handedOverAt),
-                  ).map(([s, text]) => (
-                    <form key={s} action={deliveryStatusAction}>
-                      <input type="hidden" name="deliveryId" value={cart.delivery!.id} />
-                      <input type="hidden" name="status" value={s} />
-                      <Button variant="secondary" className="text-xs sm:min-h-8">
-                        {text}
-                      </Button>
-                    </form>
-                  ))}
-                </div>
-              )}
-            </Card>
-          )}
+            )}
+          </Card>
 
           {CANCELLABLE.includes(cart.status) && (
             <Card>
