@@ -57,7 +57,9 @@ heavy libraries, paid services or anything that needs an always-on worker.
     (`PACKER`, 2026-10-18, rule 17).
     - **Buyers** (`CUSTOMER`) sign up themselves and land on `/dashboard`.
     - **Factory sellers** (`SELLER`) are created by an admin (or the seed) and land on `/seller`.
-      They never see buyers, carts or money.
+      They never see buyer names, individual carts or money; for their own designs they may see
+      counts only: pieces wanted (in carts) and how many people bought (product owner,
+      2026-10-24).
     - **A seller sends stock offers** (product owner, 2026-10-19; how sellers will work is still
       open, so it is kept as simple as possible). `/seller` lists their offers (name, total
       amount, date, status: Waiting for review / Accepted / Declined, and our note) with a round
@@ -71,12 +73,14 @@ heavy libraries, paid services or anything that needs an always-on worker.
       middle person and buy the bulk outright, so there is no payment tracking or "money owed"
       for sellers.
     - **Factories can test a design before making the bulk** (product owner, 2026-10-24): they
-      make a few pieces, we sell them in our system, and the demand tells them whether to make
-      the bulk.
+      make a few pieces, **we buy those test pieces from the factory**, sell them in our system,
+      and the demand tells them whether to make the bulk. **A bulk of a tested design is the
+      same shop product** as its test (one history: test and bulk stock on one product).
     - **Seller dashboard: how each design performs in the market** (product owner, 2026-10-24;
-      **not built yet**). Its purpose is insight into each design and its demand (pieces put in
-      carts and paid, how fast it sells, which sizes and colours go first), not money. Still
-      open: who pays for test pieces, and whether sellers may see buyer counts or districts.
+      **not built yet**). Its purpose is insight into each design and its demand, not money:
+      pieces **wanted** (put in carts, including carts that expired) and **bought**, **how many
+      people bought** (counts, never names), how fast it sells, which sizes and colours go first.
+      Still open: whether sellers may see districts.
     - Sellers have one section like admins: no Home/Shop/Carts tabs, no messages icon, no tab bar;
       `/`, `/shop`, `/carts`, `/my-carts`, `/dashboard`, `/messages` and `/c/<code>` send them to
       `/seller`. Their profile has their name, mobile, **factory address and an exact map pin**

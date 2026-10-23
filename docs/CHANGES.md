@@ -5,6 +5,7 @@ relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
 ## 2026-10-24
 
+- **Decided (not built yet): test pieces, what sellers see, one product per design.** We buy a factory's test pieces, the same as a bulk. Sellers may see, for their own designs, the pieces **wanted** (in carts) and **how many people bought**, as counts only; never buyer names, individual carts or money. When a tested design comes back as a bulk, it goes onto **the same shop product**, so the test and the bulk share one history. Still open: districts. CLAUDE.md rule 11. _Agents: grouptogether, catalogue-admin, frontend._
 - **Decided (not built yet): factories, payment and design tests.** We are the middle person and pay a factory for the whole bulk at once, so the seller side has no payment tracking or "money owed". Factories can make a few pieces of a design first and test them in our system; the demand tells them whether to make the bulk. The planned **seller dashboard** is for insight into how each design performs in the market and its demand, not money. Open: who pays for test pieces, and whether sellers may see buyer counts or districts. CLAUDE.md rule 11. _Agents: grouptogether, catalogue-admin, frontend._
 
 ## 2026-10-21
