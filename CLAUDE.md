@@ -67,6 +67,16 @@ heavy libraries, paid services or anything that needs an always-on worker.
       or Decline, each with an optional note; the seller is told in the app. An offer is not a
       shop product: if we take the stock, the admin lists it as a product. Table `StockOffer`;
       `createOffer` / `decideOffer` in `src/server/offers.ts`.
+    - **We pay a factory for the whole bulk at once** (product owner, 2026-10-24): we are the
+      middle person and buy the bulk outright, so there is no payment tracking or "money owed"
+      for sellers.
+    - **Factories can test a design before making the bulk** (product owner, 2026-10-24): they
+      make a few pieces, we sell them in our system, and the demand tells them whether to make
+      the bulk.
+    - **Seller dashboard: how each design performs in the market** (product owner, 2026-10-24;
+      **not built yet**). Its purpose is insight into each design and its demand (pieces put in
+      carts and paid, how fast it sells, which sizes and colours go first), not money. Still
+      open: who pays for test pieces, and whether sellers may see buyer counts or districts.
     - Sellers have one section like admins: no Home/Shop/Carts tabs, no messages icon, no tab bar;
       `/`, `/shop`, `/carts`, `/my-carts`, `/dashboard`, `/messages` and `/c/<code>` send them to
       `/seller`. Their profile has their name, mobile, **factory address and an exact map pin**

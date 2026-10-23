@@ -3,6 +3,10 @@
 Every change the product owner asks for is written here **and** reflected in `CLAUDE.md` and the
 relevant `.claude/agents/*.md` files, in the same piece of work. Newest first.
 
+## 2026-10-24
+
+- **Decided (not built yet): factories, payment and design tests.** We are the middle person and pay a factory for the whole bulk at once, so the seller side has no payment tracking or "money owed". Factories can make a few pieces of a design first and test them in our system; the demand tells them whether to make the bulk. The planned **seller dashboard** is for insight into how each design performs in the market and its demand, not money. Open: who pays for test pieces, and whether sellers may see buyer counts or districts. CLAUDE.md rule 11. _Agents: grouptogether, catalogue-admin, frontend._
+
 ## 2026-10-21
 
 - **Admin: Stock page and bulk lots: empty the store fast.** The goal is to clear each bulk from our store (6,000 pieces) quickly so the next bulk can come in, not to know the best sellers.
