@@ -3,7 +3,7 @@
  * states. Every account's password is "password123". Resets the database first.
  *
  *   admin@groupbasket.lk  admin       → /admin
- *   seller@example.com      seller      → /seller (Ceylon Footwear Mills)
+ *   seller@example.com      seller      → /seller (Ceylon Footwear Mills: a tested linen shirt and its bulk)
  *   packer@example.com      packing     → /packing (Kasun: one paid order to check and gather)
  *   packer2@example.com     packing     → /packing (Ishara: rechecks and packs what Kasun gathered)
  *   buyer@example.com       buyer       → /dashboard (public cart at 49,800, delivered order, invite)
@@ -655,9 +655,191 @@ async function main() {
       },
     });
 
+  // ─── A tested design (product owner, 2026-10-24): 24 test pieces of a linen shirt sold out ──
+  // in its sizes M and L at LKR 2,400, so the factory made the bulk; it went onto the same product
+  // at LKR 2,150. The seller dashboard shows it as a design with its price and pieces by day.
+  const DAY = 86_400_000;
+  const daysAgo = (d: number) => new Date(now.getTime() - d * DAY);
+  // Pieces stocked per size (test + bulk) and sold, so the sizes add up with the carts below.
+  const shirtSizes = { S: [43, 6], M: [89, 33], L: [88, 24], XL: [44, 6] } as const;
+  const shirt = await db.product.create({
+    data: {
+      title: "Linen short-sleeve shirt",
+      brand: "Ceylon",
+      category: "APPAREL",
+      audience: "MEN",
+      kind: "men-shirts",
+      stockType: "FACTORY_SURPLUS",
+      price: 2150,
+      retailPrice: 4900,
+      description: "Washed linen, short sleeves. Made in our Ja-Ela factory.",
+      status: "LIVE",
+      sellerId: seller.id,
+      createdAt: daysAgo(21),
+      variants: {
+        create: Object.entries(shirtSizes).map(([size, [stocked, sold]]) => ({
+          size,
+          available: stocked - sold,
+          sold,
+        })),
+      },
+      prices: {
+        create: [
+          { price: 2400, at: daysAgo(21) },
+          { price: 2150, at: daysAgo(6) },
+        ],
+      },
+    },
+    include: { variants: true },
+  });
+  const shirtSize = (size: keyof typeof shirtSizes) =>
+    shirt.variants.find((v) => v.size === size)!.id;
+  for (const o of [
+    {
+      kind: "TEST",
+      name: "Linen shirt test run",
+      description: "24 pieces, S to XL, white.",
+      amount: 36000,
+      sent: 24,
+      received: 21,
+    },
+    {
+      kind: "BULK",
+      name: "Linen shirt bulk",
+      description: "240 pieces, S to XL, white.",
+      amount: 312000,
+      sent: 12,
+      received: 6,
+    },
+  ] as const)
+    await db.stockOffer.create({
+      data: {
+        sellerId: seller.id,
+        kind: o.kind,
+        name: o.name,
+        description: o.description,
+        amount: o.amount,
+        status: "ACCEPTED",
+        productId: shirt.id,
+        createdAt: daysAgo(o.sent),
+        decidedAt: daysAgo(o.sent - 0.2),
+        receivedById: kasun.id,
+        receivedAt: daysAgo(o.received),
+      },
+    });
+  /** A past cart of shirts: [buyer, size, qty] lines at `price`, paid and delivered or expired. */
+  const shirtCart = async (
+    ago: number,
+    price: number,
+    lines: [number, keyof typeof shirtSizes, number][],
+    paid: boolean,
+  ) => {
+    const at = daysAgo(ago);
+    const owner = users[lines[0][0]];
+    const total = lines.reduce((n, [, , q]) => n + q * price, 0);
+    const c = await db.groupCart.create({
+      data: {
+        code: newCartCode(randomBytes),
+        name: `${owner.name}'s cart`,
+        ownerId: owner.id,
+        status: paid ? "DELIVERED" : "EXPIRED",
+        minOrderValue: 50000,
+        total,
+        createdAt: at,
+        expiresAt: addHours(at, 24),
+        ...(paid
+          ? {
+              readyAt: addHours(at, 3),
+              acceptedAt: addHours(at, 4),
+              slipDueAt: addHours(at, 6),
+              confirmedAt: addHours(at, 5),
+              deliveryAddress: owner.address,
+              deliveryCity: owner.city,
+              deliveryLat: owner.lat,
+              deliveryLng: owner.lng,
+              deliveryPhone: owner.phone,
+              delivery: { create: { provider: "manual", status: "DELIVERED", quotedFee: 850 } },
+            }
+          : { closedReason: "Expired" }),
+        members: {
+          create: [...new Set(lines.map((l) => l[0]))].map((i) => ({
+            userId: users[i].id,
+            joinedAt: at,
+          })),
+        },
+        lines: {
+          create: lines.map(([ui, size, qty], i) => ({
+            userId: users[ui].id,
+            variantId: shirtSize(size),
+            qty,
+            unitPrice: price,
+            createdAt: addHours(at, i * 0.5),
+          })),
+        },
+      },
+    });
+    if (paid)
+      await db.packing.create({
+        data: {
+          cartId: c.id,
+          gatheredById: kasun.id,
+          gatheredAt: addHours(at, 6),
+          packedById: ishara.id,
+          packedAt: addHours(at, 7),
+          handedOverById: ishara.id,
+          handedOverAt: addHours(at, 8),
+        },
+      });
+  };
+  // The test: 21 of 24 bought in one cart at 2,400 (M and L sold out); 3 more wanted in a cart that expired.
+  await shirtCart(
+    18,
+    2400,
+    [
+      [DILAN, "M", 4],
+      [DILAN, "L", 4],
+      [SACHINI, "M", 5],
+      [SACHINI, "S", 2],
+      [THARINDU, "L", 4],
+      [THARINDU, "XL", 2],
+    ],
+    true,
+  );
+  await shirtCart(15, 2400, [[THARINDU, "M", 3]], false);
+  // The bulk at 2,150: two paid carts, and one that expired.
+  await shirtCart(
+    4,
+    2150,
+    [
+      [DILAN, "M", 8],
+      [DILAN, "L", 6],
+      [SACHINI, "S", 4],
+      [SACHINI, "M", 6],
+    ],
+    true,
+  );
+  await shirtCart(
+    2,
+    2150,
+    [
+      [THARINDU, "L", 10],
+      [THARINDU, "XL", 4],
+      [THARINDU, "M", 10],
+    ],
+    true,
+  );
+  await shirtCart(1, 2150, [[SACHINI, "XL", 3]], false);
+
+  // Every other product starts its price history at its price (the dashboard charts it).
+  await db.$executeRaw`
+    INSERT INTO "PriceChange" ("id", "productId", "price", "at")
+    SELECT 'pc_' || md5(random()::text || p."id"), p."id", p."price", p."createdAt"
+    FROM "Product" p
+    WHERE NOT EXISTS (SELECT 1 FROM "PriceChange" pc WHERE pc."productId" = p."id")`;
+
   console.log(`Seeded. Every password is password123.
   Admin   admin@groupbasket.lk  → /admin
-  Seller  seller@example.com      → /seller
+  Seller  seller@example.com      → /seller (a tested linen shirt and its bulk)
   Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)
   Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)
           buyer2@example.com (Sachini: private cart at the minimum)

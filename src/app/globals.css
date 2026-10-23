@@ -8,6 +8,9 @@
   --accent: light-dark(#0b7a55, #3fcf98);
   /* Chart bars: the accent, one step darker at night (validated: L band, chroma, 3:1 vs surface). */
   --chart: light-dark(#0b7a55, #2aa877);
+  /* Second part of a chart bar (pieces wanted, not bought): validated with --chart (L band,
+     chroma, CVD and normal-vision separation); below 3:1, so charts using it have a legend and table. */
+  --chart-2: light-dark(#4fb38a, #067049);
   --on-accent: light-dark(#ffffff, #04140e);
   --muted: light-dark(#f2f5f3, #18201d);
   --line: light-dark(#dde3e0, #2a3430);
@@ -21,6 +24,7 @@
   --color-ink: var(--ink);
   --color-accent: var(--accent);
   --color-chart: var(--chart);
+  --color-chart-2: var(--chart-2);
   --color-on-accent: var(--on-accent);
   --color-muted: var(--muted);
   --color-line: var(--line);

@@ -3,7 +3,8 @@ import { z } from "zod";
 import { colomboDay, colomboDayStart } from "@/lib/format";
 import { lotPrice, reduceAtFor } from "@/lib/stock-rules";
 import { CatalogueError } from "./catalogue";
-import { db } from "./db";
+import { db, type Tx } from "./db";
+import { logPrices } from "./prices";
 import { getSettings } from "./settings";
 
 /**
@@ -88,6 +89,7 @@ export async function saveLot(id: string | null, input: unknown, now = new Date(
       ? await tx.lot.update({ where: { id }, data: snapshot })
       : await tx.lot.create({ data: snapshot });
     await tx.product.updateMany({ where: { lotId: lot.id }, data: { price: lotPrice(lot, now) } });
+    await logPrices(tx, await lotProductIds(tx, lot.id), now);
     return lot;
   });
 }
@@ -113,9 +115,15 @@ export async function reduceDueLots(now = new Date()) {
         where: { lotId: lot.id },
         data: { price: lotPrice(lot, now) },
       });
+      await logPrices(tx, await lotProductIds(tx, lot.id), now);
     });
   }
   return { reduced: due.length };
+}
+
+async function lotProductIds(tx: Tx, lotId: string) {
+  const rows = await tx.product.findMany({ where: { lotId }, select: { id: true } });
+  return rows.map((r) => r.id);
 }
 
 /** Lots for the product form's picker, newest arrival first. */

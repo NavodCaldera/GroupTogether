@@ -128,6 +128,9 @@ model Product {
   updatedAt   DateTime      @updatedAt
 
   variants Variant[]
+  /// Stock offers whose pieces went onto this product: a design test, then its bulk (2026-10-24)
+  offers   StockOffer[]
+  prices   PriceChange[]
 
   @@index([status, category])
   @@index([sellerId])
@@ -161,6 +164,19 @@ model Lot {
 
   @@index([reducedAt, reduceAt])
   @@index([receivedAt])
+}
+
+/// The shop price of a product from `at` until the next row (product owner, 2026-10-24): the
+/// seller dashboard charts price against pieces sold. Written whenever a product's price changes
+/// (`logPrices` in src/server/designs.ts).
+model PriceChange {
+  id        String   @id @default(cuid())
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  price     Decimal  @db.Decimal(14, 2)
+  at        DateTime @default(now())
+
+  @@index([productId, at])
 }
 
 /// One size/colour of a product. available + reserved + sold is everything ever stocked.
@@ -413,6 +429,12 @@ model Packing {
 
 // ─── Stock offers ──────────────────────────────────────────────────────────
 
+/// A few pieces to test a design before the factory makes the bulk, or the bulk itself (2026-10-24)
+enum OfferKind {
+  TEST
+  BULK
+}
+
 enum OfferStatus {
   IN_REVIEW
   ACCEPTED
@@ -430,6 +452,10 @@ model StockOffer {
   description  String
   /// Total selling price for the whole lot, LKR
   amount       Decimal     @db.Decimal(14, 2)
+  kind         OfferKind   @default(BULK)
+  /// The shop product its pieces went onto; a tested design's bulk goes onto the same one
+  productId    String?
+  product      Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
   status       OfferStatus @default(IN_REVIEW)
   note         String?
   decidedAt    DateTime?
@@ -441,6 +467,7 @@ model StockOffer {
 
   @@index([sellerId, createdAt])
   @@index([status, createdAt])
+  @@index([productId])
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────

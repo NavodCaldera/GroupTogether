@@ -8,6 +8,8 @@ import { notify, notifyRole } from "./notify";
  * Factory sellers' stock offers (product owner, 2026-10-19). A seller sends a name, details about
  * the stock and the total price for all of it; an admin accepts or declines it, and the seller is
  * told in the app. An offer is not a shop product: if we take the stock, the admin lists it.
+ * An offer is a few test pieces of a design or a bulk (2026-10-24); a bulk of a design the
+ * factory already tested names that design, and its pieces go onto the same product.
  */
 
 export const offerSchema = z.object({
@@ -23,6 +25,13 @@ export const offerSchema = z.object({
     .transform((v) => v.replace(/,/g, ""))
     .pipe(z.string().regex(/^\d+(\.\d{1,2})?$/, "Enter the total price, such as 250000"))
     .refine((v) => Number(v) > 0, "Enter the total price, such as 250000"),
+  kind: z.enum(["TEST", "BULK"], { message: "Choose test pieces or bulk" }).default("BULK"),
+  /** A bulk of one of the factory's designs: that shop product */
+  productId: z
+    .string()
+    .trim()
+    .optional()
+    .transform((v) => v || undefined),
 });
 
 export async function createOffer(sellerId: string, input: unknown) {
@@ -32,6 +41,11 @@ export async function createOffer(sellerId: string, input: unknown) {
     select: { role: true, name: true, company: true },
   });
   if (seller?.role !== "SELLER") throw new CatalogueError("Only factory sellers can send offers");
+  if (o.productId) {
+    if (o.kind !== "BULK") throw new CatalogueError("Test pieces are for a new design");
+    const mine = await db.product.count({ where: { id: o.productId, sellerId } });
+    if (!mine) throw new CatalogueError("Choose one of your designs");
+  }
   const offer = await db.stockOffer.create({ data: { sellerId, ...o } });
   await notifyRole("ADMIN", {
     title: "Stock offer to review",

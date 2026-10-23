@@ -6,6 +6,7 @@ import { D, toD } from "@/lib/decimal";
 import { formatLKR } from "@/lib/format";
 import { lotPrice } from "@/lib/stock-rules";
 import { db } from "./db";
+import { logPrices } from "./prices";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
 export class CatalogueError extends Error {}
@@ -170,11 +171,11 @@ export async function saveProduct(id: string | null, input: unknown, photo: File
         })()
       : {}),
   };
-  if (!id)
-    return db.product.create({
-      data: { ...data, stockType: p.stockType ?? "FACTORY_SURPLUS" },
-    });
-  return db.product.update({ where: { id }, data });
+  const saved = id
+    ? await db.product.update({ where: { id }, data })
+    : await db.product.create({ data: { ...data, stockType: p.stockType ?? "FACTORY_SURPLUS" } });
+  await logPrices(db, [saved.id]);
+  return saved;
 }
 
 /** Adds (or with a negative number, removes) free stock of a size. Never touches locked stock. */

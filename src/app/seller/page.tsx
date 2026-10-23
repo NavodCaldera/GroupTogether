@@ -5,6 +5,8 @@ import { Badge, EmptyState, PageHeader } from "@/components/ui";
 import { formatDate, formatLKR } from "@/lib/format";
 import { requireSeller } from "@/server/auth/session";
 import { db } from "@/server/db";
+import { sellerDesigns } from "@/server/designs";
+import { DesignCard } from "./design-bits";
 
 export const metadata: Metadata = { title: "My products" };
 
@@ -17,17 +19,21 @@ const STATUS = {
 } as const;
 
 /**
- * The factory seller's home (product owner, 2026-10-19): an add button and the stock offers they
- * have sent, newest first, each with its total price and our answer. Nothing else: sellers never
- * see buyers, carts or money (rule 11).
+ * The factory seller's home (product owner, 2026-10-19): an add button, their designs in our shop
+ * with how each sells (2026-10-24: pieces wanted and bought, how many people bought, never names,
+ * carts or money), then the stock offers they have sent, newest first, with our answer.
  */
 export default async function SellerHome({ searchParams }: PageProps<"/seller">) {
   const seller = await requireSeller();
   const { done } = await searchParams;
-  const offers = await db.stockOffer.findMany({
-    where: { sellerId: seller.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const [designs, offers] = await Promise.all([
+    sellerDesigns(seller.id),
+    db.stockOffer.findMany({
+      where: { sellerId: seller.id },
+      orderBy: { createdAt: "desc" },
+      include: { product: { select: { id: true, title: true } } },
+    }),
+  ]);
 
   return (
     <>
@@ -57,6 +63,20 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
         }
       />
 
+      {designs.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-2 font-semibold">Designs</h2>
+          <ul className="grid gap-2 sm:grid-cols-2">
+            {designs.map((d) => (
+              <li key={d.id}>
+                <DesignCard d={d} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {designs.length > 0 && offers.length > 0 && <h2 className="mb-2 font-semibold">Offers</h2>}
       {offers.length === 0 ? (
         <EmptyState title="Nothing sent yet">
           <Link href="/seller/new" className="font-medium text-accent underline">
@@ -71,12 +91,23 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
               <li key={o.id} className="rounded-xl border border-line p-3">
                 <div className="flex items-start justify-between gap-2">
                   <p className="min-w-0 font-medium break-words">{o.name}</p>
-                  <Badge tone={st.tone}>{st.label}</Badge>
+                  <div className="flex gap-1">
+                    {o.kind === "TEST" && <Badge tone="info">Test pieces</Badge>}
+                    <Badge tone={st.tone}>{st.label}</Badge>
+                  </div>
                 </div>
                 <p className="mt-0.5 text-sm text-subtle tabular-nums">
                   {formatLKR(o.amount)} · {formatDate(o.createdAt)}
                 </p>
                 {o.note && <p className="mt-1 text-sm">{o.note}</p>}
+                {o.product && (
+                  <Link
+                    href={`/seller/designs/${o.product.id}`}
+                    className="mt-1 inline-block text-sm text-accent underline"
+                  >
+                    {o.product.title}
+                  </Link>
+                )}
               </li>
             );
           })}

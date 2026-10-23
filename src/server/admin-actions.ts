@@ -12,6 +12,7 @@ import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
 import { db } from "./db";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
 import { flash } from "./flash";
+import { linkOfferProduct } from "./designs";
 import { decideOffer } from "./offers";
 import { UploadError } from "./storage";
 
@@ -123,6 +124,9 @@ export async function saveProductAction(_p: AdminState, fd: FormData): Promise<A
       photo instanceof File ? photo : null,
     );
     savedId = p.id;
+    // Made from a seller's accepted offer: it becomes one of their designs (2026-10-24).
+    const offerId = str(fd, "offerId");
+    if (!id && offerId) await linkOfferProduct(offerId, p.id);
   });
   if (res.error) return res;
   revalidatePath("/admin/products");

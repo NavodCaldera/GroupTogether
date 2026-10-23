@@ -24,7 +24,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 **Files:** `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`, `prisma.config.ts`, `src/server/db.ts` (exports `db` and the `Tx` type; in dev the client cached on `globalThis` is replaced when `prisma generate` produces a new `PrismaClient` class, so a migration doesn't need a dev-server restart), `src/server/settings.ts`, `scripts/local-db.mjs`.
 
-**Models:** User, Session, Product, Variant, GroupCart, CartMember, CartLine, PaymentSlip, CartInvite, Notification, Delivery, Lot, Settings.
+**Models:** User, Session, Product, Variant, GroupCart, CartMember, CartLine, PaymentSlip, CartInvite, Notification, Delivery, Lot, StockOffer, PriceChange, Settings.
 
 - Money is `Decimal(14,2)`. Convert it with `toD()` from `src/lib/decimal.ts`, never `Number()`.
 - `Variant` has three counters that together make up everything ever stocked: `available` (free), `reserved` (locked in carts that hold stock) and `sold`.
@@ -53,7 +53,8 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Then 20 LIVE products (10 shoes in UK 6–11, 10 apparel in S–XL; mixed surplus and B-grade).
 - Then the carts, locking stock exactly as the app does and keeping rule 12 (one active cart per buyer): Dilan's public "Office sneaker run" at 49,800 and Sachini's PRIVATE "Sachini's friends only" (READY). Tharindu is in no active cart, so the e2e journey has him join Dilan's cart.
 - Dilan also has a DELIVERED order (with Tharindu; its stock is `sold`, with a manual delivery and no slip file) and an invite to Sachini's private cart.
-- Then the demo seller `seller@example.com` (Ceylon Footwear Mills, Ekala Industrial Estate, Ja-Ela, with a map pin): one product LIVE under the seller, and three stock offers (`StockOffer`; `receivedById`/`receivedAt` set when packing staff press Received): one waiting for review, one accepted with a note, one declined with a reason.
+- Then the demo seller `seller@example.com` (Ceylon Footwear Mills, Ekala Industrial Estate, Ja-Ela, with a map pin): one product LIVE under the seller, and three stock offers (`StockOffer`; `receivedById`/`receivedAt` set when packing staff press Received): one waiting for review, one accepted with a note, one declined with a reason. Plus a tested design (2026-10-24): "Linen short-sleeve shirt" (men's shirts, the seller's) with a TEST offer (received 21 days ago) and a BULK offer (received 6 days ago) linked to it, prices 2,400 then 2,150 (`PriceChange`), and past carts of it (three delivered with packing rows, two expired) whose lines match the variants' sold counts. Every other product gets one `PriceChange` at its price.
+- `StockOffer.kind` (`OfferKind` TEST | BULK, default BULK) and `productId` (SetNull): the shop product its pieces went onto. `PriceChange` (productId, price, at; Cascade): a product's price from `at` until the next row, written by `logPrices` (`src/server/prices.ts`) after every price change. Migration `seller_designs` (2026-10-24) backfills one row per product at its createdAt.
 - Later picks skip variants already in a cart (`used`), so the original carts keep their variants.
 - The e2e tests depend on these accounts, cart names and the 49,800 total. Update `tests/e2e/journey.spec.ts` if you change them.
 

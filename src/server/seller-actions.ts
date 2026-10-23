@@ -19,6 +19,8 @@ export async function sendOfferAction(_p: SellerState, fd: FormData): Promise<Se
       name: str(fd, "name"),
       description: str(fd, "description"),
       amount: str(fd, "amount"),
+      kind: str(fd, "kind") || undefined,
+      productId: str(fd, "productId"),
     });
   } catch (e) {
     if (e instanceof CatalogueError) return { error: e.message };

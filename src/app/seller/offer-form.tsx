@@ -1,16 +1,25 @@
 "use client";
 
-import { type FormEvent, startTransition, useActionState } from "react";
-import { Alert, Button, Field, Input, Textarea } from "@/components/ui";
+import { type FormEvent, startTransition, useActionState, useState } from "react";
+import { Alert, Button, Field, Input, Select, Textarea } from "@/components/ui";
 import { type SellerState, sendOfferAction } from "@/server/seller-actions";
 
 /**
  * The factory seller's only form (product owner, 2026-10-19): product name, details about the
  * stock, the total selling price, then "Send for review". Submitted by hand so a refused send
- * keeps what was typed.
+ * keeps what was typed. Test pieces or bulk (2026-10-24); a bulk can name one of their designs,
+ * whose shop product it goes onto.
  */
-export function OfferForm() {
+export function OfferForm({
+  designs,
+  design,
+}: {
+  designs: { id: string; title: string }[];
+  /** Preselected design for its bulk */
+  design?: string;
+}) {
   const [state, run, pending] = useActionState<SellerState, FormData>(sendOfferAction, {});
+  const [kind, setKind] = useState("BULK");
 
   function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -20,6 +29,24 @@ export function OfferForm() {
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
+      <Field label="Test or bulk" name="kind">
+        <Select name="kind" value={kind} onChange={(e) => setKind(e.target.value)}>
+          <option value="BULK">Bulk</option>
+          <option value="TEST">Test pieces</option>
+        </Select>
+      </Field>
+      {kind === "BULK" && designs.length > 0 && (
+        <Field label="Design" name="productId">
+          <Select name="productId" defaultValue={design ?? ""}>
+            <option value="">New design</option>
+            {designs.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.title}
+              </option>
+            ))}
+          </Select>
+        </Field>
+      )}
       <Field label="Product name" name="name">
         <Input name="name" maxLength={120} required />
       </Field>

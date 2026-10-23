@@ -36,6 +36,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - B-grade labelled with its badge; no defects listed anywhere (rule 10, 2026-10-17).
 - Roles: buyers land on `/dashboard`, sellers on `/seller`, admins on `/admin`; wrong-role pages redirect.
 - Sellers only send stock offers (name, description, total amount): they see no buyers, carts or money; an admin accepts or declines each offer once, and the seller is notified. An accepted offer is received once by packing staff (no amount shown to them); `receiving.int.test.ts`. Only buyers can start/join/add to carts; sellers and packers can't send chat messages; buyer pages redirect sellers to `/seller` (seller.int.test.ts).
+- Seller dashboard (2026-10-24): every price change is logged once (`PriceChange`, including the lot drop); an offer links to a product only once accepted and never to another factory's product; a bulk names only the seller's own design and test pieces never do; a design's wanted / bought / people, prices and test vs bulk add up, and another factory sees nothing (`designs.int.test.ts`; rules in `design-rules.test.ts`). Sellers see counts and our shop price only, never cost, margin, names or carts.
 
 **Look for:**
 

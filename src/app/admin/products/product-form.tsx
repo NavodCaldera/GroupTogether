@@ -23,19 +23,23 @@ export function ProductForm({
   product,
   lots = [],
   lotId,
+  offer,
   action = saveProductAction,
 }: {
   product?: ProductValues;
   /** Bulk lots to pick from: a product from a lot takes the lot's price (cost + margin). */
   lots?: LotChoice[];
   lotId?: string;
+  /** A seller's accepted offer this new product is for: it becomes one of their designs. */
+  offer?: { id: string; name: string };
   action?: (prev: AdminState, fd: FormData) => Promise<AdminState>;
 }) {
   return (
     <AdminForm action={action} submit={product ? "Save product" : "Create product"}>
       {product && <input type="hidden" name="id" value={product.id} />}
+      {offer && <input type="hidden" name="offerId" value={offer.id} />}
       <Field label="Title" name="title">
-        <Input name="title" defaultValue={product?.title} required />
+        <Input name="title" defaultValue={product?.title ?? offer?.name} required />
       </Field>
       <Field label="Brand" name="brand">
         <Input name="brand" defaultValue={product?.brand} required />

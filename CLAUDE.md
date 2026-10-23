@@ -76,11 +76,23 @@ heavy libraries, paid services or anything that needs an always-on worker.
       make a few pieces, **we buy those test pieces from the factory**, sell them in our system,
       and the demand tells them whether to make the bulk. **A bulk of a tested design is the
       same shop product** as its test (one history: test and bulk stock on one product).
-    - **Seller dashboard: how each design performs in the market** (product owner, 2026-10-24;
-      **not built yet**). Its purpose is insight into each design and its demand, not money:
-      pieces **wanted** (put in carts, including carts that expired) and **bought**, **how many
-      people bought** (counts, never names), how fast it sells, which sizes and colours go first.
-      Still open: whether sellers may see districts.
+    - **Seller dashboard: how each design performs in the market** (product owner, 2026-10-24).
+      Insight into each design and its demand, not money. A **design** is a shop product linked
+      to the factory (`Product.sellerId`): an admin links an accepted offer to a product, or
+      creates the product from it (Admin → Offers → the offer); a bulk offer can name one of the
+      factory's designs (`StockOffer.kind` TEST/BULK, `productId`). `/seller` lists their
+      designs (Test/Bulk, Selling fast/Average/Selling slow against similar designs, bought ·
+      wanted · people, price, sold of stocked, pieces a day), then their offers. A design
+      (`/seller/designs/<id>`) shows Wanted / Bought / People / Sold %, days on sale and pieces a
+      day against similar designs, the **price and quantity chart** (product owner, 2026-10-24:
+      the shop price as a step line over pieces bought and wanted-not-bought per day, last 60
+      days), pieces at each price (wanted, bought, people, a day), sizes (share bought, wanted,
+      bought, left) and **Test and bulk** (before / after the bulk reached our store, or "Offer
+      the bulk"). Sellers see our **shop price** of their own designs; never our cost, margin,
+      buyer names or carts. Wanted counts pieces put in any cart, even ones that expired. Price
+      history: `PriceChange`, written by `logPrices` (`src/server/prices.ts`) whenever a
+      product's price changes. Rules: `src/lib/design-rules.ts`; queries: `sellerDesigns` /
+      `designInsight` / `linkOfferProduct` in `src/server/designs.ts`. Still open: districts.
     - Sellers have one section like admins: no Home/Shop/Carts tabs, no messages icon, no tab bar;
       `/`, `/shop`, `/carts`, `/my-carts`, `/dashboard`, `/messages` and `/c/<code>` send them to
       `/seller`. Their profile has their name, mobile, **factory address and an exact map pin**
