@@ -1,0 +1,28 @@
+{
+  "name": "fit-lab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "setup": "node scripts/fetch-assets.mjs",
+    "predev": "npm run setup",
+    "predev:phone": "npm run setup",
+    "dev": "vite",
+    "dev:phone": "vite --host --mode phone",
+    "prebuild": "npm run setup",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "^1.1.1",
+    "@techstark/opencv-js": "^5.0.0-release.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-basic-ssl": "^2.3.0",
+    "typescript": "^5.9.3",
+    "vite": "^8.3.4",
+    "vitest": "^5.0.5"
+  }
+}

@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Fit lab</title>
+  </head>
+  <body>
+    <main>
+      <h1>Fit lab</h1>
+
+      <section>
+        <h2>You</h2>
+        <form id="measurements" class="grid"></form>
+      </section>
+
+      <section>
+        <h2>Photos</h2>
+        <div class="photos">
+          <div class="photo" data-view="front"></div>
+          <div class="photo" data-view="side"></div>
+        </div>
+      </section>
+
+      <section>
+        <h2>Body</h2>
+        <div id="body"></div>
+      </section>
+
+      <section>
+        <h2>Fit</h2>
+        <select id="garment" aria-label="Garment"></select>
+        <div id="result"></div>
+      </section>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

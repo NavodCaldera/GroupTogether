@@ -27,6 +27,8 @@ const eslintConfig = defineConfig([
     "coverage/**",
     "playwright-report/**",
     "test-results/**",
+    // Standalone experiment with its own package and checks:
+    "fit-lab/**",
   ]),
 ]);
 

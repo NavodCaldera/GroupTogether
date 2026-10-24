@@ -1,0 +1,5 @@
+﻿node_modules/
+dist/
+# Copied and downloaded by scripts/fetch-assets.mjs
+public/mediapipe/
+public/models/
