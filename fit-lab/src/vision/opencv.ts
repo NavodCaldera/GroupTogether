@@ -54,11 +54,8 @@ export function cleanMask(cv: CV, raw: Uint8Array, width: number, height: number
 }
 
 /** Sharpness (variance of the Laplacian at 640 px tall) and mean brightness 0-255. */
-export function imageQuality(
-  cv: CV,
-  canvas: HTMLCanvasElement,
-): { sharpness: number; brightness: number } {
-  const rgba = cv.imread(canvas);
+export function imageQuality(cv: CV, pixels: ImageData): { sharpness: number; brightness: number } {
+  const rgba = cv.matFromImageData(pixels);
   const gray = new cv.Mat();
   const small = new cv.Mat();
   const lap = new cv.Mat();

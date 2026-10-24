@@ -12,22 +12,54 @@ cd fit-lab
 npm install
 npm run dev          # http://localhost:5180
 npm run dev:phone    # HTTPS on the network, for a phone camera (accept the certificate warning)
-npm test             # unit tests (synthetic bodies, fit algorithm)
+npm test             # unit tests (synthetic bodies, live guidance, fit algorithm)
 npm run build
 ```
 
 `npm run setup` (run automatically before `dev` and `build`) copies the MediaPipe WASM
-runtime and downloads the pose model (~30 MB) into `public/`. Both are gitignored. At run
+runtime and downloads the pose models (lite ~6 MB for live, heavy ~30 MB for stills) into
+`public/`. Both are gitignored. At run
 time photos are processed in the browser and never leave the device.
+
+## Camera and UI
+
+TypeScript + React, with the browser's own camera APIs: `getUserMedia()` for the local
+camera (no WebRTC connection), a `<video>` for the live image, canvas overlays for the
+guide, skeleton and measurement lines, and `requestVideoFrameCallback()` (falling back to
+`requestAnimationFrame`) to analyse each new frame.
+
+Capture sequence ([`ui/CaptureFlow.tsx`](src/ui/CaptureFlow.tsx)):
+
+```text
+Camera permission → Front instructions → check position and stability → capture front
+→ review or retake → Side instructions → check position and stability → capture side
+→ review or retake
+```
+
+- **Live mode** (light): frames scaled to 384 px wide go to the lite pose model, one frame in
+  flight at a time. Prompts, shown large and spoken (Voice on/off): _Step into the frame,
+  Only one person in view, Move back, Keep your whole body visible, Move closer, Move to
+  the centre, Face the camera, Turn sideways, Hold your arms slightly out, Stand straight,
+  Stay still, Capturing now_. Once the position holds, a 3 s countdown runs; the photo is
+  taken when the person is also still ([`live/guidance.ts`](src/live/guidance.ts),
+  [`live/session.ts`](src/live/session.ts)). **Capture** takes the photo by hand.
+- **Capture mode** (careful): the chosen still frame (up to 1280 px) goes through the heavy
+  model with the body mask, OpenCV cleanup and quality checks, then the person reviews it
+  with the measured lines drawn on and chooses **Use photo** or **Retake**. A photo with a
+  blocking problem (no person, not full body, wrong view) can't be used.
+- **Web Worker:** both modes run in [`vision/worker.ts`](src/vision/worker.ts) on
+  OffscreenCanvas and ImageBitmap; [`vision/client.ts`](src/vision/client.ts) falls back to
+  the main thread if the worker or MediaPipe can't start there.
+- Uploading a photo still works for both views.
 
 ## Pipeline
 
 | Step                                                                                                                                                                      | Code                                                                                                   |
 | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Smartphone camera: front + side photos (camera with outline and timer, or upload) and known height                                                                        | [`ui/camera.ts`](src/ui/camera.ts), [`main.ts`](src/main.ts)                                           |
-| MediaPipe Pose Landmarker (heavy): 33 landmarks + body segmentation mask                                                                                                  | [`vision/mediapipe.ts`](src/vision/mediapipe.ts)                                                       |
+| Smartphone camera and UI (above), and known height                                                                                                                        | [`ui/`](src/ui)                                                                                        |
+| MediaPipe Pose Landmarker: lite in video mode for live frames; heavy with the body segmentation mask for stills                                                           | [`vision/mediapipe.ts`](src/vision/mediapipe.ts), [`vision/engine.ts`](src/vision/engine.ts)           |
 | OpenCV.js: mask cleanup (close, open, largest region filled), sharpness and brightness                                                                                    | [`vision/opencv.ts`](src/vision/opencv.ts)                                                             |
-| Photo checks: no person, several people, full body, too far, facing / sideways, arms touching, leaning, blur, light                                                       | [`measure/quality.ts`](src/measure/quality.ts), [`vision/analyze.ts`](src/vision/analyze.ts)           |
+| Photo checks: no person, several people, full body, too far, facing / sideways, arms touching, leaning, blur, light                                                       | [`measure/quality.ts`](src/measure/quality.ts), [`vision/engine.ts`](src/vision/engine.ts)             |
 | Body measurement estimator: scale from height; widths (front) and depths (side) at chest, waist, hip; ellipse circumferences; shoulder, arm, torso, inseam from landmarks | [`measure/estimate.ts`](src/measure/estimate.ts), [`measure/silhouette.ts`](src/measure/silhouette.ts) |
 | Garment measurement database: sizes with chest, waist, hip, shoulder, sleeve, length, inseam; category, fit style, fabric stretch                                         | [`garments/database.ts`](src/garments/database.ts)                                                     |
 | Fit prediction: ease = garment − body (+ stretch), against ease bands per category and fit style, over the measurement uncertainty                                        | [`fit/ease.ts`](src/fit/ease.ts), [`fit/predict.ts`](src/fit/predict.ts)                               |
@@ -70,6 +102,8 @@ is the probability every compared measurement is wearable, lowered for missing o
    `CAL.sd` to the observed spread.
 4. Record which sizes they actually wear for the sample garments, and tune the ease bands.
 
-Tested so far: unit tests on synthetic bodies, and the full pipeline in headless Chromium
-with one non-standing sample photo (models load, checks fire). Real-person accuracy is
-**not measured yet**.
+Tested so far: unit tests on synthetic bodies and on the live guidance and countdown, and
+the capture sequence in headless Chromium with a fake camera showing one non-standing
+sample photo (worker starts, live prompts, manual capture, review, retake, blocked side
+photo). Automatic capture of a real standing person and real-person accuracy are **not
+tested yet**.
