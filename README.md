@@ -1,6 +1,6 @@
 # GroupBasket
 
-Group buying for factory-surplus and B-grade shoes and apparel. Shoppers share carts to reach the
+Group buying for clothing and apparel. Targets the main clothing business with factory-surplus and B-grade clothes as a sub-part (shoes/footwear are not targeted). Shoppers share carts to reach the
 LKR 50,000 minimum order. The cart owner pays the whole cart by bank transfer, and the order
 arrives in one PickMe drop.
 

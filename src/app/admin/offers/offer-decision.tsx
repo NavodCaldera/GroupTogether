@@ -1,12 +1,12 @@
 "use client";
 
 import { useActionState, useRef } from "react";
-import { Alert, Button, Field, Textarea } from "@/components/ui";
+import { Alert, Button } from "@/components/ui";
 import { decideOfferAction } from "@/server/admin-actions";
 
 /**
- * Accept or Decline a stock offer, side by side, with one optional note to the seller.
- * Decline asks once more in a small window (product owner, 2026-10-20).
+ * Accept or Decline a stock offer, side by side.
+ * Decline asks once more in a small window.
  */
 export function OfferDecision({ offerId, name }: { offerId: string; name: string }) {
   const [state, run, pending] = useActionState(decideOfferAction, {});
@@ -15,14 +15,6 @@ export function OfferDecision({ offerId, name }: { offerId: string; name: string
   return (
     <form action={run} className="flex flex-col gap-3">
       <input type="hidden" name="offerId" value={offerId} />
-      <Field label="Note to the seller (optional)" name="note">
-        <Textarea
-          name="note"
-          rows={2}
-          maxLength={500}
-          placeholder="e.g. Approved, ready to receive"
-        />
-      </Field>
       <div className="grid grid-cols-2 gap-3">
         <Button
           type="button"

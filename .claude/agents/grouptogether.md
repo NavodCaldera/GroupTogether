@@ -7,9 +7,9 @@ description: "Lead agent for GroupBasket with the full project brief (business, 
 
 ## 1. What it is
 
-GroupBasket is a group-buying website for **factory-surplus and B-grade shoes and apparel** in Sri Lanka.
+GroupBasket is a group-buying website for **clothing and apparel** in Sri Lanka, targeting the **main clothing business** with **factory-surplus and B-grade clothes** as a dedicated sub-part (shoes/footwear are not targeted).
 
-- The business buys stock in bulk and sells it cheaply, but every order must be worth at least **LKR 50,000**.
+- The business buys stock in bulk and sells it cheaply, requiring each cart to reach a **minimum order value** (default LKR 50,000, dynamically configurable by an admin in Admin Settings).
 - Few shoppers reach that alone, so they fill **shared carts** together.
 - Once a cart reaches the minimum, the **cart owner** pays for the whole cart by bank transfer and uploads one bank slip.
 - An admin confirms the payment, and the order goes out in **one PickMe drop to the owner**. The owner pays the driver the delivery fee.
@@ -31,9 +31,10 @@ It is a standalone project: it shares no code, database or rules with any other 
 
 ## 2. Business rules (product owner, 2026-10-16)
 
-1. **The minimum order value is LKR 50,000 per cart**, summed over all members' lines.
-   - Admins can change it in Settings.
-   - Each cart snapshots `minOrderValue` when it is created, so later changes don't affect existing carts.
+1. **The minimum order value is NOT fixed—it is fully configurable by an admin in Admin Settings.**
+   - Initial launch default is LKR 50,000, but an admin can change it anytime in `/admin/settings` (field `minOrderValue`).
+   - The threshold is summed over all members' lines in a cart.
+   - Each cart snapshots `minOrderValue` from Settings at the moment it is created, so admin changes apply to new carts without altering in-progress carts.
 2. **Stock is locked when an item is added to a cart.**
    - Adding: `Variant.available` goes down and `reserved` goes up, in one atomic `updateMany` guarded by `available >= delta`.
    - Release: removing the item, leaving the cart, expiry and cancellation release it.
@@ -98,7 +99,7 @@ It is a standalone project: it shares no code, database or rules with any other 
     people who certified the order (gathered by, packed by) and who handed it over are shown with
     the order on the admin side**: each card on Admin → Orders, the cart page's timeline, the
     packer's user page and the orders CSV (2026-10-21).
-19. **Admin: one home per task** (product owner, 2026-10-21). Tabs Stock · Lots · Slips · Orders
+13. **Admin: one home per task** (product owner, 2026-10-21). Tabs Stock · Lots · Slips · Orders
     · Carts · Products · Offers · Users · Settings. Stock (rule 20) holds the only Export CSV. Orders (replaces
     Packing and Deliveries) = every paid order by stage (To book / In store / On the way / Failed /
     Delivered), the only place to book PickMe, book a failed drop again, and mark Delivered /
@@ -107,7 +108,7 @@ It is a standalone project: it shares no code, database or rules with any other 
     `packBlockReason` / `handOverBlockReason` in `src/lib/packing-rules.ts`; flow: `markGathered` /
     `markPacked` / `sendBack` / `handOver` in `src/server/packing.ts` (cart row locked); table
     `Packing` (`gatheredBy`, `packedBy`, `handedOverBy`).
-20. **Empty the store fast** (product owner, 2026-10-21): the aim is to clear each bulk from our
+14. **Empty the store fast** (product owner, 2026-10-21): the aim is to clear each bulk from our
     6,000-piece store quickly, not to know best sellers. Admin → Lots records each bulk (pieces,
     bulk cost, transport, wages, arrival day); cost per piece = total ÷ pieces. Products picked
     under a lot sell at cost + 20% for 7 days from arrival, then cost + 10% (rounded up to the
@@ -115,10 +116,38 @@ It is a standalone project: it shares no code, database or rules with any other 
     store size and margins (snapshotted per lot). The admin landing page is **Stock** (pieces in
     store, age, out, days to clear, oldest stock, lots, room for the next lot, carts closing
     soon, odd sizes, cart outcomes, a sales card). See CLAUDE.md rule 20.
-18. **No product statuses: stock decides** (product owner, 2026-10-20). A product is in the shop
+15. **No product statuses: stock decides** (product owner, 2026-10-20). A product is in the shop
     while it has free stock in some size (`IN_SHOP`, catalogue.ts); none = hidden. Remove free
     stock to stop selling; cart locks stay. Admin products filter: All / In the shop / Not in the
     shop / Low stock. `Product.status`/`reviewNote` unused; `src/server/seller.ts` removed.
+16. **Brand partnerships & promotional gifts (Spa Ceylon model)** (product owner, 2026-10-24).
+    We partner with premium brands like Spa Ceylon to acquire clearance/overstock products at ~40% discount.
+    These are never sold in the open shop; they are distributed strictly as complimentary milestone rewards,
+    protecting the partner's retail reputation. Buyers see the genuine retail price (MRP) (e.g. "Spa Ceylon
+    gift worth LKR 2,000"), delivering high perceived value while keeping our cost low. Admins have a dedicated
+    section to manage promotional gift products with actual retail prices, internal costs, and inventory.
+17. **Personalized buyer profile & body measurements** (product owner, 2026-10-24).
+    Every buyer account is unique and personalized. The home page includes a personalization section where
+    the buyer inputs approximate body measurements (height, shoulder width, chest/waist/hip dimensions)
+    to personalize catalog recommendations and matching sizes.
+18. **Bucket types & gift eligibility (Strict spend threshold, NO automatic host gifts)** (product owner, 2026-10-24).
+    There is NO automatic gift for being the cart host/owner. Gifts are awarded **strictly to the individual or family unit
+    that personally crosses the minimum gift spend threshold**:
+    - **Family Bucket:** Members share the same delivery address. The bucket is evaluated as a single
+      collective spending unit for gift milestones (e.g. > LKR 20,000).
+    - **Non-Family Bucket:** Formed by unrelated individuals. No collective whole-bucket gifts are given.
+      - Gifts are awarded on an **individual spend basis** (only the specific person who spent above the threshold gets the gift).
+      - **Family members within a non-family bucket:** If two or more members share the same family / address,
+        their spend is combined. If their combined spend crosses the threshold, their family unit qualifies for the gift.
+      - _Example:_ In a bucket of 10 people with LKR 100,000 in total orders, if a family subgroup of 3 people
+        has a combined order that exceeds the minimum gift limit (e.g. > LKR 20,000), ONLY that family group receives
+        the gift. The remaining members who did not exceed the limit receive no gift.
+19. **Brand Partner Dashboard (Discreet clearance for top brands)** (product owner, 2026-10-24).
+    Top retail and lifestyle brands that face difficulties putting public discounts on their shelf products (to
+    protect brand prestige and avoid channel conflict) receive a **dedicated Brand Partner Dashboard**.
+    Through this portal, brands submit their new discounted releases, seasonal clearance, and excess inventory
+    directly to our team. Our team reviews and absorbs these products into GroupBasket (for bulk group lots or
+    promotional milestone rewards), giving premium brands a confidential, non-public liquidation channel.
 
 ## 3. Cart lifecycle
 
@@ -169,34 +198,34 @@ Money is `Decimal(14,2)`.
 
 ## 5. Pages and routes (`src/app`)
 
-| Route                                      | Who                  | What                                                                                                                                                                   |
-| ------------------------------------------ | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `/`                                        | anyone               | Hero, recent public carts panel (6), how it works, new products                                                                                                        |
-| `/carts`                                   | anyone               | The full open-carts panel: PUBLIC carts that are OPEN or READY and not expired, newest first                                                                           |
-| `/carts/new`                               | signed in            | Start a cart (name, public/private)                                                                                                                                    |
-| `/shop`                                    | anyone               | GET-form filters (search, category, stock type, brand, size); `?cart=CODE` carries a cart through                                                                      |
-| `/products/[id]`                           | anyone               | Product, size picker; add to one of your carts, the shared cart from `?cart=`, or a new cart                                                                           |
-| `/c/[code]`                                | anyone with the link | Progress, countdowns, members and their lines (yours editable), join, leave, accept form, share/WhatsApp/invite, cancel                                                |
-| `/c/[code]/pay`                            | owner, AWAITING_SLIP | Bank details, amount, reference (the cart code), 2h countdown, slip upload                                                                                             |
-| `/my-carts`, `/notifications`              | signed in            | Your carts; your notices (mark all read)                                                                                                                               |
-| `/dashboard`                               | buyer                | To-dos (accept & pay, upload slip, pay the driver, carts about to expire, invites), active carts with your share, orders and delivery, latest notices                  |
-| `/seller`, `/seller/new`                   | seller               | Their designs and how each sells, then their stock offers with status and our note; + opens the form (test or bulk, design, name, description, total amount) → Send for review |
-| `/seller/designs/[id]`                     | seller               | One design: wanted / bought / people / sold %, price and quantity chart, pieces at each price, sizes, test vs bulk |
-| `/packing`, `/packing/[code]`              | packing staff        | Paid orders to pack, to check (two people) and to hand to PickMe; an order's items by member, label, and the next step                                               |
-| `/sign-in`, `/sign-up`                     | anyone               | `?next=` returns to where you were                                                                                                                                     |
-| `/admin`                                   | admin                | Stock (rule 20): pieces in store vs 6,000, avg age, out 7 days, days to clear, age bands, in/out per week, oldest stock, lots, room for the next lot, carts closing soon, odd sizes, cart outcomes, sales card; Export CSV (2026-10-21) |
-| `/admin/lots`, `/admin/lots/new`, `/admin/lots/[id]` | admin       | Bulk lots: bulk cost + transport + wages over pieces = cost per piece; products sell at +20% for 7 days, then +10% (rule 20) |
-| `/admin/slips`                             | admin                | Pending slips; open the file; approve (then "Book PickMe" → Orders) or reject with a reason. `?view=history`: the last 100 decisions                                         |
-| `/admin/carts`, `/admin/carts/[code]`      | admin                | Find carts: search + suggestions, dates, stage tabs, next-step text, urgency sort, paging; a cart: stage bar, items, shares, timeline, drop-off, cancel |
-| `/admin/orders`                            | admin                | Paid orders by stage (To book / In store / On the way / Failed / Delivered); book PickMe on the card; Delivered / Failed; `/admin/packing`, `/admin/deliveries` redirect |
-| `/admin/products`, `/new`, `/[id]`         | admin                | Search, filter (All / In the shop / Not in the shop / Low stock), seller filter, free / in-cart / sold counts; edit; stock by size                                  |
-| `/admin/users`, `/admin/users/[id]`        | admin                | Search and filter users (buyers, sellers, admins, locked); a user's carts, shares, slips and devices; lock or unlock; `/admin/users/new-seller` adds a factory seller  |
-| `/admin/settings`                          | admin                | Minimum, time windows, bank account; system status (delivery, cron)                                                                                                    |
-| `GET /admin/export/orders`                 | admin                | Confirmed orders of the last `?days=` (default 30) as CSV                                                                                                              |
-| `GET /api/photos/[id]`                     | public               | Product photo (ETag, cached)                                                                                                                                           |
-| `GET /api/slips/[id]`                      | uploader or admin    | Bank slip file, no-store                                                                                                                                               |
-| `POST /api/cron/sweep`                     | `Bearer CRON_SECRET` | Runs `sweep()`                                                                                                                                                         |
-| `POST /api/webhooks/pickme`                | HMAC `x-signature`   | Delivery status updates (payload shape ASSUMED)                                                                                                                        |
+| Route                                                | Who                  | What                                                                                                                                                                                                                                    |
+| ---------------------------------------------------- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/`                                                  | anyone               | Hero, recent public carts panel (6), how it works, new products                                                                                                                                                                         |
+| `/carts`                                             | anyone               | The full open-carts panel: PUBLIC carts that are OPEN or READY and not expired, newest first                                                                                                                                            |
+| `/carts/new`                                         | signed in            | Start a cart (name, public/private)                                                                                                                                                                                                     |
+| `/shop`                                              | anyone               | GET-form filters (search, category, stock type, brand, size); `?cart=CODE` carries a cart through                                                                                                                                       |
+| `/products/[id]`                                     | anyone               | Product, size picker; add to one of your carts, the shared cart from `?cart=`, or a new cart                                                                                                                                            |
+| `/c/[code]`                                          | anyone with the link | Progress, countdowns, members and their lines (yours editable), join, leave, accept form, share/WhatsApp/invite, cancel                                                                                                                 |
+| `/c/[code]/pay`                                      | owner, AWAITING_SLIP | Bank details, amount, reference (the cart code), 2h countdown, slip upload                                                                                                                                                              |
+| `/my-carts`, `/notifications`                        | signed in            | Your carts; your notices (mark all read)                                                                                                                                                                                                |
+| `/dashboard`                                         | buyer                | To-dos (accept & pay, upload slip, pay the driver, carts about to expire, invites), active carts with your share, orders and delivery, latest notices                                                                                   |
+| `/seller`, `/seller/new`                             | seller               | Their designs and how each sells, then their stock offers with status and our note; + opens the form (test or bulk, design, name, description, total amount) → Send for review                                                          |
+| `/seller/designs/[id]`                               | seller               | One design: wanted / bought / people / sold %, price and quantity chart, pieces at each price, sizes, test vs bulk                                                                                                                      |
+| `/packing`, `/packing/[code]`                        | packing staff        | Paid orders to pack, to check (two people) and to hand to PickMe; an order's items by member, label, and the next step                                                                                                                  |
+| `/sign-in`, `/sign-up`                               | anyone               | `?next=` returns to where you were                                                                                                                                                                                                      |
+| `/admin`                                             | admin                | Stock (rule 20): pieces in store vs 6,000, avg age, out 7 days, days to clear, age bands, in/out per week, oldest stock, lots, room for the next lot, carts closing soon, odd sizes, cart outcomes, sales card; Export CSV (2026-10-21) |
+| `/admin/lots`, `/admin/lots/new`, `/admin/lots/[id]` | admin                | Bulk lots: bulk cost + transport + wages over pieces = cost per piece; products sell at +20% for 7 days, then +10% (rule 20)                                                                                                            |
+| `/admin/slips`                                       | admin                | Pending slips; open the file; approve (then "Book PickMe" → Orders) or reject with a reason. `?view=history`: the last 100 decisions                                                                                                    |
+| `/admin/carts`, `/admin/carts/[code]`                | admin                | Find carts: search + suggestions, dates, stage tabs, next-step text, urgency sort, paging; a cart: stage bar, items, shares, timeline, drop-off, cancel                                                                                 |
+| `/admin/orders`                                      | admin                | Paid orders by stage (To book / In store / On the way / Failed / Delivered); book PickMe on the card; Delivered / Failed; `/admin/packing`, `/admin/deliveries` redirect                                                                |
+| `/admin/products`, `/new`, `/[id]`                   | admin                | Search, filter (All / In the shop / Not in the shop / Low stock), seller filter, free / in-cart / sold counts; edit; stock by size                                                                                                      |
+| `/admin/users`, `/admin/users/[id]`                  | admin                | Search and filter users (buyers, sellers, admins, locked); a user's carts, shares, slips and devices; lock or unlock; `/admin/users/new-seller` adds a factory seller                                                                   |
+| `/admin/settings`                                    | admin                | Minimum, time windows, bank account; system status (delivery, cron)                                                                                                                                                                     |
+| `GET /admin/export/orders`                           | admin                | Confirmed orders of the last `?days=` (default 30) as CSV                                                                                                                                                                               |
+| `GET /api/photos/[id]`                               | public               | Product photo (ETag, cached)                                                                                                                                                                                                            |
+| `GET /api/slips/[id]`                                | uploader or admin    | Bank slip file, no-store                                                                                                                                                                                                                |
+| `POST /api/cron/sweep`                               | `Bearer CRON_SECRET` | Runs `sweep()`                                                                                                                                                                                                                          |
+| `POST /api/webhooks/pickme`                          | HMAC `x-signature`   | Delivery status updates (payload shape ASSUMED)                                                                                                                                                                                         |
 
 ## 6. Code map
 

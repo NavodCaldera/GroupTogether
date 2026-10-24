@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
+import { Toast } from "@/components/toast";
 import { Badge, Card, LinkButton, PageHeader, Select } from "@/components/ui";
 import { discountPct, siteName } from "@/lib/brand-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
@@ -15,9 +16,11 @@ import { OFFER_STATUS } from "../offer-status";
 export const metadata: Metadata = { title: "Stock offer" };
 
 /** One stock offer: what the seller sent, who they are, and Accept / Decline (confirmed) with a note. */
-export default async function OfferPage({ params }: PageProps<"/admin/offers/[id]">) {
+export default async function OfferPage({ params, searchParams }: PageProps<"/admin/offers/[id]">) {
   await requireAdmin();
   const { id } = await params;
+  const sp = await searchParams;
+  const done = typeof sp.done === "string" ? sp.done : undefined;
   const o = await db.stockOffer.findUnique({
     where: { id },
     include: {
@@ -44,6 +47,7 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+      {done === "noted" && <Toast>Note sent to the seller.</Toast>}
       <div>
         <BackLink fallback="/admin/offers" />
         <PageHeader
@@ -104,9 +108,19 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
         <p className="font-medium">{o.seller.company || o.seller.name}</p>
         <p className="text-subtle">{o.seller.name}</p>
         {o.seller.phone && (
-          <a href={`tel:${o.seller.phone}`} className="text-accent underline">
-            {o.seller.phone}
-          </a>
+          <div className="flex flex-wrap items-center gap-3">
+            <a href={`tel:${o.seller.phone}`} className="text-accent underline">
+              {o.seller.phone}
+            </a>
+            <a
+              href={`https://wa.me/${o.seller.phone.replace(/^0/, "94").replace(/\D/g, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-subtle hover:text-ink underline"
+            >
+              Chat on WhatsApp ↗
+            </a>
+          </div>
         )}
         <p className="text-subtle">{o.seller.email}</p>
         {o.seller.address ? (

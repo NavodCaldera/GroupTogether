@@ -630,7 +630,7 @@ async function main() {
       description: "300 pairs, white, UK 10 to UK 3. Overrun from an export order.",
       amount: 540000,
       status: "ACCEPTED",
-      note: "Please deliver to our Colombo store on Monday.",
+      note: null,
       ago: 50,
     },
     {
@@ -638,7 +638,7 @@ async function main() {
       description: "1,000 belts, mixed colours.",
       amount: 300000,
       status: "DECLINED",
-      note: "We don't sell accessories yet.",
+      note: null,
       ago: 120,
     },
   ] as const;

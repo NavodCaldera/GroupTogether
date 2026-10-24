@@ -1,6 +1,6 @@
 # GroupBasket
 
-Group buying for **factory-surplus and B-grade shoes and apparel** in Sri Lanka. We buy stock in
+Group buying for **clothing and apparel** in Sri Lanka, targeting the main clothing business, with **factory-surplus and B-grade clothes** as a dedicated sub-part (shoes/footwear are not targeted). We buy stock in
 bulk; every order must reach a minimum value, so shoppers fill **shared carts** together. Every
 amount is in LKR.
 
@@ -17,8 +17,10 @@ heavy libraries, paid services or anything that needs an always-on worker.
 
 ## Business rules (product owner, 2026-10-16)
 
-1. **Minimum order value is LKR 50,000 per cart**, counted over every member's lines. An admin
-   can change it in Settings. Each cart snapshots the minimum when it starts.
+1. **Minimum order value is NOT fixed—it is an option in the admin panel.** An admin can change
+   it anytime in `/admin/settings` (initial launch default is LKR 50,000). The threshold is counted
+   over every member's lines. Each cart snapshots the current admin setting when it is created so
+   existing carts keep their starting threshold.
 2. **Stock is locked when an item goes into a cart** (`Variant.available` goes down and
    `reserved` goes up, checked atomically). Removing the item, leaving the cart, expiry and
    cancellation release it. Confirmation turns it into `sold`. Stock is never oversold.
@@ -228,6 +230,46 @@ one unread in-app notice per conversation. The sender sees WhatsApp-style ticks:
 sent, two green ticks seen (the other side opened the conversation). The chat island polls `/api/chat` every 8 s while the
 tab is visible (no websocket or worker).
 
+21. **Brand partnerships & promotional gifts (Spa Ceylon model)** (product owner, 2026-10-24).
+    We partner with premium companies like Spa Ceylon to acquire their clearance and overstock products
+    at ~40% discount (or deeper). These products are NEVER sold in the open shop; they are distributed
+    strictly as complimentary milestone rewards. This protects the partner's retail shelf reputation.
+    On GroupBasket, buyers see the exact genuine retail price (MRP) of the product (e.g. "Free Spa
+    Ceylon gift worth LKR 2,000"), delivering high perceived value while keeping our cost low.
+    Admins have a dedicated section to add and manage promotional gift products with their actual retail
+    prices, internal costs, and inventory counts.
+
+22. **Personalized buyer profile & body measurements** (product owner, 2026-10-24).
+    Every buyer account is unique and personalized. Upon login, the home page features a
+    personalization section where the buyer enters their approximate physical measurements: height,
+    shoulder width, and other key body dimensions. The platform uses this data to tailor their catalog
+    experience and recommend garments that match their exact physical profile.
+
+23. **Bucket types & gift eligibility (Strict spend threshold, NO automatic host gifts)** (product owner, 2026-10-24).
+    There is NO automatic gift for being the cart host/owner. Gifts are awarded **strictly to the individual or family unit
+    that personally crosses the minimum gift spend threshold**:
+    - **Family Bucket:** All members share the same delivery address. The bucket is evaluated as a single
+      collective spending unit. If the family bucket reaches a spend threshold (e.g. > LKR 20,000),
+      the bucket receives the corresponding gift for the household.
+    - **Non-Family Bucket:** Formed by unrelated individuals (friends, colleagues, neighbors) pooling together.
+      Collective bucket-level gifts (e.g., an overall bucket milestone of > LKR 50,000) are **never** given to
+      non-family buckets as a generic whole.
+      - Gifts are awarded strictly on an **individual spend basis**: only the specific person who spent above the
+        threshold gets the gift.
+      - **Family members within a non-family bucket:** If two or more members in a non-family bucket share
+        the same family / delivery address, their spend is combined. If their combined spend crosses the
+        threshold, their family unit qualifies for the gift.
+      - _Example:_ In a bucket of 10 people with LKR 100,000 in total orders, if a family subgroup of 3 people
+        has a combined order that exceeds the minimum gift limit (e.g. > LKR 20,000), ONLY that family group receives
+        the gift. The remaining members who did not exceed the limit receive no gift.
+
+24. **Brand Partner Dashboard (Discreet clearance for top brands)** (product owner, 2026-10-24).
+    Top retail and lifestyle brands that face difficulties putting public discounts on their shelf products (to
+    protect brand prestige and avoid channel conflict) receive a **dedicated Brand Partner Dashboard**.
+    Through this portal, brands submit their new discounted releases, seasonal clearance, and excess inventory
+    directly to our team. Our team reviews and absorbs these products into GroupBasket (for bulk group lots or
+    promotional milestone rewards), giving premium brands a confidential, non-public liquidation channel.
+
 ## Code
 
 - Next.js 16 App Router, React 19, Tailwind 4, Prisma 7 + PostgreSQL, zod, decimal.js.
@@ -255,15 +297,15 @@ tab is visible (no websocket or worker).
 
 ## Commands
 
-|                      |                                                                                                                                                                                                                    |
-| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                                                                      |
-| `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                                                             |
+|                      |                                                                                                                                                                                                                                                                                                   |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                                                                                                                                                     |
+| `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                                                                                                                                            |
 | `npm run db:seed`    | Demo data, all `password123`: `admin@groupbasket.lk`, `seller@example.com`, `brand@example.com` (luxury brand), `packer@example.com`, `packer2@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
-| `npm run dev`        | http://localhost:3002                                                                                                                                                                                              |
-| `npm run check`      | Typecheck, lint and unit tests                                                                                                                                                                                     |
-| `npm run test:int`   | Integration tests on the test DB                                                                                                                                                                                   |
-| `npm run e2e`        | Playwright journeys (port 3200, test DB)                                                                                                                                                                           |
+| `npm run dev`        | http://localhost:3002                                                                                                                                                                                                                                                                             |
+| `npm run check`      | Typecheck, lint and unit tests                                                                                                                                                                                                                                                                    |
+| `npm run test:int`   | Integration tests on the test DB                                                                                                                                                                                                                                                                  |
+| `npm run e2e`        | Playwright journeys (port 3200, test DB)                                                                                                                                                                                                                                                          |
 
 ## Agents (`.claude/agents/`)
 

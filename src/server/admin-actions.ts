@@ -13,7 +13,7 @@ import { db } from "./db";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
 import { flash } from "./flash";
 import { linkOfferProduct } from "./designs";
-import { decideOffer } from "./offers";
+import { decideOffer, noteOffer } from "./offers";
 import { UploadError } from "./storage";
 
 export type AdminState = { error?: string };
@@ -181,11 +181,18 @@ export async function lockUserAction(_p: AdminState, fd: FormData): Promise<Admi
   return res;
 }
 
-/** Accept or decline a factory seller's stock offer (`decision` = accept | decline). */
+/** Accept or decline a factory seller's stock offer, or send a note without deciding. */
 export async function decideOfferAction(_p: AdminState, fd: FormData): Promise<AdminState> {
   await requireAdmin();
   const offerId = str(fd, "offerId");
-  const accept = str(fd, "decision") === "accept";
+  const decision = str(fd, "decision");
+  if (decision === "note") {
+    const res = await attempt(() => noteOffer(offerId, str(fd, "note")));
+    revalidatePath("/admin", "layout");
+    if (res.error) return res;
+    redirect(`/admin/offers/${offerId}?done=noted`);
+  }
+  const accept = decision === "accept";
   const res = await attempt(() => decideOffer(offerId, accept, str(fd, "note")));
   revalidatePath("/admin", "layout");
   if (res.error) return res;

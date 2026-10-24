@@ -14,6 +14,7 @@ export function FilterSelect({
   value,
   options,
   keep = {},
+  className = "mb-4 flex gap-2 sm:hidden",
 }: {
   action: string;
   name: string;
@@ -21,9 +22,10 @@ export function FilterSelect({
   value?: string;
   options: { value: string; label: string }[];
   keep?: Record<string, string | undefined>;
+  className?: string;
 }) {
   return (
-    <form action={action} className="mb-4 flex gap-2 sm:hidden">
+    <form action={action} className={className}>
       {Object.entries(keep).map(
         ([k, v]) => v && <input key={k} type="hidden" name={k} value={v} />,
       )}

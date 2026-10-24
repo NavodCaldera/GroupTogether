@@ -35,26 +35,26 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 
 **Who is notified, and how:**
 
-| Event                                        | Who                          |
-| -------------------------------------------- | ---------------------------- |
-| Cart reaches the minimum (OPEN → READY)      | every member                 |
-| Owner accepts                                | the other members            |
-| Slip uploaded                                | admins                       |
-| Slip approved, order confirmed               | every member                 |
-| Slip rejected (re-upload within 2h)          | owner                        |
-| Slip window missed, cart cancelled           | every member                 |
-| Cart expired                                 | every member                 |
-| Cart cancelled by the owner or an admin      | members except the canceller |
-| Invited to a cart                            | invitee                      |
-| Asks to merge into a cart                    | that cart's owner            |
-| Merge accepted                               | the requester                |
-| Merge declined                               | the requester                |
-| Delivery booked (pay the driver about LKR x) | owner                        |
-| Seller sends a stock offer                   | admins                       |
-| Admin accepts or declines a stock offer      | that seller                  |
-| Packing staff press Received on the stock    | that seller, and the admins  |
+| Event                                        | Who                                        |
+| -------------------------------------------- | ------------------------------------------ |
+| Cart reaches the minimum (OPEN → READY)      | every member                               |
+| Owner accepts                                | the other members                          |
+| Slip uploaded                                | admins                                     |
+| Slip approved, order confirmed               | every member                               |
+| Slip rejected (re-upload within 2h)          | owner                                      |
+| Slip window missed, cart cancelled           | every member                               |
+| Cart expired                                 | every member                               |
+| Cart cancelled by the owner or an admin      | members except the canceller               |
+| Invited to a cart                            | invitee                                    |
+| Asks to merge into a cart                    | that cart's owner                          |
+| Merge accepted                               | the requester                              |
+| Merge declined                               | the requester                              |
+| Delivery booked (pay the driver about LKR x) | owner                                      |
+| Seller sends a stock offer                   | admins                                     |
+| Admin accepts or declines a stock offer      | that seller                                |
+| Packing staff press Received on the stock    | that seller, and the admins                |
 | Admin links an offer to a shop product       | that seller ("Your design is in our shop") |
-| Luxury brand publishes a discounted product  | admins ("Brand product to review") |
+| Luxury brand publishes a discounted product  | admins ("Brand product to review")         |
 
 Keep the messages short and say what to do next. Every notice should have an `href` to the cart or page it is about. If cost matters, an SMS or WhatsApp API is a possible later step; it is not built.
 Chat messages notify the recipient once per conversation while a notice for it is unread (href `/c/<code>?chat=<participantId>`).
@@ -63,5 +63,6 @@ Chat messages notify the recipient once per conversation while a notice for it i
 
 **Join requests:** after Accept / Decline on `/notifications`, the result is a `Toast` pop-up (`?done=accepted|declined`), not a banner. The "wants to join your cart" notice has an empty body (the page shows only its title, no time, then the buttons) and href `/c/<code>?request=<id>`; `/notifications` shows Accept / Decline on it while the request is PENDING (older notices are matched by cart code and requester name). The actions take `back=/notifications` to return there and mark that notice read.
 Opening a notice goes through `src/app/notifications/[id]/route.ts`: marks it read (own notices only), then redirects to its same-site `href`. Link to it with a plain `<a>`, never `next/link` (prefetch would mark it read).
+
 - **Owner marked the order delivered** (2026-10-18, `markReceived`): the other members get "Your group order was delivered" (collect your items from the owner).
 - **Packing staff** (2026-10-18, rule 17), via `notifyRole("PACKER", …)` in `notify/index.ts` (unlocked users of the role): "New order to pack" when a slip is approved (`approveSlip`; "One of you checks and gathers it, someone else rechecks and packs it."), "PickMe booked" when the drop is booked (`bookDelivery`), both linking to `/packing/<code>`. When a packer hands the parcel to the driver (`handOver`) the **owner** gets "Your order is with the PickMe driver".

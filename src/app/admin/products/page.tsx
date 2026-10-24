@@ -7,7 +7,8 @@ import { requireAdmin } from "@/server/auth/session";
 import { LOW_STOCK } from "@/server/admin-queries";
 import { IN_SHOP } from "@/server/catalogue";
 import { db } from "@/server/db";
-import { Chip, ChipRow, SearchForm, hrefWith, param } from "../list-bits";
+import { SearchForm, hrefWith, param } from "../list-bits";
+import { FilterSelect } from "../filter-select";
 
 export const metadata: Metadata = { title: "Products" };
 
@@ -49,6 +50,7 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
   ]);
   const href = (values: Record<string, string | undefined>) =>
     hrefWith("/admin/products", { q, filter, seller: sellerId, ...values });
+
   return (
     <>
       <PageHeader
@@ -62,26 +64,36 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
           </Link>
         }
       />
-      <SearchForm action="/admin/products" q={q} placeholder="Title or brand" />
-      <ChipRow>
-        <Chip href={href({ filter: undefined })} active={!filter}>
-          All
-        </Chip>
-        <Chip href={href({ filter: "shop" })} active={filter === "shop"}>
-          In the shop
-        </Chip>
-        <Chip href={href({ filter: "none" })} active={filter === "none"}>
-          Not in the shop
-        </Chip>
+      <SearchForm
+        action="/admin/products"
+        q={q}
+        placeholder="Title or brand"
+        keep={{ filter, seller: sellerId }}
+      />
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterSelect
+          action="/admin/products"
+          name="filter"
+          label="Filter products"
+          value={filter ?? ""}
+          keep={{ q, seller: sellerId }}
+          className="mb-4 flex w-full max-w-xs gap-2"
+          options={[
+            { value: "", label: "All" },
+            { value: "shop", label: "In the shop" },
+            { value: "none", label: "Not in the shop" },
+            { value: "low", label: `Low stock (≤ ${LOW_STOCK} free in a size)` },
+          ]}
+        />
         {sellerId && (
-          <Chip href={hrefWith("/admin/products", { q, filter })} active={false}>
+          <Link
+            href={hrefWith("/admin/products", { q, filter })}
+            className="mb-4 inline-flex min-h-10 items-center rounded-lg border border-line bg-paper px-3 text-sm hover:bg-muted"
+          >
             All sellers ✕
-          </Chip>
+          </Link>
         )}
-        <Chip href={href({ filter: "low" })} active={filter === "low"}>
-          Low stock (≤ {LOW_STOCK} free in a size)
-        </Chip>
-      </ChipRow>
+      </div>
       {products.length === 0 ? (
         <EmptyState title={q || filter ? "No products match" : "No products yet"} />
       ) : (

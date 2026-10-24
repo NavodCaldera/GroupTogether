@@ -70,3 +70,20 @@ export async function decideOffer(id: string, accept: boolean, note: string) {
     href: "/seller",
   });
 }
+
+/** Saves a note and notifies the seller without changing status (keeps IN_REVIEW). */
+export async function noteOffer(id: string, note: string) {
+  const text = note.trim().slice(0, 500);
+  if (!text) throw new CatalogueError("Write a note to send to the seller");
+  const r = await db.stockOffer.updateMany({
+    where: { id, status: "IN_REVIEW" },
+    data: { note: text },
+  });
+  if (r.count === 0) throw new CatalogueError("This offer has already been answered");
+  const o = await db.stockOffer.findUniqueOrThrow({ where: { id } });
+  await notify([o.sellerId], {
+    title: "Note on your stock offer",
+    body: `${o.name}: ${text}`,
+    href: "/seller",
+  });
+}

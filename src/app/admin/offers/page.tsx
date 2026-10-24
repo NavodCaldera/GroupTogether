@@ -5,7 +5,8 @@ import { Badge, EmptyState, PageHeader } from "@/components/ui";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { Chip, ChipRow, Count, param } from "../list-bits";
+import { param } from "../list-bits";
+import { FilterSelect } from "../filter-select";
 import { OFFER_STATUS } from "./offer-status";
 
 export const metadata: Metadata = { title: "Stock offers" };
@@ -49,17 +50,18 @@ export default async function OffersPage({ searchParams }: PageProps<"/admin/off
       {done === "accepted" && <Toast>Offer accepted. The seller has been told.</Toast>}
       {done === "declined" && <Toast>Offer declined. The seller has been told.</Toast>}
       <PageHeader title="Stock offers" />
-      <ChipRow>
-        <Chip href="/admin/offers" active={!answered && !received}>
-          To review <Count n={toReview} />
-        </Chip>
-        <Chip href="/admin/offers?tab=answered" active={answered}>
-          Answered
-        </Chip>
-        <Chip href="/admin/offers?tab=received" active={received}>
-          Received <Count n={receivedCount} />
-        </Chip>
-      </ChipRow>
+      <FilterSelect
+        action="/admin/offers"
+        name="tab"
+        label="Filter offers"
+        value={answered ? "answered" : received ? "received" : ""}
+        className="mb-4 flex w-full max-w-xs gap-2"
+        options={[
+          { value: "", label: `To review (${toReview})` },
+          { value: "answered", label: "Answered" },
+          { value: "received", label: `Received (${receivedCount})` },
+        ]}
+      />
       {offers.length === 0 ? (
         <EmptyState
           title={

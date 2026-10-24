@@ -96,7 +96,10 @@ export function ChatPanel({
                 {m.body}
               </p>
               <p className="mt-0.5 text-[11px] text-subtle">
-                {new Date(m.createdAt).toLocaleTimeString("en-LK", { hour: "numeric", minute: "2-digit" })}
+                {new Date(m.createdAt).toLocaleTimeString("en-LK", {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
                 {mine && (
                   <>
                     {" "}

@@ -23,8 +23,9 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const user = await getCurrentUser();
   const tabBar = hasTabBar(user);
-  // Packing staff get no footer: their pages show only what they need (product owner, 2026-10-19).
-  const footer = user?.role !== "PACKER";
+  // Only shoppers (visitors and customers) get the consumer footer. Admins, packing staff and
+  // sellers manage the platform and get a clean, uncluttered interface.
+  const footer = !user || user.role === "CUSTOMER";
   return (
     <html lang="en" className="h-full antialiased">
       <body className="flex min-h-full flex-col">

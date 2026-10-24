@@ -42,7 +42,6 @@ export async function PackerProfile({ user }: { user: SessionUser }) {
             <dd className="tabular-nums">{user.phone ?? "—"}</dd>
           </div>
         </dl>
-        <p className="-mt-2 text-xs text-subtle">To change these, ask an admin.</p>
       </Card>
 
       <section aria-labelledby="today" className="flex flex-col gap-2">
