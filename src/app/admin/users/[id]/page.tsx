@@ -83,7 +83,9 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
             actions={
               <>
                 {user.role === "ADMIN" && <Badge tone="info">Admin</Badge>}
-                {user.role === "SELLER" && <Badge tone="info">Factory seller</Badge>}
+                {user.role === "SELLER" && (
+                  <Badge tone="info">{user.isBrand ? "Luxury brand" : "Factory seller"}</Badge>
+                )}
                 {user.role === "PACKER" && <Badge tone="info">Packing staff</Badge>}
                 {user.locked && <Badge tone="bad">Locked</Badge>}
               </>

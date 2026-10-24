@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Role, User } from "@/generated/prisma/client";
+import { linkOnSite } from "@/lib/brand-rules";
 import { pinFields, pinInSriLanka, pinOutsideMessage } from "@/lib/location";
 import { db } from "../db";
 import { hashPassword, verifyPassword } from "./password";
@@ -44,13 +45,31 @@ export type ProfileInput = z.infer<typeof profileSchema>;
 
 export class AuthError extends Error {}
 
-export const sellerSchema = z.object({
+const sellerFields = z.object({
   name: z.string().trim().min(2, "Enter the contact person's name"),
   company: z.string().trim().min(2, "Enter the factory or company name").max(80),
   email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email")),
   phone: phoneSchema,
   password: z.string().min(8, "Use at least 8 characters"),
+  // A luxury brand (2026-10-24): its products link to its own website.
+  isBrand: z
+    .preprocess((v) => v === true || v === "on" || v === "true", z.boolean())
+    .default(false),
+  website: z
+    .string()
+    .trim()
+    .max(200)
+    .optional()
+    .transform((v) => v || undefined),
 });
+
+export const sellerSchema = sellerFields.refine(
+  (v) => !v.isBrand || (!!v.website && linkOnSite(v.website, null)),
+  {
+    message: "Enter the brand's website, such as https://www.brand.lk",
+    path: ["website"],
+  },
+);
 
 /** Admins create factory seller accounts; sellers can't sign themselves up. */
 export async function createSeller(input: unknown): Promise<User> {
@@ -68,13 +87,17 @@ export async function createSeller(input: unknown): Promise<User> {
       email: s.email,
       phone: s.phone,
       passwordHash: await hashPassword(s.password),
+      isBrand: s.isBrand,
+      website: s.isBrand ? s.website : null,
     },
   });
 }
 
-export const packerSchema = sellerSchema.omit({ company: true }).extend({
-  name: z.string().trim().min(2, "Enter their name").max(80),
-});
+export const packerSchema = sellerFields
+  .omit({ company: true, isBrand: true, website: true })
+  .extend({
+    name: z.string().trim().min(2, "Enter their name").max(80),
+  });
 
 /** Admins create packing staff accounts (CLAUDE.md rule 17). */
 export async function createPacker(input: unknown): Promise<User> {

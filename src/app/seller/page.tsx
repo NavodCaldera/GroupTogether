@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Toast } from "@/components/toast";
 import { Badge, EmptyState, PageHeader } from "@/components/ui";
+import { discountPct, siteName } from "@/lib/brand-rules";
 import { formatDate, formatLKR } from "@/lib/format";
 import { requireSeller } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -22,11 +23,17 @@ const STATUS = {
  * The factory seller's home (product owner, 2026-10-19): an add button, their designs in our shop
  * with how each sells (2026-10-24: pieces wanted and bought, how many people bought, never names,
  * carts or money), then the stock offers they have sent, newest first, with our answer.
+ * A luxury brand (2026-10-24) sees its brand profile: its name and website, and each discounted
+ * product it published with the actual price, the discount price, pieces and its link.
  */
 export default async function SellerHome({ searchParams }: PageProps<"/seller">) {
   const seller = await requireSeller();
   const { done } = await searchParams;
-  const [designs, offers] = await Promise.all([
+  const [me, designs, offers] = await Promise.all([
+    db.user.findUniqueOrThrow({
+      where: { id: seller.id },
+      select: { isBrand: true, website: true, company: true },
+    }),
     sellerDesigns(seller.id),
     db.stockOffer.findMany({
       where: { sellerId: seller.id },
@@ -39,7 +46,19 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
     <>
       {done === "sent" && <Toast>Sent for review.</Toast>}
       <PageHeader
-        title="My products"
+        title={me.isBrand ? me.company || seller.name : "My products"}
+        description={
+          me.isBrand && me.website ? (
+            <a
+              href={me.website}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-accent underline"
+            >
+              {siteName(me.website)} ↗
+            </a>
+          ) : undefined
+        }
         actions={
           <Link
             href="/seller/new"
@@ -96,9 +115,37 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
                     <Badge tone={st.tone}>{st.label}</Badge>
                   </div>
                 </div>
-                <p className="mt-0.5 text-sm text-subtle tabular-nums">
-                  {formatLKR(o.amount)} · {formatDate(o.createdAt)}
-                </p>
+                {o.actualPrice && o.offerPrice ? (
+                  <>
+                    <p className="mt-0.5 text-sm tabular-nums">
+                      <span className="text-subtle line-through">{formatLKR(o.actualPrice)}</span>{" "}
+                      <span className="font-medium">{formatLKR(o.offerPrice)}</span>
+                      {discountPct(o.actualPrice, o.offerPrice) !== null &&
+                        ` · ${discountPct(o.actualPrice, o.offerPrice)}% off`}
+                      {o.pieces !== null && ` · ${o.pieces} pcs`}
+                    </p>
+                    <p className="mt-0.5 text-xs text-subtle tabular-nums">
+                      {formatLKR(o.amount)} · {formatDate(o.createdAt)}
+                      {o.productUrl && (
+                        <>
+                          {" · "}
+                          <a
+                            href={o.productUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-accent underline"
+                          >
+                            {siteName(o.productUrl)} ↗
+                          </a>
+                        </>
+                      )}
+                    </p>
+                  </>
+                ) : (
+                  <p className="mt-0.5 text-sm text-subtle tabular-nums">
+                    {formatLKR(o.amount)} · {formatDate(o.createdAt)}
+                  </p>
+                )}
                 {o.note && <p className="mt-1 text-sm">{o.note}</p>}
                 {o.product && (
                   <Link

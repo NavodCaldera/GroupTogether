@@ -4,6 +4,7 @@
  *
  *   admin@groupbasket.lk  admin       → /admin
  *   seller@example.com      seller      → /seller (Ceylon Footwear Mills: a tested linen shirt and its bulk)
+ *   brand@example.com       brand       → /seller (Serendib Atelier, a luxury brand)
  *   packer@example.com      packing     → /packing (Kasun: one paid order to check and gather)
  *   packer2@example.com     packing     → /packing (Ishara: rechecks and packs what Kasun gathered)
  *   buyer@example.com       buyer       → /dashboard (public cart at 49,800, delivered order, invite)
@@ -830,6 +831,91 @@ async function main() {
   );
   await shirtCart(1, 2150, [[SACHINI, "XL", 3]], false);
 
+  // ─── A luxury brand (product owner, 2026-10-24): fictional, on a reserved .example domain ──
+  // It publishes discounted products with the actual price, the discount price we buy at, the
+  // pieces and the link to each on its own website. One is in our shop, one waits for review.
+  const brand = await db.user.create({
+    data: {
+      role: "SELLER",
+      isBrand: true,
+      name: "Amaya Jayawardena",
+      company: "Serendib Atelier",
+      website: "https://www.serendib-atelier.example",
+      email: "brand@example.com",
+      phone: "0765555555",
+      address: "18 Flower Road",
+      city: "Colombo 07",
+      lat: 6.9105,
+      lng: 79.8577,
+      passwordHash,
+    },
+  });
+  const kaftanUrl = "https://www.serendib-atelier.example/products/linen-kaftan";
+  const kaftan = await db.product.create({
+    data: {
+      title: "Hand-loomed linen kaftan",
+      brand: "Serendib Atelier",
+      category: "APPAREL",
+      audience: "WOMEN",
+      kind: "women-dresses",
+      stockType: "FACTORY_SURPLUS",
+      price: 11900,
+      retailPrice: 18500,
+      brandUrl: kaftanUrl,
+      description: "Natural linen, hand-loomed. Last season's colours.",
+      status: "LIVE",
+      sellerId: brand.id,
+      createdAt: daysAgo(3),
+      variants: {
+        create: [
+          { size: "S", available: 12 },
+          { size: "M", available: 14 },
+          { size: "L", available: 10 },
+        ],
+      },
+    },
+  });
+  for (const o of [
+    {
+      name: "Hand-loomed linen kaftan",
+      description: "Natural linen, S to L. Last season's colours.",
+      actualPrice: 18500,
+      offerPrice: 9800,
+      pieces: 36,
+      productUrl: kaftanUrl,
+      accepted: true,
+      ago: 5,
+    },
+    {
+      name: "Embroidered cotton blouse",
+      description: "Hand embroidery, S to XL, ivory and sage.",
+      actualPrice: 12900,
+      offerPrice: 6500,
+      pieces: 60,
+      productUrl: "https://www.serendib-atelier.example/products/embroidered-blouse",
+      accepted: false,
+      ago: 0.2,
+    },
+  ])
+    await db.stockOffer.create({
+      data: {
+        sellerId: brand.id,
+        name: o.name,
+        description: o.description,
+        actualPrice: o.actualPrice,
+        offerPrice: o.offerPrice,
+        pieces: o.pieces,
+        productUrl: o.productUrl,
+        amount: o.offerPrice * o.pieces,
+        status: o.accepted ? "ACCEPTED" : "IN_REVIEW",
+        productId: o.accepted ? kaftan.id : null,
+        createdAt: daysAgo(o.ago),
+        decidedAt: o.accepted ? daysAgo(o.ago - 1) : null,
+        receivedById: o.accepted ? kasun.id : null,
+        receivedAt: o.accepted ? daysAgo(3) : null,
+      },
+    });
+
   // Every other product starts its price history at its price (the dashboard charts it).
   await db.$executeRaw`
     INSERT INTO "PriceChange" ("id", "productId", "price", "at")
@@ -840,6 +926,7 @@ async function main() {
   console.log(`Seeded. Every password is password123.
   Admin   admin@groupbasket.lk  → /admin
   Seller  seller@example.com      → /seller (a tested linen shirt and its bulk)
+  Brand   brand@example.com       → /seller (Serendib Atelier: a luxury brand's discounted products)
   Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)
   Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)
           buyer2@example.com (Sachini: private cart at the minimum)

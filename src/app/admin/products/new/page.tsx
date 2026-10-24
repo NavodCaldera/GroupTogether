@@ -17,7 +17,7 @@ export default async function NewProductPage({ searchParams }: PageProps<"/admin
     typeof sp.offer === "string"
       ? db.stockOffer.findFirst({
           where: { id: sp.offer, status: "ACCEPTED" },
-          select: { id: true, name: true },
+          select: { id: true, name: true, actualPrice: true, productUrl: true },
         })
       : null,
   ]);
@@ -29,7 +29,16 @@ export default async function NewProductPage({ searchParams }: PageProps<"/admin
         <ProductForm
           lots={lots}
           lotId={typeof lot === "string" ? lot : undefined}
-          offer={offer ?? undefined}
+          offer={
+            offer
+              ? {
+                  id: offer.id,
+                  name: offer.name,
+                  actualPrice: offer.actualPrice?.toString(),
+                  productUrl: offer.productUrl ?? undefined,
+                }
+              : undefined
+          }
         />
       </Card>
     </div>

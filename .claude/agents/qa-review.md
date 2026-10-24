@@ -37,6 +37,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 - Roles: buyers land on `/dashboard`, sellers on `/seller`, admins on `/admin`; wrong-role pages redirect.
 - Sellers only send stock offers (name, description, total amount): they see no buyers, carts or money; an admin accepts or declines each offer once, and the seller is notified. An accepted offer is received once by packing staff (no amount shown to them); `receiving.int.test.ts`. Only buyers can start/join/add to carts; sellers and packers can't send chat messages; buyer pages redirect sellers to `/seller` (seller.int.test.ts).
 - Seller dashboard (2026-10-24): every price change is logged once (`PriceChange`, including the lot drop); an offer links to a product only once accepted and never to another factory's product; a bulk names only the seller's own design and test pieces never do; a design's wanted / bought / people, prices and test vs bulk add up, and another factory sees nothing (`designs.int.test.ts`; rules in `design-rules.test.ts`). Sellers see counts and our shop price only, never cost, margin, names or carts.
+- Luxury brands (2026-10-24): a brand account needs an https website; only brands publish discounted products; the link must be on the brand's own site (subdomains allowed, look-alike hosts refused); the discount must be below the actual price; amount = discount × pieces; a product's brand link needs its actual (retail) price (`brands.int.test.ts`, `brand-rules.test.ts`).
 
 **Look for:**
 

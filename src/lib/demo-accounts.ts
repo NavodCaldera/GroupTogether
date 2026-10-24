@@ -11,6 +11,12 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     email: "seller@example.com",
     lands: "/seller",
   },
+  {
+    role: "Luxury brand",
+    name: "Amaya · Serendib Atelier",
+    email: "brand@example.com",
+    lands: "/seller",
+  },
   { role: "Packing staff", name: "Kasun Perera", email: "packer@example.com", lands: "/packing" },
   {
     role: "Packing staff",

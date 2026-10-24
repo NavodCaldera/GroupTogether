@@ -37,6 +37,10 @@ model User {
   lng          Float?
   /// Sellers: the factory or company name
   company      String?
+  /// Sellers: a luxury brand (product owner, 2026-10-24) publishes discounted products with their
+  /// actual price and a link to each on its own website; `website` is that site
+  isBrand      Boolean  @default(false)
+  website      String?
   locked       Boolean  @default(false)
   createdAt    DateTime @default(now())
 
@@ -121,6 +125,9 @@ model Product {
   seller      User?         @relation("SellerProducts", fields: [sellerId], references: [id])
   /// Why an admin returned it to the seller (shown to the seller)
   reviewNote  String?
+  /// A luxury brand's product: the page on the brand's own website showing its actual price
+  /// (`retailPrice`), linked from our product page (2026-10-24)
+  brandUrl    String?
   /// The bulk lot it came from; its price then follows the lot's cost and margin
   lotId       String?
   lot         Lot?          @relation(fields: [lotId], references: [id], onDelete: SetNull)
@@ -453,6 +460,13 @@ model StockOffer {
   /// Total selling price for the whole lot, LKR
   amount       Decimal     @db.Decimal(14, 2)
   kind         OfferKind   @default(BULK)
+  /// A luxury brand's offer (2026-10-24): its actual price a piece (on its website), the
+  /// discount price a piece we buy at, the pieces, and the product's page on its website.
+  /// `amount` is then the discount price × pieces.
+  actualPrice  Decimal?    @db.Decimal(14, 2)
+  offerPrice   Decimal?    @db.Decimal(14, 2)
+  pieces       Int?
+  productUrl   String?
   /// The shop product its pieces went onto; a tested design's bulk goes onto the same one
   productId    String?
   product      Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)

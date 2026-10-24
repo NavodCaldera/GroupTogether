@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { ProductImage } from "@/components/cart-bits";
 import { Card } from "@/components/ui";
+import { siteName } from "@/lib/brand-rules";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { editableCartsFor, joinableCart } from "@/server/carts/queries";
@@ -44,6 +45,16 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                 </span>
               )}
             </p>
+            {product.brandUrl && product.retailPrice && (
+              <a
+                href={product.brandUrl}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="mt-1 inline-block text-sm text-accent underline"
+              >
+                {formatLKR(product.retailPrice)} on {siteName(product.brandUrl)} ↗
+              </a>
+            )}
           </div>
 
           {product.description && (

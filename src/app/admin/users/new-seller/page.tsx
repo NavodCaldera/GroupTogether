@@ -1,21 +1,23 @@
 import type { Metadata } from "next";
 import { BackLink } from "@/components/client";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
+import { BrandFields } from "./brand-fields";
 import { createSellerAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { AdminForm } from "../../admin-form";
 
-export const metadata: Metadata = { title: "Add factory seller" };
+export const metadata: Metadata = { title: "Add factory seller or brand" };
 
 export default async function NewSellerPage() {
   await requireAdmin();
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/users" />
-      <PageHeader title="Add a factory seller" />
+      <PageHeader title="Add a factory seller or brand" />
       <Card>
         <AdminForm action={createSellerAction} submit="Create seller account">
-          <Field label="Factory or company name" name="company">
+          <BrandFields />
+          <Field label="Factory, company or brand name" name="company">
             <Input name="company" required />
           </Field>
           <Field label="Contact person" name="name">

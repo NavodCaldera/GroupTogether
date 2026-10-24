@@ -93,6 +93,23 @@ heavy libraries, paid services or anything that needs an always-on worker.
       history: `PriceChange`, written by `logPrices` (`src/server/prices.ts`) whenever a
       product's price changes. Rules: `src/lib/design-rules.ts`; queries: `sellerDesigns` /
       `designInsight` / `linkOfferProduct` in `src/server/designs.ts`. Still open: districts.
+    - **Luxury brands** (product owner, 2026-10-24). Brands that can't discount in their own
+      shops (like Spa Ceylon) sell discounted stock through us. A brand is a seller account an
+      admin creates with **Luxury brand** ticked and the brand's **website** (`User.isBrand`,
+      `website`). Its `/seller` page is its **brand profile**: its name and website, then each
+      discounted product it published, with the **actual price** (struck through), the
+      **discount price** (what we pay a piece), % off, pieces, the total and the **link to the
+      product on its website** that shows the actual price; the + form has Product name,
+      Description, Actual price, Discount price, Pieces and Link on your website (it must be on
+      the brand's own site, https; the discount must be below the actual price;
+      `createBrandOffer` in `src/server/brands.ts`). An admin reviews it at Admin → Offers like
+      any offer (actual / discount / pieces and the link to check). **Our shop also publishes the
+      actual price**: "Add product" from the offer fills the retail price and **Brand link**
+      (`Product.brandUrl`), and the product page shows the actual price struck through plus
+      "LKR … on <brand site> ↗". Its sales show on the design dashboard like a factory's. Rules:
+      `src/lib/brand-rules.ts`. Assumed: the discount price is what we pay the brand a piece (our
+      shop price is set by the admin). Open: beauty and wellness products have no category yet
+      (only shoes and apparel).
     - Sellers have one section like admins: no Home/Shop/Carts tabs, no messages icon, no tab bar;
       `/`, `/shop`, `/carts`, `/my-carts`, `/dashboard`, `/messages` and `/c/<code>` send them to
       `/seller`. Their profile has their name, mobile, **factory address and an exact map pin**
@@ -242,7 +259,7 @@ tab is visible (no websocket or worker).
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `npm run db:start`   | Local Postgres: dev on 5546, test on 5547 (no install needed)                                                                                                                                                      |
 | `npm run db:migrate` | New migration and client regenerate (never `prisma migrate dev` alone)                                                                                                                                             |
-| `npm run db:seed`    | Demo data, all `password123`: `admin@groupbasket.lk`, `seller@example.com`, `packer@example.com`, `packer2@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
+| `npm run db:seed`    | Demo data, all `password123`: `admin@groupbasket.lk`, `seller@example.com`, `brand@example.com` (luxury brand), `packer@example.com`, `packer2@example.com`, `buyer@example.com`, `buyer2@example.com`, `buyer3@example.com` (listed on the sign-in page in dev, or with `SHOW_DEMO_LOGINS=true`) |
 | `npm run dev`        | http://localhost:3002                                                                                                                                                                                              |
 | `npm run check`      | Typecheck, lint and unit tests                                                                                                                                                                                     |
 | `npm run test:int`   | Integration tests on the test DB                                                                                                                                                                                   |

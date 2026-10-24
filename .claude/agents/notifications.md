@@ -54,6 +54,7 @@ The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read the
 | Admin accepts or declines a stock offer      | that seller                  |
 | Packing staff press Received on the stock    | that seller, and the admins  |
 | Admin links an offer to a shop product       | that seller ("Your design is in our shop") |
+| Luxury brand publishes a discounted product  | admins ("Brand product to review") |
 
 Keep the messages short and say what to do next. Every notice should have an `href` to the cart or page it is about. If cost matters, an SMS or WhatsApp API is a possible later step; it is not built.
 Chat messages notify the recipient once per conversation while a notice for it is unread (href `/c/<code>?chat=<participantId>`).

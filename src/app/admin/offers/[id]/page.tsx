@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { Badge, Card, LinkButton, PageHeader, Select } from "@/components/ui";
+import { discountPct, siteName } from "@/lib/brand-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -51,6 +52,7 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
           actions={
             <div className="flex flex-wrap gap-2">
               {o.kind === "TEST" && <Badge tone="info">Test pieces</Badge>}
+              {o.productUrl && <Badge tone="info">Luxury brand</Badge>}
               <Badge tone={OFFER_STATUS[o.status].tone}>{OFFER_STATUS[o.status].label}</Badge>
             </div>
           }
@@ -62,6 +64,36 @@ export default async function OfferPage({ params }: PageProps<"/admin/offers/[id
           <p className="text-xs text-subtle">Total price asked</p>
           <p className="text-2xl font-semibold tabular-nums">{formatLKR(o.amount)}</p>
         </div>
+        {o.actualPrice && o.offerPrice && (
+          <dl className="grid grid-cols-3 gap-2 text-sm tabular-nums">
+            <div>
+              <dt className="text-xs text-subtle">Actual price</dt>
+              <dd>{formatLKR(o.actualPrice)}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-subtle">Discount price</dt>
+              <dd>
+                {formatLKR(o.offerPrice)}
+                {discountPct(o.actualPrice, o.offerPrice) !== null &&
+                  ` · ${discountPct(o.actualPrice, o.offerPrice)}% off`}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-subtle">Pieces</dt>
+              <dd>{o.pieces}</dd>
+            </div>
+          </dl>
+        )}
+        {o.productUrl && (
+          <a
+            href={o.productUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm text-accent underline"
+          >
+            {siteName(o.productUrl)} ↗
+          </a>
+        )}
         <div>
           <p className="text-xs text-subtle">Details</p>
           <p className="text-sm whitespace-pre-line">{o.description}</p>

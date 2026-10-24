@@ -4,6 +4,7 @@ import type { Prisma, StockType } from "@/generated/prisma/client";
 import { type Audience, findKind, kindFits } from "@/lib/taxonomy";
 import { D, toD } from "@/lib/decimal";
 import { formatLKR } from "@/lib/format";
+import { linkOnSite } from "@/lib/brand-rules";
 import { lotPrice } from "@/lib/stock-rules";
 import { db } from "./db";
 import { logPrices } from "./prices";
@@ -134,6 +135,16 @@ export const productSchema = z
     lotId: z.string().trim().optional(),
     price: money.optional().or(z.literal("")),
     retailPrice: money.optional().or(z.literal("")),
+    // A luxury brand's product: its page on the brand's website showing the actual price.
+    brandUrl: z.string().trim().max(500).optional().or(z.literal("")),
+  })
+  .refine((v) => !v.brandUrl || linkOnSite(v.brandUrl, null), {
+    message: "Enter the full link to the brand's page (https://…)",
+    path: ["brandUrl"],
+  })
+  .refine((v) => !v.brandUrl || v.retailPrice, {
+    message: "Enter the actual price shown on the brand's page",
+    path: ["retailPrice"],
   })
   .refine((v) => kindFits(v.audience, v.kind), {
     message: "That category isn't offered for this audience",
@@ -163,6 +174,7 @@ export async function saveProduct(id: string | null, input: unknown, photo: File
     ...lotData,
     category: findKind(p.kind)!.category,
     retailPrice: p.retailPrice || null,
+    brandUrl: p.brandUrl || null,
     ...(photo && photo.size > 0
       ? await (async () => {
           checkUpload(photo, IMAGE_TYPES, "photo");

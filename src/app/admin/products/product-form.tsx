@@ -13,6 +13,7 @@ type ProductValues = {
   kind: string | null;
   price: { toString(): string };
   retailPrice: { toString(): string } | null;
+  brandUrl: string | null;
   lotId: string | null;
 };
 
@@ -30,8 +31,9 @@ export function ProductForm({
   /** Bulk lots to pick from: a product from a lot takes the lot's price (cost + margin). */
   lots?: LotChoice[];
   lotId?: string;
-  /** A seller's accepted offer this new product is for: it becomes one of their designs. */
-  offer?: { id: string; name: string };
+  /** A seller's accepted offer this new product is for: it becomes one of their designs. A
+   * luxury brand's offer also fills the actual price and the link to the brand's page. */
+  offer?: { id: string; name: string; actualPrice?: string; productUrl?: string };
   action?: (prev: AdminState, fd: FormData) => Promise<AdminState>;
 }) {
   return (
@@ -69,10 +71,18 @@ export function ProductForm({
           <Input
             name="retailPrice"
             inputMode="decimal"
-            defaultValue={product?.retailPrice?.toString() ?? ""}
+            defaultValue={product?.retailPrice?.toString() ?? offer?.actualPrice ?? ""}
           />
         </Field>
       </div>
+      <Field label="Brand link (optional)" name="brandUrl">
+        <Input
+          name="brandUrl"
+          type="url"
+          placeholder="https://"
+          defaultValue={product?.brandUrl ?? offer?.productUrl ?? ""}
+        />
+      </Field>
       <Field label="Description" name="description">
         <Textarea name="description" defaultValue={product?.description} rows={4} />
       </Field>
