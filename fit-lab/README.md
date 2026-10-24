@@ -17,9 +17,8 @@ npm run build
 ```
 
 `npm run setup` (run automatically before `dev` and `build`) copies the MediaPipe WASM
-runtime and downloads the pose models (lite ~6 MB for live, heavy ~30 MB for stills) into
-`public/`. Both are gitignored. At run
-time photos are processed in the browser and never leave the device.
+runtime and downloads the pose models (lite ~6 MB, full ~9 MB, heavy ~30 MB) into `public/`.
+Both are gitignored. At run time photos are processed in the browser and never leave the device.
 
 ## Camera and UI
 
@@ -36,14 +35,15 @@ Camera permission → Front instructions → check position and stability → ca
 → review or retake
 ```
 
-- **Live mode** (light): frames scaled to 384 px wide go to the lite pose model, one frame in
+- **Live mode** (light): frames scaled to 384 px wide go to the live pose model, one frame in
   flight at a time. Prompts, shown large and spoken (Voice on/off): _Step into the frame,
   Only one person in view, Move back, Keep your whole body visible, Move closer, Move to
-  the centre, Face the camera, Turn sideways, Hold your arms slightly out, Stand straight,
-  Stay still, Capturing now_. Once the position holds, a 3 s countdown runs; the photo is
+  the centre, Face the camera, Turn sideways, Hold your arms slightly out, Keep your arms
+  down by your sides, Stand with your feet slightly apart, Bring your feet closer together,
+  Stand straight, Stay still, Capturing now_. Once the position holds, a 3 s countdown runs; the photo is
   taken when the person is also still ([`live/guidance.ts`](src/live/guidance.ts),
   [`live/session.ts`](src/live/session.ts)). **Capture** takes the photo by hand.
-- **Capture mode** (careful): the chosen still frame (up to 1280 px) goes through the heavy
+- **Capture mode** (careful): the chosen still frame (up to 1280 px) goes through the photo
   model with the body mask, OpenCV cleanup and quality checks, then the person reviews it
   with the measured lines drawn on and chooses **Use photo** or **Retake**. A photo with a
   blocking problem (no person, not full body, wrong view) can't be used.
@@ -52,18 +52,60 @@ Camera permission → Front instructions → check position and stability → ca
   the main thread if the worker or MediaPipe can't start there.
 - Uploading a photo still works for both views.
 
+## Pose detection
+
+MediaPipe Pose Landmarker (33 landmarks with visibility, plus estimated world coordinates)
+says **where the body is and how it is standing**, not how big it is
+([`measure/pose.ts`](src/measure/pose.ts), shared by live prompts and photo checks):
+
+- **Required parts visible:** shoulders and hips (else _Move back_), then knees and ankles
+  (else _Keep your whole body visible_). Side-on, one of each pair is enough.
+- **Arms and legs:** front, wrists clear of the waist (_Hold your arms slightly out_) and
+  feet slightly apart, not together or wide (wide feet also shorten the height used for
+  scale); side-on, arms down by the sides (an arm in front adds to the depth).
+- **Levels:** shoulder and hip lines set the chest, waist and hip rows; the knees stop the
+  hip search half-way down the thigh.
+- **Front or side:** shoulder width against torso length, plus the shoulder-line turn from
+  the world landmarks (front ≤ 35°, side ≥ 45°). World depth is only used to tell the views
+  apart, never as a size.
+- **Rejecting frames:** no person, more than one, body cut off, wrong view.
+
+Sizes come from the **body outline** (segmentation mask) wherever it can be read: chest,
+waist and hip widths and depths, **shoulder** (outline across the deltoids just below the
+shoulder landmarks; rejected when raised arms run into it) and **inseam** (crotch found on
+the outline to the soles; needs the feet apart). Arm and torso lengths, and the shoulder or
+inseam when the outline can't be read, come from **joint positions**: these are labelled
+_Joints_, get a 1.5× wider spread, and are listed as _not validated_ in the limitations.
+
+### Full or Heavy
+
+Models are chosen under **Models** (Live: Lite or Full; Photos: Full or Heavy; defaults Lite
+and Heavy, until tested). **Model test** runs both photo models, and both live models, on
+the same uploaded images, after one untimed warm-up run each, and reports:
+
+- **Photos:** images, share measured (usable and measured), median pose and total ms,
+  landmark jitter (SD of key landmarks across the images, % of body height; meaningful for
+  a burst of the same pose from a fixed phone);
+- **Measurements:** mean ± SD per measurement from front/side pairs, and the error against
+  the tape values typed under _You_;
+- **Live:** median pose ms per frame and the share of frames judged in position.
+
+**Download CSV** saves every image's result with the device, so phones can be compared.
+Choose on the whole pipeline (time, stability, capture success, error), not on how the
+skeleton looks. Timings from a desktop or headless browser say nothing about phones.
+
 ## Pipeline
 
-| Step                                                                                                                                                                      | Code                                                                                                   |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
-| Smartphone camera and UI (above), and known height                                                                                                                        | [`ui/`](src/ui)                                                                                        |
-| MediaPipe Pose Landmarker: lite in video mode for live frames; heavy with the body segmentation mask for stills                                                           | [`vision/mediapipe.ts`](src/vision/mediapipe.ts), [`vision/engine.ts`](src/vision/engine.ts)           |
-| OpenCV.js: mask cleanup (close, open, largest region filled), sharpness and brightness                                                                                    | [`vision/opencv.ts`](src/vision/opencv.ts)                                                             |
-| Photo checks: no person, several people, full body, too far, facing / sideways, arms touching, leaning, blur, light                                                       | [`measure/quality.ts`](src/measure/quality.ts), [`vision/engine.ts`](src/vision/engine.ts)             |
-| Body measurement estimator: scale from height; widths (front) and depths (side) at chest, waist, hip; ellipse circumferences; shoulder, arm, torso, inseam from landmarks | [`measure/estimate.ts`](src/measure/estimate.ts), [`measure/silhouette.ts`](src/measure/silhouette.ts) |
-| Garment measurement database: sizes with chest, waist, hip, shoulder, sleeve, length, inseam; category, fit style, fabric stretch                                         | [`garments/database.ts`](src/garments/database.ts)                                                     |
-| Fit prediction: ease = garment − body (+ stretch), against ease bands per category and fit style, over the measurement uncertainty                                        | [`fit/ease.ts`](src/fit/ease.ts), [`fit/predict.ts`](src/fit/predict.ts)                               |
-| Recommended size, possible tight / loose areas, fit confidence, limitations                                                                                               | [`fit/predict.ts`](src/fit/predict.ts), [`fit/limitations.ts`](src/fit/limitations.ts)                 |
+| Step                                                                                                                                                                                          | Code                                                                                                   |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Smartphone camera and UI (above), and known height                                                                                                                                            | [`ui/`](src/ui)                                                                                        |
+| MediaPipe Pose Landmarker: live model in video mode; photo model with the body segmentation mask                                                                                              | [`vision/mediapipe.ts`](src/vision/mediapipe.ts), [`vision/engine.ts`](src/vision/engine.ts)           |
+| OpenCV.js: mask cleanup (close, open, largest region filled), sharpness and brightness                                                                                                        | [`vision/opencv.ts`](src/vision/opencv.ts)                                                             |
+| Photo checks: no person, several people, full body, too far, facing / sideways, arms touching or not down, feet together or wide, leaning, blur, light                                        | [`measure/quality.ts`](src/measure/quality.ts), [`vision/engine.ts`](src/vision/engine.ts)             |
+| Body measurement estimator: scale from height; widths (front) and depths (side) at chest, waist, hip; ellipse circumferences; shoulder and inseam from the outline; arm and torso from joints | [`measure/estimate.ts`](src/measure/estimate.ts), [`measure/silhouette.ts`](src/measure/silhouette.ts) |
+| Garment measurement database: sizes with chest, waist, hip, shoulder, sleeve, length, inseam; category, fit style, fabric stretch                                                             | [`garments/database.ts`](src/garments/database.ts)                                                     |
+| Fit prediction: ease = garment − body (+ stretch), against ease bands per category and fit style, over the measurement uncertainty                                                            | [`fit/ease.ts`](src/fit/ease.ts), [`fit/predict.ts`](src/fit/predict.ts)                               |
+| Recommended size, possible tight / loose areas, fit confidence, limitations                                                                                                                   | [`fit/predict.ts`](src/fit/predict.ts), [`fit/limitations.ts`](src/fit/limitations.ts)                 |
 
 ### Measuring
 
@@ -102,8 +144,8 @@ is the probability every compared measurement is wearable, lowered for missing o
    `CAL.sd` to the observed spread.
 4. Record which sizes they actually wear for the sample garments, and tune the ease bands.
 
-Tested so far: unit tests on synthetic bodies and on the live guidance and countdown, and
-the capture sequence in headless Chromium with a fake camera showing one non-standing
-sample photo (worker starts, live prompts, manual capture, review, retake, blocked side
-photo). Automatic capture of a real standing person and real-person accuracy are **not
-tested yet**.
+Tested so far: unit tests on synthetic bodies, pose checks, live guidance and countdown,
+and the model-comparison statistics; in headless Chromium, the capture sequence with a fake
+camera showing one non-standing sample photo, and the model test on that photo. Automatic
+capture of a real standing person, real-person accuracy and Full vs Heavy on phones are
+**not tested yet**.

@@ -79,12 +79,16 @@ export function makeFigure({ view, profile, shoulderLm = 190, shiftUp = 0 }: Fig
   at(LM.nose, CX, TOP + 60);
   at(LM.leftShoulder, CX + half, SHOULDER_Y);
   at(LM.rightShoulder, CX - half, SHOULDER_Y);
-  at(LM.leftElbow, CX + half + 60, SHOULDER_Y + 140);
-  at(LM.rightElbow, CX - half - 60, SHOULDER_Y + 140);
-  at(LM.leftWrist, CX + half + 110, SHOULDER_Y + 270);
-  at(LM.rightWrist, CX - half - 110, SHOULDER_Y + 270);
+  // Arms out to the sides in front, hanging by the body side-on.
+  const reach = view === "front" ? 1 : 0.15;
+  at(LM.leftElbow, CX + half + 60 * reach, SHOULDER_Y + 140);
+  at(LM.rightElbow, CX - half - 60 * reach, SHOULDER_Y + 140);
+  at(LM.leftWrist, CX + half + 110 * reach, SHOULDER_Y + 270);
+  at(LM.rightWrist, CX - half - 110 * reach, SHOULDER_Y + 270);
   at(LM.leftHip, CX + hipHalf, HIP_Y);
   at(LM.rightHip, CX - hipHalf, HIP_Y);
+  at(LM.leftKnee, CX + hipHalf, (HIP_Y + TOP + PX_HEIGHT - 30) / 2);
+  at(LM.rightKnee, CX - hipHalf, (HIP_Y + TOP + PX_HEIGHT - 30) / 2);
   at(LM.leftAnkle, CX + hipHalf, TOP + PX_HEIGHT - 30);
   at(LM.rightAnkle, CX - hipHalf, TOP + PX_HEIGHT - 30);
   return { mask, landmarks: lm };

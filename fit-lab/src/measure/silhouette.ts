@@ -87,3 +87,18 @@ export function extremeSpan(
   }
   return best;
 }
+
+/**
+ * The crotch: the first row below `fromY` where column `x` (between the legs)
+ * turns to background for 3 rows. Null when the legs touch all the way down.
+ */
+export function crotchRow(mask: Mask, x: number, fromY: number, bottom: number): number | null {
+  const { width, data } = mask;
+  const cx = Math.round(x);
+  const limit = bottom - 0.25 * (bottom - fromY);
+  const empty = (y: number) => data[y * width + cx] === 0;
+  for (let y = Math.max(0, Math.ceil(fromY)); y < limit; y++) {
+    if (empty(y) && empty(y + 1) && empty(y + 2)) return y;
+  }
+  return null;
+}

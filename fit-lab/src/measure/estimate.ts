@@ -10,7 +10,14 @@ import {
   type Span,
 } from "../types";
 import { distance, ellipsePerimeter, midpoint } from "./geometry";
-import { extremeSpan, smoothedSpan, spanAt, spanWidth, verticalExtent } from "./silhouette";
+import {
+  crotchRow,
+  extremeSpan,
+  smoothedSpan,
+  spanAt,
+  spanWidth,
+  verticalExtent,
+} from "./silhouette";
 
 export interface PosePhoto {
   landmarks: Landmark[];
@@ -24,6 +31,8 @@ interface Frame {
   shoulderY: number;
   hipY: number;
   torsoPx: number;
+  /** Last row searched for the hip: short of the knees when they are visible. */
+  hipEnd: number;
   xAt: (y: number) => number;
 }
 
@@ -41,6 +50,11 @@ export interface SideMeasure {
 export interface FrontMeasure extends SideMeasure {
   /** Waist row as a fraction of shoulder line to hip line. */
   waistAt: number;
+  /** Outline across the shoulders, or null when the arms are raised into it. */
+  shoulder: Span | null;
+  /** Crotch row from the outline, or null when the legs touch. */
+  crotchY: number | null;
+  /** Joint positions; only used when the outline can't be read. */
   shoulderPx: number;
   armPx: number | null;
   torsoPx: number;
@@ -61,6 +75,12 @@ function frame(photo: PosePhoto, heightCm: number): Frame | null {
     const t = Math.min(1, Math.max(0, (y - shoulder.y) / torsoPx));
     return shoulder.x + t * (hip.x - shoulder.x);
   };
+  const knees = [lm[LM.leftKnee], lm[LM.rightKnee]].filter((k) => k.visibility >= 0.5);
+  const kneeY = knees.length ? knees.reduce((a, k) => a + k.y, 0) / knees.length : Infinity;
+  const hipEnd = Math.min(
+    hip.y + CAL.hipBand[1] * torsoPx,
+    hip.y + CAL.hipToKneeLimit * (kneeY - hip.y),
+  );
   return {
     cmPerPx: heightCm / (ext.bottom - ext.top + 1),
     top: ext.top,
@@ -68,6 +88,7 @@ function frame(photo: PosePhoto, heightCm: number): Frame | null {
     shoulderY: shoulder.y,
     hipY: hip.y,
     torsoPx,
+    hipEnd,
     xAt,
   };
 }
@@ -81,19 +102,13 @@ function torsoSpans(photo: PosePhoto, f: Frame, waistAt: number | null) {
     waistAt === null
       ? extremeSpan(mask, row(CAL.waistBand[0]), row(CAL.waistBand[1]), f.xAt, "narrowest")
       : smoothedSpan(mask, row(waistAt), f.xAt(row(waistAt)));
-  const hip = extremeSpan(
-    mask,
-    f.hipY + CAL.hipBand[0] * f.torsoPx,
-    f.hipY + CAL.hipBand[1] * f.torsoPx,
-    f.xAt,
-    "widest",
-  );
+  const hip = extremeSpan(mask, f.hipY + CAL.hipBand[0] * f.torsoPx, f.hipEnd, f.xAt, "widest");
   return chest && waist && hip ? { chest, waist, hip } : null;
 }
 
 /** An elbow or wrist inside the torso run on its own row means the arm is merged into the silhouette. */
 function armInside(photo: PosePhoto, f: Frame): boolean {
-  const end = f.hipY + CAL.hipBand[1] * f.torsoPx;
+  const end = f.hipEnd;
   return [LM.leftElbow, LM.rightElbow, LM.leftWrist, LM.rightWrist]
     .map((i) => photo.landmarks[i])
     .filter((a) => a.visibility >= 0.5 && a.y > f.shoulderY && a.y < end)
@@ -120,6 +135,10 @@ export function measureFront(photo: PosePhoto, heightCm: number): FrontMeasure |
   const spans = torsoSpans(photo, f, null);
   if (!spans) return null;
   const lm = photo.landmarks;
+  const shoulderPx = distance(lm[LM.leftShoulder], lm[LM.rightShoulder]);
+  const shoulderRow = f.shoulderY + CAL.shoulderRowAt * f.torsoPx;
+  const outline = smoothedSpan(photo.mask, shoulderRow, f.xAt(shoulderRow));
+  const hipX = (lm[LM.leftHip].x + lm[LM.rightHip].x) / 2;
   return {
     cmPerPx: f.cmPerPx,
     top: f.top,
@@ -128,7 +147,9 @@ export function measureFront(photo: PosePhoto, heightCm: number): FrontMeasure |
     hipY: f.hipY,
     ...spans,
     waistAt: (spans.waist.y - f.shoulderY) / f.torsoPx,
-    shoulderPx: distance(lm[LM.leftShoulder], lm[LM.rightShoulder]),
+    shoulder: outline && spanWidth(outline) <= CAL.shoulderOutlineMax * shoulderPx ? outline : null,
+    crotchY: crotchRow(photo.mask, hipX, f.hipY, f.bottom),
+    shoulderPx,
     armPx: armLength(lm),
     torsoPx: f.torsoPx,
     legPx: f.bottom - f.hipY,
@@ -167,19 +188,32 @@ const spread = (issues: Issue[]) => 1 + CAL.issuePenalty * issues.length;
 
 /** Photo estimates where photos allow, typed values always win. */
 export function estimateBody({ heightCm, typed, front, side }: BodyInput): Body {
-  const photo: Partial<Record<BodyKey, { value: number; sd: number }>> = {};
+  type PhotoEstimate = { value: number; sd: number; method: "outline" | "joints" };
+  const photo: Partial<Record<BodyKey, PhotoEstimate>> = {};
+  const joints = (value: number, sd: number): PhotoEstimate => ({
+    value,
+    sd: sd * CAL.jointsSdFactor,
+    method: "joints",
+  });
 
   if (front) {
     const m = front.measure;
     const k = spread(front.issues);
-    photo.shoulder = {
-      value: m.shoulderPx * m.cmPerPx * CAL.shoulderFactor,
-      sd: CAL.sd.shoulder * k,
-    };
-    if (m.armPx !== null)
-      photo.sleeve = { value: m.armPx * m.cmPerPx * CAL.armFactor, sd: CAL.sd.sleeve * k };
-    photo.torso = { value: m.torsoPx * m.cmPerPx, sd: CAL.sd.torso * k };
-    photo.inseam = { value: m.legPx * m.cmPerPx - CAL.crotchDropCm, sd: CAL.sd.inseam * k };
+    photo.shoulder = m.shoulder
+      ? {
+          value: spanWidth(m.shoulder) * m.cmPerPx * CAL.shoulderOutlineFactor,
+          sd: CAL.sd.shoulder * k,
+          method: "outline",
+        }
+      : joints(m.shoulderPx * m.cmPerPx * CAL.shoulderJointFactor, CAL.sd.shoulder * k);
+    if (m.armPx !== null) {
+      photo.sleeve = joints(m.armPx * m.cmPerPx * CAL.armFactor, CAL.sd.sleeve * k);
+    }
+    photo.torso = joints(m.torsoPx * m.cmPerPx, CAL.sd.torso * k);
+    photo.inseam =
+      m.crotchY !== null
+        ? { value: (m.bottom - m.crotchY) * m.cmPerPx, sd: CAL.sd.inseam * k, method: "outline" }
+        : joints(m.legPx * m.cmPerPx - CAL.crotchDropCm, CAL.sd.inseam * k);
 
     if (side) {
       const s = side.measure;
@@ -190,6 +224,7 @@ export function estimateBody({ heightCm, typed, front, side }: BodyInput): Body 
         photo[key] = {
           value: ellipsePerimeter(width / 2, depth / 2) * CAL.circumference[key],
           sd: CAL.sd[key] * ks,
+          method: "outline",
         };
       }
     }
@@ -208,7 +243,7 @@ export function estimateBody({ heightCm, typed, front, side }: BodyInput): Body 
       }
       body[key] = e;
     } else if (p) {
-      body[key] = { value: p.value, sd: p.sd, source: "photo" };
+      body[key] = { value: p.value, sd: p.sd, source: "photo", method: p.method };
     }
   }
   return body;

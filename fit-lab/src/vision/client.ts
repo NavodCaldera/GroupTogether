@@ -1,6 +1,6 @@
 import type { View } from "../types";
 import type { LiveResult, StillResult } from "./engine";
-import type { PoseKind } from "./mediapipe";
+import type { PoseMode, PoseModel } from "./mediapipe";
 import type { VisionRequest, VisionResponse } from "./protocol";
 
 type Pending = { resolve: (v: unknown) => void; reject: (e: Error) => void };
@@ -49,9 +49,9 @@ class VisionClient {
 
   private async inline(req: Payload): Promise<unknown> {
     const engine = await import("./engine");
-    if (req.type === "warm") return engine.warmUp(req.kind);
-    if (req.type === "live") return engine.detectLive(req.frame, req.timestamp);
-    return engine.analyzeStill(req.frame, req.view);
+    if (req.type === "warm") return engine.warmUp(req.model, req.mode);
+    if (req.type === "live") return engine.detectLive(req.frame, req.timestamp, req.model);
+    return engine.analyzeStill(req.frame, req.view, req.model);
   }
 
   private async call<T>(req: Payload, transfer: Transferable[]): Promise<T> {
@@ -73,17 +73,17 @@ class VisionClient {
     }
   }
 
-  /** Loads the models ahead of use; falls back to the main thread if the worker can't. */
-  warm(kind: PoseKind): Promise<void> {
-    return this.call({ type: "warm", kind }, []);
+  /** Loads a model ahead of use; falls back to the main thread if the worker can't. */
+  warm(model: PoseModel, mode: PoseMode): Promise<void> {
+    return this.call({ type: "warm", model, mode }, []);
   }
 
-  live(frame: ImageBitmap, timestamp: number): Promise<LiveResult> {
-    return this.call({ type: "live", frame, timestamp }, [frame]);
+  live(frame: ImageBitmap, timestamp: number, model: PoseModel): Promise<LiveResult> {
+    return this.call({ type: "live", frame, timestamp, model }, [frame]);
   }
 
-  still(frame: ImageBitmap, view: View): Promise<StillResult> {
-    return this.call({ type: "still", frame, view }, [frame]);
+  still(frame: ImageBitmap, view: View, model: PoseModel): Promise<StillResult> {
+    return this.call({ type: "still", frame, view, model }, [frame]);
   }
 }
 

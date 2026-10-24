@@ -5,7 +5,7 @@ import { ellipsePerimeter, normalCdf, probBetween } from "../src/measure/geometr
 import { poseIssues } from "../src/measure/quality";
 import { spanAt, spanWidth, verticalExtent } from "../src/measure/silhouette";
 import { LM } from "../src/types";
-import { CX, FRONT, makeFigure, SIDE, TOP } from "./support/figure";
+import { CX, FRONT, makeFigure, SHOULDER_Y, SIDE, TOP } from "./support/figure";
 
 describe("geometry", () => {
   it("ellipse perimeter of a circle is 2πr", () => {
@@ -67,11 +67,46 @@ describe("measurements from photos", () => {
     expect(body.chest!.value).toBeCloseTo(ellipsePerimeter(16, 12) * CAL.circumference.chest, -0.3);
     expect(body.waist!.value).toBeCloseTo(ellipsePerimeter(14, 11) * CAL.circumference.waist, -0.3);
     expect(body.hip!.value).toBeCloseTo(ellipsePerimeter(17.5, 13) * CAL.circumference.hip, -0.3);
-    expect(body.shoulder!.value).toBeCloseTo(190 * 0.2 * CAL.shoulderFactor, 3);
+    // Shoulder from the outline just below the shoulder landmarks (217 px there).
+    expect(body.shoulder).toMatchObject({ method: "outline" });
+    expect(body.shoulder!.value).toBeCloseTo(217 * 0.2 * CAL.shoulderOutlineFactor, 0);
+    // Inseam from the crotch (row 564) to the soles (row 949).
+    expect(body.inseam).toMatchObject({ method: "outline" });
+    expect(body.inseam!.value).toBeCloseTo((949 - 564) * 0.2, 3);
+    // Arm and torso lengths only from joints, with a wider spread.
+    expect(body.sleeve).toMatchObject({ method: "joints" });
     expect(body.sleeve!.value).toBeCloseTo((Math.hypot(60, 140) + Math.hypot(50, 130)) * 0.2, 3);
-    expect(body.torso!.value).toBeCloseTo(270 * 0.2, 3);
-    expect(body.chest!.source).toBe("photo");
-    expect(body.chest!.sd).toBe(CAL.sd.chest);
+    expect(body.sleeve!.sd).toBeCloseTo(CAL.sd.sleeve * CAL.jointsSdFactor, 6);
+    expect(body.torso).toMatchObject({ method: "joints", value: 270 * 0.2 });
+    expect(body.chest).toMatchObject({ source: "photo", method: "outline", sd: CAL.sd.chest });
+  });
+
+  it("falls back to joints when the outline can't be read", () => {
+    const fig = makeFigure({ view: "front", profile: FRONT });
+    const w = fig.mask.width;
+    // Legs together: fill the gap between them.
+    for (let y = 564; y < 950; y++)
+      for (let x = CX - 20; x <= CX + 20; x++) fig.mask.data[y * w + x] = 1;
+    // Arms raised level with the shoulders: the outline there runs out along the arms.
+    const row = Math.round(SHOULDER_Y + CAL.shoulderRowAt * 270);
+    for (let y = row - 8; y <= row + 8; y++)
+      for (let x = 20; x < w - 20; x++) fig.mask.data[y * w + x] = 1;
+    const m = measureFront(fig, 180)!;
+    expect(m.crotchY).toBeNull();
+    expect(m.shoulder).toBeNull();
+    const body = estimateBody({ heightCm: 180, typed: {}, front: { measure: m, issues: [] } });
+    expect(body.inseam).toMatchObject({ method: "joints" });
+    expect(body.inseam!.value).toBeCloseTo((949 - 482) * 0.2 - CAL.crotchDropCm, 0);
+    expect(body.shoulder).toMatchObject({ method: "joints" });
+    expect(body.shoulder!.value).toBeCloseTo(190 * 0.2 * CAL.shoulderJointFactor, 3);
+  });
+
+  it("stops the hip search short of the knees", () => {
+    const fig = makeFigure({ view: "front", profile: FRONT });
+    // Knees just below the hips: the widest row must stay within half-way to them.
+    fig.landmarks[LM.leftKnee] = { ...fig.landmarks[LM.leftKnee], y: 482 + 40 };
+    fig.landmarks[LM.rightKnee] = { ...fig.landmarks[LM.rightKnee], y: 482 + 40 };
+    expect(measureFront(fig, 180)!.hip.y).toBeLessThanOrEqual(482 + 20);
   });
 
   it("has no circumferences without a side photo", () => {

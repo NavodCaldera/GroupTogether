@@ -32,8 +32,14 @@ export class LiveSession {
 
   constructor(private view: View) {}
 
-  step(t: number, landmarks: Landmark[], people: number, aspect: number): LiveStep {
-    let prompt = positionPrompt(this.view, landmarks, people, aspect);
+  step(
+    t: number,
+    landmarks: Landmark[],
+    people: number,
+    aspect: number,
+    turn: number | null = null,
+  ): LiveStep {
+    let prompt = positionPrompt(this.view, landmarks, people, aspect, turn);
     const ok = prompt === null;
     const still = ok && this.stability.push(t, landmarks, aspect);
     if (!ok) {

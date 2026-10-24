@@ -3,6 +3,7 @@ import {
   measureFront,
   measureSide,
   type FrontMeasure,
+  type PosePhoto,
   type SideMeasure,
 } from "../measure/estimate";
 import { BLOCKING } from "../measure/quality";
@@ -16,15 +17,21 @@ export interface Measured {
   issues: Issue[];
 }
 
-export function usable(p: PhotoAnalysis | undefined): p is PhotoAnalysis {
+/** What measuring needs from a photo analysis. */
+export interface MeasurablePhoto extends PosePhoto {
+  view: View;
+  issues: Issue[];
+}
+
+export function usable<T extends { issues: Issue[] }>(p: T | undefined): p is T {
   return !!p && !p.issues.some((i) => BLOCKING.includes(i));
 }
 
 /** One photo's measurement; the side photo reuses the front photo's waist row. */
 export function measurePhoto(
-  photo: PhotoAnalysis,
+  photo: MeasurablePhoto,
   height: number,
-  front?: PhotoAnalysis,
+  front?: MeasurablePhoto,
 ): Measured {
   if (!height || !usable(photo)) return { measure: null, issues: photo.issues };
   if (photo.view === "front") {

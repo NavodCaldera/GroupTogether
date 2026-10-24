@@ -6,13 +6,15 @@ import type { View } from "../types";
 import { analyzePhoto, type PhotoAnalysis } from "../vision/analyze";
 import { vision } from "../vision/client";
 import type { LiveResult } from "../vision/engine";
+import type { Models } from "../vision/mediapipe";
 import { measurePhoto, type Photos } from "./derive";
 import { useCamera, useSpeech, type Facing } from "./hooks";
 import { drawLive } from "./overlay";
 import { IssueChips, PhotoCanvas } from "./PhotoCanvas";
 
-/** Live frames are downscaled before analysis; the lite model's input is smaller still. */
+/** Live frames are downscaled before analysis; the pose model's input is smaller still. */
 const LIVE_WIDTH = 384;
+const MODEL_NAME = { lite: "Lite", full: "Full", heavy: "Heavy" } as const;
 
 const TITLE: Record<View, string> = { front: "Front", side: "Side" };
 const CUES: Record<View, string[]> = {
@@ -26,11 +28,12 @@ interface Props {
   views: View[];
   height: number;
   photos: Photos;
+  models: Models;
   onAccept: (photo: PhotoAnalysis) => void;
   onClose: () => void;
 }
 
-export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props) {
+export function CaptureFlow({ views, height, photos, models, onAccept, onClose }: Props) {
   const [step, setStep] = useState(0);
   const view = views[step];
   const [phase, setPhase] = useState<Phase>("intro");
@@ -42,6 +45,7 @@ export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props)
   const [shot, setShot] = useState<PhotoAnalysis | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState<Photos>({});
+  const [liveMs, setLiveMs] = useState<number | null>(null);
 
   const { videoRef, status } = useCamera(cameraOn, facing);
   const overlayRef = useRef<HTMLCanvasElement>(null);
@@ -50,12 +54,16 @@ export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props)
   sayRef.current = say;
 
   useEffect(() => {
-    void vision.warm("live").catch(() => undefined);
-    void vision.warm("still").catch(() => undefined);
-    return () => {
+    void vision.warm(models.live, "live").catch(() => undefined);
+    void vision.warm(models.still, "still").catch(() => undefined);
+  }, [models.live, models.still]);
+
+  useEffect(
+    () => () => {
       if ("speechSynthesis" in window) speechSynthesis.cancel();
-    };
-  }, []);
+    },
+    [],
+  );
 
   // Capture mode: one careful pass on the chosen still frame.
   async function capture() {
@@ -63,7 +71,7 @@ export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props)
     if (!video?.videoWidth) return;
     setPhase("analysing");
     try {
-      setShot(await analyzePhoto(video, video.videoWidth, video.videoHeight, view));
+      setShot(await analyzePhoto(video, video.videoWidth, video.videoHeight, view, models.still));
       setPhase("review");
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -81,6 +89,7 @@ export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props)
     const session = new LiveSession(view);
     let stopped = false;
     let handle = 0;
+    let msShownAt = 0;
     setPrompt(null);
     setCount(null);
 
@@ -94,7 +103,12 @@ export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props)
     };
 
     const handleResult = (r: LiveResult, vw: number, vh: number) => {
-      const s = session.step(performance.now(), r.landmarks, r.people, vw / vh);
+      const t = performance.now();
+      const s = session.step(t, r.landmarks, r.people, vw / vh, r.turn);
+      if (t - msShownAt > 1000) {
+        msShownAt = t;
+        setLiveMs(r.ms);
+      }
       if (canvas.width !== vw || canvas.height !== vh) {
         canvas.width = vw;
         canvas.height = vh;
@@ -121,7 +135,7 @@ export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props)
             resizeHeight: Math.round((vh * LIVE_WIDTH) / vw),
             resizeQuality: "low",
           });
-          const r = await vision.live(frame, performance.now());
+          const r = await vision.live(frame, performance.now(), models.live);
           if (stopped) return;
           handleResult(r, vw, vh);
         } catch (err) {
@@ -140,7 +154,7 @@ export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props)
       if ("cancelVideoFrameCallback" in video) video.cancelVideoFrameCallback(handle);
       cancelAnimationFrame(handle);
     };
-  }, [phase, status, view, videoRef]);
+  }, [phase, status, view, videoRef, models.live]);
 
   function start() {
     setCameraOn(true);
@@ -173,6 +187,11 @@ export function CaptureFlow({ views, height, photos, onAccept, onClose }: Props)
         <span>
           {TITLE[view]} · {step + 1} of {views.length}
         </span>
+        {phase === "live" && liveMs !== null && (
+          <span className="muted">
+            {MODEL_NAME[models.live]} · {Math.round(liveMs)} ms
+          </span>
+        )}
       </div>
 
       <div className="stage">

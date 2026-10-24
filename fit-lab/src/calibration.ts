@@ -10,11 +10,19 @@ export const CAL = {
   /** Used when there is no front photo to find the waist row. */
   waistAtDefault: 0.62,
 
-  /** Shoulder landmarks sit at the joints; a tape across the back is wider. */
-  shoulderFactor: 1.2,
+  /** Shoulder outline row, as a fraction of torso length below the shoulder landmarks. */
+  shoulderRowAt: 0.05,
+  /** The outline across the deltoids is a little wider than a tape across the back. */
+  shoulderOutlineFactor: 0.95,
+  /** An outline wider than this many shoulder-landmark widths means the arms are raised into it. */
+  shoulderOutlineMax: 1.6,
+  /** Fallbacks from joint positions, used only when the outline can't be read. */
+  shoulderJointFactor: 1.2,
   armFactor: 1.0,
-  /** Hip landmark (joint) to crotch. */
+  /** Hip landmark (joint) to crotch, for the joint fallback of the inseam. */
   crotchDropCm: 10,
+  /** The hip search stops this far from the hip line towards the knees. */
+  hipToKneeLimit: 0.5,
 
   /** A torso cross-section is fuller than an ellipse of the same width and depth. */
   circumference: { chest: 1.06, waist: 1.02, hip: 1.03 },
@@ -30,6 +38,8 @@ export const CAL = {
     inseam: 2.5,
     height: 0,
   },
+  /** Joint-position estimates are not validated as sizes: widen their spread. */
+  jointsSdFactor: 1.5,
   typedSd: 1,
   garmentSd: 1,
   /** Each photo issue multiplies the standard deviation by 1 + this. */

@@ -8,6 +8,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const MODELS = {
   "pose_landmarker_lite.task":
     "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+  "pose_landmarker_full.task":
+    "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
   "pose_landmarker_heavy.task":
     "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_heavy/float16/1/pose_landmarker_heavy.task",
 };

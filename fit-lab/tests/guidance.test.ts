@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { positionPrompt, Stability } from "../src/live/guidance";
 import { LiveSession } from "../src/live/session";
+import { poseFaults, turnAngle } from "../src/measure/pose";
 import { LM, type Landmark } from "../src/types";
 
 // A standing person in a 3:4 portrait frame (aspect 0.75), normalized coordinates.
@@ -122,5 +123,54 @@ describe("live session", () => {
     const steps = run(s, 0, 8000, far);
     expect(steps[0]).toMatchObject({ prompt: "move_closer", announce: false });
     expect(steps.filter((x) => x.announce).map((x) => x.t)).toEqual([600, 7700]);
+  });
+});
+
+describe("pose checks", () => {
+  const withPoints = (lm: Landmark[], changes: Record<number, Partial<Landmark>>) =>
+    lm.map((p, i) => ({ ...p, ...changes[i] }));
+
+  it("asks to move back when the shoulders or hips are hidden", () => {
+    const lm = withPoints(person(), { [LM.leftHip]: { visibility: 0.1 } });
+    expect(positionPrompt("front", lm, 1, A)).toBe("move_back");
+  });
+
+  it("checks the feet in the front view", () => {
+    const cx = 0.5;
+    const feet = (half: number) =>
+      withPoints(person(), {
+        [LM.leftAnkle]: { x: cx + half },
+        [LM.rightAnkle]: { x: cx - half },
+      });
+    expect(positionPrompt("front", feet(0.01), 1, A)).toBe("feet_apart");
+    expect(positionPrompt("front", feet(0.2), 1, A)).toBe("feet_closer");
+  });
+
+  it("asks for the arms down side-on", () => {
+    const lm = withPoints(person({ view: "side" }), { [LM.leftWrist]: { x: 0.5 + 0.15 } });
+    expect(positionPrompt("side", lm, 1, A)).toBe("arms_down");
+  });
+
+  it("uses the shoulder turn to tell front from side", () => {
+    expect(turnAngle(undefined)).toBeNull();
+    const world = Array.from({ length: 33 }, () => ({ x: 0, y: 0, z: 0 }));
+    world[LM.leftShoulder] = { x: 0.18, y: 0, z: 0.02 };
+    world[LM.rightShoulder] = { x: -0.18, y: 0, z: -0.02 };
+    expect(turnAngle(world)).toBeLessThan(10);
+    world[LM.leftShoulder] = { x: 0.02, y: 0, z: 0.18 };
+    world[LM.rightShoulder] = { x: -0.02, y: 0, z: -0.18 };
+    expect(turnAngle(world)).toBeGreaterThan(80);
+
+    expect(positionPrompt("front", person(), 1, A, 60)).toBe("face_camera");
+    expect(positionPrompt("side", person({ view: "side" }), 1, A, 20)).toBe("turn_sideways");
+    expect(positionPrompt("side", person({ view: "side" }), 1, A, 85)).toBeNull();
+  });
+
+  it("reports the same faults on still photos", () => {
+    const lm = withPoints(person(), {
+      [LM.leftAnkle]: { x: 0.51 },
+      [LM.rightAnkle]: { x: 0.49 },
+    }).map((p) => ({ ...p, x: p.x * A }));
+    expect(poseFaults("front", lm)).toContain("feet_together");
   });
 });

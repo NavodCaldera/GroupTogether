@@ -8,12 +8,12 @@ self.onmessage = async (e: MessageEvent<VisionRequest>) => {
   const req = e.data;
   try {
     if (req.type === "warm") {
-      await warmUp(req.kind);
+      await warmUp(req.model, req.mode);
       post({ id: req.id, ok: true, result: null });
     } else if (req.type === "live") {
-      post({ id: req.id, ok: true, result: await detectLive(req.frame, req.timestamp) });
+      post({ id: req.id, ok: true, result: await detectLive(req.frame, req.timestamp, req.model) });
     } else {
-      const result = await analyzeStill(req.frame, req.view);
+      const result = await analyzeStill(req.frame, req.view, req.model);
       post({ id: req.id, ok: true, result }, [result.mask.data.buffer]);
     }
   } catch (err) {

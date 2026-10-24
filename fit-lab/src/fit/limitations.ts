@@ -20,6 +20,11 @@ export function limitations(rec: Recommendation): string[] {
       );
     }
   }
+  const joints = used.filter((d) => d.body!.source === "photo" && d.body!.method === "joints");
+  if (joints.length) {
+    const names = joints.map((d) => BODY_LABEL[BODY_FOR[d.key]]).join(", ");
+    out.push(`${names} from joint positions, not validated`);
+  }
   if (rec.garment.sample) out.push("Sample size chart");
   if (rec.garment.fabric.stretchPct > 0)
     out.push(`Stretch counted: ${rec.garment.fabric.stretchPct}%`);

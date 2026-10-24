@@ -6,9 +6,11 @@ import { BODY_LABEL, GARMENT_LABEL, verdictLabel } from "../labels";
 import { BLOCKING } from "../measure/quality";
 import type { Body, BodyKey, View } from "../types";
 import { analyzePhoto } from "../vision/analyze";
+import { DEFAULT_MODELS, type Models } from "../vision/mediapipe";
 import { CaptureFlow } from "./CaptureFlow";
 import { derive, type Measured, type Photos } from "./derive";
 import { useStored } from "./hooks";
+import { ModelTest } from "./ModelTest";
 import { IssueChips, PhotoCanvas } from "./PhotoCanvas";
 
 const TYPED: BodyKey[] = ["height", "shoulder", "chest", "waist", "hip", "sleeve", "inseam"];
@@ -31,6 +33,7 @@ const signed = (n: number) => (n > 0 ? "+" : "") + cm(n);
 export function App() {
   const [typed, setTyped] = useStored<Partial<Record<BodyKey, number>>>("fit-lab.typed", {});
   const [garmentId, setGarmentId] = useStored("fit-lab.garment", GARMENTS[0].id);
+  const [models, setModels] = useStored<Models>("fit-lab.models", DEFAULT_MODELS);
   const [photos, setPhotos] = useState<Photos>({});
   const [busy, setBusy] = useState<Partial<Record<View, boolean>>>({});
   const [errors, setErrors] = useState<Partial<Record<View, string>>>({});
@@ -47,7 +50,7 @@ export function App() {
     setErrors((e) => ({ ...e, [view]: undefined }));
     try {
       const bmp = await createImageBitmap(file, { imageOrientation: "from-image" });
-      const photo = await analyzePhoto(bmp, bmp.width, bmp.height, view);
+      const photo = await analyzePhoto(bmp, bmp.width, bmp.height, view, models.still);
       setPhotos((p) => ({ ...p, [view]: photo }));
     } catch (err) {
       setErrors((e) => ({ ...e, [view]: err instanceof Error ? err.message : String(err) }));
@@ -152,11 +155,14 @@ export function App() {
         <FitResult rec={rec} />
       </section>
 
+      <ModelTest models={models} onModels={setModels} typed={typed} />
+
       {flow && (
         <CaptureFlow
           views={flow}
           height={height}
           photos={photos}
+          models={models}
           onAccept={(photo) => setPhotos((p) => ({ ...p, [photo.view]: photo }))}
           onClose={() => setFlow(null)}
         />
@@ -246,7 +252,8 @@ function BodyTable({ body }: { body: Body }) {
                 <td className={`num ${e ? "" : "muted"}`}>{e ? cm(e.value) : "—"}</td>
                 <td className="num muted">{e ? `±${Math.round(2 * e.sd)}` : ""}</td>
                 <td>
-                  {e && (e.source === "typed" ? "Typed" : "Photo")}
+                  {e &&
+                    (e.source === "typed" ? "Typed" : e.method === "joints" ? "Joints" : "Outline")}
                   {e?.photo !== undefined && (
                     <span className={`chip ${e.mismatch ? "" : "good"}`}> Photo {cm(e.photo)}</span>
                   )}

@@ -1,3 +1,4 @@
+import { poseFaults, type PoseFault } from "../measure/pose";
 import { LM, type Landmark, type View } from "../types";
 
 export type Prompt =
@@ -10,6 +11,9 @@ export type Prompt =
   | "face_camera"
   | "turn_sideways"
   | "arms_out"
+  | "arms_down"
+  | "feet_apart"
+  | "feet_closer"
   | "stand_straight"
   | "stay_still"
   | "capturing";
@@ -24,6 +28,9 @@ export const PROMPT_TEXT: Record<Prompt, string> = {
   face_camera: "Face the camera",
   turn_sideways: "Turn sideways",
   arms_out: "Hold your arms slightly out",
+  arms_down: "Keep your arms down by your sides",
+  feet_apart: "Stand with your feet slightly apart",
+  feet_closer: "Bring your feet closer together",
   stand_straight: "Stand straight",
   stay_still: "Stay still",
   capturing: "Capturing now",
@@ -39,52 +46,48 @@ export function bodyExtent(lm: Landmark[]) {
   return { top, bottom, span: bottom - top };
 }
 
+const FAULT_PROMPT: Record<PoseFault, Prompt> = {
+  core_hidden: "move_back",
+  limbs_hidden: "whole_body",
+  not_facing: "face_camera",
+  not_sideways: "turn_sideways",
+  arms_in: "arms_out",
+  arms_not_down: "arms_down",
+  feet_together: "feet_apart",
+  feet_wide: "feet_closer",
+  leaning: "stand_straight",
+};
+
 /**
  * The first thing the person should fix, or null when the position is right.
  * Landmarks are normalized 0..1; `aspect` is frame width / height so x and y
- * distances can be compared.
+ * distances can be compared. `turn` is the shoulder rotation from world landmarks.
  */
 export function positionPrompt(
   view: View,
   lm: Landmark[],
   people: number,
   aspect: number,
+  turn: number | null = null,
 ): Prompt | null {
   if (!people || lm.length < 33) return "step_in";
   if (people > 1) return "one_person";
 
+  const u = lm.map((p) => ({ ...p, x: p.x * aspect }));
+  const faults = poseFaults(view, u, turn);
+  // Shoulders and hips hidden: usually too close.
+  if (faults[0] === "core_hidden") return "move_back";
+
   const { top, bottom, span } = bodyExtent(lm);
-  const ankles = Math.max(lm[LM.leftAnkle].visibility, lm[LM.rightAnkle].visibility);
   if (span > 0.92 || (top < 0.02 && bottom > 0.98)) return "move_back";
-  if (top < 0.02 || bottom > 0.98 || ankles < 0.5 || lm[LM.nose].visibility < 0.5)
-    return "whole_body";
+  if (top < 0.02 || bottom > 0.98 || lm[LM.nose].visibility < 0.5) return "whole_body";
+  if (faults.includes("limbs_hidden")) return "whole_body";
   if (span < 0.55) return "move_closer";
 
-  const x = (p: Landmark) => p.x * aspect;
-  const ls = lm[LM.leftShoulder];
-  const rs = lm[LM.rightShoulder];
-  const hipX = (x(lm[LM.leftHip]) + x(lm[LM.rightHip])) / 2;
-  if (hipX / aspect < 0.3 || hipX / aspect > 0.7) return "centre";
+  const hipX = (lm[LM.leftHip].x + lm[LM.rightHip].x) / 2;
+  if (hipX < 0.3 || hipX > 0.7) return "centre";
 
-  const midX = (x(ls) + x(rs)) / 2;
-  const shoulderY = (ls.y + rs.y) / 2;
-  const hipY = (lm[LM.leftHip].y + lm[LM.rightHip].y) / 2;
-  const across = Math.abs(x(ls) - x(rs)) / Math.max(hipY - shoulderY, 1e-6);
-  if (view === "front" && across < 0.45) return "face_camera";
-  if (view === "side" && across > 0.3) return "turn_sideways";
-
-  if (view === "front") {
-    // Wrists clear of the hips: a hanging arm sits ~1.2 shoulder half-widths from the midline.
-    const half = Math.abs(x(ls) - x(rs)) / 2;
-    const clear = [LM.leftWrist, LM.rightWrist].every(
-      (i) => Math.abs(x(lm[i]) - midX) > 1.4 * half,
-    );
-    if (!clear) return "arms_out";
-  }
-
-  const ankleX = (x(lm[LM.leftAnkle]) + x(lm[LM.rightAnkle])) / 2;
-  if (Math.abs(midX - ankleX) / span > 0.06) return "stand_straight";
-  return null;
+  return faults.length ? FAULT_PROMPT[faults[0]] : null;
 }
 
 const TRACKED = [

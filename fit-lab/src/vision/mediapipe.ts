@@ -4,33 +4,45 @@ import { FilesetResolver, PoseLandmarker } from "@mediapipe/tasks-vision";
 // processed without calling any outside service.
 const BASE = import.meta.env.BASE_URL;
 const WASM = `${BASE}mediapipe`;
-const MODEL = {
-  live: `${BASE}models/pose_landmarker_lite.task`,
-  still: `${BASE}models/pose_landmarker_heavy.task`,
-};
 
-export type PoseKind = keyof typeof MODEL;
+export type PoseModel = "lite" | "full" | "heavy";
+/** Live: video mode, landmarks only. Still: image mode with the body mask. */
+export type PoseMode = "live" | "still";
+
+export interface Models {
+  live: PoseModel;
+  still: PoseModel;
+}
+
+export const DEFAULT_MODELS: Models = { live: "lite", still: "heavy" };
+
+const modelPath = (m: PoseModel) => `${BASE}models/pose_landmarker_${m}.task`;
 
 // A module worker can't importScripts, so it needs MediaPipe's ES module loader.
 const WGS = (globalThis as { WorkerGlobalScope?: new () => unknown }).WorkerGlobalScope;
 const inWorker = !!WGS && globalThis instanceof WGS;
 
 let files: ReturnType<typeof FilesetResolver.forVisionTasks> | null = null;
-const loading: Partial<Record<PoseKind, Promise<PoseLandmarker>>> = {};
+const loading = new Map<string, Promise<PoseLandmarker>>();
+let created = 0;
+let queue: Promise<unknown> = Promise.resolve();
 
-async function create(kind: PoseKind): Promise<PoseLandmarker> {
+async function create(model: PoseModel, mode: PoseMode): Promise<PoseLandmarker> {
   files ??= FilesetResolver.forVisionTasks(WASM, inWorker);
-  const fileset = await files;
+  const base = await files;
+  // The loader sets a global factory that each new task consumes; an ES module
+  // import is cached and won't set it again, so give every task its own copy.
+  const fileset = { ...base, wasmLoaderPath: `${base.wasmLoaderPath}?task=${++created}` };
   const make = (delegate: "GPU" | "CPU") =>
     PoseLandmarker.createFromOptions(fileset, {
-      baseOptions: { modelAssetPath: MODEL[kind], delegate },
+      baseOptions: { modelAssetPath: modelPath(model), delegate },
       // GPU work needs its own canvas; an OffscreenCanvas works in a worker too.
       ...(delegate === "GPU" && typeof OffscreenCanvas !== "undefined"
         ? { canvas: new OffscreenCanvas(1, 1) }
         : {}),
-      runningMode: kind === "live" ? "VIDEO" : "IMAGE",
+      runningMode: mode === "live" ? "VIDEO" : "IMAGE",
       numPoses: 2,
-      outputSegmentationMasks: kind === "still",
+      outputSegmentationMasks: mode === "still",
     });
   try {
     return await make("GPU");
@@ -39,9 +51,15 @@ async function create(kind: PoseKind): Promise<PoseLandmarker> {
   }
 }
 
-/** Live: the lite model on video frames. Still: the heavy model with a body mask. */
-export function loadPose(kind: PoseKind): Promise<PoseLandmarker> {
-  const p = (loading[kind] ??= create(kind));
-  p.catch(() => delete loading[kind]);
+export function loadPose(model: PoseModel, mode: PoseMode): Promise<PoseLandmarker> {
+  const key = `${model}:${mode}`;
+  let p = loading.get(key);
+  if (!p) {
+    // One at a time: concurrent creation races on the same global factory.
+    p = queue.then(() => create(model, mode));
+    queue = p.catch(() => undefined);
+    loading.set(key, p);
+    p.catch(() => loading.delete(key));
+  }
   return p;
 }

@@ -1,6 +1,7 @@
 import type { View } from "../types";
 import { vision } from "./client";
 import type { StillResult } from "./engine";
+import type { PoseModel } from "./mediapipe";
 
 export interface PhotoAnalysis extends StillResult {
   view: View;
@@ -29,8 +30,9 @@ export async function analyzePhoto(
   width: number,
   height: number,
   view: View,
+  model: PoseModel,
 ): Promise<PhotoAnalysis> {
   const image = toCanvas(source, width, height);
-  const result = await vision.still(await createImageBitmap(image), view);
+  const result = await vision.still(await createImageBitmap(image), view, model);
   return { ...result, view, image };
 }

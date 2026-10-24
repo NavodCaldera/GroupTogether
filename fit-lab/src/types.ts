@@ -11,6 +11,13 @@ export interface Landmark {
   visibility: number;
 }
 
+/** MediaPipe world landmark: metres, hip-centred. A model estimate, not a calibrated measurement. */
+export interface WorldPoint {
+  x: number;
+  y: number;
+  z: number;
+}
+
 /** Binary body mask, 1 = body, row-major. */
 export interface Mask {
   width: number;
@@ -36,6 +43,9 @@ export type Issue =
   | "not_facing"
   | "not_sideways"
   | "arms_touching"
+  | "arms_not_down"
+  | "legs_together"
+  | "wide_stance"
   | "leaning";
 
 export interface Estimate {
@@ -43,6 +53,8 @@ export interface Estimate {
   /** One standard deviation, cm. */
   sd: number;
   source: "typed" | "photo";
+  /** How a photo estimate was taken: the body outline, or joint positions (not validated as sizes). */
+  method?: "outline" | "joints";
   /** Photo estimate when a typed value is used instead. */
   photo?: number;
   /** Typed and photo values disagree by more than two photo standard deviations. */
@@ -62,6 +74,8 @@ export const LM = {
   rightWrist: 16,
   leftHip: 23,
   rightHip: 24,
+  leftKnee: 25,
+  rightKnee: 26,
   leftAnkle: 27,
   rightAnkle: 28,
 } as const;

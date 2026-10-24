@@ -294,8 +294,16 @@ tr.best td {
 }
 
 .capture-head {
+  display: flex;
+  justify-content: space-between;
   padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
   font-weight: 600;
+}
+
+.capture-head .muted {
+  color: #9a9a94;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
 }
 
 .stage {
@@ -436,4 +444,9 @@ tr.best td {
   .photos {
     grid-template-columns: 1fr;
   }
+}
+
+h3.sub {
+  font-size: 14px;
+  margin: 20px 0 10px;
 }
