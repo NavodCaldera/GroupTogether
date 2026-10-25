@@ -2,7 +2,7 @@
 // capture success, landmark stability and measurement error against tape values.
 import { estimateBody, type FrontMeasure, type PosePhoto } from "../measure/estimate";
 import { verticalExtent } from "../measure/silhouette";
-import { LM, type BodyKey, type Issue, type View } from "../types";
+import { LM, type BodyKey, type Issue, type Mask, type View } from "../types";
 import { measurePhoto, usable } from "../ui/derive";
 import type { PoseModel } from "../vision/mediapipe";
 
@@ -12,6 +12,8 @@ export interface StillRun extends PosePhoto {
   file: string;
   issues: Issue[];
   ms: { pose: number; total: number };
+  /** Masks at test thresholds, when the run asked for them. */
+  alt?: { threshold: number; mask: Mask }[];
 }
 
 export interface LiveRun {
@@ -139,6 +141,29 @@ export function summarizeStill(
       return [{ key, n: values[key]!.length, ...s, error: t ? s.mean - t : null }];
     }),
   };
+}
+
+export interface ThresholdSummary {
+  threshold: number;
+  measures: MeasureSummary[];
+}
+
+/** The same photos measured with the person mask cut at each test threshold. */
+export function summarizeThresholds(
+  model: PoseModel,
+  runs: StillRun[],
+  heightCm: number,
+  truth: Partial<Record<BodyKey, number>>,
+): ThresholdSummary[] {
+  const mine = runs.filter((r) => r.model === model && r.alt?.length);
+  const thresholds = [...new Set(mine.flatMap((r) => r.alt!.map((a) => a.threshold)))].sort();
+  return thresholds.map((threshold) => {
+    const atThreshold = mine.flatMap((r) => {
+      const alt = r.alt!.find((a) => a.threshold === threshold);
+      return alt ? [{ ...r, mask: alt.mask }] : [];
+    });
+    return { threshold, measures: summarizeStill(model, atThreshold, heightCm, truth).measures };
+  });
 }
 
 export interface LiveSummary {

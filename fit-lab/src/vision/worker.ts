@@ -13,8 +13,11 @@ self.onmessage = async (e: MessageEvent<VisionRequest>) => {
     } else if (req.type === "live") {
       post({ id: req.id, ok: true, result: await detectLive(req.frame, req.timestamp, req.model) });
     } else {
-      const result = await analyzeStill(req.frame, req.view, req.model);
-      post({ id: req.id, ok: true, result }, [result.mask.data.buffer]);
+      const result = await analyzeStill(req.frame, req.view, req.model, req.thresholds);
+      post({ id: req.id, ok: true, result }, [
+        result.mask.data.buffer,
+        ...result.alt.map((a) => a.mask.data.buffer),
+      ]);
     }
   } catch (err) {
     post({ id: req.id, ok: false, error: err instanceof Error ? err.message : String(err) });

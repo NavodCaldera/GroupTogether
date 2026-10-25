@@ -5,6 +5,7 @@ import {
   median,
   summarizeLive,
   summarizeStill,
+  summarizeThresholds,
   toCsv,
   type LiveRun,
   type StillRun,
@@ -82,5 +83,34 @@ describe("model comparison", () => {
     expect(lines.filter((l) => l.startsWith("still,"))).toHaveLength(6);
     expect(lines.filter((l) => l.startsWith("live,"))).toHaveLength(2);
     expect(lines.some((l) => l.startsWith("measure,Test phone,full,,,,,,,chest,"))).toBe(true);
+  });
+});
+
+describe("mask thresholds", () => {
+  it("summarizes measurements per test threshold", () => {
+    const narrow = (r: StillRun): StillRun => {
+      // A copy of the mask one pixel narrower on each side of every row.
+      const { width: w, height: h, data } = r.mask;
+      const d = new Uint8Array(data.length);
+      for (let y = 0; y < h; y++)
+        for (let x = 1; x < w - 1; x++) {
+          const i = y * w + x;
+          d[i] = data[i] && data[i - 1] && data[i + 1] ? 1 : 0;
+        }
+      return {
+        ...r,
+        alt: [
+          { threshold: 0.3, mask: r.mask },
+          { threshold: 0.7, mask: { width: w, height: h, data: d } },
+        ],
+      };
+    };
+    const runs = [narrow(run("front", "full")), narrow(run("side", "full"))];
+    const rows = summarizeThresholds("full", runs, 180, { chest: 90 });
+    expect(rows.map((r) => r.threshold)).toEqual([0.3, 0.7]);
+    const chest = (i: number) => rows[i].measures.find((m) => m.key === "chest")!;
+    expect(chest(1).mean).toBeLessThan(chest(0).mean);
+    expect(chest(0).error).toBeCloseTo(chest(0).mean - 90, 6);
+    expect(summarizeThresholds("heavy", runs, 180, {})).toEqual([]);
   });
 });

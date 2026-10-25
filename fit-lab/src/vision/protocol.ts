@@ -5,7 +5,14 @@ import type { PoseMode, PoseModel } from "./mediapipe";
 export type VisionRequest =
   | { id: number; type: "warm"; model: PoseModel; mode: PoseMode }
   | { id: number; type: "live"; frame: ImageBitmap; timestamp: number; model: PoseModel }
-  | { id: number; type: "still"; frame: ImageBitmap; view: View; model: PoseModel };
+  | {
+      id: number;
+      type: "still";
+      frame: ImageBitmap;
+      view: View;
+      model: PoseModel;
+      thresholds: number[];
+    };
 
 export type VisionResponse =
   | { id: number; ok: true; result: LiveResult | StillResult | null }

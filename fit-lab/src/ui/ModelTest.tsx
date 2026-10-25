@@ -1,12 +1,15 @@
 import { useRef, useState } from "react";
+import { CAL } from "../calibration";
 import {
   summarizeLive,
   summarizeStill,
+  summarizeThresholds,
   toCsv,
   type LiveRun,
   type LiveSummary,
   type StillRun,
   type StillSummary,
+  type ThresholdSummary,
 } from "../eval/compare";
 import { BODY_LABEL } from "../labels";
 import { positionPrompt } from "../live/guidance";
@@ -27,6 +30,7 @@ const signed = (x: number) => (x > 0 ? "+" : "") + x.toFixed(1);
 
 interface Result {
   still: StillSummary[];
+  thresholds: { model: PoseModel; rows: ThresholdSummary[] }[];
   live: LiveSummary[];
   csv: string;
 }
@@ -90,6 +94,7 @@ export function ModelTest(props: {
             img.canvas.height,
             img.view,
             model,
+            CAL.mask.testThresholds,
           );
           still.push({
             model,
@@ -99,6 +104,7 @@ export function ModelTest(props: {
             mask: a.mask,
             issues: a.issues,
             ms: a.ms,
+            alt: a.alt,
           });
         }
       }
@@ -120,7 +126,16 @@ export function ModelTest(props: {
     }
     const stillS = STILL_MODELS.map((m) => summarizeStill(m, still, height, typed));
     const liveS = LIVE_MODELS.map((m) => summarizeLive(m, live));
-    setResult({ still: stillS, live: liveS, csv: toCsv(navigator.userAgent, still, live, stillS) });
+    const thresholds = STILL_MODELS.map((model) => ({
+      model,
+      rows: summarizeThresholds(model, still, height, typed),
+    }));
+    setResult({
+      still: stillS,
+      thresholds,
+      live: liveS,
+      csv: toCsv(navigator.userAgent, still, live, stillS),
+    });
     setProgress(null);
   }
 
@@ -285,6 +300,46 @@ export function ModelTest(props: {
                       })}
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {keys.length > 0 && (
+            <div className="scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Mask threshold</th>
+                    {keys.map((k) => (
+                      <th key={k} className="num">
+                        {BODY_LABEL[k]}
+                        {typed[k] ? ` (${typed[k]})` : ""}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {result.thresholds.flatMap(({ model, rows }) =>
+                    rows.map((row) => (
+                      <tr key={`${model}-${row.threshold}`}>
+                        <td>
+                          {NAME[model]} · {row.threshold}
+                        </td>
+                        {keys.map((k) => {
+                          const m = row.measures.find((x) => x.key === k);
+                          return (
+                            <td key={k} className="num">
+                              {m ? m.mean.toFixed(1) : "—"}
+                              {m?.error != null && (
+                                <span className="muted"> · {signed(m.error)}</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    )),
+                  )}
                 </tbody>
               </table>
             </div>

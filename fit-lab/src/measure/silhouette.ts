@@ -102,3 +102,42 @@ export function crotchRow(mask: Mask, x: number, fromY: number, bottom: number):
   }
   return null;
 }
+
+/** Width of the run of pixels above `threshold` on row `y` that contains `x`, from a probability mask. */
+function runWidth(
+  probs: Float32Array,
+  width: number,
+  y: number,
+  x: number,
+  threshold: number,
+): number {
+  const row = Math.round(y) * width;
+  const cx = Math.round(x);
+  if (cx < 0 || cx >= width || !(probs[row + cx] > threshold)) return 0;
+  let l = cx;
+  let r = cx;
+  while (l > 0 && probs[row + l - 1] > threshold) l--;
+  while (r < width - 1 && probs[row + r + 1] > threshold) r++;
+  return r - l + 1;
+}
+
+/**
+ * How far the torso outline moves between a low and a high mask threshold, as a
+ * share of the width at the middle threshold (median over rows). Sharp edges
+ * give ~0; blurred, loose or low-contrast edges give large values.
+ */
+export function outlineSpread(
+  probs: Float32Array,
+  width: number,
+  rows: { y: number; x: number }[],
+  lo: number,
+  hi: number,
+): number | null {
+  const mid = (lo + hi) / 2;
+  const spreads = rows.flatMap(({ y, x }) => {
+    const w = runWidth(probs, width, y, x, mid);
+    if (!w) return [];
+    return [(runWidth(probs, width, y, x, lo) - runWidth(probs, width, y, x, hi)) / w];
+  });
+  return spreads.length ? median(spreads) : null;
+}

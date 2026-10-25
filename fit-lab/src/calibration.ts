@@ -45,6 +45,20 @@ export const CAL = {
   /** Each photo issue multiplies the standard deviation by 1 + this. */
   issuePenalty: 0.5,
 
+  /** Person mask from MediaPipe's probabilities. Test thresholds against tape measurements. */
+  mask: {
+    threshold: 0.5,
+    /** Thresholds the model test compares. */
+    testThresholds: [0.3, 0.4, 0.5, 0.6, 0.7],
+    /** Opening/closing kernel, px: small, because cleanup moves the boundary. */
+    kernel: 3,
+    /** Enclosed gaps at least this share of the image are real (between arm and body, legs) and kept. */
+    minGap: 0.0005,
+    /** Outline spread (0.3 vs 0.7 threshold) above this rejects the photo as unclear. */
+    spreadMax: 0.08,
+    spreadThresholds: [0.3, 0.7] as [number, number],
+  },
+
   /** Share of a fabric's stretch % of the body counted as extra ease on circumferences. */
   stretchUse: 1,
 };

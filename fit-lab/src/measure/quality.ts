@@ -16,11 +16,18 @@ export const ISSUE_LABEL: Record<Issue, string> = {
   arms_not_down: "Arms not down",
   legs_together: "Feet together",
   wide_stance: "Feet too wide apart",
+  unclear_outline: "Body outline unclear",
   leaning: "Stand straight",
 };
 
 /** Issues that make a photo unusable rather than less accurate. */
-export const BLOCKING: Issue[] = ["no_person", "not_full_body", "not_facing", "not_sideways"];
+export const BLOCKING: Issue[] = [
+  "no_person",
+  "not_full_body",
+  "not_facing",
+  "not_sideways",
+  "unclear_outline",
+];
 
 // Arms in, in a still, is judged from the mask (arms_touching), not from landmarks.
 const FAULT_ISSUE: Record<PoseFault, Issue | null> = {

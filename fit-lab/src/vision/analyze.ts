@@ -31,8 +31,9 @@ export async function analyzePhoto(
   height: number,
   view: View,
   model: PoseModel,
+  thresholds: number[] = [],
 ): Promise<PhotoAnalysis> {
   const image = toCanvas(source, width, height);
-  const result = await vision.still(await createImageBitmap(image), view, model);
+  const result = await vision.still(await createImageBitmap(image), view, model, thresholds);
   return { ...result, view, image };
 }

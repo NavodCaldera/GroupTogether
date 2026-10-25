@@ -1,8 +1,10 @@
 // Runs in the vision worker, or on the main thread when workers are unavailable.
 // Uses only OffscreenCanvas and ImageBitmap, no DOM.
+import { CAL } from "../calibration";
 import { turnAngle } from "../measure/pose";
+import { outlineSpread } from "../measure/silhouette";
 import { poseIssues } from "../measure/quality";
-import type { Issue, Landmark, Mask, View } from "../types";
+import { LM, type Issue, type Landmark, type Mask, type View } from "../types";
 import { loadPose, type PoseModel, type PoseMode } from "./mediapipe";
 import { cleanMask, imageQuality, loadCv } from "./opencv";
 
@@ -24,6 +26,10 @@ export interface StillResult {
   landmarks: Landmark[];
   turn: number | null;
   mask: Mask;
+  /** Torso outline change between a low and a high threshold, share of width. */
+  outlineSpread: number | null;
+  /** Masks at extra thresholds, for testing thresholds against tape measurements. */
+  alt: { threshold: number; mask: Mask }[];
   issues: Issue[];
   sharpness: number;
   brightness: number;
@@ -84,6 +90,7 @@ export async function analyzeStill(
   frame: ImageBitmap,
   view: View,
   model: PoseModel,
+  thresholds: number[] = [],
 ): Promise<StillResult> {
   const [pose, cv] = await Promise.all([loadPose(model, "still"), loadCv()]);
   const t0 = performance.now();
@@ -105,17 +112,51 @@ export async function analyzeStill(
       ? result.landmarks[i].map((p) => ({ x: p.x * w, y: p.y * h, visibility: p.visibility ?? 0 }))
       : [];
   const turn = i >= 0 ? turnAngle(result.worldLandmarks[i]) : null;
-  const raw = new Uint8Array(w * h);
   const probs = i >= 0 ? result.segmentationMasks?.[i]?.getAsFloat32Array() : undefined;
-  if (probs) for (let j = 0; j < raw.length; j++) raw[j] = probs[j] > 0.5 ? 1 : 0;
   result.segmentationMasks?.forEach((m) => m.close());
 
-  const mask: Mask = { width: w, height: h, data: probs ? cleanMask(cv, raw, w, h) : raw };
+  // The torso: seed for choosing the person region, and rows for judging its outline.
+  let seed: { x: number; y: number } | null = null;
+  let rows: { x: number; y: number }[] = [];
+  if (landmarks.length >= 33) {
+    const sh = {
+      x: (landmarks[LM.leftShoulder].x + landmarks[LM.rightShoulder].x) / 2,
+      y: (landmarks[LM.leftShoulder].y + landmarks[LM.rightShoulder].y) / 2,
+    };
+    const hp = {
+      x: (landmarks[LM.leftHip].x + landmarks[LM.rightHip].x) / 2,
+      y: (landmarks[LM.leftHip].y + landmarks[LM.rightHip].y) / 2,
+    };
+    seed = { x: (sh.x + hp.x) / 2, y: (sh.y + hp.y) / 2 };
+    rows = Array.from({ length: 9 }, (_, k) => {
+      const t = 0.2 + (0.8 * k) / 8;
+      return { x: sh.x + t * (hp.x - sh.x), y: sh.y + t * (hp.y - sh.y) };
+    });
+  }
+  const toMask = (threshold: number): Mask => ({
+    width: w,
+    height: h,
+    data: probs
+      ? cleanMask(cv, probs, w, h, {
+          threshold,
+          kernel: CAL.mask.kernel,
+          minGap: CAL.mask.minGap,
+          seed,
+        })
+      : new Uint8Array(w * h),
+  });
+  const mask = toMask(CAL.mask.threshold);
+  const [lo, hi] = CAL.mask.spreadThresholds;
+  const spread = probs && rows.length ? outlineSpread(probs, w, rows, lo, hi) : null;
   const { sharpness, brightness } = imageQuality(cv, ctx.getImageData(0, 0, w, h));
   const issues = poseIssues(view, landmarks, mask, people, turn);
+  if (spread !== null && spread > CAL.mask.spreadMax) issues.push("unclear_outline");
   if (sharpness < MIN_SHARPNESS) issues.push("blurry");
   if (brightness < BRIGHTNESS[0]) issues.push("too_dark");
   if (brightness > BRIGHTNESS[1]) issues.push("too_bright");
+  const totalMs = performance.now() - t0;
+  // Test masks are extra work, kept out of the timing.
+  const alt = thresholds.map((threshold) => ({ threshold, mask: toMask(threshold) }));
 
   return {
     model,
@@ -124,9 +165,11 @@ export async function analyzeStill(
     landmarks,
     turn,
     mask,
+    outlineSpread: spread,
+    alt,
     issues,
     sharpness,
     brightness,
-    ms: { pose: poseMs, total: performance.now() - t0 },
+    ms: { pose: poseMs, total: totalMs },
   };
 }

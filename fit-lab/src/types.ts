@@ -46,6 +46,7 @@ export type Issue =
   | "arms_not_down"
   | "legs_together"
   | "wide_stance"
+  | "unclear_outline"
   | "leaning";
 
 export interface Estimate {

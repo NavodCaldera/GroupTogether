@@ -77,6 +77,31 @@ the outline to the soles; needs the feet apart). Arm and torso lengths, and the 
 inseam when the outline can't be read, come from **joint positions**: these are labelled
 _Joints_, get a 1.5× wider spread, and are listed as _not validated_ in the limitations.
 
+### Person mask
+
+MediaPipe Pose's own person mask (no second segmentation model), then OpenCV.js
+([`vision/opencv.ts`](src/vision/opencv.ts)):
+
+```text
+person probability mask → threshold (0.5) → small opening, then closing (3 px)
+→ keep the region containing the torso → refill only small holes → sample torso rows
+```
+
+- **Conservative:** every cleanup step moves the boundary, so the kernel is 3 px and no
+  dilation or erosion is applied on its own.
+- **Not every gap is filled:** enclosed gaps of at least 0.05% of the image (between an
+  arm and the body, between the legs) stay background; only smaller holes are refilled.
+  The boundary pixels are never redrawn.
+- **The relevant person:** the region containing the point between shoulders and hips, not
+  simply the largest.
+- **Unclear outlines are rejected:** the torso width at a 0.3 and a 0.7 threshold is
+  compared on 9 rows; a median change above 8% of the width (soft, loose or low-contrast
+  edges) gives _Body outline unclear_ and the photo can't be used.
+- **Clothing:** the mask is the visible person, clothes included; it does not recover the
+  body under loose clothing. Fitted clothes are required.
+- **Thresholds are tested, not assumed:** the model test also measures every photo at
+  thresholds 0.3–0.7 and shows each against the tape values.
+
 ### Full or Heavy
 
 Models are chosen under **Models** (Live: Lite or Full; Photos: Full or Heavy; defaults Lite

@@ -51,7 +51,7 @@ class VisionClient {
     const engine = await import("./engine");
     if (req.type === "warm") return engine.warmUp(req.model, req.mode);
     if (req.type === "live") return engine.detectLive(req.frame, req.timestamp, req.model);
-    return engine.analyzeStill(req.frame, req.view, req.model);
+    return engine.analyzeStill(req.frame, req.view, req.model, req.thresholds);
   }
 
   private async call<T>(req: Payload, transfer: Transferable[]): Promise<T> {
@@ -82,8 +82,13 @@ class VisionClient {
     return this.call({ type: "live", frame, timestamp, model }, [frame]);
   }
 
-  still(frame: ImageBitmap, view: View, model: PoseModel): Promise<StillResult> {
-    return this.call({ type: "still", frame, view, model }, [frame]);
+  still(
+    frame: ImageBitmap,
+    view: View,
+    model: PoseModel,
+    thresholds: number[] = [],
+  ): Promise<StillResult> {
+    return this.call({ type: "still", frame, view, model, thresholds }, [frame]);
   }
 }
 
