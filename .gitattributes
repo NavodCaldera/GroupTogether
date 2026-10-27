@@ -2,3 +2,10 @@
 *.ico binary
 *.png binary
 *.jpg binary
+
+# Preserve upstream Markdown hard breaks and whitespace in vendored skill snapshots.
+.agents/skills/prisma-cli/** whitespace=-blank-at-eol,-blank-at-eof
+.agents/skills/prisma-client-api/** whitespace=-blank-at-eol,-blank-at-eof
+.agents/skills/react-best-practices/** whitespace=-blank-at-eol,-blank-at-eof
+.agents/skills/web-design-guidelines/** whitespace=-blank-at-eol,-blank-at-eof
+.agents/skills/playwright-cli/** whitespace=-blank-at-eol,-blank-at-eof

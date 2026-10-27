@@ -118,6 +118,12 @@ export async function saveProductAction(_p: AdminState, fd: FormData): Promise<A
   const photo = fd.get("photo");
   let savedId = id;
   const res = await attempt(async () => {
+    const offerId = str(fd, "offerId");
+    if (
+      offerId &&
+      (await db.stockOffer.count({ where: { id: offerId, seller: { isBrand: true } } }))
+    )
+      throw new CatalogueError("Premium brand products are gift-only");
     const p = await saveProduct(
       id,
       Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")),
@@ -125,7 +131,6 @@ export async function saveProductAction(_p: AdminState, fd: FormData): Promise<A
     );
     savedId = p.id;
     // Made from a seller's accepted offer: it becomes one of their designs (2026-10-24).
-    const offerId = str(fd, "offerId");
     if (!id && offerId) await linkOfferProduct(offerId, p.id);
   });
   if (res.error) return res;

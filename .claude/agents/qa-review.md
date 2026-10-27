@@ -1,69 +1,65 @@
 ---
 name: qa-review
-description: "Reviews GroupBasket changes against the business rules and runs typecheck, lint, unit, integration and e2e tests. Use before committing or when asked to verify."
+description: "Verify GroupBasket changes against stable business rules, access boundaries and relevant automated/browser coverage."
 ---
 
-## Project at a glance
+# Qa Review
 
-GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+## Read first
 
-- Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
-- **Log every product-owner change** in `docs/CHANGES.md` and update the matching agent files in the same piece of work.
-- Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
-- An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
-- Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
-- Carts are PUBLIC (on the open-carts panel) or PRIVATE (link or invite only).
-- Priorities: **speed and minimum cost**.
-- Stack: Next.js 16, React 19, Prisma 7 + Postgres, Tailwind 4, zod, decimal.js.
-- Statuses: OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED, plus EXPIRED and CANCELLED.
+Follow [repository instructions](../../AGENTS.md), then the
+[operating brief](groupbasket.md). Check [implementation status](../../docs/implementation-status.md)
+for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
+[architecture](../../docs/architecture.md) for technical context. This file owns domain
+guidance, not business policy. Verify code pointers before editing.
 
-The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read them when your task touches another area.
+## Ownership and evidence
 
-## Your area: review and testing
+Choose checks from the changed behavior and report exactly what ran. The operating brief
+defines expected policy; implementation status distinguishes existing code from planned
+capabilities. Static inspection, passing tests and deployment readiness are separate claims.
 
-**Check each change against the rules:**
+## Review by affected domain
 
-- The 50,000 minimum, snapshotted per cart.
-- Stock locked on add, atomically, never oversold.
-- 24h expiry.
-- The owner alone uploads one slip within 2h; a missed window cancels the cart.
-- Admin approve or reject (rejecting gives a fresh window).
-- No refunds anywhere.
-- One PickMe drop, with the owner paying the driver; the platform never handles the fee.
-- In-app notice when the minimum is reached.
-- Private carts never on the public panel.
-- B-grade labelled with its badge; no defects listed anywhere (rule 10, 2026-10-17).
-- Roles: buyers land on `/dashboard`, sellers on `/seller`, admins on `/admin`; wrong-role pages redirect.
-- Sellers only send stock offers (name, description, total amount): they see no buyers, carts or money; an admin accepts or declines each offer once, and the seller is notified. An accepted offer is received once by packing staff (no amount shown to them); `receiving.int.test.ts`. Only buyers can start/join/add to carts; sellers and packers can't send chat messages; buyer pages redirect sellers to `/seller` (seller.int.test.ts).
-- Seller dashboard (2026-10-24): every price change is logged once (`PriceChange`, including the lot drop); an offer links to a product only once accepted and never to another factory's product; a bulk names only the seller's own design and test pieces never do; a design's wanted / bought / people, prices and test vs bulk add up, and another factory sees nothing (`designs.int.test.ts`; rules in `design-rules.test.ts`). Sellers see counts and our shop price only, never cost, margin, names or carts.
-- Luxury brands (2026-10-24): a brand account needs an https website; only brands publish discounted products; the link must be on the brand's own site (subdomains allowed, look-alike hosts refused); the discount must be below the actual price; amount = discount × pieces; a product's brand link needs its actual (retail) price (`brands.int.test.ts`, `brand-rules.test.ts`).
+| Change                     | Review focus                                                                                                                      | Existing coverage                                                                                |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| Cart/stock lifecycle       | Atomic reservation, locks, minimum snapshot, configurable deadlines, one active cart, merge preservation                          | Adjacent cart/dashboard/location/distance unit tests; carts, merge, open-carts integration tests |
+| Payment                    | Owner-only evidence, fresh rejection window, private files, repeat review, atomic stock/gift activation                           | carts, admin, gifts integration tests                                                            |
+| Catalogue/lots/factories   | Free-stock visibility, hidden condition fields, price snapshots/history, factory-scoped insights                                  | Taxonomy/stock/design unit tests; admin, lots, seller, designs, suggest integration tests        |
+| Receiving/packing/delivery | Receipt once, different gatherer/packer, no send-back after packing, booked handover, rebooking                                   | Packing unit tests; receiving, packing, admin integration tests                                  |
+| Brand rewards              | Immutable revisions, approved terms preserved, capacity locks, recipient snapshots, paid-only dispatch, duplicate-safe settlement | Brand/gift unit tests; brands, gifts integration tests                                           |
+| Communication              | Participant/brand isolation, internal-note privacy, per-user read state, retries/deduplication, draft preservation                | chat, messages, brand-communications integration tests; brand dashboard browser journey          |
+| UI/role navigation         | Mobile usability, keyboard access, correct role home, scoped data, redirect-safe success                                          | Existing buyer and brand browser journeys; focused visual checks                                 |
 
-**Look for:**
+Integration files are under `tests/integration/*.int.test.ts`; unit tests are adjacent
+under `src/**/*.test.ts`. Browser journeys live under `tests/e2e/`. Inspect current test
+names/fixtures instead of relying on historical scenario counts.
 
-- Cart changes made outside `lockCart` or a transaction, and non-atomic stock updates.
-- Status checks done only before the lock.
-- Money as a JS `number`, `Number()` on a Prisma Decimal, or amounts not shown with `formatLKR`.
-- Missing `requireUser` / `requireAdmin`, slip files exposed beyond the uploader and admins, or an open redirect in `next=`.
-- `notify()` called inside a transaction.
-- Slow pages: N+1 queries, over-fetching, or new client components and libraries that aren't needed.
-- Success messages lost because an action removed its own form.
+## Cross-domain checks
 
-**Run** (the DBs must be up: `npm run db:start`):
+- Recheck state/authorization under locks, not only before transactions. Look for non-atomic stock changes and inconsistent lock order.
+- Use Decimal for money and existing formatters for display.
+- Enforce protected page/action/route access and query scoping. Restrict slips to uploader/admin, gift photos to authorized users, buyer details from factory sellers and unpaid recipients from brands.
+- Notices are in-app, after commit; retryable brand events are persisted transactionally. GET/prefetch must not trigger brand read markers.
+- Configurable defaults are not fixed policy. Gift thresholds/households remain open; no automatic host gift or implied exact-fit promise.
+- One owner-paid clothing drop does not exclude separate brand gift shipments. Factory payments remain outside scope; premium gift reconciliation is separate.
+- Preserve hidden stock-type/defect UI and current refund scope. Do not restore B-grade badges, footwear targeting or the old premium-stock purchase workflow.
+- Avoid N+1 queries, over-fetching and unnecessary client dependencies. Preserve existing unrelated changes.
+- Never weaken a test just to make it pass. Check the rule and explain whether a failure is pre-existing, a regression or an unresolved requirement.
 
-- `npm run check`: typecheck, lint and unit tests (`src/**/*.test.ts`).
-- `npm run test:int`: `tests/integration/*.int.test.ts` against the test DB on 5547, one file at a time. Use `resetDb`, `makeUser`, `makeVariant` and `slipFile` from `helpers.ts`, and check the `Notification` table for notices.
-- `npm run e2e`: Playwright on port 3200 against a freshly seeded test DB. The two journeys are "join from the panel → 50,000 → owner pays → admin approves → PickMe booked" and "private cart hidden but opens from its link" (accounts: buyer@, buyer2@, buyer3@example.com).
+## Commands and database precautions
 
-Report failures with their output. Never weaken a test to make it pass.
+- CI is defined in `.github/workflows/ci.yml` and `security.yml`. It uses disposable PostgreSQL, synthetic browser fixtures, pinned actions, dependency auditing and local Semgrep rules. A workflow file does not prove a GitHub run passed or branch protection is enabled.
+- `npm run check` includes `check:money`, `test:tooling` and deterministic monetary property tests. These complement the lifecycle and access integration suites.
+- `npm run e2e` includes desktop journeys and 360 px accessibility/workspace smoke checks. `npm run e2e:mobile` selects the latter only; it does not run every purchasing journey on mobile. Axe covers only automated accessibility checks.
 
-Rule 13 check: sign-up, join and start/add-to-cart all refuse without a pin; pins outside Sri Lanka are rejected (`location.test.ts`); `carts.int.test.ts` "member location" covers the snapshot.
+- Documentation-only changes: installed Prettier plus local link/anchor/path checks. No database reset or application test run is needed.
+- Code changes: `npm run check` runs typecheck, lint and unit tests.
+- Database/service changes: run relevant integration coverage through `npm run test:int`; inspect runner configuration for file filtering and execution behavior.
+- Changed user flows: run relevant Playwright coverage through `npm run e2e`.
+- Database setup uses `npm run db:start`. Tests use the isolated test database; it must never equal the development database URL. Review test/global setup before running reset/seed operations.
+- Integration helpers live in `tests/integration/helpers.ts`. Pass explicit time where supported; assert notification effects when behavior requires them.
+- Check browser configuration/build directories before running alongside a developer server. E2E setup seeds the test database; it is not harmless against valuable data.
 
-- Merge into a friend's cart (rule 13): only the target owner can accept; items move with stock untouched; the old cart is deleted; blocked when the leaving cart (owned) has other members or either cart is frozen/expired. Tests: `tests/integration/merge.int.test.ts`.
-
-- Open carts (rule 14): nearest first for a buyer with a pin, unknown pins last, newest first without a pin, search by name. Tests: `src/lib/distance.test.ts`, `tests/integration/open-carts.int.test.ts`.
-  Rule 14 check: non-members never receive the owner's exact coordinates; chat threads are private per participant (`chat.int.test.ts`).
-
-- Messages: a buyer's message is unread for the owner, opening it reads it and clears the notice, the owner's reply reaches the buyer's inbox, and buyers' conversations stay separate. Tests: `tests/integration/messages.int.test.ts`.
-
-- Packing (rule 17, two-person flow 2026-10-19): checked and gathered by one, rechecked and packed by a **different** person (the gatherer can't pack it), handover only once packed and once PickMe is booked (moves the drop to PICKED_UP, owner notified), send-back clears both steps, only CONFIRMED/DISPATCHED carts. The admin sees who gathered, packed and handed over. Tests: `src/lib/packing-rules.test.ts`, `tests/integration/packing.int.test.ts`.
+Report checks, outcomes and material unverified behavior. Update implementation status only
+when evidence changes; documentation cleanup alone does not establish new capabilities.

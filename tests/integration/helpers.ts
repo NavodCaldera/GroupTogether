@@ -53,3 +53,16 @@ export const cartRow = (id: string) => db.groupCart.findUniqueOrThrow({ where: {
 export function slipFile() {
   return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "slip.jpg", { type: "image/jpeg" });
 }
+
+export function giftPhotoFile() {
+  return new File(
+    [
+      Buffer.from(
+        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC1sAAAAASUVORK5CYII=",
+        "base64",
+      ),
+    ],
+    "gift.png",
+    { type: "image/png" },
+  );
+}

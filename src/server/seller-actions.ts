@@ -5,8 +5,10 @@ import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { requireSeller } from "./auth/session";
 import { CatalogueError } from "./catalogue";
-import { createBrandOffer } from "./brands";
+import { createBrandOffer, reviseBrandOffer } from "./brands";
 import { createOffer } from "./offers";
+import { flash } from "./flash";
+import { UploadError } from "./storage";
 
 export type SellerState = { error?: string };
 
@@ -36,19 +38,33 @@ export async function sendOfferAction(_p: SellerState, fd: FormData): Promise<Se
 export async function sendBrandOfferAction(_p: SellerState, fd: FormData): Promise<SellerState> {
   const seller = await requireSeller();
   try {
-    await createBrandOffer(seller.id, {
+    const input = {
       name: str(fd, "name"),
       description: str(fd, "description"),
       actualPrice: str(fd, "actualPrice"),
       offerPrice: str(fd, "offerPrice"),
       pieces: str(fd, "pieces"),
       productUrl: str(fd, "productUrl"),
-    });
+      packDetails: str(fd, "packDetails"),
+      packSize: str(fd, "packSize"),
+      dispatchDays: str(fd, "dispatchDays"),
+      hasExpiry: fd.has("hasExpiry"),
+      expiryDate: str(fd, "expiryDate"),
+      minShelfLifeDays: str(fd, "minShelfLifeDays"),
+    };
+    const upload = fd.get("photo");
+    const photo = upload instanceof File && upload.size > 0 ? upload : null;
+    const offerId = str(fd, "offerId");
+    if (offerId)
+      await reviseBrandOffer(seller.id, offerId, input, photo, Number(str(fd, "revision")));
+    else await createBrandOffer(seller.id, input, photo);
   } catch (e) {
-    if (e instanceof CatalogueError) return { error: e.message };
+    if (e instanceof CatalogueError || e instanceof UploadError) return { error: e.message };
     if (e instanceof ZodError) return { error: e.issues[0]?.message ?? "Check the form" };
     throw e;
   }
   revalidatePath("/seller");
-  redirect("/seller?done=sent");
+  await flash("Gift product sent for review.");
+  revalidatePath("/admin/brands");
+  redirect("/seller?tab=products");
 }

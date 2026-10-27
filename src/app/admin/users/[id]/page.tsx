@@ -92,6 +92,16 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
             }
           />
 
+          {user.isBrand && (
+            <Card>
+              <Link
+                href={`/admin/brands?tab=products&brand=${user.id}`}
+                className="inline-flex min-h-11 items-center text-sm font-medium text-accent"
+              >
+                Open premium brand workspace →
+              </Link>
+            </Card>
+          )}
           {user.role === "PACKER" && (
             <section className="flex flex-col gap-3">
               <h2 className="font-semibold">Packing work ({packingWork.length})</h2>

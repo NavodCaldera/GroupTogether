@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { sweep } from "@/server/carts/service";
+import { flushBrandNotices } from "@/server/brand-communications";
 
 /**
  * Expires carts past 24h and cancels missed 2h slip windows. Call every few minutes with
@@ -15,5 +16,7 @@ export async function POST(req: Request) {
     !timingSafeEqual(Buffer.from(given), Buffer.from(secret))
   )
     return new Response("Unauthorized", { status: 401 });
-  return Response.json(await sweep());
+  const result = await sweep();
+  await flushBrandNotices();
+  return Response.json(result);
 }

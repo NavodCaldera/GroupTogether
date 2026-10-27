@@ -26,10 +26,10 @@ export default async function OffersPage({ searchParams }: PageProps<"/admin/off
   const [offers, toReview, receivedCount] = await Promise.all([
     db.stockOffer.findMany({
       where: received
-        ? { receivedAt: { not: null } }
+        ? { receivedAt: { not: null }, seller: { isBrand: false } }
         : answered
-          ? { status: { not: "IN_REVIEW" } }
-          : { status: "IN_REVIEW" },
+          ? { status: { not: "IN_REVIEW" }, seller: { isBrand: false } }
+          : { status: "IN_REVIEW", seller: { isBrand: false } },
       orderBy: received
         ? { receivedAt: "desc" }
         : answered
@@ -37,12 +37,12 @@ export default async function OffersPage({ searchParams }: PageProps<"/admin/off
           : { createdAt: "asc" },
       take: 100,
       include: {
-        seller: { select: { name: true, company: true } },
+        seller: { select: { name: true, company: true, isBrand: true } },
         receivedBy: { select: { name: true } },
       },
     }),
-    db.stockOffer.count({ where: { status: "IN_REVIEW" } }),
-    db.stockOffer.count({ where: { receivedAt: { not: null } } }),
+    db.stockOffer.count({ where: { status: "IN_REVIEW", seller: { isBrand: false } } }),
+    db.stockOffer.count({ where: { receivedAt: { not: null }, seller: { isBrand: false } } }),
   ]);
 
   return (
@@ -83,13 +83,18 @@ export default async function OffersPage({ searchParams }: PageProps<"/admin/off
                 >
                   {o.name}
                 </Link>
-                <span className="shrink-0 font-semibold tabular-nums">{formatLKR(o.amount)}</span>
+                <span className="shrink-0 font-semibold tabular-nums">
+                  {formatLKR(o.seller.isBrand ? (o.offerPrice ?? 0) : o.amount)}
+                  {o.seller.isBrand && (
+                    <span className="text-xs font-normal text-subtle"> / gift</span>
+                  )}
+                </span>
               </div>
               <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-sm text-subtle">
                 <span>{o.seller.company || o.seller.name}</span>
                 <span>· {formatDateTime(o.createdAt)}</span>
                 {answered &&
-                  (o.receivedAt ? (
+                  (o.receivedAt && !o.seller.isBrand ? (
                     <Badge tone="good">Received</Badge>
                   ) : (
                     <Badge tone={OFFER_STATUS[o.status].tone}>{OFFER_STATUS[o.status].label}</Badge>

@@ -21,6 +21,7 @@ import { db, type Tx } from "../db";
 import { reduceDueLots } from "../lots";
 import { type Notice, notify } from "../notify";
 import { getSettings } from "../settings";
+import { releaseGiftReservations } from "../gifts";
 
 export class CartError extends Error {}
 
@@ -201,6 +202,10 @@ export async function setLine(
     const delta = qty - (line?.qty ?? 0);
 
     if (delta > 0) {
+      const premium = await tx.variant.count({
+        where: { id: variantId, product: { seller: { isBrand: true } } },
+      });
+      if (premium) throw new CartError("Premium brand products are complimentary gifts only");
       // Atomic: the row lock taken by UPDATE re-checks `available` against concurrent carts.
       const locked = await tx.variant.updateMany({
         where: { id: variantId, available: { gte: delta } },
@@ -236,6 +241,7 @@ export async function setLine(
         data: { cartId, userId, variantId, qty, unitPrice: variant.product.price },
       });
     }
+    if (delta < 0) await releaseGiftReservations(tx, cartId, userId);
     const after = await recompute(tx, cart, now);
     return { cart, ...after, members: after.becameReady ? await memberIds(tx, cartId) : [] };
   });
@@ -252,6 +258,7 @@ async function releaseLines(
   cartId: string,
   { userId, keep = false }: { userId?: string; keep?: boolean } = {},
 ) {
+  await releaseGiftReservations(tx, cartId, userId);
   const lines = await tx.cartLine.findMany({ where: { cartId, userId } });
   for (const l of lines) {
     await tx.variant.update({
@@ -504,6 +511,10 @@ export async function acceptMerge(ownerId: string, requestId: string, now = new 
       return { error: why ?? "They are no longer in that cart." } as const;
     }
     // Their items move; stock is untouched (it is already locked for them).
+    await tx.giftOrder.updateMany({
+      where: { cartId: from.id, recipientId: req.userId, status: "RESERVED" },
+      data: { cartId: to.id },
+    });
     await tx.cartLine.updateMany({
       where: { cartId: from.id, userId: req.userId },
       data: { cartId: to.id },

@@ -33,10 +33,14 @@ import { notify } from "./notify";
  */
 export async function linkOfferProduct(offerId: string, productId: string) {
   const [offer, product] = await Promise.all([
-    db.stockOffer.findUnique({ where: { id: offerId }, select: { sellerId: true, status: true } }),
+    db.stockOffer.findUnique({
+      where: { id: offerId },
+      select: { sellerId: true, status: true, seller: { select: { isBrand: true } } },
+    }),
     db.product.findUnique({ where: { id: productId }, select: { sellerId: true, title: true } }),
   ]);
   if (!offer) throw new CatalogueError("This offer no longer exists");
+  if (offer.seller.isBrand) throw new CatalogueError("Premium brand products are gift-only");
   if (offer.status !== "ACCEPTED") throw new CatalogueError("Accept the offer first");
   if (!product) throw new CatalogueError("Choose a product from the list");
   if (product.sellerId && product.sellerId !== offer.sellerId)

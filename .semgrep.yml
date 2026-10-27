@@ -1,0 +1,34 @@
+rules:
+  - id: groupbasket-no-unsafe-raw-sql
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: Use parameterized Prisma SQL. Review any exceptional identifier construction explicitly.
+    patterns:
+      - pattern-either:
+          - pattern: $DB.$queryRawUnsafe(...)
+          - pattern: $DB.$executeRawUnsafe(...)
+    paths:
+      include: [/src/, /tests/security/]
+      exclude: [/src/generated/]
+  - id: groupbasket-no-browser-admin-import
+    languages: [typescript, javascript]
+    severity: ERROR
+    message: A client module must not import database or session internals. Use a guarded server action.
+    patterns:
+      - pattern-either:
+          - pattern-inside: |
+              "use client";
+              ...
+          - pattern-inside: |
+              'use client';
+              ...
+      - pattern-either:
+          - pattern: import { ... } from "@/server/db"
+          - pattern: import $X from "@/server/db"
+          - pattern: import * as $X from "@/server/db"
+          - pattern: import { ... } from "@/server/auth/session"
+          - pattern: import $X from "@/server/auth/session"
+          - pattern: import * as $X from "@/server/auth/session"
+    paths:
+      include: [/src/, /tests/security/]
+      exclude: [/src/generated/]

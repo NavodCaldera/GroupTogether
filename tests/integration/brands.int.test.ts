@@ -1,11 +1,15 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createSeller } from "@/server/auth/service";
-import { createBrandOffer } from "@/server/brands";
-import { saveProduct } from "@/server/catalogue";
+import { createBrandOffer, reviseBrandOffer } from "@/server/brands";
+import { brandPhotoFor } from "@/server/brand-photos";
+import { storage } from "@/server/storage";
+import { getProduct, listProducts, saveProduct, suggestProducts } from "@/server/catalogue";
+import { createCart, setLine } from "@/server/carts/service";
+import { stockToReceive } from "@/server/receiving";
 import { db } from "@/server/db";
 import { linkOfferProduct } from "@/server/designs";
-import { decideOffer } from "@/server/offers";
-import { makeUser, resetDb } from "./helpers";
+import { reviewBrandOffer } from "@/server/brand-reviews";
+import { giftPhotoFile, makeUser, resetDb } from "./helpers";
 
 beforeEach(async () => {
   await resetDb();
@@ -30,6 +34,9 @@ function account(isBrand: boolean, website?: string) {
 const kaftan = {
   name: "Hand-loomed linen kaftan",
   description: "Natural linen, S to L. Last season's colours.",
+  packDetails: "One linen kaftan in a gift box",
+  packSize: "One size",
+  dispatchDays: "2",
   actualPrice: "18,500",
   offerPrice: "9800",
   pieces: "40",
@@ -41,15 +48,65 @@ describe("luxury brand accounts", () => {
     await expect(account(true)).rejects.toThrow("brand's website");
     await expect(account(true, "http://insecure.example")).rejects.toThrow("brand's website");
     const brand = await account(true, SITE);
+    await expect(createBrandOffer(brand.id, { ...kaftan, offerPrice: "abc" })).rejects.toThrow(
+      "discount price",
+    );
     expect(brand).toMatchObject({ role: "SELLER", isBrand: true, website: SITE });
     expect(await account(false)).toMatchObject({ isBrand: false, website: null });
   });
 });
 
 describe("brand products", () => {
+  it("requires an image and pack/dispatch details, supports optional description and protects photos", async () => {
+    const brand = await account(true, SITE);
+    await expect(createBrandOffer(brand.id, kaftan)).rejects.toThrow("gift photo");
+    await expect(
+      createBrandOffer(brand.id, { ...kaftan, packDetails: "" }, giftPhotoFile()),
+    ).rejects.toThrow("gift contains");
+    await expect(
+      createBrandOffer(brand.id, { ...kaftan, dispatchDays: "0" }, giftPhotoFile()),
+    ).rejects.toThrow("business day");
+    const offer = await createBrandOffer(
+      brand.id,
+      { ...kaftan, description: "", hasExpiry: true, minShelfLifeDays: "180" },
+      giftPhotoFile(),
+    );
+    expect(offer).toMatchObject({
+      description: "",
+      packSize: "One size",
+      dispatchDays: 2,
+      minShelfLifeDays: 180,
+      photoType: "image/png",
+    });
+    expect(await storage().get(offer.photoKey!)).not.toBeNull();
+    expect(await brandPhotoFor(null, offer.id)).toBeNull();
+    const outsider = await makeUser();
+    expect(await brandPhotoFor(outsider, offer.id)).toBeNull();
+    expect(await brandPhotoFor(brand, offer.id)).toMatchObject({ photoKey: offer.photoKey });
+    const admin = await makeUser("ADMIN");
+    expect(await brandPhotoFor(admin, offer.id)).toMatchObject({ photoKey: offer.photoKey });
+    await reviseBrandOffer(brand.id, offer.id, {
+      ...kaftan,
+      packDetails: "Revised kaftan with a matching pouch",
+    });
+    expect(await db.stockOffer.findUniqueOrThrow({ where: { id: offer.id } })).toMatchObject({
+      photoKey: offer.photoKey,
+      packDetails: "Revised kaftan with a matching pouch",
+    });
+    await expect(
+      createBrandOffer(brand.id, { ...kaftan, hasExpiry: true }, giftPhotoFile()),
+    ).rejects.toThrow("expiry date or minimum");
+    await expect(
+      createBrandOffer(
+        brand.id,
+        { ...kaftan, hasExpiry: true, expiryDate: "2026-02-31" },
+        giftPhotoFile(),
+      ),
+    ).rejects.toThrow("expiry date");
+  });
   it("publish with the actual price, discount price, pieces and link; admins are told", async () => {
     const [brand, admin] = [await account(true, SITE), await makeUser("ADMIN")];
-    const o = await createBrandOffer(brand.id, kaftan);
+    const o = await createBrandOffer(brand.id, kaftan, giftPhotoFile());
     expect(o.actualPrice?.toString()).toBe("18500");
     expect(o.offerPrice?.toString()).toBe("9800");
     expect(o.pieces).toBe(40);
@@ -57,7 +114,7 @@ describe("brand products", () => {
     expect(o.status).toBe("IN_REVIEW");
     expect(
       await db.notification.count({
-        where: { userId: admin.id, title: "Brand product to review" },
+        where: { userId: admin.id, title: "Brand workspace update" },
       }),
     ).toBe(1);
   });
@@ -74,10 +131,10 @@ describe("brand products", () => {
     await expect(createBrandOffer(factory.id, kaftan)).rejects.toThrow("Only luxury brands");
   });
 
-  it("go into the shop with the actual price and the link to the brand's page", async () => {
+  it("retain retail references but cannot be linked to an ordinary shop product", async () => {
     const brand = await account(true, SITE);
-    const o = await createBrandOffer(brand.id, kaftan);
-    await decideOffer(o.id, true, "");
+    const o = await createBrandOffer(brand.id, kaftan, giftPhotoFile());
+    await reviewBrandOffer((await makeUser("ADMIN")).id, o.id, 1, "approve", "");
 
     const product = {
       title: kaftan.name,
@@ -100,7 +157,17 @@ describe("brand products", () => {
     );
     expect(p.brandUrl).toBe(kaftan.productUrl);
     expect(p.retailPrice?.toString()).toBe("18500");
-    await linkOfferProduct(o.id, p.id);
-    expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).sellerId).toBe(brand.id);
+    await expect(linkOfferProduct(o.id, p.id)).rejects.toThrow("gift-only");
+    expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).sellerId).toBeNull();
+    // Legacy linked products remain stored, but no longer appear or sell as clothing.
+    await db.product.update({ where: { id: p.id }, data: { sellerId: brand.id } });
+    const variant = await db.variant.create({ data: { productId: p.id, size: "M", available: 5 } });
+    expect(await listProducts()).toEqual([]);
+    expect(await suggestProducts("kaftan")).toEqual([]);
+    expect(await getProduct(p.id)).toBeNull();
+    expect(await stockToReceive()).toEqual([]);
+    const buyer = await makeUser();
+    const cart = await createCart(buyer.id, {});
+    await expect(setLine(buyer.id, cart.id, variant.id, 1)).rejects.toThrow("complimentary gifts");
   });
 });

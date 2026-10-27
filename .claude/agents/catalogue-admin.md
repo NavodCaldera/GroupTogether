@@ -1,73 +1,61 @@
 ---
 name: catalogue-admin
-description: "Products, variants/stock and the admin back office of GroupBasket (sales, orders, carts, products, settings). Use for src/server/catalogue.ts, src/server/admin-actions.ts and src/app/admin/."
+description: "Clothing catalogue, variant stock, lot pricing, factory offers/design analytics and general admin for GroupBasket. Premium rewards have a separate specialist."
 ---
 
-## Project at a glance
+# Catalogue Admin
 
-GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+## Read first
 
-- Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
-- **Log every product-owner change** in `docs/CHANGES.md` and update the matching agent files in the same piece of work.
-- Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
-- An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
-- Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
-- Carts are PUBLIC (on the open-carts panel) or PRIVATE (link or invite only).
-- Priorities: **speed and minimum cost**.
-- Stack: Next.js 16, React 19, Prisma 7 + Postgres, Tailwind 4, zod, decimal.js.
-- Statuses: OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED, plus EXPIRED and CANCELLED.
+Follow [repository instructions](../../AGENTS.md), then the
+[operating brief](groupbasket.md). Check [implementation status](../../docs/implementation-status.md)
+for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
+[architecture](../../docs/architecture.md) for technical context. This file owns domain
+guidance, not business policy. Verify code pointers before editing.
 
-The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read them when your task touches another area.
+## Ownership and code
 
-## Your area: catalogue and admin
+- Catalogue: `src/server/catalogue.ts`, `src/lib/taxonomy.ts`, public photo/suggestion routes.
+- Stock and lots: `src/server/stock.ts`, `lots.ts`, `lot-actions.ts`, `prices.ts`, `src/lib/stock-rules.ts`.
+- Factories: `src/server/offers.ts`, `designs.ts`, `design-actions.ts`, `seller-actions.ts`, `src/lib/design-rules.ts`.
+- General admin: `src/server/admin-actions.ts`, `admin-queries.ts`, `src/app/admin/`; factory UI: `src/app/seller/`.
+- Policy references: `CAT-001`/`CAT-002`, `INV-001`, `LOT-001`/`LOT-002`, `SUP-001`?`SUP-003`, `DATA-001`, `UX-002`.
 
-**Files:**
+## Catalogue and pricing guards
 
-- `src/server/catalogue.ts`
-- `src/server/admin-actions.ts`
-- `src/server/admin-queries.ts`
-- `src/app/admin/**`, which includes `admin-form.tsx`, the generic `useActionState` form that shows `{ error | ok }`
-- `src/app/api/photos/[id]/route.ts`
+- Free variant stock controls ordinary shop listings, search, facets and suggestions. Product status/review columns are legacy, not a publish workflow.
+- Ordinary product links may remain accessible without free stock. Brand-linked gift products are excluded from public catalogue/direct lookup and paid additions.
+- Stock adjustments change available quantities only; never manually change reserved/sold counts or remove more free stock than exists.
+- Stock-type and defect fields/badges are hidden. Edits retain stored type; new products default to FACTORY_SURPLUS. Legacy footwear enums do not authorize footwear work.
+- Product photos support JPEG/PNG/WebP up to 5 MB; the public photo route uses ETags. Gift photos use a separate private route.
+- Lots snapshot pricing settings, reprice linked products on cost edits and apply the scheduled reduction once. Existing cart-line prices stay fixed.
+- Log price changes through `logPrices`. In-store counts include paid orders until physical handover and unlisted lot pieces; capacity is reporting, not automatic purchasing approval.
 
-**Catalogue:**
+## Factory offers and design history
 
-- Products have a category (`SHOES` or `APPAREL`), a stock type (`FACTORY_SURPLUS` or `B_GRADE`), a price and an optional `retailPrice` (shown struck through; `retailSaving()` turns the live ones into the home page's "On average X% below retail", needing at least 3 products priced under retail), plus one photo (JPEG, PNG or WebP up to 5 MB, stored on local disk and served by `/api/photos/[id]` with an ETag).
-- **B-grade is shown only as the "B-grade" badge.** Defects were removed (product owner, 2026-10-17): no `defectNotes` in `productSchema`, the forms or any page. The column stays, unused.
-- **No product statuses: stock decides** (product owner, 2026-10-20, CLAUDE.md rule 18). A product is in the shop while it has free stock in some size (`IN_SHOP` in catalogue.ts: listing, search, facets, `retailSaving`); no free stock = hidden. Add-to-cart only checks `available`. `getProduct(id)` opens any product (links from carts). `Product.status`/`reviewNote` stay in the schema, unused; the form has no Status field.
-- Variants are size plus colour, for example "UK 9" for shoes or "M" for apparel.
-- `adjustStock(product, size, colour, ±n)` creates the variant if it is missing and changes **free stock only** (`available`). It refuses to remove more than is free, so locked stock (`reserved`) and `sold` are never edited by hand.
-- `listProducts` filters by category, stock type, brand, size (sizes with free stock) and search text. `shopFacets` supplies the brand and size dropdowns.
+- Offer submission, admin decision, staff receipt, product linking and stock entry are separate steps. Offer acceptance/receipt never automatically publishes stock.
+- Review uses guarded single decisions with optional notes and notifications. Packing owns receipt operations.
+- Link only accepted factory offers to permitted factory/unowned products. Test and later bulk share one product/history; do not link another factory's design.
+- Seller insights expose their own wanted/bought pieces, buyer counts, size performance and shop-price history, not buyer identities, carts or internal costs.
+- Wanted counts derive from retained cart lines, including expired/unpaid carts; they are not guaranteed demand or a complete interest event log.
+- Factory payments are external bulk purchases; do not introduce supplier balances. Premium gift bills are owned by [brands-rewards](brands-rewards.md).
 
-**Admin:**
+## Admin boundaries
 
-- Every admin page and action calls `requireAdmin()`. The admin layout also guards the section.
-- Pages (shared list pieces such as chips, search, pager and table are in `src/app/admin/list-bits.tsx`; filters are plain GET links, no client JS):
-  - **One home per task** (product owner, 2026-10-21, CLAUDE.md rule 19). Tabs: Stock · Lots · Slips · Orders · Carts · Products · Offers · Users · Settings (`admin/layout.tsx`; Stock and Lots replaced Sales, rule 20). Counts from `adminBadges`: red on Slips (pending), Orders (CONFIRMED with no delivery + DISPATCHED with a FAILED/CANCELLED drop), Offers (to review); grey on Products (low-stock sizes in the shop). No explanation text anywhere.
-  - **Stock** (`/admin`, landing; replaced Sales 2026-10-21, CLAUDE.md rule 20; `stockDashboard` in `src/server/stock.ts`, `salesStats` in `admin-queries.ts`): the goal is to empty the store (6,000 pieces) fast, not best sellers. Tiles In store (vs Settings → Stock store size, red over 100%) / Avg age / Out 7 days / Clear in, a line Free · In carts · Paid, in store · Not listed · Room; Age of stock bands; In and Out per week for 8 weeks (`src/app/admin/stock-charts.tsx`: two single-series charts on one scale, server-rendered, CSS tooltips, "Show as table", `--chart`); Oldest stock (free × days, days red over `SLOW_DAYS` 30, lot margin badge); Lots (5 oldest with stock); Next lot (room, offers to review, accepted on the way); Closing soon (OPEN carts short of the minimum, < 6h left); Odd sizes left (`oddSizesLeft`); Carts, 30 days (pieces paid vs back to the shelf, expired carts and how far they got); Sales (today / 7 / 30 days, in carts now); the only **Export CSV** (last 30 days). A piece is in the store until handed to PickMe (`orderStage` to-book / in-store / failed count as in store); a lot's pieces beyond the stock added to its products count as Not listed.
-  - **Lots** (`/admin/lots`, `/admin/lots/new`, `/admin/lots/<id>`; `saveLot` / `reduceDueLots` in `src/server/lots.ts`, `saveLotAction` / `saveStockSettingsAction` in `src/server/lot-actions.ts`): name, pieces, bulk cost, transport, wages, arrived on (not in the future). Cost per piece = (bulk + transport + wages) ÷ pieces; products with a lot sell at cost + `fullMarginPct` (20) until `reduceAt` (arrival + `fullMarginDays`, 7), then cost + `reducedMarginPct` (10), rounded up to the rupee (`src/lib/stock-rules.ts`). Margins/days are snapshotted from Settings on create; an edit reprices the lot's products with its own margins. `sweep()` drops due lots once (`Lot.reducedAt`). The product form has a **Lot** picker (`?lot=` preselects it from the lot page's Add product); with a lot, `saveProduct` ignores the typed price. Lot page: cost and price (both margins, "Now"), pieces (bought, not listed, in store, sold, sales, cost back), its products and the edit form.
-  - Slips, as described in the `payments-slips` agent: a review queue (list + open slip side by side from `lg`, separate screens on phones) and a "Reviewed" tab (`?view=history`, the last 100 with reviewer and note, filter by result, search by cart code or owner; cards on phones, a table from `md`).
-  - **Carts** finds and shows carts (no tiles, no export, no buttons in the list, 2026-10-21): search (part of the code in any case, name, owner name, email or mobile; with no stage picked a search covers All stages, 2026-10-20); **suggestions while typing** (2+ characters: up to 6 carts with code, owner, status, total; tap to open) from `/api/admin/carts/suggest` → `suggestCarts`, same `cartSearch` filter as the page; a **date range** (`?from=` / `?to=` YYYY-MM-DD, From / To date inputs + Apply, "Clear dates ✕") on the day the cart was started, Colombo days both included (`colomboDateRange` in `src/lib/format.ts`); like a search, dates with no stage picked cover All stages (2026-10-20), **stage tabs** with counts (`ADMIN_STAGES` in `cart-rules.ts`: Active (default), Filling, Paying, Paid (key `delivering`), Done, Closed, All; a `FilterSelect` dropdown on phones, chips from `sm` up; `?status=` still filters one exact status and shows as a removable chip), a summary line (carts · total · holding stock), and a **next step** per cart (`adminNextStep` in `src/app/admin/carts/next-step.tsx`: one line of text, no buttons: "Owner to pay · 1h", "Slip waiting for review", "PickMe to book", "In store", "On the way", "Delivery failed"). Open carts show a thin bar toward their minimum. Live stages sort by `byUrgency` (admin's turn first, then soonest deadline, sorted in memory up to 1,000 rows); "Latest" and the finished stages sort by last activity. Cards on phones, a 6-column table from `md`. 50 per page.
-  - The cart page has a status bar (stage stepper + the same next step), the picking list, **members and their shares** (what each owes the owner), a dated timeline (events oldest first incl. "PickMe booked · ref · driver", "Delivery failed", who gathered / packed / handed over; the running deadline as a hollow dot), the drop-off (with the PickMe fee once booked), and **Cancel** with a reason: its only action. No Packing, Book delivery or Delivery cards (2026-10-21).
-  - **Orders** (`/admin/orders`, `ordersBoard` in `src/server/orders.ts`, 2026-10-21; `/admin/packing` and `/admin/deliveries` redirect here): every paid order by `orderStage` (To book / In store / On the way / Failed / Delivered (last 20)); dropdown on phones, chips from `sm`; opens on To book, else Failed, else In store. Each card: code (→ cart page), items, owner · phone, address, `PackingTrail`, PickMe ref · driver · fee · Track. To book / Failed: a `<details>` "Book PickMe" / "Book again" opens the booking form on the card (`bookDeliveryAction` → flash "Delivery booked", back to Orders). On the way: **Delivered** / **Failed**; Failed: **Delivered**.
-  - Products: search and a filter: All / In the shop / Not in the shop / Low stock (in the shop with a size at ≤ 2 free); free / in carts / sold counts; no Status column, no nav badge.
-  - Users: search and filter (buyers, factory sellers, admins, locked) with counts that follow the search; cards on phones (two per row on small tablets), a table from `md` (city column from `lg`); each row shows role, mobile, activity (buyer carts started/joined and the live cart, seller product count) and sign-up date. A user's page shows their carts with their share, slips, active devices, and **lock / unlock**. `setUserLocked` refuses admins, and locking deletes every session, so the user is signed out at once. Their carts are left alone; an admin cancels them separately if needed.
-  - Settings, plus a system card (delivery provider, cron, `APP_URL`, uploads folder).
-  - `GET /admin/export/orders?days=30`: confirmed orders as CSV (UTF-8 BOM for Excel). `toCsv` prefixes cells that start with `= + - @` so they can't run as formulas.
-- Admin controls stay inside the business rules. There is no override of the 24h / 2h deadlines, no admin editing of members' lines and no refunds. Ask the product owner before adding any of these.
-- Settings: `minOrderValue` (applies to **new** carts only; existing carts keep their snapshot), `cartLifetimeHours` (24), `slipWindowHours` (2), and the bank account details shown to owners.
-- Every success message is a pop-up (product owner, 2026-10-20): `attempt(fn, "message")` and the other actions call `flash()` (`src/server/flash.ts`), which `FlashToast` in the root layout shows on the next page, including after a redirect that removes the form. `AdminForm` shows only errors. The admin cart page (`?booked=1`), slips (`?done=approved|rejected`) and offers (`?done=`) still render their own `Toast`.
-- Admin accounts come only from the seed. Public sign-up creates buyers (`CUSTOMER`) only. Factory sellers (`SELLER`) are created at `/admin/users/new-seller` (`createSeller`).
-- **Stock offers** (product owner, 2026-10-19): factory sellers no longer list products. They send an offer (Product name, Description, Amount = total selling price) from `/seller/new`; `createOffer` in `src/server/offers.ts` saves a `StockOffer` (IN_REVIEW) and notifies the admins. **Admin → Offers** (`/admin/offers`, nav badge and an overview To do line): To review (oldest first) / Answered; the offer page shows the amount, details and the seller's contact with their factory address and an "Open the pin in Google Maps" link (2026-10-20), with one optional note and two equal buttons, **Decline** (asks once more in a small `<dialog>`: "Yes, decline") and **Accept** (`OfferDecision`, 2026-10-20), via `decideOfferAction` → `decideOffer` (guarded `updateMany`, answered once; the seller is notified). Once accepted it goes to the packing staff's **To receive** list; the admin overview's **Stock received** card lists the last 5 receipts (offer, seller, who, when) and how many accepted offers are still on the way, linking to the **Received** tab of `/admin/offers` (`?tab=received`: every received offer, newest first, with who and when; Answered shows a Received badge); the offer page shows "Stock received by <name> · <time>" or "Waiting for the stock to reach our store" (2026-10-20). An offer is not a product: if we take the stock, the admin creates the product (with `sellerId` if wanted).
-- **Factories, payment and design tests** (product owner, 2026-10-24): we pay a factory for the whole bulk at once (we are the middle person), so there is no payment tracking for sellers. A factory can send a few pieces of a design to test demand before making the bulk; **we buy the test pieces**, and **the bulk of a tested design goes onto the same shop product** (one history). Sellers may see counts for their own designs (pieces wanted in carts, how many people bought), never names, individual carts or money. **Seller dashboard** (built 2026-10-24, CLAUDE.md rule 11): an accepted offer's page has a card to put its pieces on a shop product (pick one of this factory's or an unowned product → **Link**, or **Add product**, which opens `/admin/products/new?offer=<id>` with the offer's name and links it on create); once linked it shows "In the shop as <product>". Linking (`linkOfferProduct` in `src/server/designs.ts`, `linkOfferAction` in `src/server/design-actions.ts`) sets `StockOffer.productId` and `Product.sellerId`, refuses another factory's product and tells the seller ("Your design is in our shop"). A test offer shows a "Test pieces" badge. Every price change is logged in `PriceChange` (`logPrices` from `saveProduct`, `saveLot` and `reduceDueLots`).
-- **Luxury brands** (product owner, 2026-10-24, CLAUDE.md rule 11): `/admin/users/new-seller` has a **Luxury brand** tick that asks for the **Website** (`BrandFields`; `sellerSchema` needs an https website for a brand; `User.isBrand` / `website`); the user page shows "Luxury brand". A brand's offer (`StockOffer.actualPrice` / `offerPrice` / `pieces` / `productUrl`, amount = discount × pieces) shows a "Luxury brand" badge and, under the total, Actual price / Discount price · N% off / Pieces and the link to check on the brand's site. **Add product** from it fills Retail price with the actual price and **Brand link** (`Product.brandUrl`, optional field on every product: a full https link, and it needs a retail price).
-- **Seller products**: `Product.sellerId` is null for our own listings; older seller products show "Listed by". The publish / return review (`src/server/seller.ts`) was removed 2026-10-20. `ProductForm` is the admin's form only.
-  `suggestProducts` in catalogue.ts feeds the public `/api/suggest` (products in the shop only, title/brand match, max 6).
+Stock is the landing page and sole export entry; Lots owns costs, Slips owns payment
+review, Orders owns delivery, and Carts owns inspection/search/pre-confirmation cancellation.
+Brands has its own workspace. Read the live route tree for the current tab list.
 
-**Packing staff** (product owner, 2026-10-18, CLAUDE.md rule 17): admins create `PACKER` accounts at `/admin/users/new-packer` (`createPacker` in `auth/service.ts`, `createPackerAction`). Users list: "Packing staff" filter, "Packing" badge, activity "N orders checked" (gathered + packed); a packer's user page lists their packing work (checked and gathered / rechecked and packed / handed over, by cart). **The people who certified an order are shown with it**: admin cart page (Packing card with `PackingTrail` + timeline lines "Checked and gathered by", "Rechecked and packed by", "Handed to PickMe by"), the carts list (`packingSummary` under the next step), the deliveries page, and the orders CSV ("Checked and gathered by", "Rechecked and packed by", "Handed to PickMe by"). Admins don't pack; that is the packers' `/packing` app. **Admin → Packing** (`/admin/packing`, nav tab after Carts, product owner 2026-10-20) shows the packers' board read-only from `packingQueue()`: To gather / Gathered, to pack / Packed, for PickMe (with PickMe booked or not) / Handed over today, each card with code (opens the admin cart), owner, city, item count and the `PackingTrail` (who gathered, packed, handed over, with times).
+Enforce admin guards on queries/actions/routes. Public signup creates buyers; staff
+provisioning is admin-only and admin accounts are seed-created. Locking a user removes
+sessions, not their carts; admins cannot be locked. CSV output uses the existing formula
+escaping and UTF-8 BOM. Preserve concise screens and flash success messages.
 
-**No explanation text anywhere** (product owner, 2026-10-20): no `PageHeader` description, no lines explaining a page or a flow. Titles, data and actions only.
+## Verification and coordination
 
-**Admin → Products table has no Type column** (product owner, 2026-10-20): Product, Seller, Price, Free, In carts, Sold, Status.
-
-**No Stock type box** (product owner, 2026-10-20): the admin product form has no Factory surplus / B-grade choice. `productSchema.stockType` is optional: an edit keeps the stored value, a new product is FACTORY_SURPLUS. `StockTypeBadge` was removed.
+Use adjacent taxonomy, stock/design/brand-rule and CSV-related tests as applicable, plus
+`tests/integration/admin.int.test.ts`, `lots.int.test.ts`, `seller.int.test.ts`,
+`designs.int.test.ts` and `suggest.int.test.ts`.
+Coordinate receipt with [packing](packing.md), persistence with [backend-data](backend-data.md),
+UI with [frontend](frontend.md) and gift flows with [brands-rewards](brands-rewards.md).
+Follow [qa-review](qa-review.md) for checks.

@@ -6,6 +6,7 @@ import { notify, notifyRole } from "../notify";
 import { getSettings } from "../settings";
 import { SLIP_TYPES, checkUpload, saveUpload } from "../storage";
 import { CartError } from "./service";
+import { appendBrandEvent, flushBrandNotices } from "../brand-communications";
 
 /**
  * The owner's one bank slip for the whole cart. There are no refunds: stock is locked from the
@@ -67,6 +68,24 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
       data: { status: "APPROVED", reviewerId: adminId, reviewedAt: now },
     });
     const lines = await tx.cartLine.findMany({ where: { cartId: cart.id } });
+    await tx.giftOrder.updateMany({
+      where: { cartId: cart.id, status: "RESERVED" },
+      data: { status: "READY", paidAt: now },
+    });
+    const gifts = await tx.giftOrder.findMany({
+      where: { cartId: cart.id, status: "READY" },
+      include: { offer: { select: { sellerId: true, name: true } } },
+    });
+    for (const gift of gifts)
+      await appendBrandEvent(tx, {
+        brandId: gift.offer.sellerId,
+        kind: "GIFT",
+        subjectId: gift.id,
+        title: `${gift.offer.name} · G-${gift.id.slice(-8).toUpperCase()}`,
+        authorId: adminId,
+        body: "Basket payment approved. This gift is ready for the brand to acknowledge and dispatch.",
+        requestKey: `gift-payment:${gift.id}`,
+      });
     for (const l of lines) {
       await tx.variant.update({
         where: { id: l.variantId },
@@ -95,6 +114,7 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
     body: `Cart ${cart.code} is paid. One of you checks and gathers it, someone else rechecks and packs it.`,
     href: `/packing/${cart.code}`,
   });
+  await flushBrandNotices().catch(() => {});
 }
 
 /** SLIP_REVIEW → AWAITING_SLIP with a fresh payment window, so the owner can upload again. */

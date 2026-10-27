@@ -1,0 +1,68 @@
+name: GroupBasket checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Quality, database and browser checks
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: groupbasket_ci
+          POSTGRES_PASSWORD: disposable_ci_only
+          POSTGRES_DB: groupbasket_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U groupbasket_ci -d groupbasket_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI: "true"
+      DATABASE_URL: postgresql://groupbasket_ci:disposable_ci_only@localhost:5432/groupbasket
+      TEST_DATABASE_URL: postgresql://groupbasket_ci:disposable_ci_only@localhost:5432/groupbasket_test
+      APP_URL: http://localhost:3200
+      STORAGE_DIR: .data/ci-uploads
+      DELIVERY_PROVIDER: manual
+      SHOW_DEMO_LOGINS: "false"
+      CRON_SECRET: ci-only-not-a-production-secret
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci
+      - run: npm run check
+      - run: npm run build
+        env:
+          GROUPBASKET_E2E: "1"
+      - run: npm run test:int
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - name: Retain synthetic browser diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: browser-diagnostics
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7
+          if-no-files-found: ignore

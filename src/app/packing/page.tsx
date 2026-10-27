@@ -126,7 +126,7 @@ function OrderCard({
     <li
       className={cx(
         "relative rounded-xl border border-line p-3 hover:bg-muted/50",
-        faded && "opacity-70",
+        faded && "bg-muted/30",
       )}
     >
       <div className="flex items-center justify-between gap-2">

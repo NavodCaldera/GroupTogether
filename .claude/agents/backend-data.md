@@ -1,77 +1,50 @@
 ---
 name: backend-data
-description: "Database schema, Prisma migrations, seed data and data-access conventions for GroupBasket. Use for prisma/schema.prisma, prisma/migrations, prisma/seed.ts, src/server/db.ts and src/server/settings.ts."
+description: "Schema, migrations, seed fixtures and data access for GroupBasket. Use for Prisma, database configuration and persistence changes."
 ---
 
-## Project at a glance
+# Backend Data
 
-GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+## Read first
 
-- Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
-- **Log every product-owner change** in `docs/CHANGES.md` and update the matching agent files in the same piece of work.
-- Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
-- An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
-- Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
-- Carts are PUBLIC (on the open-carts panel) or PRIVATE (link or invite only).
-- Priorities: **speed and minimum cost**.
-- Stack: Next.js 16, React 19, Prisma 7 + Postgres, Tailwind 4, zod, decimal.js.
-- Statuses: OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED, plus EXPIRED and CANCELLED.
+Follow [repository instructions](../../AGENTS.md), then the
+[operating brief](groupbasket.md). Check [implementation status](../../docs/implementation-status.md)
+for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
+[architecture](../../docs/architecture.md) for technical context. This file owns domain
+guidance, not business policy. Verify code pointers before editing.
 
-The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read them when your task touches another area.
+## Ownership and code
 
-## Your area: data
+- Schema and migrations: `prisma/schema.prisma`, `prisma/migrations/`, `prisma.config.ts`.
+- Client and settings: `src/server/db.ts` (exports `db`, `Tx`), `src/server/settings.ts`.
+- Fixtures: `prisma/seed.ts`, `scripts/seed-brand-demo.mjs`; local databases: `scripts/local-db.mjs`.
+- Model relationships and lifecycle tables belong in [architecture](../../docs/architecture.md); do not maintain a second exhaustive model list here.
 
-**Files:** `prisma/schema.prisma`, `prisma/migrations/`, `prisma/seed.ts`, `prisma.config.ts`, `src/server/db.ts` (exports `db` and the `Tx` type; in dev the client cached on `globalThis` is replaced when `prisma generate` produces a new `PrismaClient` class, so a migration doesn't need a dev-server restart), `src/server/settings.ts`, `scripts/local-db.mjs`.
+## Implementation guards
 
-**Models:** User, Session, Product, Variant, GroupCart, CartMember, CartLine, PaymentSlip, CartInvite, Notification, Delivery, Lot, StockOffer, PriceChange, Settings.
+- Use `D`/`toD` for `Decimal(14,2)` money. Retain cart-line prices, cart minimums, lot pricing settings and gift commercial/recipient snapshots.
+- Maintain available/reserved/sold stock atomically. Recompute denormalized cart totals in the line-change transaction; closed lines remain history except permitted source-cart deletion during merge.
+- Preserve cart-row locks, per-user active-cart advisory locks, sorted merge locks and database uniqueness constraints, including one pending merge per buyer.
+- Gift capacity uses cart/offer locks and non-cancelled allocations; settlement locks selected bill rows and prevents duplicate payment recording. Coordinate with [brands-rewards](brands-rewards.md).
+- Brand revisions are immutable; approved terms stay active while proposals await review. Persist communication events transactionally, with per-user reads and deduplicated notice delivery. Coordinate with [notifications](notifications.md).
+- Nullable gift metadata preserves older offers. Private photo storage never grants public access.
+- Settings is a singleton (id 1). Its defaults are implementation settings, not permission to hard-code cart rules in other services.
+- Enforce `DATA-001` in selects as well as pages. Sellers' own offer amounts/shop prices are permitted; buyer records and internal costs are restricted.
 
-- Money is `Decimal(14,2)`. Convert it with `toD()` from `src/lib/decimal.ts`, never `Number()`.
-- `Variant` has three counters that together make up everything ever stocked: `available` (free), `reserved` (locked in carts that hold stock) and `sold`.
-- `GroupCart.total` is denormalised. Recompute it from the lines in the same transaction as any line change.
-- `CartLine.unitPrice` is a snapshot taken when the line is first added. `GroupCart.minOrderValue` is a snapshot of Settings.
-- Closed carts (EXPIRED, CANCELLED) keep their lines as history but hold no stock.
-- `Delivery.paidBy` is always `"OWNER"`.
-- `Settings` is a single row with id 1. `getSettings()` creates it with the defaults (50000, 24h, 2h; store 6,000 pieces, margins 20% for 7 days then 10%) if it is missing.
-- `Lot` (2026-10-21, migration `lots`, CLAUDE.md rule 20): a bulk we bought: `pieces`, `bulkCost`, `transportCost`, `wages` (Decimal), `receivedAt` (Colombo midnight), the snapshotted `fullMarginPct` / `reducedMarginPct`, `reduceAt` (arrival + full-margin days) and `reducedAt` (set once the sweep has dropped its price). `Product.lotId` (optional, SetNull): such a product's `price` is kept equal to the lot's price by `src/server/lots.ts`.
-- Useful indexes: `GroupCart(status, visibility, createdAt)` for the panel, and `(status, expiresAt)` / `(status, slipDueAt)` for the sweep.
+## Migrations and fixtures
 
-**Migrations:**
+- Never edit an applied migration. Name new migrations in snake_case; `npm run db:migrate` creates migrations and regenerates the client.
+- Generated client output is `src/generated/prisma`; do not edit it. The development client cache detects a regenerated Prisma client class.
+- Local Postgres uses ports 5546 (`groupbasket`) and 5547 (`groupbasket_test`), with data in `.data/pg`. Test and development database URLs must differ.
+- The main seed clears tables. Treat fixture accounts, cart totals and packing stages as test dependencies; inspect the seed and browser setup before changing them.
+- Legacy footwear fixtures/schema values do not expand clothing-only scope. Consult implementation status rather than copying historical fixture inventories.
+- The separate brand demo script has its own local-development guard and fixture behavior; inspect it rather than assuming it behaves like the destructive main seed.
 
-- Run `npm run db:migrate` to create a migration and regenerate the client. Never edit an applied migration.
-- The client is generated to `src/generated/prisma` (git-ignored).
-- Name migrations in snake_case.
+## Verification and coordination
 
-**Local databases:**
+Use the repository money/concurrency/access skills under `.agents/skills/`. `npm run check:money` checks Decimal schema precision and selected type-aware hazards; it does not prove all financial paths are correct. Test entry points share `scripts/test-database.mjs`. The optional MCP inspector uses a restricted reader and sanitized views; see [tooling setup](../../docs/development-tooling.md). Never substitute application credentials for inspector credentials.
 
-- `npm run db:start` starts embedded Postgres: dev on 5546 (`grouptogether`), test on 5547 (`grouptogether_test`). No install or password needed; the data lives in `.data/pg`.
-- The test DB is wiped by the tests. It must never equal `DATABASE_URL`.
-
-**Seed** (`npm run db:seed`):
-
-- Empties every table, then loads the bank details, 1 admin (`admin@groupbasket.lk`) and the only 3 buyers (`buyer@`, `buyer2@` and `buyer3@example.com`: Dilan, Sachini, Tharindu), all with the password `password123`.
-- Then 20 LIVE products (10 shoes in UK 6–11, 10 apparel in S–XL; mixed surplus and B-grade).
-- Then the carts, locking stock exactly as the app does and keeping rule 12 (one active cart per buyer): Dilan's public "Office sneaker run" at 49,800 and Sachini's PRIVATE "Sachini's friends only" (READY). Tharindu is in no active cart, so the e2e journey has him join Dilan's cart.
-- Dilan also has a DELIVERED order (with Tharindu; its stock is `sold`, with a manual delivery and no slip file) and an invite to Sachini's private cart.
-- Then the demo seller `seller@example.com` (Ceylon Footwear Mills, Ekala Industrial Estate, Ja-Ela, with a map pin): one product LIVE under the seller, and three stock offers (`StockOffer`; `receivedById`/`receivedAt` set when packing staff press Received): one waiting for review, one accepted with a note, one declined with a reason. Plus a tested design (2026-10-24): "Linen short-sleeve shirt" (men's shirts, the seller's) with a TEST offer (received 21 days ago) and a BULK offer (received 6 days ago) linked to it, prices 2,400 then 2,150 (`PriceChange`), and past carts of it (three delivered with packing rows, two expired) whose lines match the variants' sold counts. Every other product gets one `PriceChange` at its price.
-- Luxury brands (2026-10-24, migration `luxury_brands`): `User.isBrand` (default false) and `website`; `StockOffer.actualPrice` / `offerPrice` (Decimal, a piece) / `pieces` / `productUrl` (a brand's offer; `amount` = offerPrice × pieces); `Product.brandUrl` (the product's page on the brand's site, shown with `retailPrice`). Seed: the fictional brand `brand@example.com` (Serendib Atelier, https://www.serendib-atelier.example, a reserved domain) with the kaftan (accepted, received, in the shop at 11,900 with retail 18,500 and its brand link) and a blouse waiting for review.
-- `StockOffer.kind` (`OfferKind` TEST | BULK, default BULK) and `productId` (SetNull): the shop product its pieces went onto. `PriceChange` (productId, price, at; Cascade): a product's price from `at` until the next row, written by `logPrices` (`src/server/prices.ts`) after every price change. Migration `seller_designs` (2026-10-24) backfills one row per product at its createdAt.
-- Later picks skip variants already in a cart (`used`), so the original carts keep their variants.
-- The e2e tests depend on these accounts, cart names and the 49,800 total. Update `tests/e2e/journey.spec.ts` if you change them.
-
-**Speed and cost:**
-
-- Select only the fields a page needs.
-- Avoid N+1 queries: use `include`/`select`, or `Promise.all` for independent reads.
-- Keep the pool at `DATABASE_POOL_MAX` (default 10).
-
-Rule 13 columns: `User.lat/lng`, `CartMember.address/city/lat/lng`, `GroupCart.deliveryLat/deliveryLng` (Float, nullable for old rows). Validation lives in `src/lib/location.ts` (`locationSchema`, `pinFields`, Sri Lanka bounds). The seed pins its demo users.
-
-- `CartMergeRequest` (`userId`, nullable `fromCartId` set null when that cart is deleted, `toCartId` cascade, `status`: `PENDING|ACCEPTED|DECLINED|CANCELLED`). A hand-added partial unique index allows one `PENDING` request per user (see its migration).
-  `CartMessage` (cartId, participantId, authorId, body) holds owner chat threads; cascade-deleted with the cart or user.
-
-- Seeded carts are named `"<owner name>'s cart"` (the seed ignores its label argument).
-
-- `CartMessage.readAt` (null = unread by the non-author side), indexed with `participantId`.
-
-- Role `PACKER` (2026-10-18, rule 17). `Packing` (one per cart, `cartId` unique, cascade with the cart): `gatheredById`, `gatheredAt` (first check), `packedById?`, `packedAt?` (second check, a different person), `handedOverById?`, `handedOverAt?`. Migrations `20261018101541_packing_staff` and `20261019090000_packing_two_people` (two-person flow, 2026-10-19: renamed packedBy to gatheredBy, the earliest check by someone else became packedBy, `PackingCheck` dropped). Seed: Kasun (`packer@`) checked and gathered Dilan's delivered order, Ishara (`packer2@example.com`) rechecked, packed and handed it over; Tharindu has a CONFIRMED order to pack.
+Use [qa-review](qa-review.md) to select checks. Review migration compatibility, regenerated
+types, constraints and affected integration fixtures. Coordinate stock/lifecycle schema
+changes with [carts](carts.md), [payments-slips](payments-slips.md), [packing](packing.md)
+or [brands-rewards](brands-rewards.md). Do not reset data for documentation verification.

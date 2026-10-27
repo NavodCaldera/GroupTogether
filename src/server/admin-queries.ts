@@ -5,6 +5,7 @@ import { toD } from "@/lib/decimal";
 import { colomboDayStart, formatLKR } from "@/lib/format";
 import { IN_SHOP } from "./catalogue";
 import { db } from "./db";
+import { brandInbox } from "./brand-communications";
 
 /** Carts whose slip was approved. Sales figures count these, by when they were confirmed. */
 export const PAID: CartStatus[] = ["CONFIRMED", "DISPATCHED", "DELIVERED"];
@@ -75,20 +76,35 @@ export async function suggestCarts(q: string) {
 }
 
 /** Counts for the admin nav badges. */
-export async function adminBadges() {
-  const [slips, orders, offers, lowStock] = await Promise.all([
-    db.paymentSlip.count({ where: { status: "PENDING" } }),
-    // Orders that need the admin: PickMe to book, or a failed drop to book again.
-    db.groupCart.count({
-      where: {
-        OR: [
-          { status: "CONFIRMED", delivery: { is: null } },
-          { status: "DISPATCHED", delivery: { is: { status: { in: ["FAILED", "CANCELLED"] } } } },
-        ],
-      },
-    }),
-    db.stockOffer.count({ where: { status: "IN_REVIEW" } }),
-    db.variant.count({ where: { available: { lte: LOW_STOCK }, product: IN_SHOP } }),
-  ]);
-  return { slips, orders, offers, lowStock };
+export async function adminBadges(adminId?: string) {
+  const [slips, orders, offers, lowStock, brandReviews, brandIssues, brandQueries, inbox] =
+    await Promise.all([
+      db.paymentSlip.count({ where: { status: "PENDING" } }),
+      // Orders that need the admin: PickMe to book, or a failed drop to book again.
+      db.groupCart.count({
+        where: {
+          OR: [
+            { status: "CONFIRMED", delivery: { is: null } },
+            { status: "DISPATCHED", delivery: { is: { status: { in: ["FAILED", "CANCELLED"] } } } },
+          ],
+        },
+      }),
+      db.stockOffer.count({ where: { status: "IN_REVIEW", seller: { isBrand: false } } }),
+      db.variant.count({ where: { available: { lte: LOW_STOCK }, product: IN_SHOP } }),
+      db.brandOfferRevision.count({ where: { status: "IN_REVIEW", supersededAt: null } }),
+      db.giftOrder.count({ where: { status: "ISSUE" } }),
+      db.giftSettlement.count({ where: { queryOpen: true } }),
+      adminId ? brandInbox(adminId) : [],
+    ]);
+  return {
+    slips,
+    orders,
+    offers,
+    lowStock,
+    brandRewards:
+      brandReviews +
+      brandIssues +
+      brandQueries +
+      inbox.filter((thread) => thread.unread > 0).length,
+  };
 }

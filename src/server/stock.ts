@@ -281,7 +281,9 @@ export async function stockDashboard(now = new Date()) {
     closingSoon(now),
     cartOutcomes(now),
     db.stockOffer.count({ where: { status: "IN_REVIEW" } }),
-    db.stockOffer.count({ where: { status: "ACCEPTED", receivedAt: null } }),
+    db.stockOffer.count({
+      where: { status: "ACCEPTED", receivedAt: null, seller: { isBrand: false } },
+    }),
   ]);
 
   // Big, old piles first: free pieces × days in the store.

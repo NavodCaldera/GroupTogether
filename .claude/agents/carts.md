@@ -1,75 +1,52 @@
 ---
 name: carts
-description: "Group-cart lifecycle in GroupBasket: create/join/leave, stock locking, the OPEN/READY threshold, accept & pay, cancel, the 24h/2h deadlines (sweep) and invites. Use for src/lib/cart-rules.ts and src/server/carts/service.ts, invites.ts, queries.ts and actions.ts."
+description: "Shared-cart lifecycle, stock reservation, deadlines, discovery and merging for GroupBasket. Use for cart rules, services, queries and actions."
 ---
 
-## Project at a glance
+# Carts
 
-GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+## Read first
 
-- Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
-- **Log every product-owner change** in `docs/CHANGES.md` and update the matching agent files in the same piece of work.
-- Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
-- An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
-- Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
-- Carts are PUBLIC (on the open-carts panel) or PRIVATE (link or invite only).
-- Priorities: **speed and minimum cost**.
-- Stack: Next.js 16, React 19, Prisma 7 + Postgres, Tailwind 4, zod, decimal.js.
-- Statuses: OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED, plus EXPIRED and CANCELLED.
+Follow [repository instructions](../../AGENTS.md), then the
+[operating brief](groupbasket.md). Check [implementation status](../../docs/implementation-status.md)
+for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
+[architecture](../../docs/architecture.md) for technical context. This file owns domain
+guidance, not business policy. Verify code pointers before editing.
 
-The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read them when your task touches another area.
+## Ownership and code
 
-## Your area: shared carts
+- Domain rules: `src/lib/cart-rules.ts`, `distance.ts`, `location.ts`.
+- Services: `src/server/carts/service.ts`, `queries.ts`, `actions.ts`, `invites.ts`.
+- Owner chat is owned by [notifications](notifications.md); payment review by [payments-slips](payments-slips.md).
+- Policy references: `INV-001`, `CART-001`?`CART-005`, `LOC-001`, `PAY-001`/`PAY-002`, `GIFT-003`.
 
-**Files:**
+## Implementation guards
 
-- `src/lib/cart-rules.ts` (pure, with unit tests in `cart-rules.test.ts`)
-- `src/server/carts/service.ts`
-- `src/server/carts/invites.ts`
-- `src/server/carts/queries.ts`
-- `src/server/carts/actions.ts`
-- tests: `tests/integration/carts.int.test.ts`
+- Mutate under `db.$transaction` and `lockCart()`; recheck state and deadlines after acquiring the lock.
+- Reserve on add with a guarded atomic available-to-reserved update. Quantity changes reserve/release only the delta; insufficient free stock fails without partial changes.
+- Only unexpired OPEN/READY carts are editable. `setLine(..., { add: true })` adds to the current quantity, subject to the existing limit.
+- `assertOneCart` uses a per-user advisory lock in create/join/add paths. Only CUSTOMER accounts may participate.
+- `recompute()` updates totals and applies `statusAfterChange` only to editable carts. Send ready notices to members after commit on each crossing to READY.
+- `acceptAndPay` is owner-only, freezes edits and snapshots profile delivery details. Use the cart's minimum snapshot and configured windows, not fixed 50,000/24h/2h assumptions.
+- `close()` releases stock and retains history. Owner cancellation excludes SLIP_REVIEW; admin cancellation includes it.
+- `sweep(now, cartId?)` rechecks `overdue()` under lock. A full sweep also runs due lot repricing. Keep cron and page-load entry points consistent.
+- Merge acceptance locks both carts in sorted id order, moves items without releasing reservations and recomputes both totals. Delete an owned source only when it has no other members.
+- Membership stores address/city/pin snapshots; missing profile locations route to account completion. Never expose exact owner coordinates through discovery.
+- Preserve gift reservation hooks on close/leave/reduce/merge. [brands-rewards](brands-rewards.md) owns their financial and fulfilment behavior.
 
-**Invariants (never break them):**
+## Queries and interface boundaries
 
-1. **Every cart change happens under the cart row lock**: `db.$transaction` plus `lockCart()`, which runs `SELECT … FOR UPDATE`. Re-check the status inside the lock.
-2. **Stock locks on add.** `setLine` changes the stock by the difference between the old and new quantity.
-   - Increase: `variant.updateMany({ where: { id, available: { gte: delta } }, data: { available: -delta, reserved: +delta } })` (no product status since 2026-10-20: free stock decides). If the count is 0, throw "Only N more available" or "sold out".
-   - Decrease: release the difference.
-3. Only OPEN and READY carts are editable, and only before `expiresAt`. Adding to a cart joins it (`cartMember` upsert). `setLine(..., { add: true })` adds to the existing quantity (at most 99).
-   3b. **One cart at a time:** `createCart`, `joinCart` and `setLine` call `assertOneCart` (per-user advisory lock) and refuse when the buyer is already in another active cart (`isActiveCart` / `activeCartOf`). It also refuses anyone who isn't a buyer (`CUSTOMER`): sellers, packing staff and admins never use carts ("Only shoppers can use carts", product owner 2026-10-19).
-   3c. **Merge requests (rule 13):** `requestMerge` (buyer in an active cart asks to join another; checked with `mergeBlockReason`; one pending per buyer by a partial unique index), `acceptMerge` (target owner only; locks both carts in id order; moves the lines without touching stock, adds the member, deletes the old cart or removes the member from it, recomputes both, notifies), `declineMerge`, `cancelMerge`. Table `CartMergeRequest` (`PENDING|ACCEPTED|DECLINED|CANCELLED`).
-   3d. **Open carts order (rule 14):** `recentCarts(take, now, userId, { q, near })` filters public OPEN/READY carts the user isn't in, searches name/code/owner name, and with `near` (the buyer's pin) sorts by `distanceKm` to the cart's `deliveryLat/Lng` or else the owner's pin; unknown pins last. Pure helpers in `src/lib/distance.ts`.
-   3e. **Cart name (rule 15):** `createCart` names a cart `"<owner name>'s cart"`; there is no name input in the UI.
-4. After any line change, `recompute()` sums the lines into `total` and applies `statusAfterChange`. When the cart becomes READY, `notify(members, readyNotice)` runs **after** the commit.
-5. `acceptAndPay(owner)` is owner only. It needs READY with total ≥ min, stores the drop-off details (zod `acceptSchema`; the phone must be `07XXXXXXXX`), and sets `slipDueAt = now + slipWindowHours`.
-6. Cancelling:
-   - The owner can cancel in OPEN, READY or AWAITING_SLIP.
-   - An admin can cancel in any of the CANCELLABLE states (those plus SLIP_REVIEW).
-   - `close()` releases the stock and keeps the lines.
-7. `sweep(now, cartId?)`:
-   - Expires OPEN and READY carts past `expiresAt`.
-   - Cancels AWAITING_SLIP carts past `slipDueAt`.
-   - Re-checks with `overdue()` under the lock, then notifies the members .
-   - A full sweep (no `cartId`) first calls `reduceDueLots` (`src/server/lots.ts`): lots past their 7 full-margin days drop their products to cost + 10% (CLAUDE.md rule 20). Lines already in carts keep their `unitPrice`.
-   - It runs from `/api/cron/sweep` and at the top of `/`, `/carts`, `/admin`, `/admin/lots`, `/c/[code]` and the pay page.
-8. Invites: the inviter must be a member, the cart must be editable, and the target must be a registered user found by email or phone. The invite row is upserted and the target is notified and emailed.
-9. **There are no refunds.** Never add a refund path.
+`recentCarts` discovers public editable carts, with nearest-first sorting when a buyer has
+a pin, unknown distances last and newest-first fallback. `joinableCart` supports product
+cart context; `editableCartsFor` supplies available destinations. Names derive from owners.
+Sharing uses the dashboard copy-link action. Legacy invite services remain, but the
+cart-page invite/share controls are removed; invitations create in-app notices only.
 
-**Queries:**
+## Verification and coordination
 
-- `recentCarts` (the panel): PUBLIC, OPEN or READY, not expired, newest first.
-- `joinableCart(code)` lets a product page reached through `?cart=` add to a cart the user hasn't joined yet.
-- `editableCartsFor(user)` fills the product page's "Add to" list.
-
-**Tests:**
-
-- Add every new transition to `cart-rules.ts` with unit tests, and to the integration file.
-- Pass a `now` argument instead of mocking the clock.
-
-Member location (rule 13): `joinCart(userId, cartId, location?)` stores address, city and map pin on `CartMember` and the profile; `createCart` and the implicit join in `setLine` copy the profile pin; `acceptAndPay` copies the owner's pin to `GroupCart.deliveryLat/deliveryLng`. Actions (`joinAction`, add-to-cart, create) require the pin; no pin sends the buyer to `/account/location`.
-Owner chat (rule 14): `src/server/carts/chat.ts` (`sendMessage`, `listMessages`, `threadsFor`), `GET /api/chat`. A thread is keyed by (cart, participant); the owner replies but cannot start one, except with someone who has a PENDING request to join their cart (`askingToJoin`; the "Message" button on the "Asking to join" card opens an empty thread via `newThreadWith`, product owner 2026-10-17). Once started, the thread carries on after the request is decided.
-Dashboard next step per status/role: `nextStep` and `journeyStep` in `src/lib/cart-rules.ts` (unit tests in `dashboard-step.test.ts`). An OPEN cart's button is "View cart" → `/c/<code>` (adding items happens from the cart page).
-Invites (product owner, 2026-10-17): the cart page no longer shows the invite-by-email/phone form; people join via the share link/WhatsApp. `InviteForm` and `inviteAction` are unused.
-Accept & pay takes the drop-off from the owner's profile (address, city, phone) in `acceptAction`; there are no address fields on the cart page. Missing profile data → error pointing to the profile.
+Use adjacent cart, dashboard-step, distance and location unit tests plus
+`tests/integration/carts.int.test.ts`, `merge.int.test.ts` and `open-carts.int.test.ts`.
+Pass explicit `now` values for time-sensitive checks. Cover concurrent reservation,
+deadline boundaries, merge authorization and gift reservation effects when affected.
+Coordinate payment changes with [payments-slips](payments-slips.md) and UI changes with
+[frontend](frontend.md); see [qa-review](qa-review.md) for command selection.

@@ -13,6 +13,7 @@ export function ProgressBar({ total, min }: { total: Money; min: Money }) {
       <div
         className="h-2.5 overflow-hidden rounded-full bg-muted"
         role="progressbar"
+        aria-label="Cart minimum order progress"
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(p * 100)}
@@ -73,6 +74,7 @@ export function CartCard({ cart }: { cart: PanelCartView }) {
       <div
         className="h-2.5 overflow-hidden rounded-full bg-muted"
         role="progressbar"
+        aria-label={`Minimum order progress for ${cart.name || cart.owner.name}`}
         aria-valuemin={0}
         aria-valuemax={100}
         aria-valuenow={Math.round(p * 100)}

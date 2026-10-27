@@ -916,6 +916,38 @@ async function main() {
       },
     });
 
+  // Seeded brand submissions use the same review history as newly submitted products.
+  for (const offer of await db.stockOffer.findMany({ where: { sellerId: brand.id } })) {
+    await db.brandOfferRevision.create({
+      data: {
+        offerId: offer.id,
+        version: 1,
+        status: offer.status,
+        submittedById: brand.id,
+        reviewedAt: offer.decidedAt,
+        createdAt: offer.createdAt,
+        snapshot: {
+          name: offer.name,
+          description: offer.description,
+          actualPrice: offer.actualPrice?.toString() ?? null,
+          offerPrice: offer.offerPrice?.toString() ?? null,
+          pieces: offer.pieces,
+          productUrl: offer.productUrl,
+          photoKey: offer.photoKey,
+          photoType: offer.photoType,
+          packDetails: offer.packDetails,
+          packSize: offer.packSize,
+          dispatchDays: offer.dispatchDays,
+          hasExpiry: offer.hasExpiry,
+          expiryDate: offer.expiryDate?.toISOString() ?? null,
+          minShelfLifeDays: offer.minShelfLifeDays,
+        },
+      },
+    });
+    if (offer.status === "ACCEPTED")
+      await db.stockOffer.update({ where: { id: offer.id }, data: { approvedRevision: 1 } });
+  }
+
   // Every other product starts its price history at its price (the dashboard charts it).
   await db.$executeRaw`
     INSERT INTO "PriceChange" ("id", "productId", "price", "at")

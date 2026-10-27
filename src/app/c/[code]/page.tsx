@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { GiftProductDetails } from "@/components/gift-product-details";
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { StatusBadge } from "@/components/cart-bits";
@@ -35,6 +36,10 @@ import { sweep } from "@/server/carts/service";
 import { conversationHref, listMessages, threadsFor } from "@/server/carts/chat";
 import { ChatPanel } from "./chat";
 import { AcceptForm, JoinForm } from "./cart-forms";
+import { db } from "@/server/db";
+import { RewardForm } from "@/components/reward-form";
+import { removeGiftAction } from "@/server/gift-actions";
+import { GIFT_STATUS } from "@/lib/gift-rules";
 
 export async function generateMetadata({ params }: PageProps<"/c/[code]">): Promise<Metadata> {
   const { code } = await params;
@@ -54,6 +59,32 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   const isOwner = user?.id === cart.ownerId;
   const isMember = !!user && cart.members.some((m) => m.userId === user.id);
   const editable = isEditable(cart.status);
+  const myGifts =
+    isMember && user
+      ? await db.giftOrder.findMany({
+          where: { cartId: cart.id, recipientId: user.id, status: { not: "CANCELLED" } },
+          select: {
+            id: true,
+            retailValue: true,
+            status: true,
+            courier: true,
+            tracking: true,
+            offer: {
+              select: {
+                id: true,
+                name: true,
+                photoKey: true,
+                packDetails: true,
+                packSize: true,
+                dispatchDays: true,
+                hasExpiry: true,
+                expiryDate: true,
+                minShelfLifeDays: true,
+              },
+            },
+          },
+        })
+      : [];
   const title = cart.name || `${cart.owner.name}'s group cart`;
   const slip = cart.slips[0];
   const pct = progress(cart.total.toString(), cart.minOrderValue.toString());
@@ -130,6 +161,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
           <div
             className="mt-3 h-2.5 overflow-hidden rounded-full bg-muted"
             role="progressbar"
+            aria-label="Cart minimum order progress"
             aria-valuemin={0}
             aria-valuemax={100}
             aria-valuenow={Math.round(pct * 100)}
@@ -288,6 +320,33 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
           })}
         </div>
       </section>
+
+      {myGifts.length > 0 && (
+        <section className="flex flex-col gap-3">
+          <h2 className="text-lg font-semibold">Your complimentary gift</h2>
+          {myGifts.map((g) => (
+            <Card key={g.id} className="flex flex-col gap-3">
+              <div className="flex flex-wrap justify-between gap-2">
+                <h3 className="font-medium">{g.offer.name}</h3>
+                <Badge>{GIFT_STATUS[g.status]}</Badge>
+              </div>
+              <GiftProductDetails offer={g.offer} />
+              <p className="text-sm">Retail value {formatLKR(g.retailValue)} · Free gift</p>
+              <p className="text-sm text-subtle">Separate brand delivery · Delivery paid by you</p>
+              {g.tracking && (
+                <p className="text-sm">
+                  {g.courier} · {g.tracking}
+                </p>
+              )}
+              {editable && g.status === "RESERVED" && (
+                <RewardForm action={removeGiftAction} submit="Remove gift" secondary>
+                  <input type="hidden" name="giftId" value={g.id} />
+                </RewardForm>
+              )}
+            </Card>
+          ))}
+        </section>
+      )}
 
       {/* Messages sit right under the people in the cart. */}
       {user && (!isOwner || threads.length > 0) && (

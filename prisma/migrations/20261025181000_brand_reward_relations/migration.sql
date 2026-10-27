@@ -1,0 +1,10 @@
+ALTER TABLE "GiftOrder" DROP CONSTRAINT "GiftOrder_cartId_fkey";
+ALTER TABLE "GiftOrder" DROP CONSTRAINT "GiftOrder_offerId_fkey";
+ALTER TABLE "GiftOrder" DROP CONSTRAINT "GiftOrder_recipientId_fkey";
+ALTER TABLE "GiftOrder" DROP CONSTRAINT "GiftOrder_settlementId_fkey";
+ALTER TABLE "GiftSettlement" DROP CONSTRAINT "GiftSettlement_brandId_fkey";
+ALTER TABLE "GiftOrder" ADD CONSTRAINT "GiftOrder_offerId_fkey" FOREIGN KEY ("offerId") REFERENCES "StockOffer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "GiftOrder" ADD CONSTRAINT "GiftOrder_cartId_fkey" FOREIGN KEY ("cartId") REFERENCES "GroupCart"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "GiftOrder" ADD CONSTRAINT "GiftOrder_recipientId_fkey" FOREIGN KEY ("recipientId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "GiftOrder" ADD CONSTRAINT "GiftOrder_settlementId_fkey" FOREIGN KEY ("settlementId") REFERENCES "GiftSettlement"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+ALTER TABLE "GiftSettlement" ADD CONSTRAINT "GiftSettlement_brandId_fkey" FOREIGN KEY ("brandId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

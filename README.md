@@ -1,5 +1,8 @@
 # GroupBasket
 
+Business model and current rules: [main agent brief](.claude/agents/groupbasket.md).
+For code coverage and planned features, see [implementation status](docs/implementation-status.md).
+
 Group buying for clothing and apparel. Targets the main clothing business with factory-surplus and B-grade clothes as a sub-part (shoes/footwear are not targeted). Shoppers share carts to reach the
 LKR 50,000 minimum order. The cart owner pays the whole cart by bank transfer, and the order
 arrives in one PickMe drop.
@@ -31,14 +34,43 @@ Demo accounts:
     real request fields in `src/server/delivery/provider.ts` and
     `src/app/api/webhooks/pickme/route.ts`.
 - **Cron:** call `POST /api/cron/sweep` with `Authorization: Bearer $CRON_SECRET` every 5 minutes,
-  so expiry emails go out on time. Deadlines also take effect whenever a page loads.
+  so expiry processing and in-app notices run on time. Deadlines also take effect whenever a page loads.
 - **Hosting:** not chosen yet. Bank slips and photos are stored on local disk (`STORAGE_DIR`). On
   serverless hosting, swap `src/server/storage/local.ts` for object storage.
 
 ## Tests
+
+Development assistant skills, MCP setup, CI, security checks and upstream provenance:
+[development tooling](docs/development-tooling.md). Repository skills load on the next
+Codex turn/session; configured MCP servers must appear in the client's actual tool inventory
+before an assistant may claim access.
+
+To preview all premium brand dashboard states without resetting existing local data:
+
+```sh
+node scripts/seed-brand-demo.mjs
+```
+
+Sign in as `brand@example.com` with `password123` and open `/seller`. Fixtures are labelled Demo. This command is additive and restricted to the local development database; the regular `db:seed` command resets data.
 
 ```sh
 npm run check      # typecheck, lint and unit tests
 npm run test:int   # integration tests: stock locking, deadlines, slips, delivery
 npm run e2e        # browser journeys
 ```
+
+Additional checks and local tools:
+
+```sh
+npm run check:money     # selected monetary hazards and Decimal(14,2) mappings
+npm run check:docs      # local file links in repository guidance
+npm run test:tooling    # test database and inspector boundary regressions
+npm run e2e:mobile      # 360 px accessibility and role-workspace smoke checks
+npm run browser -- --help
+npm run mcp:verify      # Next.js DevTools handshake
+```
+
+Tests require the disposable loopback database `groupbasket_test`; test setup resets it.
+The development database and read-only MCP reader are never test targets. GitHub Actions
+runs checks, a production build, integration tests and browser tests against disposable
+PostgreSQL. A separate workflow audits dependencies and scans local Semgrep rules.

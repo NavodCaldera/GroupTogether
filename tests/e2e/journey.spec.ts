@@ -1,4 +1,7 @@
 import { type Page, expect, test } from "@playwright/test";
+import { seedBrowserFixtures } from "./seed-fixtures";
+
+test.beforeAll(seedBrowserFixtures);
 
 async function signIn(page: Page, email: string) {
   await page.context().clearCookies();
@@ -73,8 +76,11 @@ test("a private cart is hidden from the panel but opens from its link", async ({
   await expect(page.getByText("Sachini Gunawardena's cart")).toHaveCount(0);
 
   await signIn(page, "buyer2@example.com");
-  await page.goto("/my-carts");
-  await page.getByRole("link", { name: /Sachini Gunawardena's cart/ }).click();
+  await page.goto("/dashboard");
+  await expect(
+    page.getByRole("heading", { name: "Sachini Gunawardena's cart", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("link", { name: "Accept & pay", exact: true }).click();
   await expect(page.getByText("Private", { exact: true })).toBeVisible();
   const url = page.url();
 

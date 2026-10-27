@@ -1,68 +1,54 @@
 ---
 name: notifications
-description: "In-app notifications in GroupBasket. Use for src/server/notify/, the notifications page, the header bell, and any new message to users."
+description: "In-app notifications, private owner chat and premium-brand partnership communication for GroupBasket."
 ---
 
-## Project at a glance
+# Notifications
 
-GroupBasket is a standalone group-buying site at `E:\Projects\New\GroupTogether`. It sells factory-surplus and B-grade shoes and apparel in LKR.
+## Read first
 
-- Shoppers fill shared carts. Each cart needs **LKR 50,000** (snapshotted per cart) and expires **24h** after creation.
-- **Stock is locked as soon as an item is added.** Reaching the minimum **notifies every member in the app**.
-- **Log every product-owner change** in `docs/CHANGES.md` and update the matching agent files in the same piece of work.
-- Only the **owner pays**, for the whole cart. After "Accept & pay" they have **2h to upload one bank slip**, or the cart is cancelled and its stock released.
-- An admin approves the slip (CONFIRMED) or rejects it (a fresh 2h window). **There are no refunds.**
-- Delivery is **one PickMe drop to the owner, who pays the driver**. The platform never touches the fee.
-- Carts are PUBLIC (on the open-carts panel) or PRIVATE (link or invite only).
-- Priorities: **speed and minimum cost**.
-- Stack: Next.js 16, React 19, Prisma 7 + Postgres, Tailwind 4, zod, decimal.js.
-- Statuses: OPEN → READY → AWAITING_SLIP → SLIP_REVIEW → CONFIRMED → DISPATCHED → DELIVERED, plus EXPIRED and CANCELLED.
+Follow [repository instructions](../../AGENTS.md), then the
+[operating brief](groupbasket.md). Check [implementation status](../../docs/implementation-status.md)
+for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
+[architecture](../../docs/architecture.md) for technical context. This file owns domain
+guidance, not business policy. Verify code pointers before editing.
 
-The full brief is in `.claude/agents/grouptogether.md` and `CLAUDE.md`. Read them when your task touches another area.
+## Ownership and code
 
-## Your area: notifications
+- Notices: `src/server/notify/index.ts`, `src/app/notifications/`, header bell.
+- Owner chat: `src/server/carts/chat.ts`, `src/app/api/chat/route.ts`, `src/app/messages/`.
+- Brand communication: `src/server/brand-communications.ts`, `brand-communication-actions.ts`, shared `src/components/brand-*.tsx`.
+- Policy references: `COM-001`?`COM-003`, `DATA-001`, `BRAND-004`.
 
-**Files:**
+## In-app delivery
 
-- `src/server/notify/index.ts` (`notify`, `unreadCount`, `appUrl`)
-- `src/app/notifications/page.tsx`
-- the bell in `src/components/site-header.tsx`
+- `notify(userIds, { title, body, href })` writes in-app rows after commit. No email, SMS or WhatsApp sending is implemented.
+- Keep notices brief, actionable and linked to the correct role workspace. Verify recipients in the event's service rather than maintaining a competing event catalogue here.
+- Ready/confirmed/expired/cancelled cart events notify applicable members; slip upload notifies admins, rejection notifies owner. Booking notifies owner/packers; handover notifies owner.
+- Factory offer/review/receipt notices stay separate from brand review, paid gifts and settlement notices.
+- Notification read/redirect routes check ownership and same-site destinations. Use a plain anchor for `/notifications/[id]`: prefetch must not mark a notice read.
 
-**How it works:**
+## Private owner chat
 
-- `notify(userIds, { title, body, href })` writes in-app `Notification` rows. **There is no email sending** (removed 2026-10-17 by the product owner). Email addresses are only for sign-in and finding users to invite.
-- **Call it after the transaction commits**, never inside one.
+- Threads are keyed by cart and participant. The owner replies, or initiates only with an eligible pending join requester; threads persist after that request is decided.
+- Enforce participant checks server-side. Sellers and packing staff cannot send cart chat.
+- Messages allow 500 characters and ten sends per minute. Deduplicate notices while a conversation notice is unread.
+- `listMessages` records other-side reads and clears the notice; preserve sent/seen ticks and unread inbox counts.
+- Use `conversationHref` for current `/messages?c=?&with=?` links. Poll only while the tab is visible.
 
-**Who is notified, and how:**
+## Brand partnership communication
 
-| Event                                        | Who                                        |
-| -------------------------------------------- | ------------------------------------------ |
-| Cart reaches the minimum (OPEN → READY)      | every member                               |
-| Owner accepts                                | the other members                          |
-| Slip uploaded                                | admins                                     |
-| Slip approved, order confirmed               | every member                               |
-| Slip rejected (re-upload within 2h)          | owner                                      |
-| Slip window missed, cart cancelled           | every member                               |
-| Cart expired                                 | every member                               |
-| Cart cancelled by the owner or an admin      | members except the canceller               |
-| Invited to a cart                            | invitee                                    |
-| Asks to merge into a cart                    | that cart's owner                          |
-| Merge accepted                               | the requester                              |
-| Merge declined                               | the requester                              |
-| Delivery booked (pay the driver about LKR x) | owner                                      |
-| Seller sends a stock offer                   | admins                                     |
-| Admin accepts or declines a stock offer      | that seller                                |
-| Packing staff press Received on the stock    | that seller, and the admins                |
-| Admin links an offer to a shop product       | that seller ("Your design is in our shop") |
-| Luxury brand publishes a discounted product  | admins ("Brand product to review")         |
+- Admin/owning-brand threads attach to product, paid gift, settlement or general context. Internal notes remain admin-only; unpaid gift threads and recipients are unavailable to brands.
+- Persist messages and business events within their transaction. `flushBrandNotices` delivers deduplicated notices after commit and retries on workspace visits/sweep.
+- Preserve conversation locks, request-key send deduplication and per-user monotonic read markers. Retrying a notice must not reopen something read through that message.
+- Messages allow 2,000 characters and ten sends per minute. Shared needs-reply/resolved state does not settle money or resolve a gift issue.
+- Visible-tab refresh preserves drafts. Mark read when the newest message is visible, never through server GET/prefetch.
 
-Keep the messages short and say what to do next. Every notice should have an `href` to the cart or page it is about. If cost matters, an SMS or WhatsApp API is a possible later step; it is not built.
-Chat messages notify the recipient once per conversation while a notice for it is unread (href `/c/<code>?chat=<participantId>`).
+## Verification and coordination
 
-**Messages (cart chat):** `src/server/carts/chat.ts`. A conversation is (`cartId`, `participantId`): the owner talks to each buyer separately. `sendMessage` notifies the other side once per unread conversation with `href` = `conversationHref(cartId, participantId)` (`/messages?c=…&with=…`). `listMessages` marks the other side's messages read (`CartMessage.readAt`) and clears that notice. It returns each message with `seen` (`readAt` set), shown to the sender as ticks: one grey sent, two green seen. The `/messages` list shows only initial, name, time and unread count. `inbox(userId)` lists all conversations with last message and unread count; `unreadMessageCount` feeds the header chat icon.
-
-**Join requests:** after Accept / Decline on `/notifications`, the result is a `Toast` pop-up (`?done=accepted|declined`), not a banner. The "wants to join your cart" notice has an empty body (the page shows only its title, no time, then the buttons) and href `/c/<code>?request=<id>`; `/notifications` shows Accept / Decline on it while the request is PENDING (older notices are matched by cart code and requester name). The actions take `back=/notifications` to return there and mark that notice read.
-Opening a notice goes through `src/app/notifications/[id]/route.ts`: marks it read (own notices only), then redirects to its same-site `href`. Link to it with a plain `<a>`, never `next/link` (prefetch would mark it read).
-
-- **Owner marked the order delivered** (2026-10-18, `markReceived`): the other members get "Your group order was delivered" (collect your items from the owner).
-- **Packing staff** (2026-10-18, rule 17), via `notifyRole("PACKER", …)` in `notify/index.ts` (unlocked users of the role): "New order to pack" when a slip is approved (`approveSlip`; "One of you checks and gathers it, someone else rechecks and packs it."), "PickMe booked" when the drop is booked (`bookDelivery`), both linking to `/packing/<code>`. When a packer hands the parcel to the driver (`handOver`) the **owner** gets "Your order is with the PickMe driver".
+Use `tests/integration/chat.int.test.ts`, `messages.int.test.ts`,
+`brand-communications.int.test.ts` and affected event-service tests.
+Check participant isolation, role restrictions, internal-note privacy, retry deduplication,
+read markers and draft preservation. Coordinate financial events with
+[brands-rewards](brands-rewards.md) and rendering with [frontend](frontend.md).
+See [qa-review](qa-review.md) for commands.

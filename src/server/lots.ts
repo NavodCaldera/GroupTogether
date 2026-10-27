@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { D } from "@/lib/decimal";
 import { colomboDay, colomboDayStart } from "@/lib/format";
 import { lotPrice, reduceAtFor } from "@/lib/stock-rules";
 import { CatalogueError } from "./catalogue";
@@ -38,7 +39,7 @@ export const lotSchema = z.object({
     .min(1, "Enter the number of pieces")
     .max(1_000_000, "That's too many pieces"),
   bulkCost: amount("Enter the bulk cost, such as 900000").refine(
-    (v) => Number(v) > 0,
+    (v) => /^\d+(\.\d{1,2})?$/.test(v) && new D(v).gt(0),
     "Enter the bulk cost, such as 900000",
   ),
   transportCost: optionalAmount("Enter the transport cost as a number"),

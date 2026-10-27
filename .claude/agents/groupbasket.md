@@ -1,0 +1,188 @@
+---
+name: groupbasket
+description: "Lead agent for GroupBasket. Canonical business model, scope, responsibilities and business rules, with links to implementation status, open decisions, architecture and specialist guidance. Read first for planning or work spanning domains."
+---
+
+# GroupBasket operating brief
+
+## 1. Purpose and authority
+
+This is the canonical project brief for GroupBasket's business model and product rules. Read it before planning or changing behavior. Last consolidated: **2026-10-26**.
+
+- Explicit user instructions govern the task, subject to the agent's system and developer instructions. Follow [AGENTS.md](../../AGENTS.md), including its Next.js documentation requirement.
+- This brief defines current business intent. [Implementation status](../../docs/implementation-status.md) records what the code supports. Code that differs from an approved requirement is a gap, not a new policy.
+- [Open decisions](../../docs/decisions.md) records unresolved questions. Do not invent an answer when it affects the requested work; progress on independent work and seek the missing decision.
+- Specialist files provide technical guidance. Historical notes and the [changelog](../../docs/CHANGES.md) do not override this brief. Dates alone do not resolve contradictory requirements.
+- Update each fact in its authoritative home and link to it elsewhere. Do not recreate another business-rule list in `CLAUDE.md` or specialist introductions.
+
+**Policy and implementation are separate.** Rules below are established requirements unless marked **Planned** or **Open**. Planned means recorded business intent, not a working feature. Recommendations and illustrative figures do not become policy automatically. Code evidence and feature status live in the implementation register.
+
+## 2. Business model
+
+GroupBasket is a Sri Lankan clothing retailer that buys and owns inventory, then sells through shared customer orders. It earns the resale spread between clothing revenue and procurement costs. Operating costs, markdowns, losses and promotional gifts reduce that spread. Purchasing stock before customer payment creates working-capital and unsold-stock risk.
+
+### Clothing and group purchasing
+
+Clothing and apparel are the main business. Factory surplus and B-grade clothing are a secondary sourcing opportunity. Customers combine purchases to reach a configurable minimum order value; the cart owner makes one payment and receives one delivery. Members settle their shares and collect their items through the owner, outside the platform.
+
+The intended value is affordable clothing for buyers, bulk sales for suppliers, and consolidated order handling for GroupBasket. Larger orders and rapid stock turnover support the model; order value alone does not establish profitability.
+
+### Factory design testing
+
+GroupBasket buys a small batch of a factory's test pieces and sells them. The factory can inspect demand, paid purchases, sizes and prices before deciding whether to produce a bulk. A later bulk of the same design belongs to the same product and sales history. Cart interest is distinct from paid demand; it is not a purchase commitment or a guarantee of future sales.
+
+### Premium-brand rewards with direct fulfilment
+
+Premium brands supply complimentary gifts for qualifying clothing purchases and ship those gifts directly to the eligible customer after clothing payment is approved. GroupBasket does not buy premium stock in advance or hold, warehouse or own gift inventory. A gift placed in an unpaid basket reserves one unit and reduces the available gift quantity; it does not authorize dispatch or create a payable bill. The customer also pays for the gift's separate delivery. GroupBasket funds approved gifts at the agreed private partner price and settles brand bills every Sunday, using `Asia/Colombo` business dates.
+
+Brands provide the genuine retail/reference price and their discounted partner price. Buyers see the gift's genuine retail value; the partner price remains private to GroupBasket and the supplying brand. Gifts have no standalone discounted public sale. This can support brand exposure and stock clearance while preserving the public price reference; brand perception is an objective, not a guarantee.
+
+Illustrative economics: around a LKR 20,000 qualifying clothing purchase with LKR 10,000 factory cost, a gift worth LKR 5,000 at a 30% partner discount costs GroupBasket LKR 3,500. This leaves LKR 6,500 before other attributable costs. These figures explain the model; they do not approve universal thresholds, discounts, clothing markups or profit floors. The gift's retail value is not revenue or profit. Contribution is clothing revenue less clothing cost, the partner gift charge and attributable fulfilment/operating costs.
+
+Direct brand fulfilment and Sunday settlement replace the earlier premium-stock purchase and gift-inventory model. The brand workspace supports gift products, basket reservations, paid gift orders, dispatch tracking and settlement records. Eligibility is manually confirmed by an admin while threshold and household rules remain open. Bank transfers and courier operations happen outside the app; their results are recorded in it. See implementation status for evidence and `DEC-003`/`DEC-004` for remaining decisions.
+
+## 3. Scope, identity and vocabulary
+
+| Topic               | Boundary                                                                                                                                                                                                                                                                           |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Primary range       | Clothing and apparel.                                                                                                                                                                                                                                                              |
+| Secondary range     | Factory surplus and B-grade clothing.                                                                                                                                                                                                                                              |
+| Excluded range      | Shoes and footwear. Remaining footwear code/demo content does not expand this scope.                                                                                                                                                                                               |
+| Premium gifts       | Brands retain and directly fulfil gift stock; GroupBasket pays the agreed partner charges weekly. Separate from ordinary clothing stock.                                                                                                                                           |
+| Geography and money | Sri Lanka; LKR; display dates and business days in `Asia/Colombo`.                                                                                                                                                                                                                 |
+| Name                | The company and customer-facing name is **GroupBasket**. Always use GroupBasket in business references and `groupbasket` in technical names. The canonical brief is `groupbasket.md`; the npm package, agent and local databases use `groupbasket` (`groupbasket_test` for tests). |
+| Independence        | Standalone code, database and rules. Do not import rules, prices or styling from unrelated projects.                                                                                                                                                                               |
+
+**Cart** and the older term **bucket** mean the shared order. A **gift spending unit** is an individual or eligible family within an order, not necessarily the whole cart. A **lot** is purchased stock with allocated costs. A **design** is a factory-linked product whose test and bulk share history. An **offer** is a supplier proposal; acceptance does not itself publish a product or add stock.
+
+## 4. Participants and responsibilities
+
+| Participant                         | Responsibilities and permitted information                                                                                                                                                                                                                                                                                |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Buyer (`CUSTOMER`)                  | Signs up, maintains address/pin, starts or joins one active cart, and chooses items. Only this role can create, join or add to carts.                                                                                                                                                                                     |
+| Cart owner                          | A buyer who coordinates the group, accepts and pays for the whole order, receives delivery and pays the driver. Members settle with the owner outside the app. Ownership alone grants no gift.                                                                                                                            |
+| Factory seller (`SELLER`)           | Admin-created account; submits offers, supplies purchased stock and sees its own design performance. Sees its offer amounts and permitted shop prices, not buyer identities, individual carts or internal cost/margin records. No seller payment-balance tracking.                                                        |
+| Premium brand (`SELLER`, `isBrand`) | Admin-created account with a website; provides retail and private partner prices, ships authorized gifts directly to customers and receives Sunday settlement from GroupBasket. Gift products, reservations, direct fulfilment and manual settlement reconciliation are supported; automatic eligibility remains planned. |
+| Packing staff (`PACKER`)            | Admin-created accounts; record stock receipt, gather, independently recheck and pack, then record driver handover. See operational details and delivery label, not prices or payment amounts.                                                                                                                             |
+| Admin (`ADMIN`)                     | Seed-created accounts; review offers/slips, manage products/lots/settings/users and arrange delivery. Administrative history records who received, gathered, packed and handed over stock.                                                                                                                                |
+
+Role homes are `/dashboard`, `/seller`, `/packing` and `/admin`. Staff use their own workspaces rather than buyer navigation; admins reach products/carts through admin routes. Seller profiles hold contact details, factory address and exact pin for receiving. Sellers and packers cannot send cart chat messages.
+
+## 5. Main journeys
+
+| Journey              | Sequence                                                                                                                                                           | Implementation                                                                                                       |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------- |
+| Clothing procurement | Offer → admin decision → receipt → admin lot/product/variant setup → shop availability.                                                                            | Separate implemented steps; acceptance/receipt does not automatically create stock.                                  |
+| Shared purchase      | Create/join → add reserved items → minimum → owner accepts → transfer/slip → approval → gather/pack → booked driver handover → delivery.                           | Implemented; manual delivery booking by default.                                                                     |
+| Design test to bulk  | Buy test pieces → link design → sell/inspect demand → bulk offer → receive/add stock to same product.                                                              | Offer links and insights implemented; purchasing is operational.                                                     |
+| Premium rewards      | Agree partner prices → manually confirm eligibility and reserve gift → approve clothing payment → brand ships directly → approve bills → record Sunday settlement. | Manual assignment, reservation, paid dispatch and settlement records exist; automatic qualification remains planned. |
+| Personalization      | Approximate body measurements → catalogue/size recommendations.                                                                                                    | Planned; details open.                                                                                               |
+
+These are summaries. Rule IDs below define behavior; the [architecture reference](../../docs/architecture.md) describes code and transitions.
+
+## 6. Business rules
+
+### Catalogue and inventory
+
+- **CAT-001 — Availability:** ordinary products appear in listings/search while some variant has free stock. Product links still open without free stock. Removing free stock prevents further purchases without releasing reservations. Draft/review/live/archive statuses are unused.
+- **CAT-002 — Condition fields:** the current owner rule hides stock type and defect fields. Existing stock types are retained; new products are stored as `FACTORY_SURPLUS`. Legacy defect notes remain unused. Condition disclosure and after-sales exceptions are open (`DEC-005`), not permission to change behavior during unrelated work.
+- **INV-001 — Reservations:** adding items atomically moves free stock to reserved; removing items, leaving, expiry and cancellation release it. Payment approval moves reserved stock to sold. Never oversell. Closed cart lines remain history except the source-cart deletion allowed by `CART-005`.
+- **LOT-001 — Pricing:** allocated cost per piece is `(bulk cost + transport + wages) / pieces`. Defaults are cost +20% for seven days from arrival, then cost +10%, rounded up to a whole rupee. These are markups on cost. Settings control margins/days; each lot snapshots them and keeps them on edit. Lot cost edits reprice products; existing cart lines retain their captured price. Non-lot products use an admin-entered price.
+- **LOT-002 — Store operations:** default capacity is 6,000 pieces, configurable in Settings. Prioritize age, turnover, leftover sizes, incoming capacity and cost recovery. In-store stock includes free, reserved, paid but not handed over, and lot pieces not yet listed. Capacity reporting is not an automatic purchase restriction.
+
+### Carts and communication
+
+- **CART-001 — Minimum:** initial default LKR 50,000, configurable by admin. Each cart snapshots its minimum. While editable (`OPEN`/`READY`), sum all members' lines: at or above minimum it becomes `READY`, otherwise `OPEN`. Do not reclassify frozen or paid carts from this total. Notify every member in-app on each crossing to `READY`.
+- **CART-002 — Lifetime:** default filling window is 24 hours from creation, taken from Settings. Unaccepted overdue carts expire and release stock. Acceptance starts the separate payment window.
+- **CART-003 — One active cart:** a buyer can own or belong to only one active cart: unexpired `OPEN`/`READY`, `AWAITING_SLIP` within its deadline, or `SLIP_REVIEW`. It must be confirmed, expired, cancelled or left before another can be used.
+- **CART-004 — Discovery/sharing:** public carts appear in discovery; private carts are reached by link. Name carts after the owner. Use `/c/<code>` and the dashboard copy-link action; do not restore removed cart-page invite/share controls. Search by cart/code/owner name. Sort nearest-first when the buyer has a pin (unknown distances last), otherwise newest-first.
+- **CART-005 — Moving items:** a buyer can request to join another cart; both source and target must be `OPEN`/`READY` and unexpired. The target owner accepts/declines; the requester may cancel. One pending request per buyer. Acceptance moves the buyer's items with reservations intact. An owned source cart must contain nobody else and is deleted; otherwise the buyer leaves the source cart.
+- **LOC-001 — Location:** buyer signup and cart participation require an address and exact map pin inside Sri Lanka. Save profile location and snapshot membership location. Acceptance snapshots the owner's delivery address, city, phone and coordinates. Older accounts without pins must complete their profile.
+- **COM-001 — Notifications:** in-app only; do not assume email, SMS or WhatsApp delivery. Deadlines are enforced by page-load sweeps and the scheduled sweep endpoint.
+- **COM-002 — Owner chat:** permitted signed-in users can contact a cart owner privately. Owners reply and may initiate with someone who has a pending join request; threads persist after it is decided. Limit messages to 500 characters and 10 per minute; one unread notice per conversation, with sent/seen indicators. Poll while the tab is visible. Seller/packer exclusion still applies.
+- **COM-003 — Brand communication:** admins and premium brands use a separate partnership inbox linked to products, paid gift orders, settlements or general discussion. Brands see only their own shared history; internal admin notes never leave the admin workspace. Unpaid gift conversations and recipient information are unavailable to brands. Messages allow 2,000 characters and ten sends per minute, with per-user read markers, needs-reply/resolved states and deduplicated in-app notices. Persist business events with their transaction, notify after commit and retry pending notices on workspace visits or scheduled sweeps. Refresh only while visible and preserve drafts.
+
+### Payment and fulfilment
+
+- **PAY-001 — Owner payment:** only the owner pays GroupBasket, for the entire cart. Accepting a ready order freezes joins/edits. Members' payments to the owner remain outside the platform.
+- **PAY-002 — Slip review:** default upload window is two hours, configurable in Settings. Missing it cancels the cart and releases stock. Uploading one slip enters `SLIP_REVIEW` and stops the timer. Admin approval confirms; rejection requires a reason and grants a fresh payment window. A rejected slip can be replaced. The owner can cancel in `OPEN`, `READY` or `AWAITING_SLIP`, but not during review. An admin can cancel any of those states or `SLIP_REVIEW`.
+- **PAY-003 — Refund scope:** the existing system has no refunds. Preserve that scope until a specific change is approved. Reservations prevent overselling; they do not settle quality, fit, delivery or payment disputes. Exception policy is open in `DEC-005`.
+- **FUL-001 — One clothing delivery:** one PickMe clothing drop to the owner, who pays the driver directly. GroupBasket never collects or refunds this delivery fee; a quote is informational. Manual booking is the default; actual API integration needs confirmed provider documentation and credentials. Premium gifts are shipped separately by the brand under `GIFT-003`; the customer pays gift delivery too. The gift delivery fee amount and collection mechanism remain open (`DEC-004`).
+- **FUL-002 — Packing:** one staff member checks/gathers every item; a different person rechecks/packs. Send back for gathering only before packing. Handover requires packing and a booked delivery; record people/times and mark delivery picked up. Staff get notices for confirmed orders and bookings.
+- **FUL-003 — Completion/retry:** the owner may confirm delivery from the dashboard once dispatched and not failed, with confirmation and member notification. Admin marks outcomes in Orders. Failed delivery can be rebooked on the same record and handed over again, retaining packing certification. In current code, `DISPATCHED` is set at booking; physical departure is recorded separately at handover.
+
+### Suppliers and visibility
+
+- **SUP-001 — Factory purchasing:** buy factory stock outright, pay for a whole bulk at once, and buy test pieces too. Factory seller balances, commissions and payment tracking remain outside scope. Premium-brand weekly bill settlement is a separate requirement under `BRAND-003`.
+- **SUP-002 — Offers/receipt:** sellers submit stock details and total price, with test/bulk and existing-design choices as applicable. Admin accepts/declines with an optional note; both sides receive notices. Accepted offers enter receiving. Staff record who/when and notify seller/admins. Admin separately creates/links products and manages stock.
+- **SUP-003 — Design history:** test and subsequent bulk use one product. Sellers see own wanted/bought pieces, distinct-buyer counts, size performance, shop-price history and test/bulk comparisons. No buyer names or individual carts. "Wanted" derives from stored cart lines, including expired carts; it is not guaranteed demand or a complete event log of every add/remove.
+- **DATA-001 — Commercial visibility:** sellers may see own offer amounts and designs' shop prices. Internal allocated costs/margins, other sellers' commercial records and individual buyer/cart data remain private. A premium brand may receive the recipient/contact/address and gift-order details needed to fulfil its authorized gifts, plus its own charges and settlement records. This does not grant access to clothing purchase details, other buyers/carts or other brands' records. Customer-data handling details remain open in `DEC-004`. Packing staff see no prices.
+
+### Premium rewards and personalization
+
+- **BRAND-004 — Partnership reviews and reconciliation:** product submissions have immutable revision snapshots and named review events. Admins explicitly approve, request changes with a reason, or decline; requests for changes differ from declines. An approved product may propose revised terms, but its approved terms stay live until the new revision is approved, and existing gift price snapshots never change. Quantity/pauses remain independent live availability controls. Brands may acknowledge paid gift instructions, inspect itemized settlement statements, confirm payment receipt or raise payment queries; admins record query resolutions. These actions preserve gift bills and recorded transfers. Resolving a conversation does not resolve a gift issue or change its financial status automatically.
+
+- **BRAND-001 — Distribution:** premium products are complimentary gifts, reserved in baskets and fulfilled directly by the brand only after verified clothing payment. GroupBasket does not purchase or hold premium gift inventory. No standalone discounted public sale is authorized. Present genuine retail value and keep partner pricing private. Brand offers must not enter factory receiving or ordinary shop-product linking.
+- **BRAND-002 — Offers:** brands submit a product photo (JPG/PNG/WebP, up to 5 MB), gift contents, size/weight/volume, dispatch time in business days after payment approval, genuine retail value, private partner price, quantity available for gifts and an HTTPS product link on their own website. Description is optional. Applicable products may specify an expiry date and/or minimum remaining shelf life on delivery. New submissions and revisions require these essentials; existing records remain readable without backfilled details. Photos are visible only to the supplying brand, admins and recipients assigned that gift. The agreed partner price determines each authorized gift's charge; a 30% discount is illustrative, not mandatory. Offer price × quantity is capacity value, not an upfront purchase commitment or bill. Delivery-charge fields are excluded from this form. Submission alone does not authorize a campaign; expiry metadata does not introduce automatic stock expiry or a new exception policy.
+- **BRAND-003 — Weekly settlement:** after customer clothing payment is verified, a reserved gift becomes an authorized brand order at its snapshotted partner price. GroupBasket settles outstanding approved gift bills every Sunday (`Asia/Colombo`). Until an automatic billing trigger/cutoff is agreed, an admin explicitly approves bills and records externally completed transfers against selected bill IDs and a bank reference. Unpaid reservations cannot be billed or settled; delivery issues block unsettled bills until resolved. The app must prevent duplicate settlement. This is separate from factory purchasing; no automatic bank transfer, customer wallet or factory seller balance is introduced.
+- **GIFT-001 — Spending unit (Planned):** no automatic host gift. A family cart qualifies as a household; unrelated members qualify individually. A family subgroup in a mixed cart can combine its own spending. The entire mixed cart never earns a generic collective gift. Family/address evidence refers to members' household, not merely the common cart drop-off; precise verification is open (`DEC-002`).
+- **GIFT-002 — Qualification (automation Planned; details Open):** checkout minimum and gift threshold are separate. LKR 20,000 is illustrative, not configured. "Above/crosses" and "reaches" leave strict `>` versus inclusive `>=` unresolved. Admins manually confirm eligibility for current gift assignments; no automatic threshold or household approval is implied. Tiers, overlapping awards, customer gift selection and substitutions still need decisions (`DEC-003`/`DEC-004`). Reservation and payment timing follow `GIFT-003`.
+- **GIFT-003 — Direct fulfilment:** partner offerings, basket reservations, brand dispatch and bill/settlement records replace owned gift inventory. Each gift snapshots its retail value, private partner charge and recipient details. An unpaid gift stays in its basket and reduces available quantity; the brand sees aggregate reserved counts without recipient details. Verified basket payment makes it ready for brand dispatch. Removing a gift, leaving, cancellation or expiry releases its reservation. The current manual eligibility flow also releases a recipient's reservation when they reduce clothing quantities, so eligibility can be checked again; merging moves their reservation with their items. Brands record courier/tracking, delivery and issues. Customers pay separate gift delivery. GroupBasket staff do not receive or pack gifts. Threshold automation, household verification, fee collection, dispatch deadlines, substitutions and exception outcomes remain open (`DEC-003`/`DEC-004`).
+- **FIT-001 — Measurements (Planned):** approximate height, shoulder width and other relevant dimensions personalize catalogue/size recommendations. Required fields, garment sizing inputs, recommendation behavior and data handling remain open (`DEC-006`). Do not promise exact fit.
+
+### Product interface
+
+- **UX-001 — Concise screens:** preserve the preference for titles, data and actions without page descriptions or explanatory-flow text. Success uses `flash()`/`FlashToast` pop-ups; inline `Alert` is for errors. This interface rule does not limit agent documentation clarity.
+- **UX-002 — Admin tasks:** Stock is the landing page and sole export entry; Lots manages costs; Slips reviews payment; Orders owns booking/outcomes/rebooking; Carts supports search, inspection and pre-confirmation cancellation. Products, Offers, Users and Settings retain their tasks. Keep packing identities/times in history and exports. Staff have their own navigation, without buyer tabs.
+
+## 7. Implementation status
+
+Read [implementation-status.md](../../docs/implementation-status.md) before claiming a capability exists. It owns the evidence-based inventory of implemented, partial, missing and conflicting behavior. Static inspection is not a claim of deployed service, successful tests or commercial readiness.
+
+The premium workspace supports manual gift eligibility assignment, reservations, direct brand fulfilment records and Sunday settlement reconciliation. Automated eligibility, family verification, courier integration, fee collection and bank transfers are not implemented. Measurement personalization remains planned.
+
+## 8. Open decisions
+
+[decisions.md](../../docs/decisions.md) owns unresolved questions and their reasons. Resolve only those needed for the task; do not block unrelated work. When the owner decides, update the rule here, decision record, affected implementation guidance and changelog together.
+
+The register covers premium distribution, family identity, gift qualification/economics, after-sales exceptions, fit recommendations, seller geographic insights and launch dependencies. Business-review suggestions are not approved policy.
+
+## 9. Architecture and specialist ownership
+
+Use [architecture.md](../../docs/architecture.md) for the data model, lifecycle, routes, services and deployment dependencies. Code is the evidence for current implementation; this brief does not duplicate exhaustive technical tables.
+
+| Specialist                            | Responsibility                                                             |
+| ------------------------------------- | -------------------------------------------------------------------------- |
+| [backend-data](backend-data.md)       | Schema, migrations, seed and persistence.                                  |
+| [carts](carts.md)                     | Lifecycle, reservations, deadlines, merging and queries.                   |
+| [payments-slips](payments-slips.md)   | Slip upload, review and payment transitions.                               |
+| [delivery](delivery.md)               | Booking, delivery states, providers and webhook.                           |
+| [notifications](notifications.md)     | In-app notices, owner chat and partnership communication.                  |
+| [catalogue-admin](catalogue-admin.md) | Clothing catalogue, stock, lots, factory offers/designs and general admin. |
+| [packing](packing.md)                 | Factory receiving, gathering, packing and handover.                        |
+| [brands-rewards](brands-rewards.md)   | Brand reviews, gift reservations, direct fulfilment and settlements.       |
+| [frontend](frontend.md)               | Role-specific pages, components and mobile interaction.                    |
+| [qa-review](qa-review.md)             | Rule verification and appropriate test coverage.                           |
+
+## 10. Engineering and verification standards
+
+Shared engineering standards and documentation-maintenance instructions live in
+[AGENTS.md](../../AGENTS.md#engineering-standards). Follow them for every domain;
+specialist files add domain-specific implementation guards and verification pointers.
+The [QA brief](qa-review.md) maps changes to appropriate checks. This brief owns business
+policy rather than a second copy of repository workflow.
+
+## 11. Supporting documentation
+
+| Document                                                       | Authoritative purpose                                              |
+| -------------------------------------------------------------- | ------------------------------------------------------------------ |
+| This brief                                                     | Business model, scope, rules and responsibilities.                 |
+| [AGENTS.md](../../AGENTS.md)                                   | Repository workflow, engineering standards and specialist routing. |
+| [CLAUDE.md](../../CLAUDE.md)                                   | Short entry point directing agents here.                           |
+| [Implementation status](../../docs/implementation-status.md)   | Code evidence and feature gaps.                                    |
+| [Decisions](../../docs/decisions.md)                           | Open decisions and legacy rule mapping.                            |
+| [Architecture](../../docs/architecture.md)                     | Technical reference and code pointers.                             |
+| [README](../../README.md) / [package.json](../../package.json) | Setup and executable commands.                                     |
+| [Changelog](../../docs/CHANGES.md)                             | History, not competing current policy.                             |
+
+Keep rule IDs stable. Reference IDs and named topics rather than section positions or old numbers; the [legacy mapping](../../docs/decisions.md#legacy-rule-references) preserves older references.

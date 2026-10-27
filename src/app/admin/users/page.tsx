@@ -26,7 +26,8 @@ export const metadata: Metadata = { title: "Users" };
 const PAGE = 50;
 const FILTERS = {
   customers: { role: "CUSTOMER" },
-  sellers: { role: "SELLER" },
+  sellers: { role: "SELLER", isBrand: false },
+  brands: { role: "SELLER", isBrand: true },
   packers: { role: "PACKER" },
   admins: { role: "ADMIN" },
   locked: { locked: true },
@@ -35,6 +36,7 @@ type Filter = keyof typeof FILTERS;
 const FILTER_LABEL: Record<Filter, string> = {
   customers: "Buyers",
   sellers: "Factory sellers",
+  brands: "Premium brands",
   packers: "Packing staff",
   admins: "Admins",
   locked: "Locked",
@@ -65,7 +67,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
       }
     : undefined;
 
-  const [rows, byRole, lockedCount] = await Promise.all([
+  const [rows, byRole, lockedCount, brandCount] = await Promise.all([
     db.user.findMany({
       where: { ...(show ? FILTERS[show] : {}), ...search },
       select: {
@@ -94,6 +96,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
     }),
     db.user.groupBy({ by: ["role"], where: search, _count: true }),
     db.user.count({ where: { ...search, locked: true } }),
+    db.user.count({ where: { ...search, role: "SELLER", isBrand: true } }),
   ]);
   const users = rows.slice(0, PAGE);
 
@@ -111,7 +114,8 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
   const counts: Record<Filter | "all", number> = {
     all: byRole.reduce((n, r) => n + r._count, 0),
     customers: roleCount("CUSTOMER"),
-    sellers: roleCount("SELLER"),
+    sellers: roleCount("SELLER") - brandCount,
+    brands: brandCount,
     packers: roleCount("PACKER"),
     admins: roleCount("ADMIN"),
     locked: lockedCount,

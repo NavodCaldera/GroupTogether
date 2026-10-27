@@ -9,3 +9,9 @@ test-results
 docs
 fit-lab/public
 fit-lab/dist
+
+# Preserve pinned third-party skill snapshots.
+.agents/skills/prisma-*
+.agents/skills/react-best-practices
+.agents/skills/web-design-guidelines
+.agents/skills/playwright-cli

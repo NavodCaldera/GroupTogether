@@ -37,31 +37,36 @@ model User {
   lng          Float?
   /// Sellers: the factory or company name
   company      String?
-  /// Sellers: a luxury brand (product owner, 2026-10-24) publishes discounted products with their
-  /// actual price and a link to each on its own website; `website` is that site
+  /// Premium brand partner: offers gift products and fulfils paid basket gifts directly.
+  /// `website` verifies retail references on the brand's own site.
   isBrand      Boolean  @default(false)
   website      String?
   locked       Boolean  @default(false)
   createdAt    DateTime @default(now())
 
-  sessions      Session[]
-  ownedCarts    GroupCart[]        @relation("CartOwner")
-  memberships   CartMember[]
-  lines         CartLine[]
-  slips         PaymentSlip[]      @relation("SlipUploader")
-  reviewedSlips PaymentSlip[]      @relation("SlipReviewer")
-  messages      CartMessage[]      @relation("MessageParticipant")
-  messagesSent  CartMessage[]      @relation("MessageAuthor")
-  invitesSent   CartInvite[]       @relation("InviteFrom")
-  invites       CartInvite[]       @relation("InviteTo")
-  mergeRequests CartMergeRequest[]
-  notifications Notification[]
-  products      Product[]          @relation("SellerProducts")
-  stockOffers   StockOffer[]       @relation("OfferSeller")
-  stockReceived StockOffer[]       @relation("StockReceivedBy")
-  gathered      Packing[]          @relation("GatheredBy")
-  packed        Packing[]          @relation("PackedBy")
-  handedOver    Packing[]          @relation("HandedOverBy")
+  sessions           Session[]
+  ownedCarts         GroupCart[]             @relation("CartOwner")
+  memberships        CartMember[]
+  lines              CartLine[]
+  slips              PaymentSlip[]           @relation("SlipUploader")
+  reviewedSlips      PaymentSlip[]           @relation("SlipReviewer")
+  messages           CartMessage[]           @relation("MessageParticipant")
+  messagesSent       CartMessage[]           @relation("MessageAuthor")
+  invitesSent        CartInvite[]            @relation("InviteFrom")
+  invites            CartInvite[]            @relation("InviteTo")
+  mergeRequests      CartMergeRequest[]
+  notifications      Notification[]
+  products           Product[]               @relation("SellerProducts")
+  stockOffers        StockOffer[]            @relation("OfferSeller")
+  stockReceived      StockOffer[]            @relation("StockReceivedBy")
+  gathered           Packing[]               @relation("GatheredBy")
+  packed             Packing[]               @relation("PackedBy")
+  handedOver         Packing[]               @relation("HandedOverBy")
+  giftOrders         GiftOrder[]             @relation("GiftRecipient")
+  brandSettlements   GiftSettlement[]
+  brandConversations BrandConversation[]     @relation("ConversationBrand")
+  brandMessages      BrandMessage[]
+  brandReads         BrandConversationRead[]
 }
 
 model Session {
@@ -261,6 +266,7 @@ model GroupCart {
   invites  CartInvite[]
   delivery Delivery?
   packing  Packing?
+  gifts    GiftOrder[]
 
   messages  CartMessage[]
   mergeFrom CartMergeRequest[] @relation("MergeFrom")
@@ -381,6 +387,7 @@ model Notification {
   href      String?
   readAt    DateTime?
   createdAt DateTime  @default(now())
+  dedupeKey String?   @unique
 
   @@index([userId, readAt])
 }
@@ -446,42 +453,174 @@ enum OfferStatus {
   IN_REVIEW
   ACCEPTED
   DECLINED
+  CHANGES_REQUESTED
 }
 
 /// A factory seller's stock offer (product owner, 2026-10-19): a name, details about the stock and
 /// the total price they want for all of it. An admin accepts or declines it (with an optional
 /// note). It is not a shop product: if we take the stock, the admin lists it as a product.
 model StockOffer {
-  id           String      @id @default(cuid())
-  sellerId     String
-  seller       User        @relation("OfferSeller", fields: [sellerId], references: [id], onDelete: Cascade)
-  name         String
-  description  String
-  /// Total selling price for the whole lot, LKR
-  amount       Decimal     @db.Decimal(14, 2)
-  kind         OfferKind   @default(BULK)
-  /// A luxury brand's offer (2026-10-24): its actual price a piece (on its website), the
-  /// discount price a piece we buy at, the pieces, and the product's page on its website.
-  /// `amount` is then the discount price × pieces.
-  actualPrice  Decimal?    @db.Decimal(14, 2)
-  offerPrice   Decimal?    @db.Decimal(14, 2)
-  pieces       Int?
-  productUrl   String?
+  id               String               @id @default(cuid())
+  sellerId         String
+  seller           User                 @relation("OfferSeller", fields: [sellerId], references: [id], onDelete: Cascade)
+  name             String
+  description      String
+  /// Factory lot total, or legacy brand capacity value (partner price × pieces); not a gift bill.
+  amount           Decimal              @db.Decimal(14, 2)
+  kind             OfferKind            @default(BULK)
+  /// Brand retail reference, private charge per authorized gift, campaign capacity and source URL.
+  actualPrice      Decimal?             @db.Decimal(14, 2)
+  offerPrice       Decimal?             @db.Decimal(14, 2)
+  pieces           Int?
+  productUrl       String?
+  photoKey         String?
+  photoType        String?
+  packDetails      String?
+  packSize         String?
+  dispatchDays     Int?
+  hasExpiry        Boolean              @default(false)
+  expiryDate       DateTime?            @db.Date
+  minShelfLifeDays Int?
+  paused           Boolean              @default(false)
+  revision         Int                  @default(1)
+  approvedRevision Int?
+  revisions        BrandOfferRevision[]
+  gifts            GiftOrder[]
   /// The shop product its pieces went onto; a tested design's bulk goes onto the same one
-  productId    String?
-  product      Product?    @relation(fields: [productId], references: [id], onDelete: SetNull)
-  status       OfferStatus @default(IN_REVIEW)
-  note         String?
-  decidedAt    DateTime?
+  productId        String?
+  product          Product?             @relation(fields: [productId], references: [id], onDelete: SetNull)
+  status           OfferStatus          @default(IN_REVIEW)
+  note             String?
+  decidedAt        DateTime?
   /// Packing staff confirm an accepted offer's stock has reached our store (2026-10-20)
-  receivedById String?
-  receivedBy   User?       @relation("StockReceivedBy", fields: [receivedById], references: [id])
-  receivedAt   DateTime?
-  createdAt    DateTime    @default(now())
+  receivedById     String?
+  receivedBy       User?                @relation("StockReceivedBy", fields: [receivedById], references: [id])
+  receivedAt       DateTime?
+  createdAt        DateTime             @default(now())
 
   @@index([sellerId, createdAt])
   @@index([status, createdAt])
   @@index([productId])
+}
+
+enum GiftOrderStatus {
+  RESERVED
+  READY
+  DISPATCHED
+  DELIVERED
+  ISSUE
+  CANCELLED
+}
+
+model GiftOrder {
+  id               String          @id @default(cuid())
+  offerId          String
+  offer            StockOffer      @relation(fields: [offerId], references: [id])
+  cartId           String
+  cart             GroupCart       @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  recipientId      String
+  recipient        User            @relation("GiftRecipient", fields: [recipientId], references: [id])
+  status           GiftOrderStatus @default(RESERVED)
+  retailValue      Decimal         @db.Decimal(14, 2)
+  partnerPrice     Decimal         @db.Decimal(14, 2)
+  recipientName    String
+  phone            String
+  address          String
+  city             String
+  authorizedById   String
+  courier          String?
+  tracking         String?
+  issue            String?
+  paidAt           DateTime?
+  acknowledgedAt   DateTime?
+  dispatchedAt     DateTime?
+  deliveredAt      DateTime?
+  billApprovedAt   DateTime?
+  billApprovedById String?
+  settlementId     String?
+  settlement       GiftSettlement? @relation(fields: [settlementId], references: [id])
+  createdAt        DateTime        @default(now())
+
+  @@index([offerId, status])
+  @@index([cartId, recipientId])
+  @@index([settlementId])
+}
+
+model GiftSettlement {
+  id          String      @id @default(cuid())
+  brandId     String
+  brand       User        @relation(fields: [brandId], references: [id])
+  amount      Decimal     @db.Decimal(14, 2)
+  reference   String
+  settledById String
+  paidAt      DateTime
+  createdAt   DateTime    @default(now())
+  receivedAt  DateTime?
+  queryOpen   Boolean     @default(false)
+  gifts       GiftOrder[]
+
+  @@index([brandId, paidAt])
+}
+
+model BrandConversation {
+  id            String                  @id @default(cuid())
+  brandId       String
+  brand         User                    @relation("ConversationBrand", fields: [brandId], references: [id])
+  kind          String
+  subjectId     String
+  contextKey    String                  @unique
+  title         String
+  resolved      Boolean                 @default(false)
+  lastHumanSide String?
+  updatedAt     DateTime                @default(now())
+  createdAt     DateTime                @default(now())
+  messages      BrandMessage[]
+  reads         BrandConversationRead[]
+
+  @@index([brandId, updatedAt])
+}
+
+model BrandMessage {
+  id             String            @id @default(cuid())
+  conversationId String
+  conversation   BrandConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  authorId       String
+  author         User              @relation(fields: [authorId], references: [id])
+  body           String
+  internal       Boolean           @default(false)
+  system         Boolean           @default(false)
+  requestKey     String?           @unique
+  notifiedAt     DateTime?
+  createdAt      DateTime          @default(now())
+
+  @@index([conversationId, createdAt])
+  @@index([notifiedAt])
+}
+
+model BrandConversationRead {
+  conversationId String
+  conversation   BrandConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  readAt         DateTime
+
+  @@id([conversationId, userId])
+}
+
+model BrandOfferRevision {
+  id            String      @id @default(cuid())
+  offerId       String
+  offer         StockOffer  @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  version       Int
+  snapshot      Json
+  status        OfferStatus @default(IN_REVIEW)
+  submittedById String
+  reviewedById  String?
+  reviewedAt    DateTime?
+  supersededAt  DateTime?
+  createdAt     DateTime    @default(now())
+
+  @@unique([offerId, version])
 }
 
 // ─── Settings ──────────────────────────────────────────────────────────────

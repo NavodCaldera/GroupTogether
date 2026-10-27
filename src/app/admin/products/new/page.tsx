@@ -16,7 +16,7 @@ export default async function NewProductPage({ searchParams }: PageProps<"/admin
     lotChoices(),
     typeof sp.offer === "string"
       ? db.stockOffer.findFirst({
-          where: { id: sp.offer, status: "ACCEPTED" },
+          where: { id: sp.offer, status: "ACCEPTED", seller: { isBrand: false } },
           select: { id: true, name: true, actualPrice: true, productUrl: true },
         })
       : null,

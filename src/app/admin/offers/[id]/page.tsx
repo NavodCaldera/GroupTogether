@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { GiftProductDetails } from "@/components/gift-product-details";
+import { notFound, redirect } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { Toast } from "@/components/toast";
 import { Badge, Card, LinkButton, PageHeader, Select } from "@/components/ui";
@@ -29,6 +30,7 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
       seller: {
         select: {
           id: true,
+          isBrand: true,
           name: true,
           company: true,
           phone: true,
@@ -42,8 +44,12 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
     },
   });
   if (!o) notFound();
+  if (o.seller.isBrand) redirect(`/admin/brands?tab=products&brand=${o.sellerId}&offer=${o.id}`);
   const open = o.status === "IN_REVIEW";
-  const choices = o.status === "ACCEPTED" && !o.productId ? await linkChoices(o.seller.id) : [];
+  const choices =
+    o.status === "ACCEPTED" && !o.productId && !o.seller.isBrand
+      ? await linkChoices(o.seller.id)
+      : [];
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
@@ -64,9 +70,14 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
       </div>
 
       <Card className="flex flex-col gap-3">
+        {o.seller.isBrand && <GiftProductDetails offer={o} />}
         <div>
-          <p className="text-xs text-subtle">Total price asked</p>
-          <p className="text-2xl font-semibold tabular-nums">{formatLKR(o.amount)}</p>
+          <p className="text-xs text-subtle">
+            {o.seller.isBrand ? "Partner charge per gift" : "Total price asked"}
+          </p>
+          <p className="text-2xl font-semibold tabular-nums">
+            {formatLKR(o.seller.isBrand ? (o.offerPrice ?? 0) : o.amount)}
+          </p>
         </div>
         {o.actualPrice && o.offerPrice && (
           <dl className="grid grid-cols-3 gap-2 text-sm tabular-nums">
@@ -153,7 +164,7 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
             {o.status === "ACCEPTED" ? "Accepted" : "Declined"} {formatDateTime(o.decidedAt)}
           </p>
           {o.note && <p className="mt-1 text-subtle">Note: {o.note}</p>}
-          {o.status === "ACCEPTED" && (
+          {o.status === "ACCEPTED" && !o.seller.isBrand && (
             <p className="mt-2">
               {o.receivedAt
                 ? `Stock received by ${o.receivedBy?.name ?? "packing staff"} · ${formatDateTime(o.receivedAt)}`
@@ -163,7 +174,11 @@ export default async function OfferPage({ params, searchParams }: PageProps<"/ad
         </Card>
       )}
 
-      {o.product ? (
+      {o.seller.isBrand ? (
+        <LinkButton href="/admin/brands" variant="secondary">
+          Brand rewards
+        </LinkButton>
+      ) : o.product ? (
         <Card className="text-sm">
           <p className="text-xs text-subtle">In the shop as</p>
           <a href={`/admin/products/${o.product.id}`} className="font-medium text-accent underline">

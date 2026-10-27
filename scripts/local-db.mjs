@@ -7,8 +7,8 @@
  *   node scripts/local-db.mjs stop  [dev|test|all]
  *   node scripts/local-db.mjs status
  *
- * dev  → postgres://postgres@localhost:5546/grouptogether
- * test → postgres://postgres@localhost:5547/grouptogether_test
+ * dev  → postgres://postgres@localhost:5546/groupbasket
+ * test → postgres://postgres@localhost:5547/groupbasket_test
  */
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync } from "node:fs";
@@ -16,8 +16,8 @@ import { join, resolve } from "node:path";
 import pg from "pg";
 
 const CLUSTERS = {
-  dev: { port: 5546, database: "grouptogether" },
-  test: { port: 5547, database: "grouptogether_test" },
+  dev: { port: 5546, database: "groupbasket" },
+  test: { port: 5547, database: "groupbasket_test" },
 };
 
 const PLATFORM = { win32: "windows", darwin: "darwin", linux: "linux" }[process.platform];

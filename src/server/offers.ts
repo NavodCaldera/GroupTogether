@@ -1,5 +1,6 @@
 import "server-only";
 import { z } from "zod";
+import { D } from "@/lib/decimal";
 import { CatalogueError } from "./catalogue";
 import { db } from "./db";
 import { notify, notifyRole } from "./notify";
@@ -24,7 +25,10 @@ export const offerSchema = z.object({
     .trim()
     .transform((v) => v.replace(/,/g, ""))
     .pipe(z.string().regex(/^\d+(\.\d{1,2})?$/, "Enter the total price, such as 250000"))
-    .refine((v) => Number(v) > 0, "Enter the total price, such as 250000"),
+    .refine(
+      (v) => /^\d+(\.\d{1,2})?$/.test(v) && new D(v).gt(0),
+      "Enter the total price, such as 250000",
+    ),
   kind: z.enum(["TEST", "BULK"], { message: "Choose test pieces or bulk" }).default("BULK"),
   /** A bulk of one of the factory's designs: that shop product */
   productId: z
@@ -38,9 +42,10 @@ export async function createOffer(sellerId: string, input: unknown) {
   const o = offerSchema.parse(input);
   const seller = await db.user.findUnique({
     where: { id: sellerId },
-    select: { role: true, name: true, company: true },
+    select: { role: true, isBrand: true, name: true, company: true },
   });
-  if (seller?.role !== "SELLER") throw new CatalogueError("Only factory sellers can send offers");
+  if (seller?.role !== "SELLER" || seller.isBrand)
+    throw new CatalogueError("Only factory sellers can send offers");
   if (o.productId) {
     if (o.kind !== "BULK") throw new CatalogueError("Test pieces are for a new design");
     const mine = await db.product.count({ where: { id: o.productId, sellerId } });
@@ -57,6 +62,8 @@ export async function createOffer(sellerId: string, input: unknown) {
 
 /** IN_REVIEW → ACCEPTED or DECLINED, once. Tells the seller, with the admin's note if any. */
 export async function decideOffer(id: string, accept: boolean, note: string) {
+  if (await db.stockOffer.count({ where: { id, seller: { isBrand: true } } }))
+    throw new CatalogueError("Review premium brand products in Brand rewards");
   const text = note.trim().slice(0, 500) || null;
   const r = await db.stockOffer.updateMany({
     where: { id, status: "IN_REVIEW" },
@@ -73,6 +80,8 @@ export async function decideOffer(id: string, accept: boolean, note: string) {
 
 /** Saves a note and notifies the seller without changing status (keeps IN_REVIEW). */
 export async function noteOffer(id: string, note: string) {
+  if (await db.stockOffer.count({ where: { id, seller: { isBrand: true } } }))
+    throw new CatalogueError("Use the brand product conversation");
   const text = note.trim().slice(0, 500);
   if (!text) throw new CatalogueError("Write a note to send to the seller");
   const r = await db.stockOffer.updateMany({

@@ -4,8 +4,8 @@ import { requireAdmin } from "@/server/auth/session";
 import { Count } from "./list-bits";
 
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
-  await requireAdmin();
-  const badges = await adminBadges();
+  const admin = await requireAdmin();
+  const badges = await adminBadges(admin.id);
   const link =
     "relative inline-flex min-h-11 shrink-0 items-center gap-1.5 rounded-md px-3 hover:bg-muted sm:min-h-9";
   // The open page gets a green bar just under its label (inside the tab, so the scrollable row
@@ -22,6 +22,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     ["/admin/carts", "Carts", 0],
     ["/admin/products", "Products", badges.lowStock, "muted"],
     ["/admin/offers", "Offers", badges.offers],
+    ["/admin/brands", "Brand rewards", badges.brandRewards],
     ["/admin/users", "Users", 0],
     ["/admin/settings", "Settings", 0],
   ];

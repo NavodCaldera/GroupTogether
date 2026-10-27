@@ -8,11 +8,14 @@ import { requireSeller } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { sellerDesigns } from "@/server/designs";
 import { DesignCard } from "./design-bits";
+import { BrandDashboard } from "./brand-dashboard";
+import { sweep } from "@/server/carts/service";
 
 export const metadata: Metadata = { title: "My products" };
 
 const STATUS = {
   IN_REVIEW: { label: "Waiting for review", tone: "info" },
+  CHANGES_REQUESTED: { label: "Changes requested", tone: "info" },
   ACCEPTED: { label: "Accepted", tone: "good" },
   DECLINED: { label: "Declined", tone: "bad" },
   /** Accepted, and our packing staff have confirmed the stock arrived (2026-10-20). */
@@ -28,12 +31,17 @@ const STATUS = {
  */
 export default async function SellerHome({ searchParams }: PageProps<"/seller">) {
   const seller = await requireSeller();
-  const { done } = await searchParams;
-  const [me, designs, offers] = await Promise.all([
-    db.user.findUniqueOrThrow({
-      where: { id: seller.id },
-      select: { isBrand: true, website: true, company: true },
-    }),
+  const search = await searchParams;
+  const { done } = search;
+  const me = await db.user.findUniqueOrThrow({
+    where: { id: seller.id },
+    select: { isBrand: true, website: true, company: true },
+  });
+  if (me.isBrand) {
+    await sweep();
+    return <BrandDashboard brandId={seller.id} search={search} />;
+  }
+  const [designs, offers] = await Promise.all([
     sellerDesigns(seller.id),
     db.stockOffer.findMany({
       where: { sellerId: seller.id },

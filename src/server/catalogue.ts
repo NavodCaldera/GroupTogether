@@ -39,6 +39,7 @@ const listSelect = {
  */
 export const IN_SHOP = {
   variants: { some: { available: { gt: 0 } } },
+  AND: [{ OR: [{ sellerId: null }, { seller: { isBrand: false } }] }],
 } satisfies Prisma.ProductWhereInput;
 
 /** Products in the shop. Sizes with no free stock are still listed but marked sold out. */
@@ -49,6 +50,7 @@ export async function listProducts(
 ) {
   return db.product.findMany({
     where: {
+      ...IN_SHOP,
       audience: f.audience,
       kind: f.kind,
       stockType: f.stockType,
@@ -98,7 +100,7 @@ export async function shopFacets() {
       orderBy: { brand: "asc" },
     }),
     db.variant.findMany({
-      where: { available: { gt: 0 } },
+      where: { available: { gt: 0 }, product: { AND: IN_SHOP.AND } },
       distinct: ["size"],
       select: { size: true },
       orderBy: { size: "asc" },
@@ -110,7 +112,7 @@ export async function shopFacets() {
 /** One product with its sizes. Opens even when sold out, so links from carts keep working. */
 export async function getProduct(id: string) {
   return db.product.findFirst({
-    where: { id },
+    where: { id, AND: IN_SHOP.AND },
     include: { variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] } },
   });
 }
