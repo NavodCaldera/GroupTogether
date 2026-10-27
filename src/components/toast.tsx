@@ -68,6 +68,8 @@ export function FlashToast() {
     let timer: ReturnType<typeof setInterval> | undefined;
     const onSubmit = () => {
       clearInterval(timer);
+      // A previous success must not cover feedback/actions from the next submission.
+      setMsg(null);
       const until = Date.now() + 60_000;
       timer = setInterval(() => {
         const text = takeFlash();

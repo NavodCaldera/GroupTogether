@@ -29,6 +29,7 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
   await page.getByRole("button", { name: "Add to group cart" }).click();
   // Adding stays on the product page; "View cart" in the confirmation opens the cart.
   await expect(page.getByText("Added to your cart")).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "You joined the cart." })).toHaveCount(0);
   await page.getByRole("link", { name: "View cart" }).click();
   await page.waitForURL(/\/c\/[A-Z0-9]+$/);
   const cartUrl = new URL(page.url()).pathname;

@@ -73,6 +73,11 @@ configuration is enabled for the next client refresh. GitHub/Figma plugin accoun
 and the private-repository branch-protection entitlement remain external dependencies.
 The follow-up passed `npm run check` (89 unit and seven tooling tests), the hosted Context7
 lookup/shutdown check, lockfile dry-run and an npm audit with zero vulnerabilities.
+Its first hosted browser run exposed a stale global join-cart toast intercepting the next
+confirmation link. Global flash feedback now clears when another form submission starts;
+the buyer journey verifies removal of the stale message before a normal View cart click.
+The fix passed `npm run check`, a production rebuild and both buyer journeys repeated three
+times (six browser passes) against the isolated production test server.
 
 Local verification on **2026-10-27**: production builds passed; typecheck, lint, monetary and
 documentation-link checks passed; 89 unit tests, seven tooling safety tests and 72 integration

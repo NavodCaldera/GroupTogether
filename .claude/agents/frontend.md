@@ -28,6 +28,7 @@ guidance, not business policy. Verify code pointers before editing.
 - Check at 360 px. Tap targets are at least 40 px; phone inputs use 16 px text. Preserve keyboard interaction, labels and focus states.
 - Use theme tokens and existing device light/dark behavior. Amber `text-warn` is for deadlines; status badges use existing neutral/good/info/bad tones.
 - Screens use titles, data and actions without page-description or flow-explanation text. Show success through `flash()`/`FlashToast` or an existing mounted `Toast`; use inline `Alert` for errors.
+- Starting another form submission dismisses the preceding global flash toast, so it cannot cover a new confirmation's action link. Preserve ordinary pointer interaction in browser verification; do not force clicks through overlays.
 - Format money with `formatLKR` and dates with `formatDateTime` using Asia/Colombo. Display saved/configured thresholds, not fixed example amounts.
 - Reuse `SuggestInput` for search suggestions, native GET filters, `FilterSelect` for long mobile chip rows, and mobile cards/desktop tables.
 - Reuse chart tokens, focusable CSS tooltips and a ?Show as table? fallback. Factory price/quantity charts use two panels on a common day axis, not dual y-axes.
