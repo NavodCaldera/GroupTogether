@@ -26,8 +26,8 @@ upstream guidance; never send private records to a documentation service.
 
 ## MCP processes
 
-[`.codex/config.toml`](../.codex/config.toml) configures project-local servers using pinned
-packages from `package-lock.json`. Launch Codex from the repository and trust its project
+[`.codex/config.toml`](../.codex/config.toml) configures local servers using pinned
+packages from `package-lock.json` and Context7 through its official hosted endpoint. Launch Codex from the repository and trust its project
 configuration through the supported client. No global MCP configuration is overwritten.
 See [official Codex MCP setup](https://learn.chatgpt.com/docs/extend/mcp?surface=cli).
 
@@ -40,18 +40,21 @@ See [official Codex MCP setup](https://learn.chatgpt.com/docs/extend/mcp?surface
   Queries pass through the third-party inspector's read-only transaction/statement controls.
   Local process startup and query results enter the assistant context; local execution does not
   mean model-visible data stays exclusively on the computer.
-- **Context7:** installed and disabled by default. `npm run mcp:verify -- context7` tests local
-  startup. Enable its config entry when external library lookups are useful; provide
-  `CONTEXT7_API_KEY` through the process environment if needed. It sends documentation questions
-  to Context7; never send application secrets, private code or customer data. Free/paid account
-  limits are external and not configured by this repository.
-
-  A focused public-library lookup succeeded locally, but its process emitted a Windows/Node
-  shutdown assertion. Keep this optional server disabled until a clean local run or an
-  authenticated hosted transport is verified; the other tools do not depend on it.
+- **Context7:** enabled through `https://mcp.context7.com/mcp`. The hosted transport replaces
+  the Windows subprocess that emitted a shutdown assertion; its unused package is removed.
+  `npm run mcp:verify -- context7 --lookup` checks the handshake and requires actual library IDs
+  from a public Decimal.js lookup, followed by clean shutdown. This passed without an API key.
+  For account-specific quota, set `CONTEXT7_API_KEY` and uncomment `bearer_token_env_var` in
+  the config; never commit a key. It sends documentation questions to Context7; never send
+  application secrets, private code or customer data. External free/paid account limits may change.
 
 Successful subprocess handshakes do not add tools to an already-running assistant session.
 Refresh the supported local client and verify its actual MCP tool list.
+
+On 2026-10-27, the current session's actual Next.js and PostgreSQL tools were exercised:
+Next.js discovered the app on port 3002 and returned no configuration/session errors;
+PostgreSQL reported `gb_ai_reader`, database `groupbasket`, read-only transactions, and denied
+direct access to `public."User"`. Context7's new transport requires a client refresh to mount.
 
 ### Restricted local database reader
 

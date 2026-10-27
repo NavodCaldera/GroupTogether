@@ -1,22 +1,32 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
+import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 
 const servers = {
   next: "node_modules/next-devtools-mcp/dist/index.js",
-  context7: "node_modules/@upstash/context7-mcp/dist/index.js",
+  context7: "https://mcp.context7.com/mcp",
   postgres: "scripts/postgres-inspector.mjs",
 };
 const selected = process.argv[2] || "next";
 if (!servers[selected]) throw new Error("Choose next, context7 or postgres");
 const client = new Client({ name: "groupbasket-tooling-check", version: "1.0.0" });
 try {
-  await client.connect(
-    new StdioClientTransport({
-      command: process.execPath,
-      args: [servers[selected]],
-      stderr: "inherit",
-    }),
-  );
+  const transport =
+    selected === "context7"
+      ? new StreamableHTTPClientTransport(new URL(servers.context7), {
+          requestInit: {
+            headers: process.env.CONTEXT7_API_KEY
+              ? { Authorization: `Bearer ${process.env.CONTEXT7_API_KEY}` }
+              : undefined,
+            signal: AbortSignal.timeout(25000),
+          },
+        })
+      : new StdioClientTransport({
+          command: process.execPath,
+          args: [servers[selected]],
+          stderr: "inherit",
+        });
+  await client.connect(transport);
   const { tools } = await client.listTools();
   console.log(
     `${selected}: MCP handshake passed; tools: ${tools.map((tool) => tool.name).join(", ")}`,
@@ -34,7 +44,7 @@ try {
         ?.filter((item) => item.type === "text")
         .map((item) => item.text)
         .join("\n") || "";
-    if (lookup.isError || /unauthorized|invalid api key|rate limit/i.test(content))
+    if (lookup.isError || !/Context7-compatible library ID:/i.test(content))
       throw new Error("Context7 lookup unavailable; check account authentication or quota");
     console.log("context7: focused public-library lookup passed");
   }

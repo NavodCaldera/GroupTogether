@@ -1,4 +1,4 @@
-# Project-local servers use pinned packages from package-lock.json; no runtime npx downloads.
+# Local servers use pinned packages; Context7 uses its official hosted endpoint.
 [mcp_servers.groupbasket-next-devtools]
 command = "node"
 args = ["node_modules/next-devtools-mcp/dist/index.js"]
@@ -14,10 +14,10 @@ startup_timeout_sec = 20
 enabled = true
 
 [mcp_servers.groupbasket-context7]
-command = "node"
-args = ["node_modules/@upstash/context7-mcp/dist/index.js"]
-env_vars = ["CONTEXT7_API_KEY"]
+url = "https://mcp.context7.com/mcp"
 enabled_tools = ["resolve-library-id", "query-docs"]
 startup_timeout_sec = 20
-# Optional remote documentation lookup; send library questions, never private records.
-enabled = false
+# Public documentation only; verified without an API key. Account quotas may differ.
+enabled = true
+# For account-specific quota, set CONTEXT7_API_KEY and uncomment:
+# bearer_token_env_var = "CONTEXT7_API_KEY"

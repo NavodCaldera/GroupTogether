@@ -64,6 +64,16 @@ not mount tools into an already-running assistant session. Local credentials rem
 Production deployment is unaffected. GitHub reports that branch protection on this private
 repository requires an account upgrade; no visibility or subscription changes were made.
 
+Follow-up on **2026-10-27**: Next.js DevTools and PostgreSQL are now exposed in the current
+assistant session and were exercised successfully: the app was discovered on 3002 without
+configuration/session errors; the reader reported read-only transactions and denied direct
+user-table access. Context7 now uses its verified official hosted endpoint, with a successful
+public-library lookup and clean shutdown, replacing the failing local Windows process. Its
+configuration is enabled for the next client refresh. GitHub/Figma plugin account authorization
+and the private-repository branch-protection entitlement remain external dependencies.
+The follow-up passed `npm run check` (89 unit and seven tooling tests), the hosted Context7
+lookup/shutdown check, lockfile dry-run and an npm audit with zero vulnerabilities.
+
 Local verification on **2026-10-27**: production builds passed; typecheck, lint, monetary and
 documentation-link checks passed; 89 unit tests, seven tooling safety tests and 72 integration
 tests passed. All nine browser scenarios were verified against the production server, with the
