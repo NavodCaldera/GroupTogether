@@ -1,5 +1,6 @@
 import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
+import { factoryFulfilment } from "@/lib/fulfilment";
 import { type OrderStage, orderStage } from "@/lib/packing-rules";
 import { db } from "./db";
 import { packingSelect } from "./packing";
@@ -12,6 +13,7 @@ const orderSelect = {
   id: true,
   code: true,
   confirmedAt: true,
+  factoryPackedAt: true,
   deliveryAddress: true,
   deliveryCity: true,
   deliveryPhone: true,
@@ -49,10 +51,11 @@ export async function ordersBoard() {
   const rows = [...open, ...delivered].map((c) => ({
     ...c,
     items: c.lines.reduce((n, l) => n + l.qty, 0),
-    stage: orderStage(c.delivery, c.packing),
+    stage: orderStage(c.delivery, c.packing, factoryFulfilment() ? c.factoryPackedAt : undefined),
   }));
   const by = (s: OrderStage) => rows.filter((r) => r.stage === s);
   return {
+    "factory-packing": by("factory-packing"),
     "to-book": by("to-book"),
     "in-store": by("in-store"),
     "on-the-way": by("on-the-way"),

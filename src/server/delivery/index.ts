@@ -1,6 +1,7 @@
 import "server-only";
 import type { DeliveryStatus } from "@/generated/prisma/client";
 import { formatLKR } from "@/lib/format";
+import { factoryFulfilment } from "@/lib/fulfilment";
 import { CartError } from "../carts/service";
 import { db } from "../db";
 import { notify, notifyRole } from "../notify";
@@ -10,19 +11,50 @@ import { type Booking, deliveryProvider } from "./provider";
 const REBOOKABLE: readonly string[] = ["FAILED", "CANCELLED"];
 
 /**
- * CONFIRMED → DISPATCHED: books the one PickMe drop to the cart owner. A failed drop is booked
- * again on the same record; the parcel is back with us, so the packers hand it over again.
+ * CONFIRMED → DISPATCHED: books the one PickMe drop to the cart owner, collected from the
+ * factory once it has packed the order (2026-11-03). A failed drop is booked again on the same
+ * record; in the parked warehouse flow the packers hand the parcel over again.
  */
 export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
   const cart = await db.groupCart.findUnique({
     where: { id: cartId },
-    include: { owner: true, lines: { select: { qty: true } }, delivery: true },
+    include: {
+      owner: true,
+      lines: {
+        select: {
+          qty: true,
+          variant: {
+            select: {
+              product: {
+                select: {
+                  seller: {
+                    select: {
+                      id: true,
+                      name: true,
+                      company: true,
+                      phone: true,
+                      address: true,
+                      city: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      delivery: true,
+    },
   });
   if (!cart) throw new CartError("Cart not found");
   const again =
     cart.status === "DISPATCHED" && !!cart.delivery && REBOOKABLE.includes(cart.delivery.status);
   if (!again && (cart.status !== "CONFIRMED" || cart.delivery))
     throw new CartError("Only a confirmed cart without a delivery can be booked");
+  const factory = cart.lines[0]?.variant.product.seller ?? null;
+  const fromFactory = factoryFulfilment();
+  if (fromFactory && !cart.factoryPackedAt)
+    throw new CartError("The factory hasn't marked this order packed yet");
 
   const provider = deliveryProvider();
   const booking = await provider.book(
@@ -33,6 +65,15 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
       address: cart.deliveryAddress ?? cart.owner.address ?? "",
       city: cart.deliveryCity ?? cart.owner.city ?? "",
       items: cart.lines.reduce((n, l) => n + l.qty, 0),
+      pickup:
+        fromFactory && factory
+          ? {
+              name: factory.company || factory.name,
+              phone: factory.phone ?? "",
+              address: factory.address ?? "",
+              city: factory.city ?? "",
+            }
+          : undefined,
     },
     manual,
   );
@@ -65,11 +106,21 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
     body: `A PickMe driver is bringing your order to ${cart.deliveryAddress}. Please pay the delivery fee${fee} to the driver.`,
     href: `/c/${cart.code}`,
   });
-  await notifyRole("PACKER", {
-    title: "PickMe booked",
-    body: `Cart ${cart.code}: hand the packed parcel to the driver${booking.driverName ? ` (${booking.driverName})` : ""} and mark it handed over.`,
-    href: `/packing/${cart.code}`,
-  });
+  const driver = booking.driverName ? ` (${booking.driverName})` : "";
+  if (fromFactory) {
+    if (factory)
+      await notify([factory.id], {
+        title: "PickMe booked",
+        body: `Cart ${cart.code}: a PickMe driver${driver} is coming to collect the packed parcel.`,
+        href: "/seller/orders",
+      });
+  } else {
+    await notifyRole("PACKER", {
+      title: "PickMe booked",
+      body: `Cart ${cart.code}: hand the packed parcel to the driver${driver} and mark it handed over.`,
+      href: `/packing/${cart.code}`,
+    });
+  }
 }
 
 /**

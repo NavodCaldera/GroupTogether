@@ -50,5 +50,7 @@ describe("order stage on the admin Orders tab", () => {
     expect(orderStage({ status: "FAILED" }, { handedOverAt: new Date() })).toBe("failed");
     expect(orderStage({ status: "CANCELLED" }, null)).toBe("failed");
     expect(orderStage({ status: "DELIVERED" }, null)).toBe("delivered");
+    expect(orderStage(null, null, null)).toBe("factory-packing");
+    expect(orderStage(null, null, new Date())).toBe("to-book");
   });
 });

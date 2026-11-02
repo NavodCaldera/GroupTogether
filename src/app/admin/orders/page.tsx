@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { PackingTrail } from "@/components/packing-bits";
 import { Button, Card, EmptyState, Field, Input, PageHeader } from "@/components/ui";
 import { formatDateTime, formatLKR } from "@/lib/format";
+import { factoryFulfilment } from "@/lib/fulfilment";
 import { ORDER_STAGE_LABEL, type OrderStage } from "@/lib/packing-rules";
 import { bookDeliveryAction, deliveryStatusAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
@@ -14,7 +15,9 @@ import { Chip, ChipRow, Count, param } from "../list-bits";
 
 export const metadata: Metadata = { title: "Orders" };
 
-const STAGES = Object.keys(ORDER_STAGE_LABEL) as OrderStage[];
+const STAGES = (Object.keys(ORDER_STAGE_LABEL) as OrderStage[]).filter(
+  (s) => s !== "factory-packing" || factoryFulfilment(),
+);
 
 /**
  * Every paid order from payment to delivery (product owner, 2026-10-21; replaces Packing and
@@ -102,7 +105,7 @@ function OrderCard({ order: o }: { order: OrderRow }) {
             {o.deliveryAddress}, {o.deliveryCity}
           </span>
         </p>
-        <PackingTrail packing={o.packing} />
+        {!factoryFulfilment() && <PackingTrail packing={o.packing} />}
         {d && o.stage !== "to-book" && (
           <p className="text-xs text-subtle">
             {[
@@ -130,6 +133,16 @@ function OrderCard({ order: o }: { order: OrderRow }) {
         )}
         {o.stage === "to-book" && <BookForm cartId={o.id} open="Book PickMe" />}
         {o.stage === "failed" && <BookForm cartId={o.id} open="Book again" />}
+        {o.stage === "in-store" && d && factoryFulfilment() && (
+          <div className="mt-auto flex flex-wrap gap-2">
+            <StatusButton id={d.id} status="PICKED_UP">
+              Picked up
+            </StatusButton>
+            <StatusButton id={d.id} status="FAILED">
+              Failed
+            </StatusButton>
+          </div>
+        )}
         {(o.stage === "on-the-way" || o.stage === "failed") && d && (
           <div className="mt-auto flex flex-wrap gap-2">
             <StatusButton id={d.id} status="DELIVERED">
@@ -179,7 +192,7 @@ function StatusButton({
   children,
 }: {
   id: string;
-  status: "DELIVERED" | "FAILED";
+  status: "PICKED_UP" | "DELIVERED" | "FAILED";
   children: ReactNode;
 }) {
   return (

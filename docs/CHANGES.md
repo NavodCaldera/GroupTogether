@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-03 - Factory-direct fulfilment
+
+- **Business model change.** Owner request: we no longer buy clothes from factories; each factory packs and ships its own orders, we arrange PickMe from the factory and track it until delivered. Packing staff are kept aside, not deleted, as the model may change back. Owner answers: one factory per cart, the factory sees its paid orders and marks them packed, the admin books PickMe, and there is no lot price drop. Added `src/lib/fulfilment.ts` (`FULFILMENT_MODE`, default FACTORY; `WAREHOUSE` restores the store flow), the factory Orders page (`/seller/orders`), `GroupCart.factoryPackedAt/By` (migration `factory_packing`), pickup details on PickMe bookings, a "Factory packing" stage and "Picked up" action on Admin → Orders, and a paused `/packing`. `DEC-010`; `SUP-001`, `SUP-002`, `FUL-001`–`FUL-003`, `LOT-001` updated.
+
 ## 2026-11-03 - Performance and tooling pass
 
 - Owner request: optimize the project without changing behaviour. Merge-request totals (cart page and notifications) load in one query through `mergeRequestLines`; `flushBrandNotices` reads conversation read-state in one query and checks gift payment once per message; bill settlement locks all gift rows in one ordered statement; the cart sweep sends notices after closing carts. Added indexes on `CartLine(variantId)`, `CartLine(userId)`, `CartInvite(invitedUserId)` and `Notification(userId, createdAt)` (migration `query_indexes`). Shared the admin `Rows` list in `list-bits`. TypeScript targets ES2022 with a cached build-info file, `npm run check` runs the fast checks first, and unit tests use worker threads.

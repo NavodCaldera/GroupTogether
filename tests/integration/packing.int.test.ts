@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPacker, homeFor } from "@/server/auth/service";
 import { acceptAndPay, createCart, setLine } from "@/server/carts/service";
 import { approveSlip, uploadSlip } from "@/server/carts/slips";
@@ -8,6 +8,8 @@ import { handOver, markGathered, markPacked, packingQueue, sendBack } from "@/se
 import { makeUser, makeVariant, resetDb, slipFile } from "./helpers";
 
 beforeEach(async () => {
+  // The parked store flow (product owner, 2026-11-03).
+  vi.stubEnv("FULFILMENT_MODE", "WAREHOUSE");
   await resetDb();
 });
 afterAll(() => db.$disconnect());

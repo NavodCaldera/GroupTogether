@@ -68,25 +68,30 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
           ) : undefined
         }
         actions={
-          <Link
-            href="/seller/new"
-            aria-label="Add product"
-            title="Add product"
-            className="grid size-12 place-items-center rounded-full bg-accent text-on-accent hover:opacity-90"
-          >
-            <svg
-              viewBox="0 0 24 24"
-              width="24"
-              height="24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.5"
-              strokeLinecap="round"
-              aria-hidden="true"
+          <div className="flex items-center gap-2">
+            <Link href="/seller/orders" className="font-medium text-accent underline">
+              Orders
+            </Link>
+            <Link
+              href="/seller/new"
+              aria-label="Add product"
+              title="Add product"
+              className="grid size-12 place-items-center rounded-full bg-accent text-on-accent hover:opacity-90"
             >
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </Link>
+              <svg
+                viewBox="0 0 24 24"
+                width="24"
+                height="24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </Link>
+          </div>
         }
       />
 

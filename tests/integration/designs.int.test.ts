@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createSeller } from "@/server/auth/service";
 import { sweep } from "@/server/carts/service";
 import { adjustStock, saveProduct } from "@/server/catalogue";
@@ -93,6 +93,7 @@ describe("price history", () => {
   });
 
   it("records a lot's price drop from the sweep", async () => {
+    vi.stubEnv("FULFILMENT_MODE", "WAREHOUSE");
     const lot = await saveLot(null, {
       name: "Ekala linen",
       pieces: "100",

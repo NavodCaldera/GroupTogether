@@ -13,6 +13,10 @@ for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
 [architecture](../../docs/architecture.md) for technical context. This file owns domain
 guidance, not business policy. Verify code pointers before editing.
 
+## Status
+
+**Parked since 2026-11-03** (`DEC-010`): factories pack their own orders (`src/server/factory-orders.ts`, `src/app/seller/orders/`). Keep this code and the PACKER role working behind `factoryFulfilment()` in `src/lib/fulfilment.ts`; `FULFILMENT_MODE=WAREHOUSE` brings the store flow back. Do not delete packer accounts, pages or data.
+
 ## Ownership and code
 
 - `src/server/receiving.ts`: accepted factory stock receipt.

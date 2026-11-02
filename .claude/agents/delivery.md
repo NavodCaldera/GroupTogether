@@ -16,7 +16,7 @@ guidance, not business policy. Verify code pointers before editing.
 ## Ownership and code
 
 - `src/server/delivery/provider.ts`: provider interface, manual provider and provisional PickMe adapter.
-- `src/server/delivery/index.ts`: booking, status changes and owner receipt confirmation.
+- `src/server/delivery/index.ts`: booking, status changes and owner receipt confirmation. Since 2026-11-03 (`DEC-010`) booking requires the factory's packed mark (`GroupCart.factoryPackedAt`) and passes the factory as `DropRequest.pickup`; admins mark PICKED_UP from Orders.
 - `src/server/orders.ts`, `src/app/admin/orders/page.tsx`: order board.
 - `src/app/api/webhooks/pickme/route.ts`; booking/status actions in `src/server/admin-actions.ts`.
 - Policy references: `FUL-001`?`FUL-003`, `UX-002`. Physical handover belongs to [packing](packing.md); gifts to [brands-rewards](brands-rewards.md).

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import type { ReactNode } from "react";
 import { Badge, Card, PageHeader } from "@/components/ui";
 import { formatLKR, timeLeft } from "@/lib/format";
 import { SLOW_DAYS } from "@/lib/stock-rules";

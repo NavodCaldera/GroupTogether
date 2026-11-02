@@ -30,12 +30,12 @@ enum Role {
 }
 
 model User {
-  id           String    @id @default(cuid())
-  role         Role      @default(CUSTOMER)
+  id           String     @id @default(cuid())
+  role         Role       @default(CUSTOMER)
   adminArea    AdminArea? // admins only
   name         String
-  email        String    @unique
-  phone        String?   @unique
+  email        String     @unique
+  phone        String?    @unique
   passwordHash String
   /// Default drop-off for carts this user owns
   address      String?
@@ -47,14 +47,15 @@ model User {
   company      String?
   /// Premium brand partner: offers gift products and fulfils paid basket gifts directly.
   /// `website` verifies retail references on the brand's own site.
-  isBrand      Boolean   @default(false)
+  isBrand      Boolean    @default(false)
   website      String?
-  locked       Boolean   @default(false)
-  createdAt    DateTime  @default(now())
+  locked       Boolean    @default(false)
+  createdAt    DateTime   @default(now())
 
   sampleRequests     SampleRequest[]
   sessions           Session[]
   ownedCarts         GroupCart[]             @relation("CartOwner")
+  factoryPackedCarts GroupCart[]             @relation("FactoryPacked")
   memberships        CartMember[]
   lines              CartLine[]
   slips              PaymentSlip[]           @relation("SlipUploader")
@@ -244,31 +245,35 @@ enum CartStatus {
 }
 
 model GroupCart {
-  id              String     @id @default(cuid())
+  id                String     @id @default(cuid())
   /// Share code in /c/<code>
-  code            String     @unique
-  name            String     @default("")
-  ownerId         String
-  owner           User       @relation("CartOwner", fields: [ownerId], references: [id])
-  visibility      Visibility @default(PUBLIC)
-  status          CartStatus @default(OPEN)
+  code              String     @unique
+  name              String     @default("")
+  ownerId           String
+  owner             User       @relation("CartOwner", fields: [ownerId], references: [id])
+  visibility        Visibility @default(PUBLIC)
+  status            CartStatus @default(OPEN)
   /// Snapshot of Settings.minOrderValue when the cart started
-  minOrderValue   Decimal    @db.Decimal(14, 2)
+  minOrderValue     Decimal    @db.Decimal(14, 2)
   /// Sum of qty × unitPrice over all lines, kept in step in the same transaction
-  total           Decimal    @default(0) @db.Decimal(14, 2)
-  expiresAt       DateTime
-  readyAt         DateTime?
-  acceptedAt      DateTime?
-  slipDueAt       DateTime?
-  confirmedAt     DateTime?
-  deliveryAddress String?
-  deliveryCity    String?
-  deliveryPhone   String?
-  deliveryLat     Float?
-  deliveryLng     Float?
-  closedReason    String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  total             Decimal    @default(0) @db.Decimal(14, 2)
+  expiresAt         DateTime
+  readyAt           DateTime?
+  acceptedAt        DateTime?
+  slipDueAt         DateTime?
+  confirmedAt       DateTime?
+  /// Factory-direct fulfilment (2026-11-03): when and by whom the factory packed this order
+  factoryPackedAt   DateTime?
+  factoryPackedById String?
+  factoryPackedBy   User?      @relation("FactoryPacked", fields: [factoryPackedById], references: [id])
+  deliveryAddress   String?
+  deliveryCity      String?
+  deliveryPhone     String?
+  deliveryLat       Float?
+  deliveryLng       Float?
+  closedReason      String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
   members  CartMember[]
   lines    CartLine[]

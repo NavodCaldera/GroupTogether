@@ -19,6 +19,7 @@ import { formatLKR } from "@/lib/format";
 import { toD } from "@/lib/decimal";
 import { phoneSchema } from "../auth/service";
 import { db, type Tx } from "../db";
+import { factoryConflict, factoryFulfilment } from "@/lib/fulfilment";
 import { reduceDueLots } from "../lots";
 import { type Notice, notify } from "../notify";
 import { getSettings } from "../settings";
@@ -207,6 +208,7 @@ export async function setLine(
         where: { id: variantId, product: { seller: { isBrand: true } } },
       });
       if (premium) throw new CartError("Premium brand products are complimentary gifts only");
+      if (!line) await assertSameFactory(tx, cartId, [variantId]);
       // Atomic: the row lock taken by UPDATE re-checks `available` against concurrent carts.
       const locked = await tx.variant.updateMany({
         where: { id: variantId, available: { gte: delta } },
@@ -248,6 +250,27 @@ export async function setLine(
   });
   if (result.becameReady) await notify(result.members, readyNotice(result.cart));
   return result;
+}
+
+/** One cart, one factory parcel (product owner, 2026-11-03). Throws when the variants mix. */
+async function assertSameFactory(tx: Tx, cartId: string, variantIds: string[]) {
+  if (!variantIds.length) return;
+  const [existing, incoming] = await Promise.all([
+    tx.product.findMany({
+      where: { variants: { some: { lines: { some: { cartId } } } } },
+      select: { sellerId: true },
+    }),
+    tx.product.findMany({
+      where: { variants: { some: { id: { in: variantIds } } } },
+      select: { sellerId: true },
+    }),
+  ]);
+  const have = existing.map((p) => p.sellerId);
+  for (const p of incoming) {
+    const why = factoryConflict(have, p.sellerId);
+    if (why) throw new CartError(why);
+    have.push(p.sellerId);
+  }
 }
 
 /**
@@ -376,7 +399,8 @@ export async function cancelCart(actor: { id: string; role: Role }, cartId: stri
  * the reduced price (`reduceDueLots`).
  */
 export async function sweep(now = new Date(), cartId?: string) {
-  if (!cartId) await reduceDueLots(now);
+  // No lot price drop while factories ship directly (product owner, 2026-11-03).
+  if (!cartId && !factoryFulfilment()) await reduceDueLots(now);
   const due = await db.groupCart.findMany({
     where: {
       id: cartId,
@@ -406,20 +430,22 @@ export async function sweep(now = new Date(), cartId?: string) {
     if (!done) continue;
     closed++;
     const name = done.cart.name || done.cart.code;
-    notices.push(notify(
-      done.members,
-      done.what === "EXPIRE"
-        ? {
-            title: "A group cart expired",
-            body: `"${name}" didn't reach the minimum in time. Its items are back in stock.`,
-            href: `/c/${done.cart.code}`,
-          }
-        : {
-            title: "A group cart was cancelled",
-            body: `The bank slip for "${name}" wasn't uploaded in time, so the order was cancelled.`,
-            href: `/c/${done.cart.code}`,
-          },
-    ));
+    notices.push(
+      notify(
+        done.members,
+        done.what === "EXPIRE"
+          ? {
+              title: "A group cart expired",
+              body: `"${name}" didn't reach the minimum in time. Its items are back in stock.`,
+              href: `/c/${done.cart.code}`,
+            }
+          : {
+              title: "A group cart was cancelled",
+              body: `The bank slip for "${name}" wasn't uploaded in time, so the order was cancelled.`,
+              href: `/c/${done.cart.code}`,
+            },
+      ),
+    );
   }
   await Promise.all(notices);
   return { closed };
@@ -514,6 +540,15 @@ export async function acceptMerge(ownerId: string, requestId: string, now = new 
       });
       return { error: why ?? "They are no longer in that cart." } as const;
     }
+    const moving = await tx.cartLine.findMany({
+      where: { cartId: from.id, userId: req.userId },
+      select: { variantId: true },
+    });
+    await assertSameFactory(
+      tx,
+      to.id,
+      moving.map((l) => l.variantId),
+    );
     // Their items move; stock is untouched (it is already locked for them).
     await tx.giftOrder.updateMany({
       where: { cartId: from.id, recipientId: req.userId, status: "RESERVED" },

@@ -11,6 +11,7 @@ export default defineConfig({
   resolve: { alias },
   test: {
     environment: "node",
+    unstubEnvs: true,
     coverage: {
       provider: "v8",
       include: ["src/lib/**"],

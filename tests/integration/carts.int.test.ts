@@ -147,6 +147,8 @@ describe("one bank slip, then delivery", () => {
     expect(await variantRow(v.id)).toMatchObject({ available: 3, reserved: 0, sold: 2 });
     await expect(approveSlip(admin.id, slip.id)).rejects.toThrow(/already been reviewed/);
 
+    await expect(bookDelivery(cart.id, {})).rejects.toThrow("hasn't marked this order packed");
+    await db.groupCart.update({ where: { id: cart.id }, data: { factoryPackedAt: new Date() } });
     await bookDelivery(cart.id, { quotedFee: "850" });
     const d = await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } });
     expect(d).toMatchObject({ paidBy: "OWNER", provider: "manual" });
@@ -160,6 +162,7 @@ describe("one bank slip, then delivery", () => {
     await uploadSlip(owner.id, cart.id, slipFile());
     const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: cart.id } });
     await approveSlip(admin.id, slip.id);
+    await db.groupCart.update({ where: { id: cart.id }, data: { factoryPackedAt: new Date() } });
     await bookDelivery(cart.id, {});
 
     await expect(markReceived(member.id, cart.id)).rejects.toThrow(/Only the cart owner/);

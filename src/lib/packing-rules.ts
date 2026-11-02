@@ -56,14 +56,17 @@ export function handOverBlockReason(
 }
 
 /**
- * Where a paid order is on the admin's Orders tab (product owner, 2026-10-21): no PickMe yet,
- * booked and still in our store, with the driver, failed (to book again), or delivered.
+ * Where a paid order is on the admin's Orders tab (product owner, 2026-10-21; factory packing
+ * 2026-11-03): waiting for the factory to pack, no PickMe yet, booked and waiting for pickup,
+ * with the driver, failed (to book again), or delivered.
  */
-export type OrderStage = "to-book" | "in-store" | "on-the-way" | "failed" | "delivered";
+export type OrderStage =
+  "factory-packing" | "to-book" | "in-store" | "on-the-way" | "failed" | "delivered";
 
 export const ORDER_STAGE_LABEL: Record<OrderStage, string> = {
+  "factory-packing": "Factory packing",
   "to-book": "To book",
-  "in-store": "In store",
+  "in-store": "Awaiting pickup",
   "on-the-way": "On the way",
   failed: "Failed",
   delivered: "Delivered",
@@ -72,8 +75,9 @@ export const ORDER_STAGE_LABEL: Record<OrderStage, string> = {
 export function orderStage(
   delivery: { status: string } | null,
   packing: { handedOverAt: Date | null } | null,
+  factoryPackedAt?: Date | null,
 ): OrderStage {
-  if (!delivery) return "to-book";
+  if (!delivery) return factoryPackedAt === null ? "factory-packing" : "to-book";
   if (delivery.status === "DELIVERED") return "delivered";
   if (delivery.status === "FAILED" || delivery.status === "CANCELLED") return "failed";
   if (delivery.status === "PICKED_UP" || packing?.handedOverAt) return "on-the-way";

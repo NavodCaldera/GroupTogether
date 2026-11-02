@@ -11,6 +11,7 @@ import { requireAnyAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { FilterSelect } from "../filter-select";
+import { factoryFulfilment } from "@/lib/fulfilment";
 import {
   Chip,
   ChipRow,
@@ -151,7 +152,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
             <Link href="/admin/users/new-admin" className={BUTTON}>
               Add admin
             </Link>
-            {area === "WAREHOUSE" && (
+            {area === "WAREHOUSE" && !factoryFulfilment() && (
               <Link href="/admin/users/new-packer" className={BUTTON}>
                 <span aria-hidden>+</span> Add packing staff
               </Link>

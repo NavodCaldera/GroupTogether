@@ -3,6 +3,7 @@ import { assertAdminArea } from "../auth/service";
 import { addHours } from "@/lib/cart-rules";
 import { formatLKR } from "@/lib/format";
 import { db } from "../db";
+import { factoryFulfilment } from "@/lib/fulfilment";
 import { notify, notifyRole } from "../notify";
 import { getSettings } from "../settings";
 import { SLIP_TYPES, checkUpload, saveUpload } from "../storage";
@@ -114,11 +115,26 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
       href: `/c/${cart.code}`,
     },
   );
-  await notifyRole("PACKER", {
-    title: "New order to pack",
-    body: `Cart ${cart.code} is paid. One of you checks and gathers it, someone else rechecks and packs it.`,
-    href: `/packing/${cart.code}`,
-  });
+  if (factoryFulfilment()) {
+    const factory = await db.user.findFirst({
+      where: {
+        products: { some: { variants: { some: { lines: { some: { cartId: cart.id } } } } } },
+      },
+      select: { id: true },
+    });
+    if (factory)
+      await notify([factory.id], {
+        title: "New order to pack",
+        body: `Cart ${cart.code} is paid. Pack it and mark it packed for PickMe pickup.`,
+        href: "/seller/orders",
+      });
+  } else {
+    await notifyRole("PACKER", {
+      title: "New order to pack",
+      body: `Cart ${cart.code} is paid. One of you checks and gathers it, someone else rechecks and packs it.`,
+      href: `/packing/${cart.code}`,
+    });
+  }
   await flushBrandNotices().catch(() => {});
 }
 

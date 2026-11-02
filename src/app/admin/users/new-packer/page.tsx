@@ -1,7 +1,9 @@
+import { redirect } from "next/navigation";
 import type { Metadata } from "next";
 import { BackLink } from "@/components/client";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
 import { createPackerAction } from "@/server/admin-actions";
+import { factoryFulfilment } from "@/lib/fulfilment";
 import { requireAdmin } from "@/server/auth/session";
 import { AdminForm } from "../../admin-form";
 
@@ -9,6 +11,7 @@ export const metadata: Metadata = { title: "Add packing staff" };
 
 export default async function NewPackerPage() {
   await requireAdmin("WAREHOUSE");
+  if (factoryFulfilment()) redirect("/admin/users");
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/users" />

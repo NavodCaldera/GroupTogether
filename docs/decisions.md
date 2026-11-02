@@ -85,6 +85,12 @@ Use [architecture](architecture.md) and [README](../README.md) for technical det
 
 Groups may request a sample of a particular apparel design/pattern before buying as a group. GroupBasket delivers the sample to the group, charges no sample sending fee, and the group pays transport. This does not mean factory test pieces or premium gifts. The implementation coordinates requests through the group owner and records explicit acceptance of the transport quote before dispatch; bank/courier operations remain external. Sample ownership, returns, loss/damage terms and any transport collection mechanism remain open; do not invent deposits, automatic charges or return obligations.
 
+### DEC-010 - Factory-direct fulfilment
+
+**Status:** Approved by the owner on **2026-11-03**. **Rules:** `SUP-001`, `SUP-002`, `FUL-001`–`FUL-003`, `LOT-001`.
+
+GroupBasket no longer buys clothes from factories. Each factory packs its paid orders and marks them packed; the admin books PickMe from the factory and tracks the drop until delivered. A cart holds products from one factory only. There is no lot price drop. Packing staff are parked, not deleted, behind `FULFILMENT_MODE` (default `FACTORY`). Open: how our own listings (products with no factory) are fulfilled, factory payment terms, and who answers for a parcel lost between factory and owner.
+
 ## Legacy rule references
 
 Former `CLAUDE.md` rules are mapped below so historical comments and specialist notes remain traceable. New work should reference stable IDs in the [main brief](../.claude/agents/groupbasket.md#6-business-rules).

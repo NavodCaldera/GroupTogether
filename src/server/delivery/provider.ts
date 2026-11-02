@@ -1,7 +1,8 @@
 import "server-only";
 
 /**
- * Delivery adapter: one PickMe drop per confirmed cart, to the cart owner.
+ * Delivery adapter: one PickMe drop per confirmed cart, from the factory that packed it (or our
+ * store in the parked warehouse flow) to the cart owner.
  * The owner (the receiver) pays the driver directly; the platform never charges, collects or
  * refunds a delivery fee. `quotedFee` is only shown to the owner.
  */
@@ -13,6 +14,8 @@ export type DropRequest = {
   city: string;
   /** Item count, for the parcel size */
   items: number;
+  /** Factory-direct fulfilment (2026-11-03): where the driver collects the parcel */
+  pickup?: { name: string; phone: string; address: string; city: string };
 };
 
 export type Booking = {

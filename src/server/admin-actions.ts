@@ -21,6 +21,7 @@ import { bookDelivery, setDeliveryStatus } from "./delivery";
 import { flash } from "./flash";
 import { linkOfferProduct } from "./designs";
 import { decideOffer, noteOffer } from "./offers";
+import { factoryFulfilment } from "@/lib/fulfilment";
 import { UploadError } from "./storage";
 
 export type AdminState = { error?: string };
@@ -233,6 +234,7 @@ export async function createSellerAction(_p: AdminState, fd: FormData): Promise<
 
 export async function createPackerAction(_p: AdminState, fd: FormData): Promise<AdminState> {
   await requireAdmin("WAREHOUSE");
+  if (factoryFulfilment()) return { error: "Packing is paused while factories pack orders" };
   let id = "";
   const res = await attempt(async () => {
     id = (await createPacker(Object.fromEntries(fd))).id;
