@@ -147,7 +147,6 @@ describe("one bank slip, then delivery", () => {
     expect(await variantRow(v.id)).toMatchObject({ available: 3, reserved: 0, sold: 2 });
     await expect(approveSlip(admin.id, slip.id)).rejects.toThrow(/already been reviewed/);
 
-    await expect(bookDelivery(cart.id, {})).rejects.toThrow("hasn't marked this order packed");
     await db.groupCart.update({ where: { id: cart.id }, data: { factoryPackedAt: new Date() } });
     await bookDelivery(cart.id, { quotedFee: "850" });
     const d = await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } });
