@@ -21,7 +21,7 @@ test("group requests a design sample, accepts transport, and tracks warehouse de
   await page.getByRole("button", { name: "Request sample", exact: true }).click();
   const card = page.locator("div.rounded-xl").filter({ hasText: "Browser sample blue pattern M" });
   await expect(card).toContainText("requested");
-  await signIn(page, "warehouse@groupbasket.lk");
+  await signIn(page, "buyers@groupbasket.lk");
   await page.goto("/admin/warehouse");
   const warehouseCard = page
     .locator("div.rounded-xl")
@@ -35,7 +35,7 @@ test("group requests a design sample, accepts transport, and tracks warehouse de
   await expect(card).toContainText("Sample sending fee:");
   await card.getByRole("button", { name: "Accept group transport cost" }).click();
   await expect(card).toContainText("accepted");
-  await signIn(page, "warehouse@groupbasket.lk");
+  await signIn(page, "buyers@groupbasket.lk");
   await page.goto("/admin/warehouse");
   await warehouseCard.getByLabel("Courier", { exact: true }).fill("Manual sample courier");
   await warehouseCard.getByLabel("Tracking reference").fill("SAMPLE-BROWSER-1");

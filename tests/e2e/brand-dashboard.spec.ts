@@ -75,7 +75,7 @@ test("brand gifts: reserve in basket, approve payment, dispatch and settle", asy
   await page.getByRole("button", { name: "Upload slip", exact: true }).click();
   await page.waitForURL(/\?paid=1/);
 
-  await signIn(page, "warehouse@groupbasket.lk");
+  await signIn(page, "buyers@groupbasket.lk");
   await page.goto("/admin/slips");
   await page.getByRole("navigation", { name: "Slips to review" }).getByRole("link").first().click();
   await page.getByRole("button", { name: "Approve…" }).click();

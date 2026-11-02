@@ -53,7 +53,8 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
     throw new CartError("Only a confirmed cart without a delivery can be booked");
   const factory = cart.lines[0]?.variant.product.seller ?? null;
   const fromFactory = factoryFulfilment();
-  if (fromFactory && !cart.factoryPackedAt)
+  // Our own listings (no factory) are booked without a factory packing step (DEC-010 open).
+  if (fromFactory && factory && !cart.factoryPackedAt)
     throw new CartError("The factory hasn't marked this order packed yet");
 
   const provider = deliveryProvider();

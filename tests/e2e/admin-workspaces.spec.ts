@@ -12,7 +12,7 @@ async function signIn(page: Page, email: string) {
   await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
 }
 
-test("three area admins each run their whole stream, with no unrestricted admin", async ({
+test("four admins: three run their stream, the core admin runs settings and admins", async ({
   page,
 }) => {
   test.setTimeout(240_000);
@@ -22,55 +22,63 @@ test("three area admins each run their whole stream, with no unrestricted admin"
       email: "premium@groupbasket.lk",
       home: "/admin/brands",
       title: "Brand rewards",
-      tabs: ["Brand rewards", "Users"],
-      denied: ["/admin/offers", "/admin/settings", "/admin/slips", "/admin/users/new-packer"],
-      addUser: "Add premium brand",
+      tabs: ["Luxury brands", "Users"],
+      denied: ["/admin/offers", "/admin/settings", "/admin/slips", "/admin/users/new-admin"],
+      addUser: "Add luxury brand",
     },
     {
       area: "FACTORY",
       email: "factory@groupbasket.lk",
       home: "/admin/factory",
       title: "Apparel and factories",
-      tabs: ["Factory apparel", "Stock", "Lots", "Products", "Offers", "Users", "Settings"],
-      denied: ["/admin/brands", "/admin/slips", "/admin/users/new-packer"],
-      addUser: "Add factory seller",
+      tabs: ["Factories", "Stock", "Lots", "Products", "Offers", "Users"],
+      denied: ["/admin/brands", "/admin/slips", "/admin/settings", "/admin/users/new-admin"],
+      addUser: "Add factory",
     },
     {
       area: "WAREHOUSE",
       email: "buyers@groupbasket.lk",
       home: "/admin/warehouse",
       title: "Warehouse and delivery",
-      tabs: ["Warehouse & delivery", "Slips", "Orders", "Carts", "Users", "Settings"],
-      denied: ["/admin/brands", "/admin", "/admin/offers", "/admin/users/new-seller"],
-      addUser: "Add packing staff",
+      tabs: ["Buyers & orders", "Slips", "Orders", "Carts", "Buyers"],
+      denied: [
+        "/admin/brands",
+        "/admin",
+        "/admin/offers",
+        "/admin/settings",
+        "/admin/users/new-seller",
+        "/admin/users/new-admin",
+      ],
+      addUser: null,
+    },
+    {
+      area: "CORE",
+      email: "core@groupbasket.lk",
+      home: "/admin/users",
+      title: "Users",
+      tabs: ["Admins", "Settings"],
+      denied: ["/admin/brands", "/admin", "/admin/slips", "/admin/orders"],
+      addUser: "Add admin",
     },
   ];
-  for (const [index, account] of accounts.entries()) {
+  const homeOf = Object.fromEntries(accounts.map((a) => [a.area, a.home]));
+  for (const account of accounts) {
     await signIn(page, account.email);
     await expect(page).toHaveURL(new RegExp(account.home + "$"));
     await expect(page.getByRole("heading", { name: account.title, exact: true })).toBeVisible();
     const nav = page
       .getByRole("navigation")
-      .filter({ has: page.getByRole("link", { name: "Users" }) });
+      .filter({ has: page.getByRole("link", { name: new RegExp(`^${account.tabs[0]}`) }) });
     await expect(nav.getByRole("link")).toHaveText(account.tabs.map((t) => new RegExp(`^${t}`)));
     for (const route of account.denied) {
       await page.goto(route);
       await expect(page).toHaveURL(new RegExp(account.home + "$"));
     }
-
-    // Each area adds its own admins; the new admin lands in the same workspace.
     await page.goto("/admin/users");
-    await expect(page.getByRole("link", { name: account.addUser })).toBeVisible();
-    await page.getByRole("link", { name: "Add admin", exact: true }).click();
-    const email = `${account.area.toLowerCase()}-operator@example.com`;
-    await page.getByLabel("Name", { exact: true }).fill(account.area + " operator");
-    await page.getByLabel("Email (they sign in with this)").fill(email);
-    await page.getByLabel("Mobile", { exact: true }).fill("077123456" + index);
-    await page.getByLabel("Temporary password").fill("password123");
-    await page.getByRole("button", { name: "Create admin account", exact: true }).click();
-    await page.waitForURL("**/admin/users");
-    await signIn(page, email);
-    await expect(page).toHaveURL(new RegExp(account.home + "$"));
+    if (account.addUser)
+      await expect(page.getByRole("link", { name: account.addUser })).toBeVisible();
+    if (account.area !== "CORE")
+      await expect(page.getByRole("link", { name: "Add admin" })).toHaveCount(0);
 
     await page.setViewportSize({ width: 360, height: 800 });
     await expect
@@ -81,5 +89,22 @@ test("three area admins each run their whole stream, with no unrestricted admin"
       fullPage: true,
     });
     await page.setViewportSize({ width: 1280, height: 720 });
+  }
+
+  // Only the core admin adds admins, for any area; each new admin lands in their workspace.
+  for (const [index, area] of ["PREMIUM", "FACTORY", "WAREHOUSE"].entries()) {
+    await signIn(page, "core@groupbasket.lk");
+    await page.goto("/admin/users");
+    await page.getByRole("link", { name: "Add admin" }).click();
+    const email = `${area.toLowerCase()}-operator@example.com`;
+    await page.getByLabel("Area").selectOption(area);
+    await page.getByLabel("Name", { exact: true }).fill(area + " operator");
+    await page.getByLabel("Email (they sign in with this)").fill(email);
+    await page.getByLabel("Mobile", { exact: true }).fill("077123456" + index);
+    await page.getByLabel("Temporary password").fill("password123");
+    await page.getByRole("button", { name: "Create admin account", exact: true }).click();
+    await page.waitForURL("**/admin/users");
+    await signIn(page, email);
+    await expect(page).toHaveURL(new RegExp(homeOf[area] + "$"));
   }
 });

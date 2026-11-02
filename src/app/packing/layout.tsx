@@ -1,4 +1,4 @@
-import { EmptyState } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { factoryFulfilment } from "@/lib/fulfilment";
 import { requirePacker } from "@/server/auth/session";
 
@@ -10,7 +10,14 @@ export default async function PackingLayout({ children }: LayoutProps<"/packing"
   await requirePacker();
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      {factoryFulfilment() ? <EmptyState title="Packing is paused" /> : children}
+      {factoryFulfilment() ? (
+        <div>
+          <PageHeader title="Packing" />
+          <EmptyState title="Packing is paused" />
+        </div>
+      ) : (
+        children
+      )}
     </div>
   );
 }

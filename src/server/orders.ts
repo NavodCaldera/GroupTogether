@@ -18,7 +18,9 @@ const orderSelect = {
   deliveryCity: true,
   deliveryPhone: true,
   owner: { select: { name: true } },
-  lines: { select: { qty: true } },
+  lines: {
+    select: { qty: true, variant: { select: { product: { select: { sellerId: true } } } } },
+  },
   delivery: {
     select: {
       id: true,
@@ -51,7 +53,14 @@ export async function ordersBoard() {
   const rows = [...open, ...delivered].map((c) => ({
     ...c,
     items: c.lines.reduce((n, l) => n + l.qty, 0),
-    stage: orderStage(c.delivery, c.packing, factoryFulfilment() ? c.factoryPackedAt : undefined),
+    stage: orderStage(
+      c.delivery,
+      c.packing,
+      // Only a factory's order waits for the factory to pack it.
+      factoryFulfilment() && c.lines.some((l) => l.variant.product.sellerId)
+        ? c.factoryPackedAt
+        : undefined,
+    ),
   }));
   const by = (s: OrderStage) => rows.filter((r) => r.stage === s);
   return {
