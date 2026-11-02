@@ -21,7 +21,7 @@ function failure(e: unknown): AdminState {
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 export async function saveLotAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const id = str(fd, "id") || null;
   let savedId = id;
   try {
@@ -53,7 +53,7 @@ const stockSettingsSchema = z
   });
 
 export async function saveStockSettingsAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   try {
     const data = stockSettingsSchema.parse(Object.fromEntries(fd));
     await db.settings.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });

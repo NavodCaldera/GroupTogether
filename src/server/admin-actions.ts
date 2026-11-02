@@ -4,8 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError, z } from "zod";
 import type { DeliveryStatus } from "@/generated/prisma/client";
-import { AuthError, createPacker, createSeller, setUserLocked } from "./auth/service";
-import { requireAdmin } from "./auth/session";
+import {
+  AuthError,
+  createOperationalAdmin,
+  createPacker,
+  createSeller,
+  setUserLocked,
+} from "./auth/service";
+import { requireAdmin, requireAnyAdmin } from "./auth/session";
+import { assertManagesUser } from "./admin-users";
 import { CartError, cancelCart } from "./carts/service";
 import { approveSlip, rejectSlip } from "./carts/slips";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
@@ -40,7 +47,7 @@ async function attempt(fn: () => Promise<unknown>, ok?: string): Promise<AdminSt
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
 export async function approveSlipAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("WAREHOUSE");
   const slipId = str(fd, "slipId");
   const res = await attempt(() => approveSlip(admin.id, slipId));
   revalidatePath("/admin", "layout");
@@ -50,7 +57,7 @@ export async function approveSlipAction(_p: AdminState, fd: FormData): Promise<A
 }
 
 export async function rejectSlipAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("WAREHOUSE");
   const slipId = str(fd, "slipId");
   const res = await attempt(() => rejectSlip(admin.id, slipId, str(fd, "note")));
   revalidatePath("/admin", "layout");
@@ -67,7 +74,7 @@ async function slipCartCode(slipId: string) {
 }
 
 export async function adminCancelAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("WAREHOUSE");
   const res = await attempt(
     () => cancelCart(admin, str(fd, "cartId"), str(fd, "reason")),
     "Cancelled",
@@ -77,7 +84,7 @@ export async function adminCancelAction(_p: AdminState, fd: FormData): Promise<A
 }
 
 export async function bookDeliveryAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("WAREHOUSE");
   const cartId = str(fd, "cartId");
   const fee = str(fd, "quotedFee");
   const res = await attempt(async () => {
@@ -104,7 +111,7 @@ const DELIVERY_STATUSES: DeliveryStatus[] = [
 ];
 
 export async function deliveryStatusAction(fd: FormData) {
-  await requireAdmin();
+  await requireAdmin("WAREHOUSE");
   const status = str(fd, "status") as DeliveryStatus;
   if (!DELIVERY_STATUSES.includes(status)) return;
   await setDeliveryStatus(str(fd, "deliveryId"), status);
@@ -113,7 +120,7 @@ export async function deliveryStatusAction(fd: FormData) {
 }
 
 export async function saveProductAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const id = str(fd, "id") || null;
   const photo = fd.get("photo");
   let savedId = id;
@@ -142,7 +149,7 @@ export async function saveProductAction(_p: AdminState, fd: FormData): Promise<A
 }
 
 export async function adjustStockAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const productId = str(fd, "productId");
   const res = await attempt(
     () => adjustStock(productId, str(fd, "size"), str(fd, "colour"), Number(str(fd, "delta"))),
@@ -165,7 +172,7 @@ const settingsSchema = z.object({
 });
 
 export async function saveSettingsAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("WAREHOUSE");
   const res = await attempt(async () => {
     const data = settingsSchema.parse(Object.fromEntries(fd));
     await db.settings.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });
@@ -175,11 +182,14 @@ export async function saveSettingsAction(_p: AdminState, fd: FormData): Promise<
 }
 
 export async function lockUserAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  const admin = await requireAnyAdmin();
   const userId = str(fd, "userId");
   const locked = str(fd, "locked") === "1";
   const res = await attempt(
-    () => setUserLocked(userId, locked),
+    async () => {
+      await assertManagesUser(admin.adminArea, userId);
+      await setUserLocked(userId, locked);
+    },
     locked ? "Locked and signed out everywhere" : "Unlocked: they can sign in again",
   );
   revalidatePath("/admin/users", "layout");
@@ -188,7 +198,7 @@ export async function lockUserAction(_p: AdminState, fd: FormData): Promise<Admi
 
 /** Accept or decline a factory seller's stock offer, or send a note without deciding. */
 export async function decideOfferAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const offerId = str(fd, "offerId");
   const decision = str(fd, "decision");
   if (decision === "note") {
@@ -204,20 +214,25 @@ export async function decideOfferAction(_p: AdminState, fd: FormData): Promise<A
   redirect(`/admin/offers?done=${accept ? "accepted" : "declined"}`);
 }
 
+/** Factory admins add factory sellers; premium admins add brands. */
 export async function createSellerAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  const admin = await requireAnyAdmin();
+  if (admin.adminArea === "WAREHOUSE") return { error: "Sellers are added by factory admins" };
+  const isBrand = admin.adminArea === "PREMIUM";
   let id = "";
   const res = await attempt(async () => {
-    id = (await createSeller(Object.fromEntries(fd))).id;
+    id = (await createSeller({ ...Object.fromEntries(fd), isBrand })).id;
   });
   if (res.error) return res;
   revalidatePath("/admin/users");
-  await flash("Seller account created. Send them their email and password.");
+  await flash(
+    `${isBrand ? "Brand" : "Seller"} account created. Send them their email and password.`,
+  );
   redirect(`/admin/users/${id}`);
 }
 
 export async function createPackerAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("WAREHOUSE");
   let id = "";
   const res = await attempt(async () => {
     id = (await createPacker(Object.fromEntries(fd))).id;
@@ -226,4 +241,19 @@ export async function createPackerAction(_p: AdminState, fd: FormData): Promise<
   revalidatePath("/admin/users");
   await flash("Packing staff account created. Send them their email and password.");
   redirect(`/admin/users/${id}`);
+}
+
+export async function createOperationalAdminAction(
+  _p: AdminState,
+  fd: FormData,
+): Promise<AdminState> {
+  // Each area adds its own admins; nobody can create an admin for another area.
+  const admin = await requireAnyAdmin();
+  const res = await attempt(
+    () => createOperationalAdmin({ ...Object.fromEntries(fd), adminArea: admin.adminArea }),
+    "Admin account created",
+  );
+  if (res.error) return res;
+  revalidatePath("/admin/users");
+  redirect("/admin/users");
 }

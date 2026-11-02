@@ -52,11 +52,15 @@ export async function createOffer(sellerId: string, input: unknown) {
     if (!mine) throw new CatalogueError("Choose one of your designs");
   }
   const offer = await db.stockOffer.create({ data: { sellerId, ...o } });
-  await notifyRole("ADMIN", {
-    title: "Stock offer to review",
-    body: `${seller.company || seller.name}: ${o.name}`,
-    href: `/admin/offers/${offer.id}`,
-  });
+  await notifyRole(
+    "ADMIN",
+    {
+      title: "Stock offer to review",
+      body: `${seller.company || seller.name}: ${o.name}`,
+      href: `/admin/offers/${offer.id}`,
+    },
+    "FACTORY",
+  );
   return offer;
 }
 

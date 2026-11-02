@@ -18,7 +18,7 @@ export const metadata: Metadata = { title: "Stock offer" };
 
 /** One stock offer: what the seller sent, who they are, and Accept / Decline (confirmed) with a note. */
 export default async function OfferPage({ params, searchParams }: PageProps<"/admin/offers/[id]">) {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const { id } = await params;
   const sp = await searchParams;
   const done = typeof sp.done === "string" ? sp.done : undefined;

@@ -1,5 +1,6 @@
 import "server-only";
 import type { CartStatus, Prisma } from "@/generated/prisma/client";
+import type { OperationalAdminArea } from "@/lib/admin-access";
 import { HOLDS_STOCK, STATUS_LABEL } from "@/lib/cart-rules";
 import { toD } from "@/lib/decimal";
 import { colomboDayStart, formatLKR } from "@/lib/format";
@@ -75,36 +76,42 @@ export async function suggestCarts(q: string) {
     }));
 }
 
-/** Counts for the admin nav badges. */
-export async function adminBadges(adminId?: string) {
-  const [slips, orders, offers, lowStock, brandReviews, brandIssues, brandQueries, inbox] =
-    await Promise.all([
-      db.paymentSlip.count({ where: { status: "PENDING" } }),
-      // Orders that need the admin: PickMe to book, or a failed drop to book again.
-      db.groupCart.count({
-        where: {
-          OR: [
-            { status: "CONFIRMED", delivery: { is: null } },
-            { status: "DISPATCHED", delivery: { is: { status: { in: ["FAILED", "CANCELLED"] } } } },
-          ],
-        },
-      }),
-      db.stockOffer.count({ where: { status: "IN_REVIEW", seller: { isBrand: false } } }),
-      db.variant.count({ where: { available: { lte: LOW_STOCK }, product: IN_SHOP } }),
-      db.brandOfferRevision.count({ where: { status: "IN_REVIEW", supersededAt: null } }),
-      db.giftOrder.count({ where: { status: "ISSUE" } }),
-      db.giftSettlement.count({ where: { queryOpen: true } }),
-      adminId ? brandInbox(adminId) : [],
-    ]);
-  return {
-    slips,
-    orders,
-    offers,
-    lowStock,
-    brandRewards:
-      brandReviews +
-      brandIssues +
-      brandQueries +
-      inbox.filter((thread) => thread.unread > 0).length,
-  };
+/** Counts for the admin nav badges; each area counts only its own work. */
+export async function adminBadges(adminId: string, area: OperationalAdminArea) {
+  const none = Promise.resolve(0);
+  const [slips, orders, offers, lowStock, brandRewards] = await Promise.all([
+    area === "WAREHOUSE" ? db.paymentSlip.count({ where: { status: "PENDING" } }) : none,
+    // Orders that need the admin: PickMe to book, or a failed drop to book again.
+    area === "WAREHOUSE"
+      ? db.groupCart.count({
+          where: {
+            OR: [
+              { status: "CONFIRMED", delivery: { is: null } },
+              {
+                status: "DISPATCHED",
+                delivery: { is: { status: { in: ["FAILED", "CANCELLED"] } } },
+              },
+            ],
+          },
+        })
+      : none,
+    area === "FACTORY"
+      ? db.stockOffer.count({ where: { status: "IN_REVIEW", seller: { isBrand: false } } })
+      : none,
+    area === "FACTORY"
+      ? db.variant.count({ where: { available: { lte: LOW_STOCK }, product: IN_SHOP } })
+      : none,
+    area === "PREMIUM" ? brandRewardWork(adminId) : none,
+  ]);
+  return { slips, orders, offers, lowStock, brandRewards };
+}
+
+async function brandRewardWork(adminId: string) {
+  const [reviews, issues, queries, inbox] = await Promise.all([
+    db.brandOfferRevision.count({ where: { status: "IN_REVIEW", supersededAt: null } }),
+    db.giftOrder.count({ where: { status: "ISSUE" } }),
+    db.giftSettlement.count({ where: { queryOpen: true } }),
+    brandInbox(adminId),
+  ]);
+  return reviews + issues + queries + inbox.filter((thread) => thread.unread > 0).length;
 }

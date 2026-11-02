@@ -39,6 +39,12 @@ export function stockForPacker(id: string) {
 
 /** Records who received the stock and when (once); tells the seller and the admins. */
 export async function receiveStock(staffId: string, offerId: string) {
+  const staff = await db.user.findUnique({
+    where: { id: staffId },
+    select: { role: true, locked: true },
+  });
+  if (!staff || staff.role !== "PACKER" || staff.locked)
+    throw new CatalogueError("Only packing staff can receive factory stock");
   const r = await db.stockOffer.updateMany({
     where: { id: offerId, status: "ACCEPTED", receivedAt: null, seller: { isBrand: false } },
     data: { receivedById: staffId, receivedAt: new Date() },
@@ -54,10 +60,14 @@ export async function receiveStock(staffId: string, offerId: string) {
       body: o.name,
       href: "/seller",
     }),
-    notifyRole("ADMIN", {
-      title: "Stock received",
-      body: `${o.name}, by ${o.receivedBy?.name ?? "packing staff"}`,
-      href: `/admin/offers/${offerId}`,
-    }),
+    notifyRole(
+      "ADMIN",
+      {
+        title: "Stock received",
+        body: `${o.name}, by ${o.receivedBy?.name ?? "packing staff"}`,
+        href: `/admin/offers/${offerId}`,
+      },
+      "FACTORY",
+    ),
   ]);
 }

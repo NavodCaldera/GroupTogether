@@ -19,7 +19,7 @@ export const metadata: Metadata = { title: "Lot" };
 const pct = (n: number | null) => (n === null ? "—" : `${n}%`);
 
 export default async function LotPage({ params }: PageProps<"/admin/lots/[id]">) {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const { id } = await params;
   const now = new Date();
   await sweep(now);

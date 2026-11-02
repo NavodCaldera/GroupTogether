@@ -50,3 +50,15 @@ Pass explicit `now` values for time-sensitive checks. Cover concurrent reservati
 deadline boundaries, merge authorization and gift reservation effects when affected.
 Coordinate payment changes with [payments-slips](payments-slips.md) and UI changes with
 [frontend](frontend.md); see [qa-review](qa-review.md) for command selection.
+
+## Group design samples
+
+Follow `SAMPLE-001` in the [operating brief](groupbasket.md) and `DEC-009` in
+[decisions](../../docs/decisions.md). Pre-purchase group sample delivery is separate
+from factory test-piece procurement, paid clothing orders and premium gifts. The group
+pays transport; there is no sample sending fee. `src/server/samples.ts` locks requests,
+checks the group owner and records transport-quote acceptance before warehouse dispatch.
+Buyer `/samples` and warehouse `/admin/warehouse` share the request and tracking record.
+Do not invent sample ownership, return, deposit or loss/damage policies.
+
+Preserve sample request history on merges: move source records before deleting an owned source cart; moving a member preserves that requester's records. Never rewrite sample destination snapshots or accepted transport.

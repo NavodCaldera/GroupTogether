@@ -47,3 +47,13 @@ gatherer/packer, no post-pack reset, handover prerequisites and rebooking handov
 Coordinate stock entry with [catalogue-admin](catalogue-admin.md), schema with
 [backend-data](backend-data.md), notices with [notifications](notifications.md) and checks
 with [qa-review](qa-review.md).
+
+## Group design samples
+
+Follow `SAMPLE-001` in the [operating brief](groupbasket.md) and `DEC-009` in
+[decisions](../../docs/decisions.md). Pre-purchase group sample delivery is separate
+from factory test-piece procurement, paid clothing orders and premium gifts. The group
+pays transport; there is no sample sending fee. `src/server/samples.ts` locks requests,
+checks the group owner and records transport-quote acceptance before warehouse dispatch.
+Buyer `/samples` and warehouse `/admin/warehouse` share the request and tracking record.
+Do not invent sample ownership, return, deposit or loss/damage policies.

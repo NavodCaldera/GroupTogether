@@ -51,7 +51,7 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
   await expect(page.getByText("Payment in review").first()).toBeVisible();
 
   // The admin approves the slip and books the PickMe drop.
-  await signIn(page, "admin@groupbasket.lk");
+  await signIn(page, "warehouse@groupbasket.lk");
   await page.goto("/admin/slips");
   await page.getByRole("button", { name: "Approve…" }).click();
   await page.getByRole("button", { name: "Yes, approve" }).click();

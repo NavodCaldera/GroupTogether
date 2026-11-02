@@ -20,7 +20,7 @@ const FILTERS: Record<string, Prisma.ProductWhereInput> = {
 };
 
 export default async function AdminProductsPage({ searchParams }: PageProps<"/admin/products">) {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const sp = await searchParams;
   const f = param(sp, "filter") || (param(sp, "stock") === "low" ? "low" : undefined);
   const filter = f && f in FILTERS ? f : undefined;
@@ -31,6 +31,10 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
       where: {
         sellerId,
         ...(filter ? FILTERS[filter] : {}),
+        AND: [
+          ...IN_SHOP.AND,
+          ...(filter === "low" ? [{ variants: { some: { available: { lte: LOW_STOCK } } } }] : []),
+        ],
         OR: q
           ? [
               { title: { contains: q, mode: "insensitive" } },
@@ -45,7 +49,10 @@ export default async function AdminProductsPage({ searchParams }: PageProps<"/ad
       orderBy: { updatedAt: "desc" },
     }),
     sellerId
-      ? db.user.findUnique({ where: { id: sellerId }, select: { name: true, company: true } })
+      ? db.user.findFirst({
+          where: { id: sellerId, role: "SELLER", isBrand: false },
+          select: { name: true, company: true },
+        })
       : null,
   ]);
   const href = (values: Record<string, string | undefined>) =>

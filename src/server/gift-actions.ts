@@ -61,7 +61,7 @@ export async function giftDeliveryAction(_state: State, fd: FormData): Promise<S
 }
 
 export async function reserveGiftAction(_state: State, fd: FormData): Promise<State> {
-  const user = await requireAdmin();
+  const user = await requireAdmin("PREMIUM");
   return attempt(
     () => reserveGift(user.id, value(fd, "cartId"), value(fd, "recipientId"), value(fd, "offerId")),
     "Gift reserved in basket.",
@@ -77,12 +77,12 @@ export async function removeGiftAction(_state: State, fd: FormData): Promise<Sta
 }
 
 export async function approveGiftBillAction(_state: State, fd: FormData): Promise<State> {
-  const user = await requireAdmin();
+  const user = await requireAdmin("PREMIUM");
   return attempt(() => approveGiftBill(user.id, value(fd, "giftId")), "Gift bill approved.");
 }
 
 export async function settleGiftsAction(_state: State, fd: FormData): Promise<State> {
-  const user = await requireAdmin();
+  const user = await requireAdmin("PREMIUM");
   return attempt(
     () =>
       recordGiftSettlement(

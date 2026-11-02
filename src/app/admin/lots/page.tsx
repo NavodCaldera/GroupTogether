@@ -15,7 +15,7 @@ const pct = (n: number | null) => (n === null ? "—" : `${n}%`);
 
 /** Every bulk lot, newest arrival first (product owner, 2026-10-21). */
 export default async function LotsPage() {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const now = new Date();
   await sweep(now);
   const { lots } = await storeSnapshot(now);

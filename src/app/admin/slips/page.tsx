@@ -21,7 +21,7 @@ export const metadata: Metadata = { title: "Bank slips" };
  * the bottom. `?slip=<id>` opens a slip; `?done=approved|rejected&cart=<code>` follows a decision.
  */
 export default async function SlipsPage({ searchParams }: PageProps<"/admin/slips">) {
-  await requireAdmin();
+  await requireAdmin("WAREHOUSE");
   const sp = await searchParams;
   if (param(sp, "view") === "history") return <SlipHistory sp={sp} />;
 

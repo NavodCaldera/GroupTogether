@@ -27,7 +27,7 @@ const offer = { name: "Leather loafers", description: "600 pairs, sizes 6-11", a
 
 describe("factory seller stock offers", () => {
   it("send → admins told → accept with a note → seller told", async () => {
-    const [s, admin] = [await seller(), await makeUser("ADMIN")];
+    const [s, admin] = [await seller(), await makeUser("ADMIN", "FACTORY")];
     expect(homeFor(s.role)).toBe("/seller");
 
     const o = await createOffer(s.id, offer);

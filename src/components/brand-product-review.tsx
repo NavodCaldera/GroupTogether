@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { requireAdmin } from "@/server/auth/session";
 import { Card, Badge, Field, Textarea, Select, EmptyState } from "./ui";
 import { GiftProductDetails } from "./gift-product-details";
 import { BrandRevisionChanges } from "./brand-revision-changes";
@@ -11,6 +12,7 @@ import { formatDateTime, formatLKR } from "@/lib/format";
 import { discountPct } from "@/lib/brand-rules";
 import { BrandSearch, searchValue } from "./brand-inbox";
 export async function BrandProductReview({ search }: { search: BrandSearch }) {
+  await requireAdmin("PREMIUM");
   const brand = searchValue(search, "brand");
   const offers = await db.stockOffer.findMany({
     where: {

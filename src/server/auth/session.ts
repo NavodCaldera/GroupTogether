@@ -2,6 +2,12 @@ import "server-only";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
+import {
+  adminAreaOf,
+  adminHome,
+  canAdminArea,
+  type OperationalAdminArea,
+} from "@/lib/admin-access";
 import type { Role } from "@/generated/prisma/client";
 import { type SessionUser, endSession, homeFor, startSession, userForToken } from "./service";
 
@@ -38,10 +44,22 @@ export const getCurrentUser = cache(async (): Promise<SessionUser | null> => {
 export async function requireUser(roles: Role[] = [], next?: string): Promise<SessionUser> {
   const user = await getCurrentUser();
   if (!user) redirect(next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in");
-  if (roles.length > 0 && !roles.includes(user.role)) redirect(homeFor(user.role));
+  if (roles.length > 0 && !roles.includes(user.role)) redirect(homeFor(user.role, user.adminArea));
   return user;
 }
 
-export const requireAdmin = () => requireUser(["ADMIN"]);
+export async function requireAdmin(area: OperationalAdminArea) {
+  const user = await requireUser(["ADMIN"]);
+  if (!canAdminArea(user, area)) redirect(adminHome(user.adminArea));
+  return user;
+}
+
+/** Any admin, with their own area, for pages each area sees a part of (Users, Settings). */
+export async function requireAnyAdmin() {
+  const user = await requireUser(["ADMIN"]);
+  const area = adminAreaOf(user);
+  if (!area) redirect("/");
+  return { ...user, adminArea: area };
+}
 export const requireSeller = () => requireUser(["SELLER"]);
 export const requirePacker = () => requireUser(["PACKER"]);

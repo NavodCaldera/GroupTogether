@@ -20,9 +20,28 @@ npm run dev           # http://localhost:3002
 
 Demo accounts:
 
-- `admin@groupbasket.lk`, the admin.
+- `premium@groupbasket.lk`, `factory@groupbasket.lk` and `warehouse@groupbasket.lk`, one
+  admin per area.
 - `buyer@example.com` (Dilan), `buyer2@example.com` (Sachini) and `buyer3@example.com`
   (Tharindu), the buyers. `seller@example.com` is the factory seller.
+
+## Operational admin accounts
+
+There is no main admin. Every admin belongs to one area (**Premium brands**, **Factory
+apparel** or **Warehouse and delivery**) and runs that whole stream, including its own users
+and settings. Apply pending migrations with `npm run db:deploy`; former unrestricted admin
+accounts become warehouse admins. Create a deployment's first admin for each area with:
+
+```bash
+npm run admin:create -- PREMIUM "Name" email@example.com 0771234567   # or FACTORY / WAREHOUSE
+```
+
+It prints a temporary password. After that, each area adds its own admins in
+**Admin > Users > Add admin**. Factory sellers, premium brands and packing staff keep their
+existing workspaces.
+Buyers reach pre-purchase design samples from the dashboard; the group owner requests and
+accepts transport costs, and warehouse operators record sample dispatch and delivery.
+No additional connector or dependency is required for these manual operations.
 
 ## Before going live
 

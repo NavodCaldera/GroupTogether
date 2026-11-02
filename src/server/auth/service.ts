@@ -2,6 +2,7 @@ import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Role, User } from "@/generated/prisma/client";
+import { adminHome, canAdminArea, type OperationalAdminArea } from "@/lib/admin-access";
 import { linkOnSite } from "@/lib/brand-rules";
 import { pinFields, pinInSriLanka, pinOutsideMessage } from "@/lib/location";
 import { db } from "../db";
@@ -196,7 +197,7 @@ export async function endSession(token: string) {
 
 export type SessionUser = Pick<
   User,
-  "id" | "role" | "name" | "email" | "phone" | "address" | "city" | "lat" | "lng"
+  "id" | "role" | "adminArea" | "name" | "email" | "phone" | "address" | "city" | "lat" | "lng"
 >;
 
 export async function userForToken(token: string, now = new Date()): Promise<SessionUser | null> {
@@ -208,6 +209,7 @@ export async function userForToken(token: string, now = new Date()): Promise<Ses
         select: {
           id: true,
           role: true,
+          adminArea: true,
           name: true,
           email: true,
           phone: true,
@@ -225,9 +227,31 @@ export async function userForToken(token: string, now = new Date()): Promise<Ses
   return user;
 }
 
-export function homeFor(role: Role): string {
-  if (role === "ADMIN") return "/admin";
+export function homeFor(role: Role, adminArea?: string | null): string {
+  if (role === "ADMIN") return adminHome(adminArea);
   if (role === "SELLER") return "/seller";
   if (role === "PACKER") return "/packing";
   return "/dashboard";
+}
+
+/** Resolve the principal from storage before enforcing an operational boundary. */
+export async function assertAdminArea(id: string, area: OperationalAdminArea) {
+  const user = await db.user.findUnique({
+    where: { id },
+    select: { role: true, adminArea: true, locked: true },
+  });
+  if (!canAdminArea(user, area))
+    throw new AuthError("This admin workspace is unavailable to your account");
+}
+
+export async function createOperationalAdmin(input: unknown): Promise<User> {
+  const data = packerSchema
+    .extend({ adminArea: z.enum(["PREMIUM", "FACTORY", "WAREHOUSE"]) })
+    .parse(input);
+  if (await db.user.count({ where: { OR: [{ email: data.email }, { phone: data.phone }] } }))
+    throw new AuthError("An account with this email or mobile number already exists");
+  const { password, ...fields } = data;
+  return db.user.create({
+    data: { ...fields, role: "ADMIN", passwordHash: await hashPassword(password) },
+  });
 }

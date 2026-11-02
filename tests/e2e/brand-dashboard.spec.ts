@@ -38,7 +38,7 @@ test("brand gifts: reserve in basket, approve payment, dispatch and settle", asy
     await client.end();
   }
 
-  await signIn(page, "admin@groupbasket.lk");
+  await signIn(page, "premium@groupbasket.lk");
   await page.goto(`/admin/brands?cart=${code}`);
   await page.getByLabel("Eligible recipient").selectOption({ label: "Sachini Gunawardena" });
   const giftOption = await page
@@ -75,7 +75,7 @@ test("brand gifts: reserve in basket, approve payment, dispatch and settle", asy
   await page.getByRole("button", { name: "Upload slip", exact: true }).click();
   await page.waitForURL(/\?paid=1/);
 
-  await signIn(page, "admin@groupbasket.lk");
+  await signIn(page, "warehouse@groupbasket.lk");
   await page.goto("/admin/slips");
   await page.getByRole("navigation", { name: "Slips to review" }).getByRole("link").first().click();
   await page.getByRole("button", { name: "Approve…" }).click();
@@ -96,7 +96,7 @@ test("brand gifts: reserve in basket, approve payment, dispatch and settle", asy
   await page.getByRole("button", { name: "Mark delivered", exact: true }).click();
   await expect(page.locator("span").filter({ hasText: /^Delivered$/ })).toBeVisible();
 
-  await signIn(page, "admin@groupbasket.lk");
+  await signIn(page, "premium@groupbasket.lk");
   await page.goto("/admin/brands?tab=orders");
   await page.getByRole("button", { name: "Approve gift bill", exact: true }).click();
   await expect(page.getByText("Gift bill approved.", { exact: true })).toBeVisible();
@@ -116,7 +116,7 @@ test("brand gifts: reserve in basket, approve payment, dispatch and settle", asy
     .fill("Please confirm this bank reference.");
   await page.getByRole("button", { name: "Send payment query", exact: true }).click();
   await expect(page.getByText("Payment query open", { exact: true })).toBeVisible();
-  await signIn(page, "admin@groupbasket.lk");
+  await signIn(page, "premium@groupbasket.lk");
   await page.goto("/admin/brands?tab=settlements");
   await page.getByText("Resolve payment query", { exact: true }).click();
   await page
@@ -174,7 +174,7 @@ test("admin and brand review, reply privately, preserve drafts and approve a rev
   const adminContext = await browser.newContext();
   const admin = await adminContext.newPage();
   try {
-    await signIn(admin, "admin@groupbasket.lk");
+    await signIn(admin, "premium@groupbasket.lk");
     await admin.goto(`/admin/brands?tab=products&offer=${id}`);
     await admin.getByLabel("Decision", { exact: true }).selectOption("changes");
     await admin

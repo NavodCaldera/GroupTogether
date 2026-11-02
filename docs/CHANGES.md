@@ -6,7 +6,20 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-10-27 - Main admin removed
+
+- Added the three demo admin logins (`premium@`, `factory@`, `warehouse@groupbasket.lk`, password `password123`) to the existing local dev database without reseeding, so they sign in before the next `db:seed`.
+
+- **Removed the unrestricted main admin.** Owner request: split all of the main admin's work across the premium, factory and warehouse admins, with each having every capability of the main admin for its own stream. `AdminArea` no longer has `ALL`; non-admins have no area and former `ALL` accounts became warehouse admins (migration `remove_unrestricted_admin`). Factory admins gained the Stock dashboard and store-size/lot-margin settings; warehouse admins gained cart/payment/bank settings, the orders CSV export (moved to Orders) and buyer/packing-staff accounts; premium admins gained premium-brand account creation. Users shows, opens, locks and creates only the area's own stakeholders, and each area adds admins only for itself. Seed creates `premium@`, `factory@` and `warehouse@groupbasket.lk`; `npm run admin:create` creates a deployment's first admins. `ADMIN-002`/`UX-002` updated.
+
+## 2026-10-27 - Operational admin separation
+
+- Split admin operations into premium partnerships, apparel/factory sourcing and order collection, and warehouse/payment/delivery operations. Added scoped accounts, navigation and server authorization, responsible-area notices, factory receipt handoffs and aggregate sample demand. Existing unrestricted admins provision scoped operators through Users > Add admin.
+
 ## 2026-10-27
+
+- **Split administrative work and clarified group samples.** Requested separate premium-brand, factory-apparel and warehouse/delivery administration connected to their stakeholders. Added `SAMPLE-001` / `DEC-009`: before purchase a group may request a design/pattern sample, with no sample sending fee and group-paid transport. Added group-owner sample requests and warehouse quote/dispatch/delivery records, explicit transport-quote acceptance, scoped group tracking and a non-destructive sample migration. Sample returns, ownership and exception terms remain open; no courier or bank automation is implied.
+
 
 - **Fixed stale success feedback blocking the next cart action.** Hosted browser verification exposed the previous join-cart flash covering the add-item confirmation's View cart link until both expired. `FlashToast` now dismisses the preceding global message when a new form submission begins. The buyer journey checks that the old join message is gone before clicking the new confirmation normally; no forced click, extra timeout or retry masks the interaction.
 

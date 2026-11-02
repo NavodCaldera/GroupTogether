@@ -52,6 +52,9 @@ export default async function BuyerDashboard({ searchParams }: PageProps<"/dashb
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
       <h1 className="text-2xl font-semibold tracking-tight">Hi, {user.name.split(" ")[0]}</h1>
+      <Link href="/samples" className="text-sm text-accent underline">
+        Request or track group design samples
+      </Link>
       {error && <Alert>{error}</Alert>}
       {sp.received && <Toast>Marked as delivered. Enjoy your order!</Toast>}
 

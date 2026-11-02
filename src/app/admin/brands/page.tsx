@@ -10,7 +10,7 @@ import { brandInbox, subjectHref } from "@/server/brand-communications";
 import { BrandOperations } from "./operations";
 export const metadata: Metadata = { title: "Brand rewards" };
 export default async function BrandRewardsPage({ searchParams }: PageProps<"/admin/brands">) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("PREMIUM");
   const search = await searchParams;
   const allowed = ["overview", "brands", "products", "orders", "settlements", "messages"];
   const tab = allowed.includes(searchValue(search, "tab"))

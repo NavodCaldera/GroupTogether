@@ -7,7 +7,7 @@ import { LotForm } from "../lot-form";
 export const metadata: Metadata = { title: "Add lot" };
 
 export default async function NewLotPage() {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/lots" />

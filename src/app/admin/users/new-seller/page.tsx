@@ -1,23 +1,34 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
-import { BrandFields } from "./brand-fields";
+import { adminHome } from "@/lib/admin-access";
 import { createSellerAction } from "@/server/admin-actions";
-import { requireAdmin } from "@/server/auth/session";
+import { requireAnyAdmin } from "@/server/auth/session";
 import { AdminForm } from "../../admin-form";
 
 export const metadata: Metadata = { title: "Add factory seller or brand" };
 
+/** Factory admins add factory sellers; premium admins add brands (with their website). */
 export default async function NewSellerPage() {
-  await requireAdmin();
+  const admin = await requireAnyAdmin();
+  if (admin.adminArea === "WAREHOUSE") redirect(adminHome(admin.adminArea));
+  const brand = admin.adminArea === "PREMIUM";
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/users" />
-      <PageHeader title="Add a factory seller or brand" />
+      <PageHeader title={brand ? "Add a premium brand" : "Add a factory seller"} />
       <Card>
-        <AdminForm action={createSellerAction} submit="Create seller account">
-          <BrandFields />
-          <Field label="Factory, company or brand name" name="company">
+        <AdminForm
+          action={createSellerAction}
+          submit={brand ? "Create brand account" : "Create seller account"}
+        >
+          {brand && (
+            <Field label="Website" name="website">
+              <Input name="website" type="url" placeholder="https://www.brand.lk" required />
+            </Field>
+          )}
+          <Field label={brand ? "Brand name" : "Factory or company name"} name="company">
             <Input name="company" required />
           </Field>
           <Field label="Contact person" name="name">

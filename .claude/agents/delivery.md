@@ -49,3 +49,15 @@ Check affected delivery cases in `tests/integration/admin.int.test.ts`,
 `packing.int.test.ts` and the buyer journey. Include rebooking, repeated completion,
 owner authorization and webhook rejection when affected. Follow [qa-review](qa-review.md).
 Gift courier tracking and delivery-charge decisions remain separate under `DEC-004`.
+
+## Group design samples
+
+Warehouse administration requires WAREHOUSE access; there is no unrestricted admin. Premium/factory admins cannot review slips or book customer deliveries. Warehouse admins also own cart/payment/bank settings, the orders CSV export on Orders, and buyer and packing-staff accounts (`ADMIN-002`).
+
+Follow `SAMPLE-001` in the [operating brief](groupbasket.md) and `DEC-009` in
+[decisions](../../docs/decisions.md). Pre-purchase group sample delivery is separate
+from factory test-piece procurement, paid clothing orders and premium gifts. The group
+pays transport; there is no sample sending fee. `src/server/samples.ts` locks requests,
+checks the group owner and records transport-quote acceptance before warehouse dispatch.
+Buyer `/samples` and warehouse `/admin/warehouse` share the request and tracking record.
+Do not invent sample ownership, return, deposit or loss/damage policies.

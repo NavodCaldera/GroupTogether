@@ -34,20 +34,20 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
 }
 
 export async function signInAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  let role;
+  let home = "/";
   try {
     const user = await authenticate(
       String(formData.get("email") ?? ""),
       String(formData.get("password") ?? ""),
     );
     await signInAs(user.id);
-    role = user.role;
+    home = homeFor(user.role, user.adminArea);
   } catch (e) {
     if (e instanceof AuthError) return { error: e.message };
     throw e;
   }
   await flash("Signed in");
-  redirect(safeNext(formData.get("next")) ?? homeFor(role));
+  redirect(safeNext(formData.get("next")) ?? home);
 }
 
 /** Saves the profile; with `next` (sent here to finish something) it goes back there. */

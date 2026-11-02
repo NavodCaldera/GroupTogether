@@ -14,6 +14,7 @@ import {
 import {
   acknowledgeGift,
   approveGiftBill,
+  cancelReservedGift,
   recordGiftSettlement,
   reserveGift,
   respondToSettlement,
@@ -50,7 +51,7 @@ async function brand() {
   });
 }
 async function fixture() {
-  const admin = await makeUser("ADMIN"),
+  const admin = await makeUser("ADMIN", "PREMIUM"),
     partner = await brand(),
     other = await brand();
   const offer = await createBrandOffer(partner.id, terms, giftPhotoFile());
@@ -81,7 +82,7 @@ async function paidGift(f: Awaited<ReturnType<typeof fixture>>) {
   });
   await uploadSlip(owner.id, cart.id, slipFile());
   const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: cart.id } });
-  await approveSlip(f.admin.id, slip.id);
+  await approveSlip((await makeUser("ADMIN")).id, slip.id);
   return gift;
 }
 
@@ -122,7 +123,7 @@ describe("premium brand communication", () => {
 
   it("deduplicates concurrent sends, preserves per-admin read state and retry-safe notifications", async () => {
     const f = await fixture(),
-      secondAdmin = await makeUser("ADMIN");
+      secondAdmin = await makeUser("ADMIN", "PREMIUM");
     const request = input(f.partner.id, "Please review the campaign");
     const ids = await Promise.all([
       sendBrandMessage(f.partner.id, request),
@@ -281,6 +282,60 @@ describe("premium brand communication", () => {
     expect(saved.amount.toString()).toBe("3500");
     expect((await db.giftOrder.findUniqueOrThrow({ where: { id: gift.id } })).settlementId).toBe(
       payment.id,
+    );
+  });
+});
+
+describe("premium admin boundaries", () => {
+  it("connects brands to premium admins and denies factory and warehouse access", async () => {
+    const f = await fixture();
+    const admins = await Promise.all(
+      ["PREMIUM", "FACTORY", "WAREHOUSE"].map(async (area) => {
+        const user = await makeUser("ADMIN", "PREMIUM");
+        return db.user.update({
+          where: { id: user.id },
+          data: { adminArea: area as "PREMIUM" | "FACTORY" | "WAREHOUSE" },
+        });
+      }),
+    );
+    const [premium, factory, warehouse] = admins;
+    const thread = await sendBrandMessage(
+      f.partner.id,
+      input(f.partner.id, "Please review our gift campaign."),
+    );
+    expect((await brandInbox(premium.id)).some((row) => row.id === thread)).toBe(true);
+    expect(
+      await db.notification.count({ where: { userId: premium.id, href: { contains: thread } } }),
+    ).toBe(1);
+    for (const denied of [factory, warehouse]) {
+      await expect(communicationActor(denied.id)).rejects.toThrow("workspace");
+      await expect(brandInbox(denied.id)).rejects.toThrow("workspace");
+      await expect(reviewBrandOffer(denied.id, f.offer.id, 1, "approve", "")).rejects.toThrow(
+        "workspace",
+      );
+      expect(await brandPhotoFor(denied, f.offer.id)).toBeNull();
+      expect(await brandPhotoFor(denied, f.offer.id, 1)).toBeNull();
+      expect(
+        await db.notification.count({ where: { userId: denied.id, href: { contains: thread } } }),
+      ).toBe(0);
+    }
+    await reviewBrandOffer(premium.id, f.offer.id, 1, "approve", "");
+    expect(await brandPhotoFor(premium, f.offer.id)).not.toBeNull();
+    const b = await basket();
+    for (const denied of [factory, warehouse]) {
+      await expect(reserveGift(denied.id, b.cart.id, b.owner.id, f.offer.id)).rejects.toThrow(
+        "Only admins",
+      );
+      await expect(approveGiftBill(denied.id, "missing")).rejects.toThrow("Only admins");
+      await expect(
+        recordGiftSettlement(denied.id, f.partner.id, ["missing"], "test"),
+      ).rejects.toThrow("Only admins");
+    }
+    const gift = await reserveGift(premium.id, b.cart.id, b.owner.id, f.offer.id);
+    await expect(cancelReservedGift(factory.id, gift.id)).rejects.toThrow("not yours");
+    await cancelReservedGift(premium.id, gift.id);
+    expect((await db.giftOrder.findUniqueOrThrow({ where: { id: gift.id } })).status).toBe(
+      "CANCELLED",
     );
   });
 });

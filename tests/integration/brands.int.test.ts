@@ -83,7 +83,7 @@ describe("brand products", () => {
     const outsider = await makeUser();
     expect(await brandPhotoFor(outsider, offer.id)).toBeNull();
     expect(await brandPhotoFor(brand, offer.id)).toMatchObject({ photoKey: offer.photoKey });
-    const admin = await makeUser("ADMIN");
+    const admin = await makeUser("ADMIN", "PREMIUM");
     expect(await brandPhotoFor(admin, offer.id)).toMatchObject({ photoKey: offer.photoKey });
     await reviseBrandOffer(brand.id, offer.id, {
       ...kaftan,
@@ -105,7 +105,7 @@ describe("brand products", () => {
     ).rejects.toThrow("expiry date");
   });
   it("publish with the actual price, discount price, pieces and link; admins are told", async () => {
-    const [brand, admin] = [await account(true, SITE), await makeUser("ADMIN")];
+    const [brand, admin] = [await account(true, SITE), await makeUser("ADMIN", "PREMIUM")];
     const o = await createBrandOffer(brand.id, kaftan, giftPhotoFile());
     expect(o.actualPrice?.toString()).toBe("18500");
     expect(o.offerPrice?.toString()).toBe("9800");
@@ -134,7 +134,7 @@ describe("brand products", () => {
   it("retain retail references but cannot be linked to an ordinary shop product", async () => {
     const brand = await account(true, SITE);
     const o = await createBrandOffer(brand.id, kaftan, giftPhotoFile());
-    await reviewBrandOffer((await makeUser("ADMIN")).id, o.id, 1, "approve", "");
+    await reviewBrandOffer((await makeUser("ADMIN", "PREMIUM")).id, o.id, 1, "approve", "");
 
     const product = {
       title: kaftan.name,

@@ -8,6 +8,14 @@ export async function brandPhotoFor(
   revision?: number,
 ) {
   if (!user) return null;
+  // Re-read admin scope: callers may supply only the historical id/role shape.
+  if (
+    user.role === "ADMIN" &&
+    !(await db.user.count({
+      where: { id: user.id, role: "ADMIN", adminArea: "PREMIUM", locked: false },
+    }))
+  )
+    return null;
   if (revision !== undefined) {
     if (
       !Number.isInteger(revision) ||

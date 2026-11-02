@@ -3,9 +3,11 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/cart-bits";
 import { Badge, EmptyState, PageHeader, cx } from "@/components/ui";
 import type { Prisma, Role } from "@/generated/prisma/client";
+import { ADMIN_AREA_LABEL, type OperationalAdminArea } from "@/lib/admin-access";
 import { type CartStatus, HOLDS_STOCK } from "@/lib/cart-rules";
 import { formatDate, formatDateTime } from "@/lib/format";
-import { requireAdmin } from "@/server/auth/session";
+import { areaUsersWhere } from "@/server/admin-users";
+import { requireAnyAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { FilterSelect } from "../filter-select";
@@ -33,6 +35,14 @@ const FILTERS = {
   locked: { locked: true },
 } satisfies Record<string, Prisma.UserWhereInput>;
 type Filter = keyof typeof FILTERS;
+/** The role chips each area sees; the list itself is limited by `areaUsersWhere`. */
+const AREA_FILTERS: Record<OperationalAdminArea, Filter[]> = {
+  PREMIUM: ["brands", "admins", "locked"],
+  FACTORY: ["sellers", "admins", "locked"],
+  WAREHOUSE: ["customers", "packers", "admins", "locked"],
+};
+const BUTTON =
+  "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line px-4 text-sm font-medium hover:bg-muted sm:min-h-10";
 const FILTER_LABEL: Record<Filter, string> = {
   customers: "Buyers",
   sellers: "Factory sellers",
@@ -43,29 +53,36 @@ const FILTER_LABEL: Record<Filter, string> = {
 };
 
 /**
- * Everyone with an account. Phones get one card per user (tap anywhere to open, tap the mobile to
- * call); from `md` up a table, with the city column from `lg`. Role chips carry counts that
- * follow the search.
+ * The accounts this admin's area manages. Phones get one card per user (tap anywhere to open, tap
+ * the mobile to call); from `md` up a table, with the city column from `lg`. Role chips carry
+ * counts that follow the search.
  */
 export default async function UsersPage({ searchParams }: PageProps<"/admin/users">) {
-  await requireAdmin();
+  const admin = await requireAnyAdmin();
+  const area = admin.adminArea;
+  const filters = AREA_FILTERS[area];
   await sweep();
   const sp = await searchParams;
-  const show = (Object.keys(FILTERS) as Filter[]).find((f) => f === param(sp, "show"));
+  const show = filters.find((f) => f === param(sp, "show"));
   const q = param(sp, "q");
   const page = pageNumber(sp);
 
-  const search: Prisma.UserWhereInput | undefined = q
-    ? {
-        OR: [
-          { name: { contains: q, mode: "insensitive" } },
-          { email: { contains: q, mode: "insensitive" } },
-          { phone: { contains: q.replace(/[\s-]/g, "").replace(/^\+94/, "0") } },
-          { city: { contains: q, mode: "insensitive" } },
-          { company: { contains: q, mode: "insensitive" } },
-        ],
-      }
-    : undefined;
+  const search: Prisma.UserWhereInput = {
+    AND: [
+      areaUsersWhere(area),
+      q
+        ? {
+            OR: [
+              { name: { contains: q, mode: "insensitive" } },
+              { email: { contains: q, mode: "insensitive" } },
+              { phone: { contains: q.replace(/[\s-]/g, "").replace(/^\+94/, "0") } },
+              { city: { contains: q, mode: "insensitive" } },
+              { company: { contains: q, mode: "insensitive" } },
+            ],
+          }
+        : {},
+    ],
+  };
 
   const [rows, byRole, lockedCount, brandCount] = await Promise.all([
     db.user.findMany({
@@ -78,6 +95,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
         city: true,
         company: true,
         role: true,
+        adminArea: true,
         locked: true,
         createdAt: true,
         _count: {
@@ -130,18 +148,23 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
         title="Users"
         actions={
           <>
-            <Link
-              href="/admin/users/new-packer"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line px-4 text-sm font-medium hover:bg-muted sm:min-h-10"
-            >
-              <span aria-hidden>+</span> Add packing staff
+            <Link href="/admin/users/new-admin" className={BUTTON}>
+              Add admin
             </Link>
-            <Link
-              href="/admin/users/new-seller"
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
-            >
-              <span aria-hidden>+</span> Add factory seller
-            </Link>
+            {area === "WAREHOUSE" && (
+              <Link href="/admin/users/new-packer" className={BUTTON}>
+                <span aria-hidden>+</span> Add packing staff
+              </Link>
+            )}
+            {area !== "WAREHOUSE" && (
+              <Link
+                href="/admin/users/new-seller"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
+              >
+                <span aria-hidden>+</span>{" "}
+                {area === "PREMIUM" ? "Add premium brand" : "Add factory seller"}
+              </Link>
+            )}
           </>
         }
       />
@@ -164,7 +187,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
           keep={{ q }}
           options={[
             { value: "", label: `All users (${counts.all})` },
-            ...(Object.keys(FILTERS) as Filter[]).map((f) => ({
+            ...filters.map((f) => ({
               value: f,
               label: `${FILTER_LABEL[f]} (${counts[f]})`,
             })),
@@ -174,7 +197,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
           <Chip href={href({ show: undefined, page: undefined })} active={!show}>
             All <Count n={counts.all} />
           </Chip>
-          {(Object.keys(FILTERS) as Filter[]).map((f) => (
+          {filters.map((f) => (
             <Chip key={f} href={href({ show: f, page: undefined })} active={show === f}>
               {FILTER_LABEL[f]} <Count n={counts[f]} tone={f === "locked" ? "alert" : "muted"} />
             </Chip>
@@ -222,7 +245,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                     </div>
                     <p className="truncate text-xs text-subtle">{u.email}</p>
                     <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                      <RoleBadge role={u.role} company={u.company} />
+                      <RoleBadge role={u.role} company={u.company} adminArea={u.adminArea} />
                       {u.locked && <Badge tone="bad">Locked</Badge>}
                     </div>
                     <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
@@ -282,7 +305,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                   </td>
                   <td>
                     <div className="flex flex-col items-start gap-1">
-                      <RoleBadge role={u.role} company={u.company} />
+                      <RoleBadge role={u.role} company={u.company} adminArea={u.adminArea} />
                       {u.locked && <Badge tone="bad">Locked</Badge>}
                     </div>
                   </td>
@@ -339,8 +362,17 @@ function Avatar({ name, role }: { name: string; role: Role }) {
   );
 }
 
-function RoleBadge({ role, company }: { role: Role; company: string | null }) {
-  if (role === "ADMIN") return <Badge tone="info">Admin</Badge>;
+function RoleBadge({
+  role,
+  company,
+  adminArea,
+}: {
+  role: Role;
+  company: string | null;
+  adminArea: string | null;
+}) {
+  if (role === "ADMIN")
+    return <Badge tone="info">{ADMIN_AREA_LABEL[adminArea ?? ""] ?? "Admin"}</Badge>;
   if (role === "SELLER")
     return (
       <span className="inline-flex max-w-full min-w-0 items-center gap-1.5">

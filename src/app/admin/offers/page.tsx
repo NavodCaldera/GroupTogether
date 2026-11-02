@@ -17,7 +17,7 @@ export const metadata: Metadata = { title: "Stock offers" };
  * stock the packing staff marked Received, newest first (2026-10-20). Each opens the offer.
  */
 export default async function OffersPage({ searchParams }: PageProps<"/admin/offers">) {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const sp = await searchParams;
   const tab = param(sp, "tab");
   const answered = tab === "answered";

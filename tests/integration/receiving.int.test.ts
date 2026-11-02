@@ -22,7 +22,11 @@ const offer = { name: "Leather loafers", description: "600 pairs", amount: "2500
 
 describe("receiving sellers' stock", () => {
   it("an accepted offer waits under To receive until a packer presses Received", async () => {
-    const [s, admin, packer] = [await seller(), await makeUser("ADMIN"), await makeUser("PACKER")];
+    const [s, admin, packer] = [
+      await seller(),
+      await makeUser("ADMIN", "FACTORY"),
+      await makeUser("PACKER"),
+    ];
     const waiting = await createOffer(s.id, offer);
     const declined = await createOffer(s.id, { ...offer, name: "Belts" });
     expect(await stockToReceive()).toHaveLength(0);

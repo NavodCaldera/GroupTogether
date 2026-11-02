@@ -22,6 +22,13 @@ guidance, not business policy. Verify code pointers before editing.
 - Partnership messaging is owned by [notifications](notifications.md); schema by [backend-data](backend-data.md).
 - Policy references: `BRAND-001`?`BRAND-004`, `GIFT-001`?`GIFT-003`, `DATA-001`, `COM-003`. Open details: `DEC-002`?`DEC-004`.
 
+## Premium administration and stakeholder handoffs
+
+- Premium operations use `User.adminArea = PREMIUM`; there is no unrestricted admin. Premium admins also list, lock and create premium-brand accounts and add premium admins (`ADMIN-002`). Factory and warehouse admins cannot read premium private photos, enter brand conversations, review submissions, allocate gifts, approve bills or record settlements. Guard pages/actions with `requireAdmin("PREMIUM")` and enforce the same boundary in services.
+- `/admin/brands` is the premium admin workspace; `/seller` remains the supplying brand workspace. Partnership notices route only to unlocked `PREMIUM` admins and the owning brand. Unpaid recipient details stay hidden from brands.
+- Clothing payment approval activates reserved gifts through the existing transaction; premium admins inspect only the basket/member data needed for manual eligibility. Brands dispatch gifts directly, so no warehouse packing or sample shipment is created for a premium gift.
+- Apparel sample requests belong to factory/warehouse operations; follow the operating brief for the group-paid transport and no sample sending fee policy.
+
 ## Submissions and review
 
 - Gifts are complimentary, held/shipped by the supplying brand and separate from ordinary clothing stock. No factory receiving, public discounted resale or shop-product linking.

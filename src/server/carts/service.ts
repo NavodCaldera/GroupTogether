@@ -1,4 +1,5 @@
 import "server-only";
+import { assertAdminArea } from "../auth/service";
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
 import type { Location } from "@/lib/location";
@@ -341,6 +342,7 @@ async function close(tx: Tx, cart: GroupCart, status: CartStatus, reason: string
 }
 
 export async function cancelCart(actor: { id: string; role: Role }, cartId: string, reason = "") {
+  if (actor.role === "ADMIN") await assertAdminArea(actor.id, "WAREHOUSE");
   const { cart, members } = await db.$transaction(async (tx) => {
     const cart = await lockCart(tx, cartId);
     const isAdmin = actor.role === "ADMIN";
@@ -523,6 +525,15 @@ export async function acceptMerge(ownerId: string, requestId: string, now = new 
       where: { cartId_userId: { cartId: to.id, userId: req.userId } },
       create: { cartId: to.id, userId: req.userId },
       update: {},
+    });
+    // Preserve existing sample shipments when the source cart is deleted or its requester moves.
+    // Snapshot destinations and accepted transport remain unchanged.
+    await tx.sampleRequest.updateMany({
+      where: {
+        cartId: from.id,
+        ...(from.ownerId === req.userId ? {} : { requesterId: req.userId }),
+      },
+      data: { cartId: to.id },
     });
     const waiting: string[] = [];
     if (from.ownerId === req.userId) {

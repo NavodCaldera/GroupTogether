@@ -1,3 +1,4 @@
+import { canAdminArea } from "@/lib/admin-access";
 import { getCurrentUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { storage } from "@/server/storage";
@@ -8,7 +9,7 @@ export async function GET(_req: Request, ctx: RouteContext<"/api/slips/[id]">) {
   if (!user) return new Response("Unauthorized", { status: 401 });
   const { id } = await ctx.params;
   const slip = await db.paymentSlip.findUnique({ where: { id } });
-  if (!slip || (user.role !== "ADMIN" && slip.uploaderId !== user.id))
+  if (!slip || (!canAdminArea(user, "WAREHOUSE") && slip.uploaderId !== user.id))
     return new Response("Not found", { status: 404 });
   const bytes = await storage().get(slip.storageKey);
   if (!bytes) return new Response("Not found", { status: 404 });

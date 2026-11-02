@@ -8,7 +8,7 @@ import { AdminForm } from "../../admin-form";
 export const metadata: Metadata = { title: "Add packing staff" };
 
 export default async function NewPackerPage() {
-  await requireAdmin();
+  await requireAdmin("WAREHOUSE");
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/users" />

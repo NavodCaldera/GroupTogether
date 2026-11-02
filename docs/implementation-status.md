@@ -93,3 +93,42 @@ Hosting remains undecided in the project brief. Uploads use [local storage](../s
 The [sweep endpoint](../src/app/api/cron/sweep/route.ts) exists, and page loads also trigger deadline work. An actual deployment still needs its schedule and secret configured. Follow the [README](../README.md) for setup, and the [architecture reference](architecture.md) for implementation details.
 
 No real premium-brand partnership, negotiated discount or campaign approval is verified by these source files. Illustrative brands and figures in the business brief must not be presented as operational agreements.
+
+
+## Group design samples (2026-10-27)
+
+`SAMPLE-001` is recorded in the operating brief. [Sample service](../src/server/samples.ts)
+and [buyer samples](../src/app/samples/page.tsx) support group-owner requests before
+purchase, duplicate-active-request rejection, group-member history, destination snapshots
+and explicit transport-quote acceptance. [Warehouse](../src/app/admin/warehouse/page.tsx)
+records quotes, declines, dispatch tracking and delivery. There is no sample sending fee;
+the group pays transport externally. Samples remain separate from paid clothing checkout,
+factory test-piece purchases and brand gifts. Return/ownership/exception rules remain open
+under `DEC-009`. Verification results are reported with the change; source availability
+alone does not prove a test pass or deployed database migration.
+
+## Three operational admin workspaces (2026-10-27)
+
+Stored `User.adminArea` separates premium brands (`/admin/brands`), factory apparel
+(`/admin/factory`), and warehouse/payment/sample/delivery operations (`/admin/warehouse`).
+There is no unrestricted admin: migration `remove_unrestricted_admin` removes `ALL` and
+turns former unrestricted accounts into warehouse admins. Each area holds its stream's
+former main-admin capabilities: FACTORY the Stock dashboard and stock/margin settings,
+WAREHOUSE cart/payment/bank settings and the orders CSV, and each area its own
+stakeholder accounts (list, open, lock, create) and its own admins. `npm run admin:create`
+creates a deployment's first admins; the seed creates one admin per area.
+Shared guards restrict pages/actions/private files; actor-aware brand, sample, slip and
+cancellation services verify stored permissions. Factory offers and warehouse receipt
+share existing records; factory sample demand is aggregate-only. Stakeholder accounts
+retain their existing ownership restrictions. Migrations are included; deployment requires
+applying them to the intended database. Local development migrations were applied to verified `localhost:5546/groupbasket`
+without seeding or resetting; production migration/deployment remains separate.
+
+Verification for this change on **2026-10-27**: `npm run check` passed (91 unit tests,
+seven tooling tests, typecheck, lint, monetary structural and local documentation links);
+`npm run test:int` passed all 81 tests in 18 files; `npm run e2e` passed all 11 desktop/mobile
+scenarios, including scoped admin provisioning/access denial and sample request through
+delivery. Mobile admin screenshots were visually reviewed. Sample duplicate-request,
+stale-quote, quote-acceptance and merge-history cases are covered. Next.js DevTools compiled
+the running development warehouse route without issues. No production deployment or
+external courier/bank operation was performed.

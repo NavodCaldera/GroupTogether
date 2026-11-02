@@ -162,6 +162,8 @@ export const productSchema = z
  * the price is the lot's price now (`src/server/lots.ts` keeps it in step).
  */
 export async function saveProduct(id: string | null, input: unknown, photo: File | null) {
+  if (id && (await db.product.count({ where: { id, seller: { isBrand: true } } })))
+    throw new CatalogueError("Premium brand products are managed in Brand rewards");
   const { lotId, price, ...p } = productSchema.parse(input);
   let lotData: { lotId: string | null; price: string };
   if (lotId) {
@@ -194,6 +196,8 @@ export async function saveProduct(id: string | null, input: unknown, photo: File
 
 /** Adds (or with a negative number, removes) free stock of a size. Never touches locked stock. */
 export async function adjustStock(productId: string, size: string, colour: string, delta: number) {
+  if (await db.product.count({ where: { id: productId, seller: { isBrand: true } } }))
+    throw new CatalogueError("Premium brand products are managed in Brand rewards");
   if (!Number.isInteger(delta) || delta === 0) throw new CatalogueError("Enter a whole number");
   const s = size.trim();
   if (!s) throw new CatalogueError("Enter the size");

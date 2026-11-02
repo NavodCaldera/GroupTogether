@@ -1,4 +1,5 @@
 import "server-only";
+import { canAdminArea } from "@/lib/admin-access";
 import type { Tx } from "./db";
 import { db } from "./db";
 import { CatalogueError } from "./catalogue";
@@ -16,7 +17,11 @@ export async function assertBrand(brandId: string) {
 }
 
 async function assertAdmin(adminId: string) {
-  if (!(await db.user.count({ where: { id: adminId, role: "ADMIN", locked: false } })))
+  if (
+    !(await db.user.count({
+      where: { id: adminId, role: "ADMIN", adminArea: "PREMIUM", locked: false },
+    }))
+  )
     throw new CatalogueError("Only admins can authorize gifts and payments");
 }
 
@@ -96,7 +101,8 @@ export async function cancelReservedGift(actorId: string, giftId: string) {
     ]);
     if (
       actor.locked ||
-      (actor.role !== "ADMIN" && (actor.role !== "CUSTOMER" || actor.id !== gift.recipientId))
+      (!canAdminArea(actor, "PREMIUM") &&
+        (actor.role !== "CUSTOMER" || actor.id !== gift.recipientId))
     )
       throw new CatalogueError("This gift is not yours to remove");
     if (gift.status !== "RESERVED" || !["OPEN", "READY"].includes(gift.cart.status))

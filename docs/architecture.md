@@ -139,3 +139,24 @@ application schema. These tools do not add production integrations or deploy the
 - **Authentication and accounts:** cookie sessions use `gt_session`, hashed tokens, and server-side role checks. Password reset is not implemented. Demo accounts come from the seed; their visibility is controlled by development mode or `SHOW_DEMO_LOGINS`.
 
 Configuration variable names are listed in [.env.example](../.env.example). Never copy live secrets into documentation. The main brief and its implementation-status reference own prioritization and any business decisions required to close these gaps.
+
+## Administrative workspaces
+
+`User.adminArea` is `PREMIUM`, `FACTORY` or `WAREHOUSE` for admins and null for everyone else; there is no unrestricted admin (migration `remove_unrestricted_admin` turned former `ALL` admins into warehouse admins). `src/lib/admin-access.ts` holds `adminAreaOf`, `canAdminArea` and `userAdminArea` (the area that manages an account: brands PREMIUM, factory sellers FACTORY, buyers and packers WAREHOUSE, admins their own area). `requireAdmin(area)` protects area pages and actions; `requireAnyAdmin()` serves the shared Users and Settings pages, which `src/server/admin-users.ts` (`areaUsersWhere`, `assertManagesUser`) and per-area settings forms scope to the signed-in area. Sign-in sends each admin to `/admin/brands`, `/admin/factory` or `/admin/warehouse`, and the admin layout shows only that area's tabs and badges. The Stock dashboard (`/admin`) and stock/lot-margin settings are FACTORY; cart/payment/bank settings and the orders CSV export (from Orders) are WAREHOUSE. Each area creates admins only for itself; `npm run admin:create` (`scripts/create-admin.ts`) creates a deployment's first admins.
+
+The factory workspace owns offers, design/product linking, variant stock and purchased lots. Its collection queue links the factory contact to the accepted `StockOffer`; warehouse receipt records `receivedBy` and `receivedAt` on that same offer. Received offers awaiting product linking return to the factory queue. Factory sellers retain only their own offers and aggregate design insight, without buyer identities or individual carts. Premium gift stock stays outside factory receipt and warehouse inventory.
+
+Warehouse administration owns clothing payment review, order inspection, delivery booking and operational oversight. Packing staff retain the existing separate-person gathering/rechecking and handover workflow. Premium administrators manage partner products, gifts, private partnership communication and settlement reconciliation. Staff notifications target the responsible operational area only, so recipients receive links to their permitted workspaces.
+
+## Pre-purchase design samples
+
+`SampleRequest` links a group, apparel product and requesting group owner, snapshots the
+owner's delivery address/pin and records the transport quote and acceptance separately
+from clothing checkout. The request lifecycle is REQUESTED -> QUOTED -> ACCEPTED ->
+DISPATCHED -> DELIVERED, with decline before acceptance. `src/server/samples.ts` serializes
+requests with the group lock and transitions with the sample-row lock; no sample sending
+fee, clothing stock reservation or checkout total is added. `/samples` scopes history to
+current group members; only the requester accepts transport. `/admin/warehouse` and its
+actions require WAREHOUSE access. Courier operations and transport payment remain external.
+
+Group merges move sample request records to the destination group before source deletion, preserving requester, delivery snapshot, accepted transport and tracking history.

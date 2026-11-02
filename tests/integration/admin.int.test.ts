@@ -73,6 +73,6 @@ describe("sales figures and tab counts", () => {
     expect(s.locked.total.toFixed(2)).toBe("25000.00");
 
     // The Orders tab counts the paid cart waiting for PickMe.
-    expect((await adminBadges()).orders).toBe(1);
+    expect((await adminBadges("unused", "WAREHOUSE")).orders).toBe(1);
   });
 });

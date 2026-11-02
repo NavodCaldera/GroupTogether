@@ -1,8 +1,10 @@
 /**
- * Demo data: 1 admin, 1 factory seller, 2 packing staff, 3 buyers, about 20 products, and carts in several
+ * Demo data: 3 admins (one per area), 1 factory seller, 2 packing staff, 3 buyers, about 20 products, and carts in several
  * states. Every account's password is "password123". Resets the database first.
  *
- *   admin@groupbasket.lk  admin       → /admin
+ *   premium@groupbasket.lk   premium admin   → /admin/brands
+ *   factory@groupbasket.lk   factory admin   → /admin/factory
+ *   warehouse@groupbasket.lk warehouse admin → /admin/warehouse
  *   seller@example.com      seller      → /seller (Ceylon Footwear Mills: a tested linen shirt and its bulk)
  *   brand@example.com       brand       → /seller (Serendib Atelier, a luxury brand)
  *   packer@example.com      packing     → /packing (Kasun: one paid order to check and gather)
@@ -256,14 +258,22 @@ async function main() {
   });
 
   const passwordHash = await hashPassword("password123");
-  await db.user.create({
-    data: {
-      role: "ADMIN",
-      name: "Admin",
-      email: "admin@groupbasket.lk",
-      phone: "0700000000",
+  // One admin per area (ADMIN-001/002); there is no unrestricted admin.
+  await db.user.createMany({
+    data: (
+      [
+        ["Premium Admin", "premium@groupbasket.lk", "0700000001", "PREMIUM"],
+        ["Factory Admin", "factory@groupbasket.lk", "0700000002", "FACTORY"],
+        ["Warehouse Admin", "warehouse@groupbasket.lk", "0700000003", "WAREHOUSE"],
+      ] as const
+    ).map(([name, email, phone, adminArea]) => ({
+      role: "ADMIN" as const,
+      adminArea,
+      name,
+      email,
+      phone,
       passwordHash,
-    },
+    })),
   });
   // Packing staff (rule 17): they pack paid orders and check each other's packing.
   const [kasun, ishara] = await Promise.all(
@@ -956,7 +966,8 @@ async function main() {
     WHERE NOT EXISTS (SELECT 1 FROM "PriceChange" pc WHERE pc."productId" = p."id")`;
 
   console.log(`Seeded. Every password is password123.
-  Admin   admin@groupbasket.lk  → /admin
+  Admins  premium@groupbasket.lk → /admin/brands, factory@groupbasket.lk → /admin/factory,
+          warehouse@groupbasket.lk → /admin/warehouse
   Seller  seller@example.com      → /seller (a tested linen shirt and its bulk)
   Brand   brand@example.com       → /seller (Serendib Atelier: a luxury brand's discounted products)
   Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)

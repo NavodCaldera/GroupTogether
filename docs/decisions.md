@@ -79,6 +79,12 @@ Earlier design-dashboard notes leave district-level insights undecided. Confirm 
 
 Use [architecture](architecture.md) and [README](../README.md) for technical details. This register does not authorize deployment or external-account actions.
 
+### DEC-009 - Pre-purchase group samples
+
+**Status:** Sample delivery and fee responsibility approved by the owner on **2026-10-27**. **Rule:** `SAMPLE-001`.
+
+Groups may request a sample of a particular apparel design/pattern before buying as a group. GroupBasket delivers the sample to the group, charges no sample sending fee, and the group pays transport. This does not mean factory test pieces or premium gifts. The implementation coordinates requests through the group owner and records explicit acceptance of the transport quote before dispatch; bank/courier operations remain external. Sample ownership, returns, loss/damage terms and any transport collection mechanism remain open; do not invent deposits, automatic charges or return obligations.
+
 ## Legacy rule references
 
 Former `CLAUDE.md` rules are mapped below so historical comments and specialist notes remain traceable. New work should reference stable IDs in the [main brief](../.claude/agents/groupbasket.md#6-business-rules).

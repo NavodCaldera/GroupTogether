@@ -30,7 +30,10 @@ test("buyer, admin, brand and packing workspaces remain usable at the configured
 }) => {
   for (const [email, route] of [
     ["buyer@example.com", "/dashboard"],
-    ["admin@groupbasket.lk", "/admin"],
+    ["buyer@example.com", "/samples"],
+    ["factory@groupbasket.lk", "/admin"],
+    ["warehouse@groupbasket.lk", "/admin/warehouse"],
+    ["premium@groupbasket.lk", "/admin/brands"],
     ["brand@example.com", "/seller?tab=products"],
     ["packer@example.com", "/packing"],
   ]) {

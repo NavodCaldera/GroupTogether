@@ -9,7 +9,7 @@ import { flash } from "./flash";
 
 /** Admin: puts an accepted offer's pieces on a shop product, one of the seller's designs. */
 export async function linkOfferAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const offerId = String(fd.get("offerId") ?? "");
   try {
     await linkOfferProduct(offerId, String(fd.get("productId") ?? ""));

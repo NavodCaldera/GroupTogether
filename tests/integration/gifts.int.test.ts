@@ -29,7 +29,8 @@ beforeEach(resetDb);
 afterAll(() => db.$disconnect());
 
 async function fixture(pieces = 10) {
-  const admin = await makeUser("ADMIN");
+  const admin = await makeUser("ADMIN", "PREMIUM");
+  const warehouse = await makeUser("ADMIN", "WAREHOUSE");
   const owner = await makeUser();
   const brandUser = await makeUser();
   const brand = await db.user.update({
@@ -60,7 +61,7 @@ async function fixture(pieces = 10) {
   const variant = await makeVariant("25000", 20);
   const cart = await createCart(owner.id, {});
   await setLine(owner.id, cart.id, variant.id, 2);
-  return { admin, owner, brand, offer, variant, cart };
+  return { admin, warehouse, owner, brand, offer, variant, cart };
 }
 
 async function pay(f: Awaited<ReturnType<typeof fixture>>) {
@@ -74,7 +75,7 @@ async function pay(f: Awaited<ReturnType<typeof fixture>>) {
     where: { cartId: f.cart.id },
     orderBy: { createdAt: "desc" },
   });
-  await approveSlip(f.admin.id, slip.id);
+  await approveSlip(f.warehouse.id, slip.id);
 }
 
 describe("brand gift reservations", () => {
@@ -149,7 +150,7 @@ describe("brand gift reservations", () => {
     });
     await uploadSlip(f.owner.id, f.cart.id, slipFile());
     const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: f.cart.id } });
-    await rejectSlip(f.admin.id, slip.id, "Wrong amount");
+    await rejectSlip(f.warehouse.id, slip.id, "Wrong amount");
     expect((await brandDashboard(f.brand.id)).offers[0].reserved).toBe(1);
     await sweep(new Date(Date.now() + 3 * 3600000), f.cart.id);
     expect((await brandDashboard(f.brand.id)).offers[0].available).toBe(10);

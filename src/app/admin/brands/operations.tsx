@@ -17,7 +17,7 @@ import {
 } from "@/server/gift-actions";
 
 export async function BrandOperations({ search }: { search: BrandSearch }) {
-  const admin = await requireAdmin();
+  const admin = await requireAdmin("PREMIUM");
   const brand = searchValue(search, "brand");
   const settlementTab = searchValue(search, "tab") === "settlements";
   const code = typeof search.cart === "string" ? search.cart.trim().toUpperCase() : "";
@@ -25,7 +25,14 @@ export async function BrandOperations({ search }: { search: BrandSearch }) {
     code
       ? db.groupCart.findUnique({
           where: { code },
-          include: { members: { include: { user: { select: { name: true } } } } },
+          select: {
+            id: true,
+            code: true,
+            status: true,
+            total: true,
+            expiresAt: true,
+            members: { select: { id: true, userId: true, user: { select: { name: true } } } },
+          },
         })
       : null,
     db.stockOffer.findMany({
@@ -85,9 +92,9 @@ export async function BrandOperations({ search }: { search: BrandSearch }) {
             {code && !cart && <p className="mt-3 text-sm text-danger">Basket not found</p>}
             {cart && (
               <div className="mt-4">
-                <Link href={`/admin/carts/${cart.code}`} className="text-sm text-accent">
+                <p className="text-sm">
                   {cart.code} · {cart.status} · {formatLKR(cart.total)}
-                </Link>
+                </p>
                 {["OPEN", "READY"].includes(cart.status) && cart.expiresAt > new Date() ? (
                   <div className="mt-3">
                     <RewardForm

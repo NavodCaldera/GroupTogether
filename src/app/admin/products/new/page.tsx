@@ -9,7 +9,7 @@ import { ProductForm } from "../product-form";
 export const metadata: Metadata = { title: "Add product" };
 
 export default async function NewProductPage({ searchParams }: PageProps<"/admin/products/new">) {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const sp = await searchParams;
   const lot = sp.lot;
   const [lots, offer] = await Promise.all([

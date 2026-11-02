@@ -13,11 +13,16 @@ export async function resetDb() {
 }
 
 let n = 0;
-export async function makeUser(role: "CUSTOMER" | "ADMIN" | "PACKER" = "CUSTOMER") {
+/** Admins default to the warehouse area; pass another area for premium or factory work. */
+export async function makeUser(
+  role: "CUSTOMER" | "ADMIN" | "PACKER" = "CUSTOMER",
+  adminArea: "PREMIUM" | "FACTORY" | "WAREHOUSE" = "WAREHOUSE",
+) {
   n++;
   return db.user.create({
     data: {
       role,
+      adminArea: role === "ADMIN" ? adminArea : null,
       name: `User ${n}`,
       email: `u${n}-${Date.now()}@test.lk`,
       phone: `07${String(10000000 + n).slice(-8)}`,

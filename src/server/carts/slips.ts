@@ -1,4 +1,5 @@
 import "server-only";
+import { assertAdminArea } from "../auth/service";
 import { addHours } from "@/lib/cart-rules";
 import { formatLKR } from "@/lib/format";
 import { db } from "../db";
@@ -37,7 +38,10 @@ export async function uploadSlip(
     return tx.groupCart.update({ where: { id: cartId }, data: { status: "SLIP_REVIEW" } });
   });
 
-  const admins = await db.user.findMany({ where: { role: "ADMIN" }, select: { id: true } });
+  const admins = await db.user.findMany({
+    where: { role: "ADMIN", locked: false, adminArea: "WAREHOUSE" },
+    select: { id: true },
+  });
   await notify(
     admins.map((a) => a.id),
     {
@@ -56,6 +60,7 @@ async function lockedSlip(slipId: string) {
 
 /** SLIP_REVIEW → CONFIRMED: the locked stock becomes a sale. */
 export async function approveSlip(adminId: string, slipId: string, now = new Date()) {
+  await assertAdminArea(adminId, "WAREHOUSE");
   const slip = await lockedSlip(slipId);
   const cart = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${slip.cartId} FOR UPDATE`;
@@ -119,6 +124,7 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
 
 /** SLIP_REVIEW → AWAITING_SLIP with a fresh payment window, so the owner can upload again. */
 export async function rejectSlip(adminId: string, slipId: string, note: string, now = new Date()) {
+  await assertAdminArea(adminId, "WAREHOUSE");
   const reason = note.trim();
   if (reason.length < 3) throw new CartError("Say why the slip was rejected");
   const slip = await lockedSlip(slipId);

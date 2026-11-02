@@ -20,7 +20,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
         <div>
-          <BackLink fallback={homeFor(user.role)} />
+          <BackLink fallback={homeFor(user.role, user.adminArea)} />
           <PageHeader title="Profile" />
         </div>
         <PackerProfile user={user} />
@@ -40,7 +40,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
   return (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
       <div>
-        <BackLink fallback={homeFor(user.role)} />
+        <BackLink fallback={homeFor(user.role, user.adminArea)} />
         <PageHeader title="Profile" description={user.email} />
       </div>
       {back && user.lat == null && (

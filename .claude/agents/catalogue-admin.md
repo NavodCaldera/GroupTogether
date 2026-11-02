@@ -42,12 +42,11 @@ guidance, not business policy. Verify code pointers before editing.
 
 ## Admin boundaries
 
-Stock is the landing page and sole export entry; Lots owns costs, Slips owns payment
+The factory admin landing page is `/admin/factory`, with accepted-stock collection and warehouse receipt queues. `User.adminArea` separates factory, premium and warehouse operations; use `requireAdmin("FACTORY")` on factory pages/actions. There is no unrestricted admin (`ADMIN-002`): the Stock dashboard (`/admin`) and store-size/lot-margin settings belong to FACTORY; the orders CSV export lives on warehouse Orders. Lots owns costs, Slips owns payment
 review, Orders owns delivery, and Carts owns inspection/search/pre-confirmation cancellation.
 Brands has its own workspace. Read the live route tree for the current tab list.
 
-Enforce admin guards on queries/actions/routes. Public signup creates buyers; staff
-provisioning is admin-only and admin accounts are seed-created. Locking a user removes
+Enforce factory-area guards on catalogue/offer/design/lot queries/actions/routes. Factory notices go only to FACTORY admins; shared offer receiving attribution connects the factory and warehouse workspaces. Public signup creates buyers. Users and Settings are shared pages scoped by area (`requireAnyAdmin`, `src/server/admin-users.ts`): factory admins manage factory sellers, premium admins brands, warehouse admins buyers and packing staff, and each area adds only its own admins. First admins come from the seed or `npm run admin:create`. Locking a user removes
 sessions, not their carts; admins cannot be locked. CSV output uses the existing formula
 escaping and UTF-8 BOM. Preserve concise screens and flash success messages.
 
@@ -59,3 +58,13 @@ Use adjacent taxonomy, stock/design/brand-rule and CSV-related tests as applicab
 Coordinate receipt with [packing](packing.md), persistence with [backend-data](backend-data.md),
 UI with [frontend](frontend.md) and gift flows with [brands-rewards](brands-rewards.md).
 Follow [qa-review](qa-review.md) for checks.
+
+## Group design samples
+
+Follow `SAMPLE-001` in the [operating brief](groupbasket.md) and `DEC-009` in
+[decisions](../../docs/decisions.md). Pre-purchase group sample delivery is separate
+from factory test-piece procurement, paid clothing orders and premium gifts. The group
+pays transport; there is no sample sending fee. `src/server/samples.ts` locks requests,
+checks the group owner and records transport-quote acceptance before warehouse dispatch.
+Buyer `/samples` and warehouse `/admin/warehouse` share the request and tracking record.
+Do not invent sample ownership, return, deposit or loss/damage policies.

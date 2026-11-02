@@ -12,6 +12,13 @@ datasource db {
 
 // ─── Identity ──────────────────────────────────────────────────────────────
 
+/// Every admin works in exactly one area (ADMIN-001/002); there is no unrestricted admin.
+enum AdminArea {
+  PREMIUM
+  FACTORY
+  WAREHOUSE
+}
+
 enum Role {
   /// A buyer: joins and fills carts
   CUSTOMER
@@ -23,11 +30,12 @@ enum Role {
 }
 
 model User {
-  id           String   @id @default(cuid())
-  role         Role     @default(CUSTOMER)
+  id           String    @id @default(cuid())
+  role         Role      @default(CUSTOMER)
+  adminArea    AdminArea? // admins only
   name         String
-  email        String   @unique
-  phone        String?  @unique
+  email        String    @unique
+  phone        String?   @unique
   passwordHash String
   /// Default drop-off for carts this user owns
   address      String?
@@ -39,11 +47,12 @@ model User {
   company      String?
   /// Premium brand partner: offers gift products and fulfils paid basket gifts directly.
   /// `website` verifies retail references on the brand's own site.
-  isBrand      Boolean  @default(false)
+  isBrand      Boolean   @default(false)
   website      String?
-  locked       Boolean  @default(false)
-  createdAt    DateTime @default(now())
+  locked       Boolean   @default(false)
+  createdAt    DateTime  @default(now())
 
+  sampleRequests     SampleRequest[]
   sessions           Session[]
   ownedCarts         GroupCart[]             @relation("CartOwner")
   memberships        CartMember[]
@@ -139,6 +148,7 @@ model Product {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
+  samples  SampleRequest[]
   variants Variant[]
   /// Stock offers whose pieces went onto this product: a design test, then its bulk (2026-10-24)
   offers   StockOffer[]
@@ -267,6 +277,7 @@ model GroupCart {
   delivery Delivery?
   packing  Packing?
   gifts    GiftOrder[]
+  samples  SampleRequest[]
 
   messages  CartMessage[]
   mergeFrom CartMergeRequest[] @relation("MergeFrom")
@@ -660,4 +671,46 @@ model CartMessage {
 
   @@index([cartId, participantId, createdAt])
   @@index([participantId, readAt])
+}
+
+enum SampleStatus {
+  REQUESTED
+  QUOTED
+  ACCEPTED
+  DISPATCHED
+  DELIVERED
+  DECLINED
+  CANCELLED
+}
+
+/// Pre-purchase design sample: no sample sending fee; transport is paid by the group.
+model SampleRequest {
+  id            String       @id @default(cuid())
+  cartId        String
+  cart          GroupCart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product      @relation(fields: [productId], references: [id])
+  requesterId   String
+  requester     User         @relation(fields: [requesterId], references: [id])
+  status        SampleStatus @default(REQUESTED)
+  designNote    String       @default("")
+  recipientName String
+  address       String
+  city          String
+  phone         String
+  lat           Float
+  lng           Float
+  transportFee  Decimal?     @db.Decimal(14, 2)
+  courier       String?
+  tracking      String?
+  note          String?
+  handledById   String?
+  acceptedAt    DateTime?
+  dispatchedAt  DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  @@index([cartId, createdAt])
+  @@index([status, createdAt])
 }

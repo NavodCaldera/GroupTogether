@@ -23,7 +23,7 @@ const pct = (n: number | null) => (n === null ? "—" : `${n}%`);
  * oldest piles, lots, and carts about to hand stock back. Sales are one line at the bottom.
  */
 export default async function AdminHome() {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const now = new Date();
   await sweep(now);
   const [d, s] = await Promise.all([stockDashboard(now), salesStats(now)]);
@@ -39,20 +39,12 @@ export default async function AdminHome() {
       <PageHeader
         title="Stock"
         actions={
-          <>
-            <a
-              href="/admin/export/orders?days=30"
-              className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm hover:bg-muted sm:min-h-10"
-            >
-              Export CSV
-            </a>
-            <Link
-              href="/admin/lots/new"
-              className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent sm:min-h-10"
-            >
-              Add lot
-            </Link>
-          </>
+          <Link
+            href="/admin/lots/new"
+            className="inline-flex min-h-11 items-center rounded-lg bg-accent px-4 text-sm font-medium text-on-accent sm:min-h-10"
+          >
+            Add lot
+          </Link>
         }
       />
 
@@ -226,12 +218,7 @@ export default async function AdminHome() {
                 {d.closingSoon.map((c) => (
                   <li key={c.code} className="flex items-start justify-between gap-3 py-2">
                     <div className="min-w-0">
-                      <Link
-                        href={`/admin/carts/${c.code}`}
-                        className="font-mono font-medium hover:underline"
-                      >
-                        {c.code}
-                      </Link>
+                      <span className="font-mono font-medium">{c.code}</span>
                       <div className="text-xs text-subtle">
                         {formatLKR(c.short)} short · {pcs(c.pieces)}
                       </div>

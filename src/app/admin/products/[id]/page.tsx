@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { BackLink } from "@/components/client";
 import { StockTable } from "@/components/stock-table";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
@@ -15,7 +14,7 @@ import { ProductForm } from "../product-form";
 export const metadata: Metadata = { title: "Edit product" };
 
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
-  await requireAdmin();
+  await requireAdmin("FACTORY");
   const { id } = await params;
   const [product, lots] = await Promise.all([getProduct(id), lotChoices()]);
   if (!product) notFound();
@@ -36,9 +35,9 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
               seller ? (
                 <>
                   Listed by{" "}
-                  <Link href={`/admin/users/${seller.id}`} className="text-accent underline">
+                  <a href={`tel:${seller.phone}`} className="text-accent underline">
                     {seller.company || seller.name}
-                  </Link>{" "}
+                  </a>{" "}
                   · {seller.name} · {seller.phone}
                 </>
               ) : (

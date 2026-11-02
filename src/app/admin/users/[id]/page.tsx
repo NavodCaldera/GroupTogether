@@ -4,10 +4,11 @@ import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { StatusBadge } from "@/components/cart-bits";
 import { Alert, Badge, Card, PageHeader } from "@/components/ui";
+import { ADMIN_AREA_LABEL, userAdminArea } from "@/lib/admin-access";
 import { HOLDS_STOCK, cartTotal } from "@/lib/cart-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import { lockUserAction } from "@/server/admin-actions";
-import { requireAdmin } from "@/server/auth/session";
+import { requireAnyAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { AdminForm } from "../../admin-form";
 import { Table } from "../../list-bits";
@@ -15,7 +16,7 @@ import { Table } from "../../list-bits";
 export const metadata: Metadata = { title: "User" };
 
 export default async function AdminUserPage({ params }: PageProps<"/admin/users/[id]">) {
-  await requireAdmin();
+  const admin = await requireAnyAdmin();
   const { id } = await params;
   const now = new Date();
   const user = await db.user.findUnique({
@@ -48,7 +49,8 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
       },
     },
   });
-  if (!user) notFound();
+  // Only the area that manages the account may open it.
+  if (!user || userAdminArea(user) !== admin.adminArea) notFound();
   // Packing staff: the orders they gathered, packed or handed to PickMe (rule 17).
   const packingWork =
     user.role === "PACKER"
@@ -82,7 +84,9 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
             description={`${user.email} · ${user.phone ?? "no mobile"}`}
             actions={
               <>
-                {user.role === "ADMIN" && <Badge tone="info">Admin</Badge>}
+                {user.role === "ADMIN" && (
+                  <Badge tone="info">{ADMIN_AREA_LABEL[user.adminArea ?? ""] ?? "Admin"}</Badge>
+                )}
                 {user.role === "SELLER" && (
                   <Badge tone="info">{user.isBrand ? "Luxury brand" : "Factory seller"}</Badge>
                 )}

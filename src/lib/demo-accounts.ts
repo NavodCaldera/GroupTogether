@@ -4,7 +4,24 @@ export const DEMO_PASSWORD = "password123";
 export type DemoAccount = { role: string; name: string; email: string; lands: string };
 
 export const DEMO_ACCOUNTS: DemoAccount[] = [
-  { role: "Admin", name: "Admin", email: "admin@groupbasket.lk", lands: "/admin" },
+  {
+    role: "Premium admin",
+    name: "Premium Admin",
+    email: "premium@groupbasket.lk",
+    lands: "/admin/brands",
+  },
+  {
+    role: "Factory admin",
+    name: "Factory Admin",
+    email: "factory@groupbasket.lk",
+    lands: "/admin/factory",
+  },
+  {
+    role: "Warehouse admin",
+    name: "Warehouse Admin",
+    email: "warehouse@groupbasket.lk",
+    lands: "/admin/warehouse",
+  },
   {
     role: "Factory seller",
     name: "Nuwan · Ceylon Footwear Mills",

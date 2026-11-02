@@ -1,6 +1,6 @@
 "use server";
 import { revalidatePath } from "next/cache";
-import { requireUser } from "./auth/session";
+import { requireAdmin, requireUser } from "./auth/session";
 import { CatalogueError } from "./catalogue";
 import { flash } from "./flash";
 import { markBrandThreadRead, resolveBrandThread, sendBrandMessage } from "./brand-communications";
@@ -59,7 +59,7 @@ export async function resolveBrandThreadAction(_state: State, fd: FormData) {
   );
 }
 export async function reviewBrandOfferAction(_state: State, fd: FormData) {
-  const user = await requireUser(["ADMIN"]);
+  const user = await requireAdmin("PREMIUM");
   return attempt(
     () =>
       reviewBrandOffer(

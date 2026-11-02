@@ -1,13 +1,18 @@
 import "server-only";
+import { canAdminArea } from "@/lib/admin-access";
 import { db, type Tx } from "./db";
 import { CatalogueError } from "./catalogue";
 
 export async function communicationActor(id: string) {
   const user = await db.user.findUnique({
     where: { id },
-    select: { id: true, role: true, isBrand: true, locked: true, name: true },
+    select: { id: true, role: true, adminArea: true, isBrand: true, locked: true, name: true },
   });
-  if (!user || user.locked || (user.role !== "ADMIN" && !(user.role === "SELLER" && user.isBrand)))
+  if (
+    !user ||
+    user.locked ||
+    (!canAdminArea(user, "PREMIUM") && !(user.role === "SELLER" && user.isBrand))
+  )
     throw new CatalogueError("This workspace is for admins and premium brands only");
   return user;
 }
@@ -120,7 +125,12 @@ export async function flushBrandNotices() {
       const recipients =
         message.internal || !adminSender
           ? await tx.user.findMany({
-              where: { role: "ADMIN", locked: false, id: { not: message.authorId } },
+              where: {
+                role: "ADMIN",
+                adminArea: "PREMIUM",
+                locked: false,
+                id: { not: message.authorId },
+              },
               select: { id: true, role: true },
             })
           : await tx.user.findMany({

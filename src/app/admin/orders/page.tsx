@@ -22,7 +22,7 @@ const STAGES = Object.keys(ORDER_STAGE_LABEL) as OrderStage[];
  * progress is shown, not changed: the packers do that on their phones.
  */
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
-  await requireAdmin();
+  await requireAdmin("WAREHOUSE");
   const board = await ordersBoard();
   const sp = await searchParams;
   const asked = STAGES.find((s) => s === param(sp, "stage"));
@@ -35,7 +35,17 @@ export default async function OrdersPage({ searchParams }: PageProps<"/admin/ord
 
   return (
     <>
-      <PageHeader title="Orders" />
+      <PageHeader
+        title="Orders"
+        actions={
+          <a
+            href="/admin/export/orders?days=30"
+            className="inline-flex min-h-11 items-center rounded-lg border border-line px-4 text-sm hover:bg-muted sm:min-h-10"
+          >
+            Export CSV
+          </a>
+        }
+      />
       <FilterSelect
         action="/admin/orders"
         name="stage"

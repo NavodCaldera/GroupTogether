@@ -132,10 +132,10 @@ try {
   }
   const admin = (
     await db.query(`SELECT id FROM "User" WHERE email=$1 AND role='ADMIN' AND locked=false`, [
-      "admin@groupbasket.lk",
+      "premium@groupbasket.lk",
     ])
   ).rows[0];
-  if (!admin) throw new Error("The existing demo admin account is required.");
+  if (!admin) throw new Error("The demo premium admin account is required.");
 
   const passwordHash = await hashPassword("password123");
   for (const [key, name, retail, partner, pieces, status, paused, note] of products) {
