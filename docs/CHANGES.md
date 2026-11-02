@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-03 - Green CI and dependency updates
+
+- Owner request: fix the failing checks on `main` and bring it level with the open branches. Browser tests now cover the four admins (core adds admins for every area) and the parked packing page has a heading. Paid orders of our own listings (no factory) are booked without a factory packing step, so they no longer wait forever (`DEC-010` still open on who packs them). Applied the Dependabot updates on `main`: React and React DOM 19.3.1, dotenv 18.0.9, `actions/checkout` 7.0.1, `actions/setup-node` 7.1.0 and `actions/upload-artifact` 7.0.2.
+
 ## 2026-11-03 - Four admins, self-publishing factories, ratings
 
 - Owner request: change the demo accounts and the rest of the system for the new model. Four admins: luxury brands (`premium@`), factories (`factory@`), buyers (`buyers@`, formerly `warehouse@`) and a new **core admin** (`core@groupbasket.lk`, area `CORE`, migration `core_admin`) who handles only settings and admin accounts; other areas no longer add admins or edit settings. The sign-in page no longer lists the parked packing staff, and the demo factory is Ceylon Apparel Mills. Factories publish listings without approval (`/seller/new`, `/seller/products/[id]`), and factory admins can hide any listing. The factory home is now a sales dashboard (pieces and value by product and month, orders by stage, sizes and stock left, ratings). Members rate the factory 1–5 stars once after delivery (`FactoryRating`, migration `factory_ratings`), and the shop and product pages show the factory name and rating. The dev database was updated in place (renamed `warehouse@`, added `core@`). `DEC-011`; `ADMIN-002`, `SUP-002`, `DATA-001`, new `RATE-001`.
