@@ -1,21 +1,33 @@
 import type { Metadata } from "next";
 import { BackLink } from "@/components/client";
-import { Card, Field, Input, PageHeader } from "@/components/ui";
-import { ADMIN_AREA_LABEL } from "@/lib/admin-access";
+import { Card, Field, Input, PageHeader, Select } from "@/components/ui";
+import { ADMIN_AREAS, ADMIN_AREA_LABEL } from "@/lib/admin-access";
 import { createOperationalAdminAction } from "@/server/admin-actions";
-import { requireAnyAdmin } from "@/server/auth/session";
+import { requireAdmin } from "@/server/auth/session";
 import { AdminForm } from "../../admin-form";
 
 export const metadata: Metadata = { title: "Add admin" };
 
 export default async function NewAdminPage() {
-  const admin = await requireAnyAdmin();
+  await requireAdmin("CORE");
   return (
     <div className="max-w-xl">
       <BackLink fallback="/admin/users" />
-      <PageHeader title={`Add ${ADMIN_AREA_LABEL[admin.adminArea].toLowerCase()} admin`} />
+      <PageHeader title="Add admin" />
       <Card>
         <AdminForm action={createOperationalAdminAction} submit="Create admin account">
+          <Field label="Area" name="adminArea">
+            <Select name="adminArea" required defaultValue="">
+              <option value="" disabled>
+                Choose
+              </option>
+              {ADMIN_AREAS.map((a) => (
+                <option key={a} value={a}>
+                  {ADMIN_AREA_LABEL[a]}
+                </option>
+              ))}
+            </Select>
+          </Field>
           <Field label="Name" name="name">
             <Input name="name" required />
           </Field>

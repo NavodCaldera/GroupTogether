@@ -91,6 +91,12 @@ Groups may request a sample of a particular apparel design/pattern before buying
 
 GroupBasket no longer buys clothes from factories. Each factory packs its paid orders and marks them packed; the admin books PickMe from the factory and tracks the drop until delivered. A cart holds products from one factory only. There is no lot price drop. Packing staff are parked, not deleted, behind `FULFILMENT_MODE` (default `FACTORY`). Open: how our own listings (products with no factory) are fulfilled, factory payment terms, and who answers for a parcel lost between factory and owner.
 
+### DEC-011 - Four admins, self-publishing factories and ratings
+
+**Status:** Approved by the owner on **2026-11-03**. **Rules:** `ADMIN-002`, `SUP-002`, `DATA-001`, `RATE-001`.
+
+Four admins: luxury brands, factories, buyers, and a core admin who handles only settings and admin accounts. Factories publish listings without approval and see a sales dashboard. Members rate the factory 1–5 stars once after delivery, and products show the factory name and rating. Open: whether ratings need moderation, replies or written reviews, and whether factories may see individual low ratings.
+
 ## Legacy rule references
 
 Former `CLAUDE.md` rules are mapped below so historical comments and specialist notes remain traceable. New work should reference stable IDs in the [main brief](../.claude/agents/groupbasket.md#6-business-rules).

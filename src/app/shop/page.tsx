@@ -9,6 +9,8 @@ import { formatLKR } from "@/lib/format";
 import { findKind, isAudience, kindFits } from "@/lib/taxonomy";
 import { getCurrentUser } from "@/server/auth/session";
 import { type ProductFilters, listProducts } from "@/server/catalogue";
+import { ratingSummaries } from "@/server/ratings";
+import { FactoryRating } from "@/components/factory-rating";
 
 export const metadata: Metadata = { title: "Shop" };
 
@@ -38,6 +40,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   // No filter or search: lowest prices first. Filtered: newest first.
   const unfiltered = Object.values(filters).every((v) => v === undefined);
   const products = await listProducts(filters, 60, unfiltered ? "cheapest" : "newest");
+  const ratings = await ratingSummaries(products.map((p) => p.sellerId));
   // 16px text on phones so iOS doesn't zoom into the field.
   const select =
     "min-h-11 min-w-0 rounded-lg border border-line bg-paper px-2 text-base sm:min-h-10 sm:text-sm";
@@ -87,6 +90,10 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
                 <ProductImage {...p} className={inStock ? "" : "opacity-50"} />
                 <p className="mt-2 text-xs text-subtle">{p.brand}</p>
                 <p className="line-clamp-2 text-sm font-medium group-hover:underline">{p.title}</p>
+                <FactoryRating
+                  factory={p.seller}
+                  rating={p.sellerId ? ratings.get(p.sellerId) : undefined}
+                />
                 <p className="mt-0.5 text-sm">
                   <strong>{formatLKR(p.price)}</strong>
                   {p.retailPrice && (

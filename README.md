@@ -20,10 +20,10 @@ npm run dev           # http://localhost:3002
 
 Demo accounts:
 
-- `premium@groupbasket.lk`, `factory@groupbasket.lk` and `warehouse@groupbasket.lk`, one
-  admin per area.
+- `core@groupbasket.lk` (settings and admin accounts), `premium@groupbasket.lk` (luxury
+  brands), `factory@groupbasket.lk` (factories) and `buyers@groupbasket.lk` (buyers and orders).
 - `buyer@example.com` (Dilan), `buyer2@example.com` (Sachini) and `buyer3@example.com`
-  (Tharindu), the buyers. `seller@example.com` is the factory seller.
+  (Tharindu), the buyers. `seller@example.com` is the factory and `brand@example.com` the luxury brand. Packing staff (`packer@`, `packer2@`) are seeded but parked.
 
 ## Operational admin accounts
 

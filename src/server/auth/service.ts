@@ -246,7 +246,7 @@ export async function assertAdminArea(id: string, area: OperationalAdminArea) {
 
 export async function createOperationalAdmin(input: unknown): Promise<User> {
   const data = packerSchema
-    .extend({ adminArea: z.enum(["PREMIUM", "FACTORY", "WAREHOUSE"]) })
+    .extend({ adminArea: z.enum(["PREMIUM", "FACTORY", "WAREHOUSE", "CORE"]) })
     .parse(input);
   if (await db.user.count({ where: { OR: [{ email: data.email }, { phone: data.phone }] } }))
     throw new AuthError("An account with this email or mobile number already exists");

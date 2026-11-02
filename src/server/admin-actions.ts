@@ -149,6 +149,19 @@ export async function saveProductAction(_p: AdminState, fd: FormData): Promise<A
   return {};
 }
 
+/** Hides a listing from the shop (any factory's), or shows it again. */
+export async function setProductHiddenAction(fd: FormData) {
+  await requireAdmin("FACTORY");
+  const hide = str(fd, "hide") === "1";
+  await db.product.update({
+    where: { id: str(fd, "productId") },
+    data: { status: hide ? "ARCHIVED" : "LIVE" },
+  });
+  revalidatePath("/admin/products", "layout");
+  revalidatePath("/shop");
+  await flash(hide ? "Hidden from the shop" : "Back in the shop");
+}
+
 export async function adjustStockAction(_p: AdminState, fd: FormData): Promise<AdminState> {
   await requireAdmin("FACTORY");
   const productId = str(fd, "productId");
@@ -173,7 +186,7 @@ const settingsSchema = z.object({
 });
 
 export async function saveSettingsAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin("WAREHOUSE");
+  await requireAdmin("CORE");
   const res = await attempt(async () => {
     const data = settingsSchema.parse(Object.fromEntries(fd));
     await db.settings.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });
@@ -218,7 +231,8 @@ export async function decideOfferAction(_p: AdminState, fd: FormData): Promise<A
 /** Factory admins add factory sellers; premium admins add brands. */
 export async function createSellerAction(_p: AdminState, fd: FormData): Promise<AdminState> {
   const admin = await requireAnyAdmin();
-  if (admin.adminArea === "WAREHOUSE") return { error: "Sellers are added by factory admins" };
+  if (admin.adminArea !== "PREMIUM" && admin.adminArea !== "FACTORY")
+    return { error: "Sellers are added by factory admins" };
   const isBrand = admin.adminArea === "PREMIUM";
   let id = "";
   const res = await attempt(async () => {
@@ -249,10 +263,10 @@ export async function createOperationalAdminAction(
   _p: AdminState,
   fd: FormData,
 ): Promise<AdminState> {
-  // Each area adds its own admins; nobody can create an admin for another area.
-  const admin = await requireAnyAdmin();
+  // Only the core admin adds admins, for any of the four areas.
+  await requireAdmin("CORE");
   const res = await attempt(
-    () => createOperationalAdmin({ ...Object.fromEntries(fd), adminArea: admin.adminArea }),
+    () => createOperationalAdmin(Object.fromEntries(fd)),
     "Admin account created",
   );
   if (res.error) return res;

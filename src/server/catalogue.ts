@@ -30,15 +30,19 @@ const listSelect = {
   price: true,
   retailPrice: true,
   photoKey: true,
+  sellerId: true,
+  seller: { select: { name: true, company: true } },
   variants: { select: { size: true, available: true }, orderBy: { size: "asc" } },
 } satisfies Prisma.ProductSelect;
 
 /**
- * A product is in the shop while it has free stock in some size (product owner, 2026-10-20: no
- * product statuses). New, emptied and sold-out products are hidden. `Product.status` is unused.
+ * A product is in the shop while it has free stock in some size (product owner, 2026-10-20) and
+ * an admin hasn't hidden it (ARCHIVED, 2026-11-03). New, emptied and sold-out products are hidden.
  */
 export const IN_SHOP = {
   variants: { some: { available: { gt: 0 } } },
+  // Admins can hide any listing, including one a factory published itself (2026-11-03).
+  status: { not: "ARCHIVED" },
   AND: [{ OR: [{ sellerId: null }, { seller: { isBrand: false } }] }],
 } satisfies Prisma.ProductWhereInput;
 
@@ -113,7 +117,10 @@ export async function shopFacets() {
 export async function getProduct(id: string) {
   return db.product.findFirst({
     where: { id, AND: IN_SHOP.AND },
-    include: { variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] } },
+    include: {
+      variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
+      seller: { select: { name: true, company: true } },
+    },
   });
 }
 
@@ -158,13 +165,24 @@ export const productSchema = z
   });
 
 /**
- * Creates or updates a product (admin). It shows in the shop once it has free stock. With a lot,
- * the price is the lot's price now (`src/server/lots.ts` keeps it in step).
+ * Creates or updates a product. It shows in the shop once it has free stock. With a lot, the
+ * price is the lot's price now (`src/server/lots.ts` keeps it in step). A factory (`sellerId`)
+ * publishes its own listings straight to the shop, with no review (product owner, 2026-11-03),
+ * and edits only its own.
  */
-export async function saveProduct(id: string | null, input: unknown, photo: File | null) {
+export async function saveProduct(
+  id: string | null,
+  input: unknown,
+  photo: File | null,
+  { sellerId }: { sellerId?: string } = {},
+) {
   if (id && (await db.product.count({ where: { id, seller: { isBrand: true } } })))
     throw new CatalogueError("Premium brand products are managed in Brand rewards");
-  const { lotId, price, ...p } = productSchema.parse(input);
+  if (sellerId && id && !(await db.product.count({ where: { id, sellerId } })))
+    throw new CatalogueError("Product not found");
+  const parsed = productSchema.parse(input);
+  // Factories set their own price; lots and brand links are ours.
+  const { lotId, price, ...p } = sellerId ? { ...parsed, lotId: undefined, brandUrl: "" } : parsed;
   let lotData: { lotId: string | null; price: string };
   if (lotId) {
     const lot = await db.lot.findUnique({ where: { id: lotId } });
@@ -189,15 +207,32 @@ export async function saveProduct(id: string | null, input: unknown, photo: File
   };
   const saved = id
     ? await db.product.update({ where: { id }, data })
-    : await db.product.create({ data: { ...data, stockType: p.stockType ?? "FACTORY_SURPLUS" } });
+    : await db.product.create({
+        data: {
+          ...data,
+          stockType: p.stockType ?? "FACTORY_SURPLUS",
+          ...(sellerId ? { sellerId, status: "LIVE" as const } : {}),
+        },
+      });
   await logPrices(db, [saved.id]);
   return saved;
 }
 
-/** Adds (or with a negative number, removes) free stock of a size. Never touches locked stock. */
-export async function adjustStock(productId: string, size: string, colour: string, delta: number) {
+/**
+ * Adds (or with a negative number, removes) free stock of a size. Never touches locked stock.
+ * A factory (`sellerId`) changes only its own products.
+ */
+export async function adjustStock(
+  productId: string,
+  size: string,
+  colour: string,
+  delta: number,
+  { sellerId }: { sellerId?: string } = {},
+) {
   if (await db.product.count({ where: { id: productId, seller: { isBrand: true } } }))
     throw new CatalogueError("Premium brand products are managed in Brand rewards");
+  if (sellerId && !(await db.product.count({ where: { id: productId, sellerId } })))
+    throw new CatalogueError("Product not found");
   if (!Number.isInteger(delta) || delta === 0) throw new CatalogueError("Enter a whole number");
   const s = size.trim();
   if (!s) throw new CatalogueError("Enter the size");

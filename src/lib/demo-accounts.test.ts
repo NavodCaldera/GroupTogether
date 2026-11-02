@@ -8,15 +8,14 @@ describe("demo logins on the sign-in page", () => {
     expect(showDemoLogins({ NODE_ENV: "production", SHOW_DEMO_LOGINS: "true" })).toBe(true);
   });
 
-  it("cover the three area admins, the factory seller, the luxury brand, the packing staff and the buyers", () => {
+  it("cover the four admins, the factory, the luxury brand and the buyers", () => {
     expect(DEMO_ACCOUNTS.map((a) => a.email)).toEqual([
+      "core@groupbasket.lk",
       "premium@groupbasket.lk",
       "factory@groupbasket.lk",
-      "warehouse@groupbasket.lk",
+      "buyers@groupbasket.lk",
       "seller@example.com",
       "brand@example.com",
-      "packer@example.com",
-      "packer2@example.com",
       "buyer@example.com",
       "buyer2@example.com",
       "buyer3@example.com",

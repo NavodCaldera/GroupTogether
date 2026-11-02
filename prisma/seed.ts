@@ -1,11 +1,12 @@
 /**
- * Demo data: 3 admins (one per area), 1 factory seller, 2 packing staff, 3 buyers, about 20 products, and carts in several
+ * Demo data: 4 admins (core, luxury brands, factories, buyers), 1 factory seller, 2 packing staff, 3 buyers, about 20 products, and carts in several
  * states. Every account's password is "password123". Resets the database first.
  *
- *   premium@groupbasket.lk   premium admin   → /admin/brands
+ *   core@groupbasket.lk      core admin      → /admin/users (admins and settings)
+ *   premium@groupbasket.lk   luxury brand admin → /admin/brands
  *   factory@groupbasket.lk   factory admin   → /admin/factory
- *   warehouse@groupbasket.lk warehouse admin → /admin/warehouse
- *   seller@example.com      seller      → /seller (Ceylon Footwear Mills: a tested linen shirt and its bulk)
+ *   buyers@groupbasket.lk    buyers admin    → /admin/warehouse
+ *   seller@example.com      seller      → /seller (Ceylon Apparel Mills: a tested linen shirt and its bulk)
  *   brand@example.com       brand       → /seller (Serendib Atelier, a luxury brand)
  *   packer@example.com      packing     → /packing (Kasun: one paid order to check and gather)
  *   packer2@example.com     packing     → /packing (Ishara: rechecks and packs what Kasun gathered)
@@ -262,9 +263,10 @@ async function main() {
   await db.user.createMany({
     data: (
       [
-        ["Premium Admin", "premium@groupbasket.lk", "0700000001", "PREMIUM"],
+        ["Luxury Brand Admin", "premium@groupbasket.lk", "0700000001", "PREMIUM"],
         ["Factory Admin", "factory@groupbasket.lk", "0700000002", "FACTORY"],
-        ["Warehouse Admin", "warehouse@groupbasket.lk", "0700000003", "WAREHOUSE"],
+        ["Buyers Admin", "buyers@groupbasket.lk", "0700000003", "WAREHOUSE"],
+        ["Core Admin", "core@groupbasket.lk", "0700000004", "CORE"],
       ] as const
     ).map(([name, email, phone, adminArea]) => ({
       role: "ADMIN" as const,
@@ -582,7 +584,7 @@ async function main() {
     data: {
       role: "SELLER",
       name: "Nuwan Rajapaksha",
-      company: "Ceylon Footwear Mills",
+      company: "Ceylon Apparel Mills",
       email: "seller@example.com",
       phone: "0776666666",
       address: "42 Factory Road, Ekala Industrial Estate",
@@ -966,8 +968,8 @@ async function main() {
     WHERE NOT EXISTS (SELECT 1 FROM "PriceChange" pc WHERE pc."productId" = p."id")`;
 
   console.log(`Seeded. Every password is password123.
-  Admins  premium@groupbasket.lk → /admin/brands, factory@groupbasket.lk → /admin/factory,
-          warehouse@groupbasket.lk → /admin/warehouse
+  Admins  core@groupbasket.lk → /admin/users, premium@groupbasket.lk → /admin/brands,
+          factory@groupbasket.lk → /admin/factory, buyers@groupbasket.lk → /admin/warehouse
   Seller  seller@example.com      → /seller (a tested linen shirt and its bulk)
   Brand   brand@example.com       → /seller (Serendib Atelier: a luxury brand's discounted products)
   Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)

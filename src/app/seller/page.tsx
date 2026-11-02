@@ -1,29 +1,22 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Toast } from "@/components/toast";
-import { Badge, EmptyState, PageHeader } from "@/components/ui";
-import { discountPct, siteName } from "@/lib/brand-rules";
+import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { formatDate, formatLKR } from "@/lib/format";
 import { requireSeller } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { sellerDesigns } from "@/server/designs";
-import { DesignCard } from "./design-bits";
+import { factoryDashboard } from "@/server/factory-dashboard";
+import { Rows } from "@/app/admin/list-bits";
+import { pcs } from "./design-chart";
 import { BrandDashboard } from "./brand-dashboard";
 import { sweep } from "@/server/carts/service";
 
 export const metadata: Metadata = { title: "My products" };
 
-const STATUS = {
-  IN_REVIEW: { label: "Waiting for review", tone: "info" },
-  CHANGES_REQUESTED: { label: "Changes requested", tone: "info" },
-  ACCEPTED: { label: "Accepted", tone: "good" },
-  DECLINED: { label: "Declined", tone: "bad" },
-  /** Accepted, and our packing staff have confirmed the stock arrived (2026-10-20). */
-  RECEIVED: { label: "Received", tone: "good" },
-} as const;
-
 /**
- * The factory seller's home (product owner, 2026-10-19): an add button, their designs in our shop
+ * The factory's home (product owner, 2026-11-03): its sales (pieces and value, by month), orders by
+ * stage, each product's sales, sizes sold and stock left, and its ratings. Factories publish
+ * listings themselves. Earlier (2026-10-19): the factory seller's home (product owner, 2026-10-19): an add button, their designs in our shop
  * with how each sells (2026-10-24: pieces wanted and bought, how many people bought, never names,
  * carts or money), then the stock offers they have sent, newest first, with our answer.
  * A luxury brand (2026-10-24) sees its brand profile: its name and website, and each discounted
@@ -41,34 +34,23 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
     await sweep();
     return <BrandDashboard brandId={seller.id} search={search} />;
   }
-  const [designs, offers] = await Promise.all([
-    sellerDesigns(seller.id),
-    db.stockOffer.findMany({
-      where: { sellerId: seller.id },
-      orderBy: { createdAt: "desc" },
-      include: { product: { select: { id: true, title: true } } },
-    }),
-  ]);
+  const d = await factoryDashboard(seller.id);
+  const maxMonth = Math.max(1, ...d.months.map((m) => m.pieces));
+  const stages: [keyof typeof d.orders, string][] = [
+    ["toPack", "To pack"],
+    ["awaitingPickup", "Awaiting pickup"],
+    ["onTheWay", "On the way"],
+    ["delivered", "Delivered"],
+    ["failed", "Failed"],
+  ];
 
   return (
     <>
       {done === "sent" && <Toast>Sent for review.</Toast>}
       <PageHeader
-        title={me.isBrand ? me.company || seller.name : "My products"}
-        description={
-          me.isBrand && me.website ? (
-            <a
-              href={me.website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-accent underline"
-            >
-              {siteName(me.website)} ↗
-            </a>
-          ) : undefined
-        }
+        title={me.company || seller.name}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Link href="/seller/orders" className="font-medium text-accent underline">
               Orders
             </Link>
@@ -95,84 +77,112 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
         }
       />
 
-      {designs.length > 0 && (
-        <section className="mb-6">
-          <h2 className="mb-2 font-semibold">Designs</h2>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {designs.map((d) => (
-              <li key={d.id}>
-                <DesignCard d={d} />
+      <section className="mb-6 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Tile label="Pieces sold" value={pcs(d.pieces)} />
+        <Tile label="Sales value" value={formatLKR(d.value)} />
+        <Tile
+          label="Rating"
+          value={d.rating.average === null ? "No ratings yet" : `★ ${d.rating.average.toFixed(1)}`}
+          note={d.rating.count ? `${d.rating.count} ratings` : undefined}
+        />
+        <Tile label="Orders to pack" value={String(d.orders.toPack)} />
+      </section>
+
+      <section className="mb-6 grid gap-4 lg:grid-cols-2">
+        <Card>
+          <h2 className="mb-3 font-semibold">Pieces sold by month</h2>
+          <ul className="flex flex-col gap-2 text-sm">
+            {d.months.map((m) => (
+              <li key={m.month} className="grid grid-cols-[4.5rem_1fr_auto] items-center gap-2">
+                <span className="text-subtle tabular-nums">{monthLabel(m.month)}</span>
+                <span className="h-3 rounded-r bg-muted">
+                  <span
+                    className="block h-3 rounded-r bg-accent"
+                    style={{ width: `${(m.pieces / maxMonth) * 100}%` }}
+                  />
+                </span>
+                <span className="tabular-nums">
+                  {pcs(m.pieces)} · {formatLKR(m.value)}
+                </span>
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        </Card>
+        <Card>
+          <h2 className="mb-3 font-semibold">Orders</h2>
+          <Rows rows={stages.map(([k, label]) => [label, d.orders[k]])} />
+          {d.rating.recent.length > 0 && (
+            <>
+              <h2 className="mt-4 mb-2 font-semibold">Latest ratings</h2>
+              <Rows rows={d.rating.recent.map((r) => [formatDate(r.createdAt), `${r.stars} ★`])} />
+            </>
+          )}
+        </Card>
+      </section>
 
-      {designs.length > 0 && offers.length > 0 && <h2 className="mb-2 font-semibold">Offers</h2>}
-      {offers.length === 0 ? (
-        <EmptyState title="Nothing sent yet">
+      <h2 className="mb-2 font-semibold">Products</h2>
+      {d.products.length === 0 ? (
+        <EmptyState title="No products yet">
           <Link href="/seller/new" className="font-medium text-accent underline">
-            Add your first product
+            Publish your first product
           </Link>
         </EmptyState>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {offers.map((o) => {
-            const st = STATUS[o.receivedAt ? "RECEIVED" : o.status];
-            return (
-              <li key={o.id} className="rounded-xl border border-line p-3">
+        <ul className="grid gap-2 sm:grid-cols-2">
+          {d.products.map((p) => (
+            <li key={p.id}>
+              <Link
+                href={`/seller/products/${p.id}`}
+                className="block rounded-xl border border-line p-3 hover:bg-muted"
+              >
                 <div className="flex items-start justify-between gap-2">
-                  <p className="min-w-0 font-medium break-words">{o.name}</p>
-                  <div className="flex gap-1">
-                    {o.kind === "TEST" && <Badge tone="info">Test pieces</Badge>}
-                    <Badge tone={st.tone}>{st.label}</Badge>
-                  </div>
+                  <p className="min-w-0 font-medium break-words">{p.title}</p>
+                  {p.status === "ARCHIVED" ? (
+                    <Badge tone="bad">Hidden</Badge>
+                  ) : p.stockLeft === 0 ? (
+                    <Badge>No stock</Badge>
+                  ) : (
+                    <Badge tone="good">In shop</Badge>
+                  )}
                 </div>
-                {o.actualPrice && o.offerPrice ? (
-                  <>
-                    <p className="mt-0.5 text-sm tabular-nums">
-                      <span className="text-subtle line-through">{formatLKR(o.actualPrice)}</span>{" "}
-                      <span className="font-medium">{formatLKR(o.offerPrice)}</span>
-                      {discountPct(o.actualPrice, o.offerPrice) !== null &&
-                        ` · ${discountPct(o.actualPrice, o.offerPrice)}% off`}
-                      {o.pieces !== null && ` · ${o.pieces} pcs`}
-                    </p>
-                    <p className="mt-0.5 text-xs text-subtle tabular-nums">
-                      {formatLKR(o.amount)} · {formatDate(o.createdAt)}
-                      {o.productUrl && (
-                        <>
-                          {" · "}
-                          <a
-                            href={o.productUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-accent underline"
-                          >
-                            {siteName(o.productUrl)} ↗
-                          </a>
-                        </>
-                      )}
-                    </p>
-                  </>
-                ) : (
-                  <p className="mt-0.5 text-sm text-subtle tabular-nums">
-                    {formatLKR(o.amount)} · {formatDate(o.createdAt)}
+                <p className="mt-0.5 text-sm tabular-nums">
+                  {formatLKR(p.price)} · {pcs(p.pieces)} sold · {formatLKR(p.value)}
+                </p>
+                <p className="mt-1 text-xs text-subtle tabular-nums">
+                  Left:{" "}
+                  {p.variants.length
+                    ? p.variants
+                        .map((v) => `${v.size}${v.colour ? ` ${v.colour}` : ""} ${v.available}`)
+                        .join(" · ")
+                    : "no sizes yet"}
+                </p>
+                {p.sizesSold.length > 0 && (
+                  <p className="text-xs text-subtle tabular-nums">
+                    Best sizes:{" "}
+                    {p.sizesSold
+                      .slice(0, 3)
+                      .map(([s, n]) => `${s} (${n})`)
+                      .join(" · ")}
                   </p>
                 )}
-                {o.note && <p className="mt-1 text-sm">{o.note}</p>}
-                {o.product && (
-                  <Link
-                    href={`/seller/designs/${o.product.id}`}
-                    className="mt-1 inline-block text-sm text-accent underline"
-                  >
-                    {o.product.title}
-                  </Link>
-                )}
-              </li>
-            );
-          })}
+              </Link>
+            </li>
+          ))}
         </ul>
       )}
     </>
   );
 }
+
+function Tile({ label, value, note }: { label: string; value: string; note?: string }) {
+  return (
+    <Card>
+      <p className="text-xs text-subtle">{label}</p>
+      <p className="text-lg font-semibold tabular-nums">{value}</p>
+      {note && <p className="text-xs text-subtle">{note}</p>}
+    </Card>
+  );
+}
+
+const monthLabel = (ym: string) =>
+  new Date(`${ym}-15T00:00:00Z`).toLocaleDateString("en-LK", { month: "short", year: "2-digit" });

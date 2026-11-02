@@ -13,6 +13,10 @@ for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
 [architecture](../../docs/architecture.md) for technical context. This file owns domain
 guidance, not business policy. Verify code pointers before editing.
 
+## Current model (2026-11-03)
+
+Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/seller/products/`) and see `src/server/factory-dashboard.ts`; admins hide listings with `ARCHIVED`, which `IN_SHOP` excludes. Ratings live in `src/server/ratings.ts` (`RATE-001`). Settings belong to the CORE admin (`ADMIN-002`).
+
 ## Ownership and code
 
 - Catalogue: `src/server/catalogue.ts`, `src/lib/taxonomy.ts`, public photo/suggestion routes.

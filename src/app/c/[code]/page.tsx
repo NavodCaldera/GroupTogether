@@ -35,10 +35,11 @@ import {
 import { sweep } from "@/server/carts/service";
 import { conversationHref, listMessages, threadsFor } from "@/server/carts/chat";
 import { ChatPanel } from "./chat";
-import { AcceptForm, JoinForm } from "./cart-forms";
+import { AcceptForm, JoinForm, RateFactoryForm } from "./cart-forms";
 import { db } from "@/server/db";
 import { RewardForm } from "@/components/reward-form";
 import { removeGiftAction } from "@/server/gift-actions";
+import { myRating } from "@/server/ratings";
 import { GIFT_STATUS } from "@/lib/gift-rules";
 
 export async function generateMetadata({ params }: PageProps<"/c/[code]">): Promise<Metadata> {
@@ -59,6 +60,20 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   const isOwner = user?.id === cart.ownerId;
   const isMember = !!user && cart.members.some((m) => m.userId === user.id);
   const editable = isEditable(cart.status);
+  // Members rate the factory once the order is delivered (2026-11-03).
+  const factoryOf =
+    cart.status === "DELIVERED" && isMember && user
+      ? await db.user.findFirst({
+          where: {
+            products: { some: { variants: { some: { lines: { some: { cartId: cart.id } } } } } },
+          },
+          select: { name: true, company: true },
+        })
+      : null;
+  const rating =
+    factoryOf && user
+      ? { factory: factoryOf.company || factoryOf.name, mine: await myRating(user.id, cart.id) }
+      : null;
   const myGifts =
     isMember && user
       ? await db.giftOrder.findMany({
@@ -188,6 +203,12 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
           defaults={user}
           merge={merge}
         />
+        {rating && !rating.mine && <RateFactoryForm cartId={cart.id} factory={rating.factory} />}
+        {rating?.mine && (
+          <p className="text-sm text-subtle">
+            You rated {rating.factory} {rating.mine.stars}★
+          </p>
+        )}
       </Card>
 
       {joinRequests.length > 0 && (
@@ -502,7 +523,7 @@ function StatusPanel({
     case "SLIP_REVIEW":
       return <p className="text-sm">Checking the payment.</p>;
     case "CONFIRMED":
-      return <p className="text-sm">Paid. Packing for delivery.</p>;
+      return <p className="text-sm">Paid. The factory is packing it.</p>;
     case "DISPATCHED":
     case "DELIVERED":
       return (

@@ -14,10 +14,9 @@ import { AdminForm } from "../admin-form";
 export const metadata: Metadata = { title: "Settings" };
 
 export default async function SettingsPage() {
-  // Warehouse owns cart, payment and bank settings; factory owns store size and lot margins.
+  // The core admin owns every setting (product owner, 2026-11-03).
   const admin = await requireAnyAdmin();
-  if (admin.adminArea === "PREMIUM") redirect(adminHome(admin.adminArea));
-  const warehouse = admin.adminArea === "WAREHOUSE";
+  if (admin.adminArea !== "CORE") redirect(adminHome(admin.adminArea));
   const s = await getSettings();
   const system: [string, string, boolean][] = [
     [
@@ -43,7 +42,7 @@ export default async function SettingsPage() {
     <div className="grid max-w-5xl gap-6 lg:grid-cols-[1fr_340px]">
       <div>
         <PageHeader title="Settings" />
-        {warehouse ? (
+        <div className="flex flex-col gap-6">
           <Card>
             <AdminForm action={saveSettingsAction} submit="Save settings">
               <Field
@@ -93,7 +92,6 @@ export default async function SettingsPage() {
               </Field>
             </AdminForm>
           </Card>
-        ) : (
           <Card>
             <h2 className="mb-3 font-semibold">Stock</h2>
             <AdminForm action={saveStockSettingsAction} submit="Save stock settings">
@@ -137,23 +135,21 @@ export default async function SettingsPage() {
               </div>
             </AdminForm>
           </Card>
-        )}
+        </div>
       </div>
-      {warehouse && (
-        <aside className="flex flex-col gap-4 lg:pt-14">
-          <Card className="text-sm">
-            <h2 className="mb-2 font-semibold">System</h2>
-            <dl className="flex flex-col gap-2">
-              {system.map(([k, v, ok]) => (
-                <div key={k}>
-                  <dt className="text-xs text-subtle">{k}</dt>
-                  <dd className={`break-words ${ok ? "" : "text-danger"}`}>{v}</dd>
-                </div>
-              ))}
-            </dl>
-          </Card>
-        </aside>
-      )}
+      <aside className="flex flex-col gap-4 lg:pt-14">
+        <Card className="text-sm">
+          <h2 className="mb-2 font-semibold">System</h2>
+          <dl className="flex flex-col gap-2">
+            {system.map(([k, v, ok]) => (
+              <div key={k}>
+                <dt className="text-xs text-subtle">{k}</dt>
+                <dd className={`break-words ${ok ? "" : "text-danger"}`}>{v}</dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
+      </aside>
     </div>
   );
 }

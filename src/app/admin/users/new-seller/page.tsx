@@ -12,7 +12,8 @@ export const metadata: Metadata = { title: "Add factory seller or brand" };
 /** Factory admins add factory sellers; premium admins add brands (with their website). */
 export default async function NewSellerPage() {
   const admin = await requireAnyAdmin();
-  if (admin.adminArea === "WAREHOUSE") redirect(adminHome(admin.adminArea));
+  if (admin.adminArea !== "PREMIUM" && admin.adminArea !== "FACTORY")
+    redirect(adminHome(admin.adminArea));
   const brand = admin.adminArea === "PREMIUM";
   return (
     <div className="max-w-xl">

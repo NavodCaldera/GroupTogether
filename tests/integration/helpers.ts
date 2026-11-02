@@ -16,7 +16,7 @@ let n = 0;
 /** Admins default to the warehouse area; pass another area for premium or factory work. */
 export async function makeUser(
   role: "CUSTOMER" | "ADMIN" | "PACKER" = "CUSTOMER",
-  adminArea: "PREMIUM" | "FACTORY" | "WAREHOUSE" = "WAREHOUSE",
+  adminArea: "PREMIUM" | "FACTORY" | "WAREHOUSE" | "CORE" = "WAREHOUSE",
 ) {
   n++;
   return db.user.create({

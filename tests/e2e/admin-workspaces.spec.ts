@@ -37,7 +37,7 @@ test("three area admins each run their whole stream, with no unrestricted admin"
     },
     {
       area: "WAREHOUSE",
-      email: "warehouse@groupbasket.lk",
+      email: "buyers@groupbasket.lk",
       home: "/admin/warehouse",
       title: "Warehouse and delivery",
       tabs: ["Warehouse & delivery", "Slips", "Orders", "Carts", "Users", "Settings"],

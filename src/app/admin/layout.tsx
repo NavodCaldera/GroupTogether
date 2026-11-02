@@ -17,24 +17,26 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
   // Red counts: work waiting; grey: low stock.
   const tabs: Record<OperationalAdminArea, [string, string, number, ("alert" | "muted")?][]> = {
     PREMIUM: [
-      ["/admin/brands", "Brand rewards", badges.brandRewards],
+      ["/admin/brands", "Luxury brands", badges.brandRewards],
       ["/admin/users", "Users", 0],
     ],
     FACTORY: [
-      ["/admin/factory", "Factory apparel", 0],
+      ["/admin/factory", "Factories", 0],
       ["/admin", "Stock", 0],
       ["/admin/lots", "Lots", 0],
       ["/admin/products", "Products", badges.lowStock, "muted"],
       ["/admin/offers", "Offers", badges.offers],
       ["/admin/users", "Users", 0],
-      ["/admin/settings", "Settings", 0],
     ],
     WAREHOUSE: [
-      ["/admin/warehouse", "Warehouse & delivery", 0],
+      ["/admin/warehouse", "Buyers & orders", 0],
       ["/admin/slips", "Slips", badges.slips],
       ["/admin/orders", "Orders", badges.orders],
       ["/admin/carts", "Carts", 0],
-      ["/admin/users", "Users", 0],
+      ["/admin/users", "Buyers", 0],
+    ],
+    CORE: [
+      ["/admin/users", "Admins", 0],
       ["/admin/settings", "Settings", 0],
     ],
   };

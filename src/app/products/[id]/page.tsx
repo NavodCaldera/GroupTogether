@@ -9,6 +9,8 @@ import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { editableCartsFor, joinableCart } from "@/server/carts/queries";
 import { getProduct } from "@/server/catalogue";
+import { ratingSummaries } from "@/server/ratings";
+import { FactoryRating } from "@/components/factory-rating";
 import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
@@ -21,7 +23,12 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const [product, user] = await Promise.all([getProduct(id), getCurrentUser()]);
   if (!product) notFound();
   const wanted = typeof sp.cart === "string" ? sp.cart.toUpperCase() : undefined;
-  const carts = user ? await editableCartsFor(user.id) : [];
+  const [carts, ratings] = await Promise.all([
+    user
+      ? editableCartsFor(user.id)
+      : Promise.resolve([] as Awaited<ReturnType<typeof editableCartsFor>>),
+    ratingSummaries([product.sellerId]),
+  ]);
   // Came from a shared cart they haven't joined yet: adding to it joins it.
   if (user && wanted && carts.length === 0 && !carts.some((c) => c.code === wanted)) {
     const shared = await joinableCart(wanted);
@@ -37,6 +44,11 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           <div>
             <p className="text-sm text-subtle">{product.brand}</p>
             <h1 className="text-2xl font-semibold tracking-tight">{product.title}</h1>
+            <FactoryRating
+              factory={product.seller}
+              rating={product.sellerId ? ratings.get(product.sellerId) : undefined}
+              className="mt-1 text-sm text-subtle"
+            />
             <p className="mt-2 text-2xl font-bold">
               {formatLKR(product.price)}
               {product.retailPrice && (

@@ -17,6 +17,8 @@ enum AdminArea {
   PREMIUM
   FACTORY
   WAREHOUSE
+  /// Settings and admin accounts only (product owner, 2026-11-03)
+  CORE
 }
 
 enum Role {
@@ -56,6 +58,8 @@ model User {
   sessions           Session[]
   ownedCarts         GroupCart[]             @relation("CartOwner")
   factoryPackedCarts GroupCart[]             @relation("FactoryPacked")
+  ratingsGiven       FactoryRating[]         @relation("RatingsGiven")
+  ratingsReceived    FactoryRating[]         @relation("RatingsReceived")
   memberships        CartMember[]
   lines              CartLine[]
   slips              PaymentSlip[]           @relation("SlipUploader")
@@ -245,18 +249,18 @@ enum CartStatus {
 }
 
 model GroupCart {
-  id                String     @id @default(cuid())
+  id                String          @id @default(cuid())
   /// Share code in /c/<code>
-  code              String     @unique
-  name              String     @default("")
+  code              String          @unique
+  name              String          @default("")
   ownerId           String
-  owner             User       @relation("CartOwner", fields: [ownerId], references: [id])
-  visibility        Visibility @default(PUBLIC)
-  status            CartStatus @default(OPEN)
+  owner             User            @relation("CartOwner", fields: [ownerId], references: [id])
+  visibility        Visibility      @default(PUBLIC)
+  status            CartStatus      @default(OPEN)
   /// Snapshot of Settings.minOrderValue when the cart started
-  minOrderValue     Decimal    @db.Decimal(14, 2)
+  minOrderValue     Decimal         @db.Decimal(14, 2)
   /// Sum of qty × unitPrice over all lines, kept in step in the same transaction
-  total             Decimal    @default(0) @db.Decimal(14, 2)
+  total             Decimal         @default(0) @db.Decimal(14, 2)
   expiresAt         DateTime
   readyAt           DateTime?
   acceptedAt        DateTime?
@@ -265,15 +269,16 @@ model GroupCart {
   /// Factory-direct fulfilment (2026-11-03): when and by whom the factory packed this order
   factoryPackedAt   DateTime?
   factoryPackedById String?
-  factoryPackedBy   User?      @relation("FactoryPacked", fields: [factoryPackedById], references: [id])
+  factoryPackedBy   User?           @relation("FactoryPacked", fields: [factoryPackedById], references: [id])
+  factoryRatings    FactoryRating[]
   deliveryAddress   String?
   deliveryCity      String?
   deliveryPhone     String?
   deliveryLat       Float?
   deliveryLng       Float?
   closedReason      String?
-  createdAt         DateTime   @default(now())
-  updatedAt         DateTime   @updatedAt
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
 
   members  CartMember[]
   lines    CartLine[]
@@ -722,4 +727,21 @@ model SampleRequest {
 
   @@index([cartId, createdAt])
   @@index([status, createdAt])
+}
+
+/// A member's 1–5 star rating of the factory that packed and shipped a delivered cart
+/// (product owner, 2026-11-03). One per member per cart.
+model FactoryRating {
+  id        String    @id @default(cuid())
+  cartId    String
+  cart      GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User      @relation("RatingsGiven", fields: [userId], references: [id], onDelete: Cascade)
+  factoryId String
+  factory   User      @relation("RatingsReceived", fields: [factoryId], references: [id], onDelete: Cascade)
+  stars     Int
+  createdAt DateTime  @default(now())
+
+  @@unique([cartId, userId])
+  @@index([factoryId, createdAt])
 }

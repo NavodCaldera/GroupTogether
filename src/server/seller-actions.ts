@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { requireSeller } from "./auth/session";
-import { CatalogueError } from "./catalogue";
 import { createBrandOffer, reviseBrandOffer } from "./brands";
+import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
 import { createOffer } from "./offers";
+import { db } from "./db";
 import { flash } from "./flash";
 import { UploadError } from "./storage";
 
@@ -67,4 +68,52 @@ export async function sendBrandOfferAction(_p: SellerState, fd: FormData): Promi
   await flash("Gift product sent for review.");
   revalidatePath("/admin/brands");
   redirect("/seller?tab=products");
+}
+
+/** A factory publishes or edits its own listing; it goes live without review (2026-11-03). */
+export async function saveFactoryProductAction(
+  _p: SellerState,
+  fd: FormData,
+): Promise<SellerState> {
+  const seller = await requireSeller();
+  if (await db.user.count({ where: { id: seller.id, isBrand: true } }))
+    return { error: "Luxury brands add gift products" };
+  const id = str(fd, "id") || null;
+  const photo = fd.get("photo");
+  let savedId = id;
+  try {
+    const p = await saveProduct(
+      id,
+      Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")),
+      photo instanceof File ? photo : null,
+      { sellerId: seller.id },
+    );
+    savedId = p.id;
+  } catch (e) {
+    if (e instanceof CatalogueError || e instanceof UploadError) return { error: e.message };
+    if (e instanceof ZodError) return { error: e.issues[0]?.message ?? "Check the form" };
+    throw e;
+  }
+  revalidatePath("/seller");
+  revalidatePath("/shop");
+  await flash(id ? "Saved" : "Published. Add sizes and stock to show it in the shop.");
+  if (!id) redirect(`/seller/products/${savedId}`);
+  return {};
+}
+
+export async function factoryStockAction(_p: SellerState, fd: FormData): Promise<SellerState> {
+  const seller = await requireSeller();
+  const productId = str(fd, "productId");
+  try {
+    await adjustStock(productId, str(fd, "size"), str(fd, "colour"), Number(str(fd, "delta")), {
+      sellerId: seller.id,
+    });
+  } catch (e) {
+    if (e instanceof CatalogueError) return { error: e.message };
+    throw e;
+  }
+  revalidatePath(`/seller/products/${productId}`);
+  revalidatePath("/shop");
+  await flash("Stock updated");
+  return {};
 }

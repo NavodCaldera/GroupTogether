@@ -41,13 +41,14 @@ const AREA_FILTERS: Record<OperationalAdminArea, Filter[]> = {
   PREMIUM: ["brands", "admins", "locked"],
   FACTORY: ["sellers", "admins", "locked"],
   WAREHOUSE: ["customers", "packers", "admins", "locked"],
+  CORE: ["admins", "locked"],
 };
 const BUTTON =
   "inline-flex min-h-11 items-center gap-1.5 rounded-lg border border-line px-4 text-sm font-medium hover:bg-muted sm:min-h-10";
 const FILTER_LABEL: Record<Filter, string> = {
   customers: "Buyers",
-  sellers: "Factory sellers",
-  brands: "Premium brands",
+  sellers: "Factories",
+  brands: "Luxury brands",
   packers: "Packing staff",
   admins: "Admins",
   locked: "Locked",
@@ -149,21 +150,22 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
         title="Users"
         actions={
           <>
-            <Link href="/admin/users/new-admin" className={BUTTON}>
-              Add admin
-            </Link>
+            {area === "CORE" && (
+              <Link href="/admin/users/new-admin" className={BUTTON}>
+                <span aria-hidden>+</span> Add admin
+              </Link>
+            )}
             {area === "WAREHOUSE" && !factoryFulfilment() && (
               <Link href="/admin/users/new-packer" className={BUTTON}>
                 <span aria-hidden>+</span> Add packing staff
               </Link>
             )}
-            {area !== "WAREHOUSE" && (
+            {(area === "PREMIUM" || area === "FACTORY") && (
               <Link
                 href="/admin/users/new-seller"
                 className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent hover:opacity-90 sm:min-h-10"
               >
-                <span aria-hidden>+</span>{" "}
-                {area === "PREMIUM" ? "Add premium brand" : "Add factory seller"}
+                <span aria-hidden>+</span> {area === "PREMIUM" ? "Add luxury brand" : "Add factory"}
               </Link>
             )}
           </>

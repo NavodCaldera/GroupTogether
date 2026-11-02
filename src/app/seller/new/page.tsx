@@ -3,9 +3,9 @@ import { BackLink } from "@/components/client";
 import { Card, PageHeader } from "@/components/ui";
 import { requireSeller } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { designChoices } from "@/server/designs";
 import { BrandOfferForm } from "../brand-offer-form";
-import { OfferForm } from "../offer-form";
+import { ProductForm } from "@/app/admin/products/product-form";
+import { saveFactoryProductAction } from "@/server/seller-actions";
 import { snapshotTerms } from "@/server/brand-reviews";
 import { notFound } from "next/navigation";
 
@@ -13,14 +13,13 @@ export const metadata: Metadata = { title: "Add product" };
 
 export default async function NewOfferPage({ searchParams }: PageProps<"/seller/new">) {
   const seller = await requireSeller();
-  const [designs, me] = await Promise.all([
-    designChoices(seller.id),
+  const [me] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id: seller.id },
-      select: { isBrand: true, website: true },
+      select: { isBrand: true, website: true, company: true, name: true },
     }),
   ]);
-  const { design, offerId } = await searchParams;
+  const { offerId } = await searchParams;
   const offer =
     me.isBrand && typeof offerId === "string"
       ? await db.stockOffer.findFirst({
@@ -32,8 +31,6 @@ export default async function NewOfferPage({ searchParams }: PageProps<"/seller/
   const revision = offer
     ? { ...offer, ...(offer.revisions[0] ? snapshotTerms(offer.revisions[0].snapshot) : {}) }
     : null;
-  // "Offer the bulk" on a tested design opens the form on that design.
-  const picked = designs.find((d) => d.id === design)?.id;
   return (
     <div className="mx-auto w-full max-w-lg">
       <BackLink fallback="/seller" />
@@ -67,7 +64,10 @@ export default async function NewOfferPage({ searchParams }: PageProps<"/seller/
             }
           />
         ) : (
-          <OfferForm designs={designs} design={picked} />
+          <ProductForm
+            factory={{ brand: me.company || me.name }}
+            action={saveFactoryProductAction}
+          />
         )}
       </Card>
     </div>

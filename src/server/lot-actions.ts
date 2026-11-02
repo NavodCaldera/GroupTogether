@@ -53,7 +53,7 @@ const stockSettingsSchema = z
   });
 
 export async function saveStockSettingsAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin("FACTORY");
+  await requireAdmin("CORE");
   try {
     const data = stockSettingsSchema.parse(Object.fromEntries(fd));
     await db.settings.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });

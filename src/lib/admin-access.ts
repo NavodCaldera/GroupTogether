@@ -1,4 +1,8 @@
-export const ADMIN_AREAS = ["PREMIUM", "FACTORY", "WAREHOUSE"] as const;
+/**
+ * Four admins (product owner, 2026-11-03): luxury brands, factories, buyers and orders (stored
+ * as WAREHOUSE), and the core admin, who only runs settings and admin accounts.
+ */
+export const ADMIN_AREAS = ["PREMIUM", "FACTORY", "WAREHOUSE", "CORE"] as const;
 export type OperationalAdminArea = (typeof ADMIN_AREAS)[number];
 export type AdminPrincipal = { role: string; adminArea?: string | null; locked?: boolean };
 
@@ -31,11 +35,13 @@ export function adminHome(area: string | null | undefined): string {
   if (area === "PREMIUM") return "/admin/brands";
   if (area === "FACTORY") return "/admin/factory";
   if (area === "WAREHOUSE") return "/admin/warehouse";
+  if (area === "CORE") return "/admin/users";
   return "/";
 }
 
 export const ADMIN_AREA_LABEL: Record<string, string> = {
-  PREMIUM: "Premium brands",
-  FACTORY: "Factory apparel",
-  WAREHOUSE: "Warehouse and delivery",
+  PREMIUM: "Luxury brands",
+  FACTORY: "Factories",
+  WAREHOUSE: "Buyers and orders",
+  CORE: "Core",
 };

@@ -61,3 +61,18 @@ it("limits each area to its own admins and stakeholder accounts", async () => {
   await expect(assertManagesUser("PREMIUM", seller.id)).rejects.toThrow("not found");
   await expect(assertManagesUser("FACTORY", premium.id)).rejects.toThrow("not found");
 });
+it("leaves admin accounts to the core admin (2026-11-03)", async () => {
+  const [factoryAdmin, buyer] = [await makeUser("ADMIN", "FACTORY"), await makeUser()];
+  await expect(assertManagesUser("CORE", factoryAdmin.id)).resolves.toBeUndefined();
+  await expect(assertManagesUser("CORE", buyer.id)).rejects.toThrow("not found");
+  await expect(assertManagesUser("FACTORY", factoryAdmin.id)).rejects.toThrow("not found");
+  expect(
+    await createOperationalAdmin({
+      name: "Core Two",
+      email: "core2@test.lk",
+      phone: "0771234599",
+      password: "test-password",
+      adminArea: "CORE",
+    }),
+  ).toMatchObject({ adminArea: "CORE" });
+});

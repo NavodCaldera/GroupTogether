@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-03 - Four admins, self-publishing factories, ratings
+
+- Owner request: change the demo accounts and the rest of the system for the new model. Four admins: luxury brands (`premium@`), factories (`factory@`), buyers (`buyers@`, formerly `warehouse@`) and a new **core admin** (`core@groupbasket.lk`, area `CORE`, migration `core_admin`) who handles only settings and admin accounts; other areas no longer add admins or edit settings. The sign-in page no longer lists the parked packing staff, and the demo factory is Ceylon Apparel Mills. Factories publish listings without approval (`/seller/new`, `/seller/products/[id]`), and factory admins can hide any listing. The factory home is now a sales dashboard (pieces and value by product and month, orders by stage, sizes and stock left, ratings). Members rate the factory 1–5 stars once after delivery (`FactoryRating`, migration `factory_ratings`), and the shop and product pages show the factory name and rating. The dev database was updated in place (renamed `warehouse@`, added `core@`). `DEC-011`; `ADMIN-002`, `SUP-002`, `DATA-001`, new `RATE-001`.
+
 ## 2026-11-03 - Factory-direct fulfilment
 
 - **Business model change.** Owner request: we no longer buy clothes from factories; each factory packs and ships its own orders, we arrange PickMe from the factory and track it until delivered. Packing staff are kept aside, not deleted, as the model may change back. Owner answers: one factory per cart, the factory sees its paid orders and marks them packed, the admin books PickMe, and there is no lot price drop. Added `src/lib/fulfilment.ts` (`FULFILMENT_MODE`, default FACTORY; `WAREHOUSE` restores the store flow), the factory Orders page (`/seller/orders`), `GroupCart.factoryPackedAt/By` (migration `factory_packing`), pickup details on PickMe bookings, a "Factory packing" stage and "Picked up" action on Admin → Orders, and a paused `/packing`. `DEC-010`; `SUP-001`, `SUP-002`, `FUL-001`–`FUL-003`, `LOT-001` updated.

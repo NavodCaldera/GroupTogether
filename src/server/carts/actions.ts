@@ -24,6 +24,7 @@ import {
 } from "./service";
 import { uploadSlip } from "./slips";
 import { markReceived } from "../delivery";
+import { rateFactory } from "../ratings";
 import { flash } from "../flash";
 
 export type ActionState = {
@@ -278,4 +279,15 @@ export async function declineMergeAction(fd: FormData) {
 }
 export async function cancelMergeAction(fd: FormData) {
   await mergeStep(fd, codeFromRequest, cancelMerge, "requestId", "Request cancelled");
+}
+
+/** A member rates the factory of their delivered group order, 1–5 stars (2026-11-03). */
+export async function rateFactoryAction(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  const res = await attempt(async () => {
+    await rateFactory(user.id, str(fd, "cartId"), Number(str(fd, "stars")));
+    return "Thanks for rating the factory";
+  });
+  revalidatePath("/c/[code]", "page");
+  return res;
 }
