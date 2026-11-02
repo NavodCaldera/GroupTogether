@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-03 - Performance and tooling pass
+
+- Owner request: optimize the project without changing behaviour. Merge-request totals (cart page and notifications) load in one query through `mergeRequestLines`; `flushBrandNotices` reads conversation read-state in one query and checks gift payment once per message; bill settlement locks all gift rows in one ordered statement; the cart sweep sends notices after closing carts. Added indexes on `CartLine(variantId)`, `CartLine(userId)`, `CartInvite(invitedUserId)` and `Notification(userId, createdAt)` (migration `query_indexes`). Shared the admin `Rows` list in `list-bits`. TypeScript targets ES2022 with a cached build-info file, `npm run check` runs the fast checks first, and unit tests use worker threads.
+
 ## 2026-10-27 - Main admin removed
 
 - Added the three demo admin logins (`premium@`, `factory@`, `warehouse@groupbasket.lk`, password `password123`) to the existing local dev database without reseeding, so they sign in before the next `db:seed`.

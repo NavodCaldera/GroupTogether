@@ -112,7 +112,10 @@ export async function appendBrandEvent(
 export async function flushBrandNotices() {
   const pending = await db.brandMessage.findMany({
     where: { notifiedAt: null },
-    include: { conversation: true, author: { select: { role: true } } },
+    include: {
+      conversation: { select: { brandId: true, kind: true, subjectId: true, title: true } },
+      author: { select: { role: true } },
+    },
     take: 50,
     orderBy: { createdAt: "asc" },
   });
@@ -142,25 +145,29 @@ export async function flushBrandNotices() {
               },
               select: { id: true, role: true },
             });
-      for (const user of recipients) {
-        if (
-          user.role !== "ADMIN" &&
-          message.conversation.kind === "GIFT" &&
-          !(await tx.giftOrder.count({
-            where: {
-              id: message.conversation.subjectId,
-              paidAt: { not: null },
-              offer: { sellerId: user.id },
-            },
-          }))
-        )
-          continue;
-        const read = await tx.brandConversationRead.findUnique({
+      const giftPaidForBrand =
+        message.conversation.kind === "GIFT" &&
+        recipients.some((u) => u.role !== "ADMIN") &&
+        (await tx.giftOrder.count({
           where: {
-            conversationId_userId: { conversationId: message.conversationId, userId: user.id },
+            id: message.conversation.subjectId,
+            paidAt: { not: null },
+            offer: { sellerId: message.conversation.brandId },
           },
-        });
-        if (read && read.readAt >= message.createdAt) continue;
+        })) > 0;
+      const reads = await tx.brandConversationRead.findMany({
+        where: {
+          conversationId: message.conversationId,
+          userId: { in: recipients.map((u) => u.id) },
+        },
+        select: { userId: true, readAt: true },
+      });
+      const readAt = new Map(reads.map((r) => [r.userId, r.readAt]));
+      for (const user of recipients) {
+        if (user.role !== "ADMIN" && message.conversation.kind === "GIFT" && !giftPaidForBrand)
+          continue;
+        const read = readAt.get(user.id);
+        if (read && read >= message.createdAt) continue;
         const key = `brand-thread:${message.conversationId}:${user.id}`;
         await tx.notification.upsert({
           where: { dedupeKey: key },

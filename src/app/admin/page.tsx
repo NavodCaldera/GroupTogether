@@ -8,7 +8,7 @@ import { salesStats } from "@/server/admin-queries";
 import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { stockDashboard } from "@/server/stock";
-import { Table } from "./list-bits";
+import { Table, Rows } from "./list-bits";
 import { AgeBars, WeekBars, pcs } from "./stock-charts";
 
 export const metadata: Metadata = { title: "Stock" };
@@ -282,19 +282,6 @@ export default async function AdminHome() {
         </aside>
       </div>
     </>
-  );
-}
-
-function Rows({ rows }: { rows: [string, ReactNode][] }) {
-  return (
-    <dl className="flex flex-col gap-2">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between gap-3">
-          <dt className="text-subtle">{label}</dt>
-          <dd className="text-right">{value}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

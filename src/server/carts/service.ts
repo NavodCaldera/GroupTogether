@@ -389,6 +389,7 @@ export async function sweep(now = new Date(), cartId?: string) {
     take: 100,
   });
   let closed = 0;
+  const notices: Promise<unknown>[] = [];
   for (const { id } of due) {
     const done = await db.$transaction(async (tx) => {
       const cart = await lockCart(tx, id);
@@ -405,7 +406,7 @@ export async function sweep(now = new Date(), cartId?: string) {
     if (!done) continue;
     closed++;
     const name = done.cart.name || done.cart.code;
-    await notify(
+    notices.push(notify(
       done.members,
       done.what === "EXPIRE"
         ? {
@@ -418,8 +419,9 @@ export async function sweep(now = new Date(), cartId?: string) {
             body: `The bank slip for "${name}" wasn't uploaded in time, so the order was cancelled.`,
             href: `/c/${done.cart.code}`,
           },
-    );
+    ));
   }
+  await Promise.all(notices);
   return { closed };
 }
 

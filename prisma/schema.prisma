@@ -321,6 +321,8 @@ model CartLine {
   createdAt DateTime  @default(now())
 
   @@unique([cartId, userId, variantId])
+  @@index([variantId])
+  @@index([userId])
 }
 
 enum SlipStatus {
@@ -387,6 +389,7 @@ model CartInvite {
   createdAt     DateTime  @default(now())
 
   @@unique([cartId, invitedUserId])
+  @@index([invitedUserId])
 }
 
 model Notification {
@@ -401,6 +404,7 @@ model Notification {
   dedupeKey String?   @unique
 
   @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 // ─── Delivery ──────────────────────────────────────────────────────────────

@@ -223,15 +223,30 @@ export async function mergeRequestsFor(cartId: string) {
     },
     orderBy: { createdAt: "asc" },
   });
-  return Promise.all(
-    reqs.map(async (r) => ({
-      ...r,
-      lines: await db.cartLine.findMany({
-        where: { cartId: r.fromCartId!, userId: r.userId },
-        select: { qty: true, unitPrice: true },
-      }),
-    })),
-  );
+  const lines = await mergeRequestLines(reqs);
+  return reqs.map((r) => ({ ...r, lines: lines.get(r.id) ?? [] }));
+}
+
+/** Lines each requester would bring from their own cart, loaded in one query. */
+export async function mergeRequestLines(
+  reqs: { id: string; fromCartId: string | null; userId: string }[],
+) {
+  const wanted = reqs.filter((r) => r.fromCartId);
+  const rows = wanted.length
+    ? await db.cartLine.findMany({
+        where: { OR: wanted.map((r) => ({ cartId: r.fromCartId!, userId: r.userId })) },
+        select: { cartId: true, userId: true, qty: true, unitPrice: true },
+      })
+    : [];
+  const out = new Map<string, Pick<(typeof rows)[number], "qty" | "unitPrice">[]>();
+  for (const r of wanted)
+    out.set(
+      r.id,
+      rows
+        .filter((l) => l.cartId === r.fromCartId && l.userId === r.userId)
+        .map(({ qty, unitPrice }) => ({ qty, unitPrice })),
+    );
+  return out;
 }
 
 /** The signed-in user's waiting request to join this cart, if any. */

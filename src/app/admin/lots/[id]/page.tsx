@@ -10,7 +10,7 @@ import { requireAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { storeSnapshot } from "@/server/stock";
-import { Table } from "../../list-bits";
+import { Table, Rows } from "../../list-bits";
 import { pcs } from "../../stock-charts";
 import { LotForm } from "../lot-form";
 
@@ -124,19 +124,6 @@ export default async function LotPage({ params }: PageProps<"/admin/lots/[id]">)
         </Card>
       </div>
     </>
-  );
-}
-
-function Rows({ rows }: { rows: [string, ReactNode][] }) {
-  return (
-    <dl className="flex flex-col gap-2">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between gap-3">
-          <dt className="text-subtle">{label}</dt>
-          <dd className="text-right">{value}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }
 

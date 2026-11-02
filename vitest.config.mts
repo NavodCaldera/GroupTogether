@@ -21,6 +21,8 @@ export default defineConfig({
         test: {
           name: "unit",
           include: ["src/**/*.test.ts"],
+          // Pure functions: worker threads start faster than forked processes.
+          pool: "threads",
         },
       },
       {

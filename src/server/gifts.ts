@@ -281,7 +281,7 @@ export async function recordGiftSettlement(
   if (!ids.length || reference.trim().length < 3 || reference.length > 200)
     throw new CatalogueError("Choose bills and enter the payment reference");
   const result = await db.$transaction(async (tx) => {
-    for (const id of ids) await tx.$queryRaw`SELECT 1 FROM "GiftOrder" WHERE id = ${id} FOR UPDATE`;
+    await tx.$queryRaw`SELECT 1 FROM "GiftOrder" WHERE id = ANY(${ids}) ORDER BY id FOR UPDATE`;
     const gifts = await tx.giftOrder.findMany({
       where: {
         id: { in: ids },

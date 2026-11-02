@@ -5,6 +5,7 @@ import { cartTotal } from "@/lib/cart-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
 import { acceptMergeAction, declineMergeAction, markAllReadAction } from "@/server/carts/actions";
+import { mergeRequestLines } from "@/server/carts/queries";
 import { db } from "@/server/db";
 
 export const metadata: Metadata = { title: "Notifications" };
@@ -34,19 +35,8 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
       toCart: { select: { code: true } },
     },
   });
-  const brings = new Map(
-    await Promise.all(
-      requests
-        .filter((r) => r.status === "PENDING" && r.fromCartId)
-        .map(async (r) => {
-          const lines = await db.cartLine.findMany({
-            where: { cartId: r.fromCartId!, userId: r.userId },
-            select: { qty: true, unitPrice: true },
-          });
-          return [r.id, cartTotal(lines)] as const;
-        }),
-    ),
-  );
+  const pendingLines = await mergeRequestLines(requests.filter((r) => r.status === "PENDING"));
+  const brings = new Map([...pendingLines].map(([id, lines]) => [id, cartTotal(lines)] as const));
   const requestFor = (href: string | null, title: string) => {
     if (!href) return undefined;
     const id = href.includes("?") ? new URLSearchParams(href.split("?")[1]).get("request") : null;
