@@ -117,3 +117,41 @@ export async function factoryStockAction(_p: SellerState, fd: FormData): Promise
   await flash("Stock updated");
   return {};
 }
+
+/**
+ * Inline stock on the factory's Products page (2026-11-03): add or remove pieces of one size with
+ * no client script. Problems come back as the pop-up message.
+ */
+export async function factorySizeStockAction(fd: FormData) {
+  const seller = await requireSeller();
+  const productId = str(fd, "productId");
+  const qty = Number(str(fd, "qty"));
+  const sign = str(fd, "dir") === "remove" ? -1 : 1;
+  try {
+    await adjustStock(productId, str(fd, "size"), str(fd, "colour"), sign * qty, {
+      sellerId: seller.id,
+    });
+    await flash(sign > 0 ? `Added ${qty}` : `Removed ${qty}`);
+  } catch (e) {
+    if (!(e instanceof CatalogueError)) throw e;
+    await flash(e.message);
+  }
+  revalidatePath("/seller", "layout");
+  revalidatePath("/shop");
+}
+
+/** A sold-out size that was never in a cart can be taken off the listing. */
+export async function removeFactorySizeAction(fd: FormData) {
+  const seller = await requireSeller();
+  const removed = await db.variant.deleteMany({
+    where: {
+      id: str(fd, "variantId"),
+      available: 0,
+      reserved: 0,
+      lines: { none: {} },
+      product: { sellerId: seller.id },
+    },
+  });
+  await flash(removed.count ? "Size removed" : "This size has orders, so it stays");
+  revalidatePath("/seller", "layout");
+}
