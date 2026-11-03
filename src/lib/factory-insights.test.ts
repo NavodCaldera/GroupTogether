@@ -19,7 +19,9 @@ describe("factory figures", () => {
       { qty: 3, unitPrice: "1000", status: "SLIP_REVIEW" as const },
       { qty: 4, unitPrice: "1000", status: "EXPIRED" as const },
     ];
-    expect(paidTotals(lines)).toEqual({ pieces: 3, value: 3000 });
+    const t = paidTotals(lines);
+    expect(t.pieces).toBe(3);
+    expect(t.value.toString()).toBe("3000");
   });
 
   it("hide the rating average below 5 ratings but always give the count", () => {
@@ -51,9 +53,9 @@ describe("factory figures", () => {
     expect(median([5, 1, 3])).toBe(3);
     expect(median([4, 2])).toBe(3);
     expect(median([])).toBeNull();
-    expect(priceBand(1999)).toBe("Under 2,000");
-    expect(priceBand(4000)).toBe("4,000–5,999");
-    expect(priceBand(9000)).toBe("6,000 and up");
+    expect(priceBand("1999.99")).toBe("Under 2,000");
+    expect(priceBand("4000")).toBe("4,000–5,999");
+    expect(priceBand("9000")).toBe("6,000 and up");
     expect(towardMinimum("25000", "50000")).toBe(50);
     expect(towardMinimum("60000", "50000")).toBe(100);
   });

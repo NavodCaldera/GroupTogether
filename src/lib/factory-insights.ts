@@ -1,4 +1,5 @@
 import type { CartStatus } from "./cart-rules";
+import { D, toD } from "./decimal";
 
 /**
  * Figures for a factory's own dashboard (product owner, 2026-11-03). No database. Two numbers are
@@ -23,11 +24,11 @@ type LineLike = { qty: number; unitPrice: { toString(): string }; status: CartSt
 /** Pieces and value sold, from paid carts only; unpaid carts never count. */
 export function paidTotals(lines: readonly LineLike[]) {
   let pieces = 0;
-  let value = 0;
+  let value = new D(0);
   for (const l of lines) {
     if (!PAID.includes(l.status)) continue;
     pieces += l.qty;
-    value += Number(l.unitPrice.toString()) * l.qty;
+    value = value.plus(toD(l.unitPrice).times(l.qty));
   }
   return { pieces, value };
 }
@@ -79,12 +80,14 @@ export const PRICE_BANDS = [
   { label: "6,000 and up", max: Infinity },
 ] as const;
 
-export function priceBand(price: number): string {
-  return PRICE_BANDS.find((b) => price < b.max)!.label;
+export function priceBand(price: { toString(): string }): string {
+  const p = toD(price);
+  return PRICE_BANDS.find((b) => p.lt(b.max))!.label;
 }
 
 /** How far a cart is toward its minimum, as a whole percent capped at 100. */
 export function towardMinimum(total: { toString(): string }, minimum: { toString(): string }) {
-  const min = Number(minimum.toString());
-  return min > 0 ? Math.min(100, Math.floor((Number(total.toString()) / min) * 100)) : 100;
+  const min = toD(minimum);
+  if (min.lte(0)) return 100;
+  return Math.min(100, toD(total).div(min).times(100).floor().toNumber());
 }

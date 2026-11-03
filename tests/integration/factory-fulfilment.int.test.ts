@@ -156,11 +156,13 @@ describe("factory-direct fulfilment", () => {
     await setLine(other.id, open.id, v.id, 3);
 
     const home = await factoryHome(factory.id);
-    expect(home.month).toMatchObject({ pieces: 2, value: 50000, delivered: 1 });
+    expect(home.month).toMatchObject({ pieces: 2, delivered: 1 });
+    expect(home.month.value.toString()).toBe("50000");
     expect(home.months.reduce((n, m) => n + m.pieces, 0)).toBe(2);
     expect(home.toPack).toBe(0);
     const [product] = await factoryProducts(factory.id);
-    expect(product).toMatchObject({ pieces: 2, value: 50000, bestSize: "UK 9" });
+    expect(product).toMatchObject({ pieces: 2, bestSize: "UK 9" });
+    expect(product.value.toString()).toBe("50000");
     expect(product.variants[0]).toMatchObject({ available: 5, reserved: 3, soldPaid: 2 });
     expect((await factoryOrderBoard(factory.id)).counts).toMatchObject({ delivered: 1, toPack: 0 });
     const insights = await factoryInsights(factory.id);

@@ -842,6 +842,36 @@ async function main() {
     true,
   );
   await shirtCart(1, 2150, [[SACHINI, "XL", 3]], false);
+  // Factory-direct (product owner, 2026-11-03): a paid shirt order the factory still has to pack.
+  const shirtPaidAt = addHours(now, -5);
+  await db.groupCart.create({
+    data: {
+      code: newCartCode(randomBytes),
+      name: `${users[SACHINI].name}'s shirt cart`,
+      ownerId: users[SACHINI].id,
+      status: "CONFIRMED",
+      minOrderValue: 50000,
+      total: 24 * 2150,
+      createdAt: addHours(shirtPaidAt, -6),
+      expiresAt: addHours(shirtPaidAt, 18),
+      readyAt: addHours(shirtPaidAt, -3),
+      acceptedAt: addHours(shirtPaidAt, -2),
+      slipDueAt: addHours(shirtPaidAt, 1),
+      confirmedAt: shirtPaidAt,
+      deliveryAddress: users[SACHINI].address,
+      deliveryCity: users[SACHINI].city,
+      deliveryLat: users[SACHINI].lat,
+      deliveryLng: users[SACHINI].lng,
+      deliveryPhone: users[SACHINI].phone,
+      members: { create: [{ userId: users[SACHINI].id }] },
+      lines: {
+        create: [
+          { userId: users[SACHINI].id, variantId: shirtSize("M"), qty: 12, unitPrice: 2150 },
+          { userId: users[SACHINI].id, variantId: shirtSize("L"), qty: 12, unitPrice: 2150 },
+        ],
+      },
+    },
+  });
 
   // ─── A luxury brand (product owner, 2026-10-24): fictional, on a reserved .example domain ──
   // It publishes discounted products with the actual price, the discount price we buy at, the

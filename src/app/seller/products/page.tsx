@@ -77,7 +77,11 @@ export default async function FactoryProductsPage() {
                     const alert = stockAlert(v.available);
                     const size = v.colour ? `${v.size} · ${v.colour}` : v.size;
                     return (
-                      <li key={v.id} className="rounded-lg bg-muted/50 p-2 text-sm">
+                      <li
+                        key={v.id}
+                        aria-label={`Size ${size}`}
+                        className="rounded-lg bg-muted/50 p-2 text-sm"
+                      >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium">
                             {size}

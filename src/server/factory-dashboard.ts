@@ -11,6 +11,7 @@ import {
   stockAlert,
   towardMinimum,
 } from "@/lib/factory-insights";
+import { D } from "@/lib/decimal";
 import { colomboIsoDay } from "@/lib/format";
 import { findKind } from "@/lib/taxonomy";
 import { db } from "./db";
@@ -96,15 +97,18 @@ export async function factoryHome(factoryId: string, now = new Date()) {
     }),
   ]);
   const thisMonth = month(now);
-  const months = new Map<string, { pieces: number; value: number }>();
+  const months = new Map<string, { pieces: number; value: D }>();
   for (let i = 5; i >= 0; i--)
-    months.set(month(new Date(now.getFullYear(), now.getMonth() - i, 15)), { pieces: 0, value: 0 });
+    months.set(month(new Date(now.getFullYear(), now.getMonth() - i, 15)), {
+      pieces: 0,
+      value: new D(0),
+    });
   for (const l of lines) {
     const m = l.cart.confirmedAt && months.get(month(l.cart.confirmedAt));
     if (!m) continue;
     const t = paidTotals([l]);
     m.pieces += t.pieces;
-    m.value += t.value;
+    m.value = m.value.plus(t.value);
   }
   const alerts = [
     ...failed.map((c) => ({
@@ -133,7 +137,7 @@ export async function factoryHome(factoryId: string, now = new Date()) {
     toPack,
     lastPackedAt: lastPacked?.factoryPackedAt ?? null,
     month: {
-      ...(months.get(thisMonth) ?? { pieces: 0, value: 0 }),
+      ...(months.get(thisMonth) ?? { pieces: 0, value: new D(0) }),
       delivered: delivered.filter((c) => c.delivery && month(c.delivery.updatedAt) === thisMonth)
         .length,
     },
@@ -293,7 +297,7 @@ export async function factoryInsights(factoryId: string) {
     const p = l.variant.product;
     const cat = findKind(p.kind)?.label ?? p.category;
     const row = bands.get(cat) ?? new Map<string, number>();
-    const band = priceBand(Number(l.unitPrice.toString()));
+    const band = priceBand(l.unitPrice);
     row.set(band, (row.get(band) ?? 0) + l.qty);
     bands.set(cat, row);
   }

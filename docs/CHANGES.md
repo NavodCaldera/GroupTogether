@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-03 - Factory dashboard rebuilt (phone first)
+
+- Owner brief: rebuild the factory area around Home, Orders, Products and Ratings/Insights for 360px phones. Home shows alerts (failed drops, sold-out and low sizes, 3 or fewer left), an "Orders to pack" card and this month's paid figures above the fold, with the six-month chart below. Orders shows counts per stage and an optimistic, double-tap-safe Mark packed. Products shows paid sales, the best-selling size, and per size "wanted in active carts (not sales yet)", with inline add/remove stock and removal of a sold-out size never put in a cart. Insights shows the rating (average hidden below 5 ratings, count always shown), restock advice, median time to pack with its sample, active-cart demand, pieces by price band and paid orders by city (cities under 5 orders hidden). Sales are always paid carts only. Rules live in `src/lib/factory-insights.ts`, queries in `src/server/factory-dashboard.ts`. The seed adds a paid shirt order for the demo factory to pack. The shop keeps showing ratings from the first rating (buyer pages were out of scope).
+
 ## 2026-11-03 - Green CI and dependency updates
 
 - Owner request: fix the failing checks on `main` and bring it level with the open branches. Browser tests now cover the four admins (core adds admins for every area) and the parked packing page has a heading. Paid orders of our own listings (no factory) are booked without a factory packing step, so they no longer wait forever (`DEC-010` still open on who packs them). Applied the Dependabot updates on `main`: React and React DOM 19.3.1, dotenv 18.0.9, `actions/checkout` 7.0.1, `actions/setup-node` 7.1.0 and `actions/upload-artifact` 7.0.2.
