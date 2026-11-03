@@ -4,7 +4,12 @@ import { approveSlip, uploadSlip } from "@/server/carts/slips";
 import { db } from "@/server/db";
 import { bookDelivery, setDeliveryStatus } from "@/server/delivery";
 import { IN_SHOP, adjustStock, saveProduct } from "@/server/catalogue";
-import { factoryDashboard } from "@/server/factory-dashboard";
+import {
+  factoryHome,
+  factoryInsights,
+  factoryOrderBoard,
+  factoryProducts,
+} from "@/server/factory-dashboard";
 import { factoryOrders, markFactoryPacked } from "@/server/factory-orders";
 import { rateFactory, ratingSummaries } from "@/server/ratings";
 import { cartRow, makeUser, makeVariant, resetDb, slipFile } from "./helpers";
@@ -145,11 +150,53 @@ describe("factory-direct fulfilment", () => {
       count: 2,
     });
 
-    const dash = await factoryDashboard(factory.id);
-    expect(dash.pieces).toBe(2);
-    expect(dash.value.toString()).toBe("50000");
-    expect(dash.orders.delivered).toBe(1);
-    expect(dash.rating).toMatchObject({ average: 4.5, count: 2 });
-    expect(dash.products[0]).toMatchObject({ pieces: 2, stockLeft: 8 });
+    // An unpaid cart holding 3 more pieces is "wanted", never a sale.
+    const other = await makeUser();
+    const open = await createCart(other.id, {});
+    await setLine(other.id, open.id, v.id, 3);
+
+    const home = await factoryHome(factory.id);
+    expect(home.month).toMatchObject({ pieces: 2, value: 50000, delivered: 1 });
+    expect(home.months.reduce((n, m) => n + m.pieces, 0)).toBe(2);
+    expect(home.toPack).toBe(0);
+    const [product] = await factoryProducts(factory.id);
+    expect(product).toMatchObject({ pieces: 2, value: 50000, bestSize: "UK 9" });
+    expect(product.variants[0]).toMatchObject({ available: 5, reserved: 3, soldPaid: 2 });
+    expect((await factoryOrderBoard(factory.id)).counts).toMatchObject({ delivered: 1, toPack: 0 });
+    const insights = await factoryInsights(factory.id);
+    // Two ratings: the count shows, the average is held back until there are five.
+    expect(insights.rating).toMatchObject({ count: 2, average: null });
+    expect(insights.packTime.sample).toBe(1);
+    expect(insights.demand).toEqual([{ product: product.title, carts: 1, averagePct: 100 }]);
+    // One city with one order: suppressed.
+    expect(insights.cities).toEqual([]);
+  });
+
+  it("a rapid double tap on Mark packed changes the order once", async () => {
+    const [owner, admin] = [await makeUser(), await makeUser("ADMIN")];
+    const warehouse = await makeUser("ADMIN", "WAREHOUSE");
+    const { factory, v } = await factoryVariant();
+    const cart = await createCart(owner.id, {});
+    await setLine(owner.id, cart.id, v.id, 2);
+    await acceptAndPay(owner.id, cart.id, {
+      deliveryAddress: "12 Flower Rd",
+      deliveryCity: "Colombo",
+      deliveryPhone: "0771234567",
+    });
+    await uploadSlip(owner.id, cart.id, slipFile());
+    const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: cart.id } });
+    await approveSlip(admin.id, slip.id);
+    await Promise.all([
+      markFactoryPacked(factory.id, cart.id),
+      markFactoryPacked(factory.id, cart.id),
+    ]);
+    const first = (await cartRow(cart.id)).factoryPackedAt;
+    await markFactoryPacked(factory.id, cart.id);
+    expect((await cartRow(cart.id)).factoryPackedAt).toEqual(first);
+    expect(
+      await db.notification.count({
+        where: { userId: warehouse.id, title: "Ready for PickMe pickup" },
+      }),
+    ).toBe(1);
   });
 });
