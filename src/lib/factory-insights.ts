@@ -91,3 +91,36 @@ export function towardMinimum(total: { toString(): string }, minimum: { toString
   if (min.lte(0)) return 100;
   return Math.min(100, toD(total).div(min).times(100).floor().toNumber());
 }
+
+const LETTER_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"];
+
+/** Sizes in the order a packer reads them: letters small to large, then numbers, then the rest. */
+export function compareSizes(a: string, b: string) {
+  const la = LETTER_ORDER.indexOf(a.toUpperCase());
+  const lb = LETTER_ORDER.indexOf(b.toUpperCase());
+  if (la >= 0 || lb >= 0) return (la < 0 ? 99 : la) - (lb < 0 ? 99 : lb);
+  const na = parseFloat(a.replace(/[^\d.]/g, ""));
+  const nb = parseFloat(b.replace(/[^\d.]/g, ""));
+  if (!Number.isNaN(na) && !Number.isNaN(nb) && na !== nb) return na - nb;
+  return a.localeCompare(b);
+}
+
+/**
+ * A cutting-ticket grid (2026-11-03): one row per product (and colour), one column per size,
+ * pieces in each cell, so a packer reads what to pull at a glance.
+ */
+export function sizeGrid(
+  lines: readonly { qty: number; size: string; colour: string; product: string }[],
+) {
+  const sizes = [...new Set(lines.map((l) => l.size))].sort(compareSizes);
+  const rows = new Map<string, { label: string; cells: Record<string, number>; total: number }>();
+  for (const l of lines) {
+    const label = l.colour ? `${l.product}, ${l.colour}` : l.product;
+    const row = rows.get(label) ?? { label, cells: {}, total: 0 };
+    row.cells[l.size] = (row.cells[l.size] ?? 0) + l.qty;
+    row.total += l.qty;
+    rows.set(label, row);
+  }
+  const all = [...rows.values()];
+  return { sizes, rows: all, total: all.reduce((n, r) => n + r.total, 0) };
+}

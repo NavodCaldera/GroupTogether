@@ -8,6 +8,7 @@ import {
   priceBand,
   ratingDisplay,
   restockAdvice,
+  sizeGrid,
   stockAlert,
   towardMinimum,
 } from "@/lib/factory-insights";
@@ -83,8 +84,13 @@ export async function factoryHome(factoryId: string, now = new Date()) {
       },
       select: { code: true, deliveryCity: true },
     }),
-    db.groupCart.count({
-      where: { status: "CONFIRMED", factoryPackedAt: null, ...ownCarts(factoryId) },
+    db.cartLine.findMany({
+      where: { ...own(factoryId), cart: { status: "CONFIRMED", factoryPackedAt: null } },
+      select: {
+        qty: true,
+        cartId: true,
+        variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
+      },
     }),
     db.groupCart.findFirst({
       where: { factoryPackedById: factoryId },
@@ -134,7 +140,16 @@ export async function factoryHome(factoryId: string, now = new Date()) {
   ];
   return {
     alerts,
-    toPack,
+    toPack: new Set(toPack.map((l) => l.cartId)).size,
+    // Everything waiting to be packed, as one cutting-ticket grid.
+    toPackGrid: sizeGrid(
+      toPack.map((l) => ({
+        qty: l.qty,
+        size: l.variant.size,
+        colour: l.variant.colour,
+        product: l.variant.product.title,
+      })),
+    ),
     lastPackedAt: lastPacked?.factoryPackedAt ?? null,
     month: {
       ...(months.get(thisMonth) ?? { pieces: 0, value: new D(0) }),

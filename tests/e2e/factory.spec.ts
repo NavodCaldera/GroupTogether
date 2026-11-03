@@ -26,8 +26,10 @@ test("factory: home on a phone → orders → mark packed → stock edit", async
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     .toBe(true);
 
+  await page.screenshot({ path: "test-results/factory-home-mobile.png", fullPage: true });
   await card.click();
   await expect(page).toHaveURL(/\/seller\/orders$/);
+  await page.screenshot({ path: "test-results/factory-orders-mobile.png", fullPage: true });
   const pack = page.getByRole("button", { name: "Mark packed" });
   await pack.click();
   await expect(page.getByRole("button", { name: "Packed ✓" })).toBeDisabled();
@@ -38,6 +40,10 @@ test("factory: home on a phone → orders → mark packed → stock edit", async
 
   await page.getByRole("link", { name: "Products" }).click();
   await expect(page).toHaveURL(/\/seller\/products$/);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
+  await page.screenshot({ path: "test-results/factory-products-mobile.png", fullPage: true });
   const size = page.getByRole("listitem", { name: "Size S", exact: true });
   const left = async () =>
     Number((await size.getByText(/^(\d+ left|Sold out)$/).textContent())?.match(/\d+/)?.[0] ?? 0);
@@ -45,4 +51,8 @@ test("factory: home on a phone → orders → mark packed → stock edit", async
   await size.getByLabel(/Pieces of S/).fill("5");
   await size.getByRole("button", { name: "Add" }).click();
   await expect.poll(left).toBe(before + 5);
+
+  await page.goto("/seller/insights");
+  await expect(page.getByRole("heading", { name: "Ratings and insights" })).toBeVisible();
+  await page.screenshot({ path: "test-results/factory-insights-mobile.png", fullPage: true });
 });

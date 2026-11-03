@@ -35,6 +35,10 @@ test("buyer, admin, brand and packing workspaces remain usable at the configured
     ["buyers@groupbasket.lk", "/admin/warehouse"],
     ["premium@groupbasket.lk", "/admin/brands"],
     ["brand@example.com", "/seller?tab=products"],
+    ["seller@example.com", "/seller"],
+    ["seller@example.com", "/seller/orders"],
+    ["seller@example.com", "/seller/products"],
+    ["seller@example.com", "/seller/insights"],
     ["packer@example.com", "/packing"],
   ]) {
     await page.context().clearCookies();

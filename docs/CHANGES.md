@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-03 - Factory dashboard redesigned as cutting tickets
+
+- Owner request: connect the `frontend-design` skill from github.com/anthropics/skills (installed at `.claude/skills/frontend-design/`) and rebuild the factory dashboard with it. Owner chose the "cutting ticket" direction: each order and the Home "Pack these" card is a ticket with a thick frame, a dashed tear line and a large sizes-across, pieces-down grid (`sizeGrid` in `src/lib/factory-insights.ts`, sizes in reading order). The factory pages use Atkinson Hyperlegible for readability, the app's own green/amber/red, a five-stage pipeline joined by a line, and a tape-measure monthly chart. The factory pages are now part of the axe accessibility checks; scrollable tables can be reached by keyboard. Behaviour, figures and privacy rules are unchanged.
+
 ## 2026-11-03 - Factory dashboard rebuilt (phone first)
 
 - Owner brief: rebuild the factory area around Home, Orders, Products and Ratings/Insights for 360px phones. Home shows alerts (failed drops, sold-out and low sizes, 3 or fewer left), an "Orders to pack" card and this month's paid figures above the fold, with the six-month chart below. Orders shows counts per stage and an optimistic, double-tap-safe Mark packed. Products shows paid sales, the best-selling size, and per size "wanted in active carts (not sales yet)", with inline add/remove stock and removal of a sold-out size never put in a cart. Insights shows the rating (average hidden below 5 ratings, count always shown), restock advice, median time to pack with its sample, active-cart demand, pieces by price band and paid orders by city (cities under 5 orders hidden). Sales are always paid carts only. Rules live in `src/lib/factory-insights.ts`, queries in `src/server/factory-dashboard.ts`. The seed adds a paid shirt order for the demo factory to pack. The shop keeps showing ratings from the first rating (buyer pages were out of scope).

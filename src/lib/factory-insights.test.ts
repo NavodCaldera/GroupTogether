@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   citiesShown,
+  compareSizes,
+  sizeGrid,
   median,
   paidTotals,
   priceBand,
@@ -58,5 +60,22 @@ describe("factory figures", () => {
     expect(priceBand("9000")).toBe("6,000 and up");
     expect(towardMinimum("25000", "50000")).toBe(50);
     expect(towardMinimum("60000", "50000")).toBe(100);
+  });
+
+  it("lay out a cutting-ticket grid with sizes in reading order", () => {
+    expect(["XL", "S", "M"].sort(compareSizes)).toEqual(["S", "M", "XL"]);
+    expect(["UK 10", "UK 8", "UK 9"].sort(compareSizes)).toEqual(["UK 8", "UK 9", "UK 10"]);
+    const grid = sizeGrid([
+      { qty: 12, size: "L", colour: "", product: "Shirt" },
+      { qty: 12, size: "M", colour: "", product: "Shirt" },
+      { qty: 3, size: "M", colour: "", product: "Shirt" },
+      { qty: 2, size: "S", colour: "Blue", product: "Dress" },
+    ]);
+    expect(grid.sizes).toEqual(["S", "M", "L"]);
+    expect(grid.rows).toEqual([
+      { label: "Shirt", cells: { L: 12, M: 15 }, total: 27 },
+      { label: "Dress, Blue", cells: { S: 2 }, total: 2 },
+    ]);
+    expect(grid.total).toBe(29);
   });
 });
