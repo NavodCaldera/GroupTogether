@@ -12,42 +12,6 @@ const ofFactory = (factoryId: string) => ({
   lines: { some: { variant: { product: { sellerId: factoryId } } } },
 });
 
-/** The factory's paid orders: still to pack and on their way first, then the last delivered. */
-export async function factoryOrders(factoryId: string) {
-  const select = {
-    id: true,
-    code: true,
-    status: true,
-    confirmedAt: true,
-    factoryPackedAt: true,
-    deliveryCity: true,
-    lines: {
-      select: {
-        qty: true,
-        variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
-      },
-      orderBy: { variantId: "asc" as const },
-    },
-    delivery: {
-      select: { status: true, driverName: true, trackingUrl: true, externalRef: true },
-    },
-  };
-  const [open, delivered] = await Promise.all([
-    db.groupCart.findMany({
-      where: { status: { in: ["CONFIRMED", "DISPATCHED"] }, ...ofFactory(factoryId) },
-      select,
-      orderBy: { confirmedAt: "asc" },
-    }),
-    db.groupCart.findMany({
-      where: { status: "DELIVERED", ...ofFactory(factoryId) },
-      select,
-      orderBy: { updatedAt: "desc" },
-      take: 20,
-    }),
-  ]);
-  return [...open, ...delivered];
-}
-
 /** The factory says the parcel is packed and ready for the PickMe driver. */
 export async function markFactoryPacked(factoryId: string, cartId: string, now = new Date()) {
   const cart = await db.$transaction(async (tx) => {

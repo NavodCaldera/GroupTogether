@@ -10,7 +10,7 @@ import {
   factoryOrderBoard,
   factoryProducts,
 } from "@/server/factory-dashboard";
-import { factoryOrders, markFactoryPacked } from "@/server/factory-orders";
+import { markFactoryPacked } from "@/server/factory-orders";
 import { rateFactory, ratingSummaries } from "@/server/ratings";
 import { cartRow, makeUser, makeVariant, resetDb, slipFile } from "./helpers";
 
@@ -67,8 +67,8 @@ describe("factory-direct fulfilment", () => {
     expect(
       await db.notification.count({ where: { userId: factory.id, title: "New order to pack" } }),
     ).toBe(1);
-    expect((await factoryOrders(factory.id)).map((o) => o.code)).toEqual([cart.code]);
-    expect(await factoryOrders(other.factory.id)).toEqual([]);
+    expect((await factoryOrderBoard(factory.id)).orders.map((o) => o.code)).toEqual([cart.code]);
+    expect((await factoryOrderBoard(other.factory.id)).orders).toEqual([]);
     await expect(markFactoryPacked(other.factory.id, cart.id)).rejects.toThrow("not found");
 
     await expect(bookDelivery(cart.id, {})).rejects.toThrow("hasn't marked this order packed");
@@ -90,7 +90,7 @@ describe("factory-direct fulfilment", () => {
     await setDeliveryStatus(d.id, "PICKED_UP");
     await setDeliveryStatus(d.id, "DELIVERED");
     expect((await cartRow(cart.id)).status).toBe("DELIVERED");
-    expect((await factoryOrders(factory.id))[0].delivery?.status).toBe("DELIVERED");
+    expect((await factoryOrderBoard(factory.id)).orders[0].delivery?.status).toBe("DELIVERED");
   });
 
   it("factories publish their own listings straight to the shop; admins can hide them", async () => {
