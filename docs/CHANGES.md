@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Factory partnership specification approved (not built)
+
+- Owner request: rethink how factories join and stay on GroupBasket. Worked through BMad Method (product brief) and GitHub Spec Kit (specification and clarification); the approved contract is [the factory partnership spec](../specs/001-factory-partnership/spec.md). Checks, in-app 12-month agreement, per-product ratings and reports, flags, hide product, remove factory, tokens instead of refunds, returns within 2 days, commission added on top of the factory price. `DEC-013`.
+
 ## 2026-11-04 - White light mode by default, dark mode optional
 
 - Owner request: white background, light mode as the default, with an option for dark. The site no longer follows the device's night setting; a sun/moon button in the header switches theme and remembers it in the `gt_theme` cookie (`src/server/theme.ts`, `data-theme` on `<html>`). Colour tokens are unchanged.

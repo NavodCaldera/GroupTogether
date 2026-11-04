@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-05
 
-**Status**: Draft
+**Status**: Approved (2026-11-05)
 
 **Input**: Approved product brief `_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md`, first-version items 1–8.
 
@@ -130,8 +130,10 @@ longer see it; remove a factory and check its listings vanish and unpaid cart it
 
 1. **Given** a product reaches a flag condition, **Then** it appears in the admin's flag list and
    stays visible to buyers until an admin hides it.
-2. **Given** an admin hides a product, **Then** buyers can no longer see or add it, and items already
-   in unpaid carts are removed.
+2. **Given** an admin hides a product for a quality issue, **Then** only that product is removed:
+   buyers can no longer see or add it, it is removed from unpaid carts, and in paid orders not yet
+   delivered that item is cancelled and each buyer gets tokens for it and is told the reason. The
+   factory's other products are unaffected.
 3. **Given** an admin removes a factory, **Then** all its listings vanish, its items are removed
    from unpaid carts, its staff can no longer sign in, and no message is sent to the factory.
 4. **Given** a removed factory with paid orders not yet delivered, **Then** all those orders are
@@ -202,7 +204,8 @@ that item is removed.
 
 - An owner's agreement expires while their staff are mid-packing: paid orders continue; only
   listing and new sales stop.
-- A product is hidden while it sits in a paid cart: the paid cart is unaffected.
+- A product is hidden while it sits in a paid cart: that item is cancelled and its buyer gets
+  tokens; the rest of the cart continues.
 - A factory is removed while a return for its item is open: the admin decides the return.
 - A member with tokens leaves a cart before payment: their tokens are returned to them unspent.
 - A cart that used tokens is cancelled by a factory removal: the member gets back both the tokens
@@ -270,6 +273,8 @@ that item is removed.
   days; and flag a factory under 3.0 over 20+ ratings, or with 3 or more flagged products.
 - **FR-019**: Factories admins MUST be able to hide a product and remove a factory; System MUST NOT
   do either automatically.
+- **FR-019a**: Hiding a product MUST affect only that product: remove it from unpaid carts and
+  cancel it in paid orders not yet delivered, giving each buyer tokens and the reason.
 - **FR-020**: Removing a factory MUST hide its listings, remove its items from unpaid carts, end its
   staff access, and send no message to the factory.
 - **FR-021**: Removing a factory MUST cancel all its paid orders not yet delivered, tell each
@@ -356,6 +361,8 @@ that item is removed.
 - Q: Who can open the private documents? → A: Factories admins and the core admin.
 - Q: Do tokens equal the price paid or only the factory's share? → A: The full price the buyer
   paid, including commission.
+- Q: What happens to paid orders when one product is hidden? → A: Only that item is cancelled;
+  buyers get tokens for it.
 
 ## Assumptions
 
