@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { EmptyState } from "@/components/ui";
 import { MIN_CITY_ORDERS, MIN_RATINGS, PRICE_BANDS } from "@/lib/factory-insights";
-import { requireSeller } from "@/server/auth/session";
+import { requireFactory } from "@/server/auth/session";
 import { factoryInsights } from "@/server/factory-dashboard";
 import { FactoryShell, ScrollTable, Ticket } from "../factory-bits";
 
@@ -14,11 +14,11 @@ export const metadata: Metadata = { title: "Ratings and insights" };
  * hidden). Tables and plain numbers only.
  */
 export default async function FactoryInsightsPage() {
-  const seller = await requireSeller();
-  const d = await factoryInsights(seller.id);
+  const seller = await requireFactory("insights");
+  const d = await factoryInsights(seller.factoryId);
   const hours = d.packTime.medianHours;
   return (
-    <FactoryShell active="insights" title="Ratings and insights">
+    <FactoryShell active="insights" role={seller.factoryRole} title="Ratings and insights">
       <div className="flex flex-col gap-4">
         <Ticket>
           <h2 className="mb-1 font-bold">Your rating</h2>

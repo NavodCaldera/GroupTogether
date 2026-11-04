@@ -8,7 +8,9 @@ import {
   canAdminArea,
   type OperationalAdminArea,
 } from "@/lib/admin-access";
+import { canFactory, factoryOf, type FactorySection } from "@/lib/factory-roles";
 import type { Role } from "@/generated/prisma/client";
+import { db } from "../db";
 import { type SessionUser, endSession, homeFor, startSession, userForToken } from "./service";
 
 const COOKIE = "gt_session";
@@ -62,4 +64,19 @@ export async function requireAnyAdmin() {
   return { ...user, adminArea: area };
 }
 export const requireSeller = () => requireUser(["SELLER"]);
+/**
+ * A factory login (owner or staff, 2026-11-04) allowed into `section`: who they are, the factory
+ * account they work for, and their job there. Luxury brands go to their own dashboard.
+ */
+export async function requireFactory(section: FactorySection) {
+  const user = await requireSeller();
+  const me = await db.user.findUniqueOrThrow({
+    where: { id: user.id },
+    select: { id: true, isBrand: true, factoryId: true, factoryRole: true },
+  });
+  if (me.isBrand) redirect("/seller");
+  const { factoryId, factoryRole } = factoryOf(me);
+  if (!canFactory(factoryRole, section)) redirect(section === "home" ? "/" : "/seller");
+  return { ...user, factoryId, factoryRole };
+}
 export const requirePacker = () => requireUser(["PACKER"]);

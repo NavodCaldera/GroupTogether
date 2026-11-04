@@ -99,7 +99,7 @@ Four admins: luxury brands, factories, buyers, and a core admin who handles only
 
 ### DEC-012 - Factory roles, payouts and feedback
 
-**Status:** Approved by the owner on **2026-11-04**; not built yet. **Spec:** [factory dashboard](factory-dashboard-spec.md).
+**Status:** Approved by the owner on **2026-11-04**; staff logins and roles built (phase 1), the rest not built yet. **Spec:** [factory dashboard](factory-dashboard-spec.md).
 
 Factories get one login per person with fixed roles (packing, planner, sales, owner; several owners allowed; only owners see money). GroupBasket keeps a commission of **LKR 100 per piece** and pays each order to the factory **after delivery by bank transfer**, recorded with the bank reference. Packing staff book PickMe from the factory (API, with a manual fallback); the cart owner still pays the driver. Design drafts collect interest, stars, comments and votes before publishing. Public comments, questions and replies post at once and are hidden by an admin when reported; factories never contact buyers directly. Open: refunds or chargebacks after a payout, and what happens to interest when a draft is dropped.
 

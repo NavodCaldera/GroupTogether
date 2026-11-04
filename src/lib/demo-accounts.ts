@@ -27,9 +27,27 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     lands: "/admin/warehouse",
   },
   {
-    role: "Factory",
+    role: "Factory owner",
     name: "Nuwan · Ceylon Apparel Mills",
     email: "seller@example.com",
+    lands: "/seller",
+  },
+  {
+    role: "Factory packing",
+    name: "Ruwan · Ceylon Apparel Mills",
+    email: "packing@example.com",
+    lands: "/seller",
+  },
+  {
+    role: "Factory planner",
+    name: "Malini · Ceylon Apparel Mills",
+    email: "planner@example.com",
+    lands: "/seller",
+  },
+  {
+    role: "Factory sales",
+    name: "Chamari · Ceylon Apparel Mills",
+    email: "sales@example.com",
     lands: "/seller",
   },
   {

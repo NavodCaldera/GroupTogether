@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-04 - Factory staff logins and per-role tabs (dashboard phase 1)
+
+- Owner request: build the agreed factory dashboard, starting with phase 1. Each factory person now has their own login with a fixed job (`FactoryRole`: Owner, Packing, Planner, Sales; `User.factoryId` links staff to the factory account, migration `factory_staff`). The factory account is always an owner. Owners add staff, change jobs and lock someone who leaves on the new **Team** page (`/seller/team`, one row per person with orders packed this week). Each job sees only its own sections as **bottom tabs on the phone** (top tabs from `sm` up): Packing gets Home and Orders; Planner and Sales get Home, Products and Ratings; owners get all five. Only owners see rupee figures. Mark packed records the person who packed. Demo staff: `packing@`, `planner@`, `sales@example.com`. Rules in `src/lib/factory-roles.ts`, team service in `src/server/factory-team.ts`. `DEC-012`.
+
 ## 2026-11-04 - Factory dashboard content agreed (not built)
 
 - Owner request: stop the dashboard build and agree, role by role, what the factory dashboard contains before deciding priority and layout. Content for packing staff, planner, sales and owner is recorded in [the factory dashboard spec](factory-dashboard-spec.md). Business rules: one login per person with fixed roles, commission LKR 100 per piece, payout per order after delivery by bank transfer, cart owner still pays the PickMe driver, public feedback posts at once and is removed on report (`DEC-012`). Layout agreed the same day for each role (bottom tabs per role; packing: next order first with driver and return strips above, tap-row checklist, steps on one screen; planner: restock first; sales: things to answer first, funnel, one-page editor, one inbox; owner: problems first, per-order payout statement, team rows), recorded in the spec.

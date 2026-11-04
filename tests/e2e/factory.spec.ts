@@ -56,3 +56,32 @@ test("factory: home on a phone → orders → mark packed → stock edit", async
   await expect(page.getByRole("heading", { name: "Ratings and insights" })).toBeVisible();
   await page.screenshot({ path: "test-results/factory-insights-mobile.png", fullPage: true });
 });
+
+test("factory staff: each job gets its own bottom tabs; the owner adds staff", async ({ page }) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  const tabs = () => page.getByRole("navigation", { name: "Factory" }).getByRole("link");
+
+  await signIn(page, "packing@example.com");
+  await expect(tabs()).toHaveText(["Home", "Orders"]);
+  await expect(page.getByText("Sales (paid)", { exact: true })).toHaveCount(0);
+  await page.goto("/seller/products");
+  await expect(page).toHaveURL(/\/seller$/);
+
+  await signIn(page, "sales@example.com");
+  await expect(tabs()).toHaveText(["Home", "Products", "Ratings"]);
+
+  await signIn(page, "seller@example.com");
+  await expect(tabs()).toHaveText(["Home", "Orders", "Products", "Ratings", "Team"]);
+  await tabs().getByText("Team").click();
+  await expect(page.getByRole("listitem", { name: "Ruwan Perera" })).toBeVisible();
+  await page.getByLabel("Name", { exact: true }).fill("Kamal Jayasuriya");
+  await page.getByLabel("Email (they sign in with this)").fill("kamal@example.com");
+  await page.getByLabel("Job", { exact: true }).selectOption("PLANNER");
+  await page.getByLabel("Temporary password").fill("password123");
+  await page.getByRole("button", { name: "Add staff" }).click();
+  await expect(page.getByRole("listitem", { name: "Kamal Jayasuriya" })).toBeVisible();
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
+  await page.screenshot({ path: "test-results/factory-team-mobile.png", fullPage: true });
+});

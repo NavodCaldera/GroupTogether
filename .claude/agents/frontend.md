@@ -37,6 +37,7 @@ guidance, not business policy. Verify code pointers before editing.
 ## Role and journey boundaries
 
 - Buyer home is `/dashboard`; factory/brand `/seller`; packer `/packing`; admin `/admin`. Staff do not get buyer navigation. Backend role guards remain required.
+- Factory pages use `FactoryShell` with the login's `factoryRole`: it shows only that job's sections (`src/lib/factory-roles.ts`) as a bottom tab bar on phones and top tabs from `sm` up (2026-11-04). Hide rupee figures unless `seesMoney(role)`. Guard factory pages and actions with `requireFactory(section)` and use its `factoryId`, never the login id, for factory data.
 - Cart names derive from owners. Discovery cards stay minimal; distance belongs on discovery, not a cart map. Sharing uses dashboard copy-link; removed cart-page invite/share controls stay removed.
 - Cart members see others' names/totals and edit only their own lines. Render one next action from domain rules; dashboard wording belongs in `nextStep`/`journeyStep`, not duplicated page logic.
 - Profile location uses `LocationPicker`, the single on-demand map island. Keep map stacking isolated. City lookup is debounced; preserve the configured provider usage rather than switching services casually.

@@ -28,6 +28,8 @@ test("public catalogue and sign-in are accessible without horizontal overflow", 
 test("buyer, admin, brand and packing workspaces remain usable at the configured viewport", async ({
   page,
 }) => {
+  // Sixteen sign-ins and scans; a cold dev server compiles each page on first visit.
+  test.setTimeout(240_000);
   for (const [email, route] of [
     ["buyer@example.com", "/dashboard"],
     ["buyer@example.com", "/samples"],
@@ -39,6 +41,8 @@ test("buyer, admin, brand and packing workspaces remain usable at the configured
     ["seller@example.com", "/seller/orders"],
     ["seller@example.com", "/seller/products"],
     ["seller@example.com", "/seller/insights"],
+    ["seller@example.com", "/seller/team"],
+    ["packing@example.com", "/seller"],
     ["packer@example.com", "/packing"],
   ]) {
     await page.context().clearCookies();

@@ -5,7 +5,7 @@ import { ProductForm } from "@/app/admin/products/product-form";
 import { BackLink } from "@/components/client";
 import { StockTable } from "@/components/stock-table";
 import { Badge, Card, Field, Input, PageHeader } from "@/components/ui";
-import { requireSeller } from "@/server/auth/session";
+import { requireFactory } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { factoryStockAction, saveFactoryProductAction } from "@/server/seller-actions";
 
@@ -13,10 +13,10 @@ export const metadata: Metadata = { title: "Edit product" };
 
 /** A factory's own listing: details, and sizes with stock (product owner, 2026-11-03). */
 export default async function FactoryProductPage({ params }: PageProps<"/seller/products/[id]">) {
-  const seller = await requireSeller();
+  const seller = await requireFactory("products");
   const { id } = await params;
   const product = await db.product.findFirst({
-    where: { id, sellerId: seller.id, seller: { isBrand: false } },
+    where: { id, sellerId: seller.factoryId, seller: { isBrand: false } },
     include: { variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] } },
   });
   if (!product) notFound();

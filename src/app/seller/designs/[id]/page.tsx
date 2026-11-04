@@ -5,7 +5,7 @@ import { BackLink } from "@/components/client";
 import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import type { Demand } from "@/lib/design-rules";
 import { formatDate, formatLKR } from "@/lib/format";
-import { requireSeller } from "@/server/auth/session";
+import { requireFactory } from "@/server/auth/session";
 import { designInsight } from "@/server/designs";
 import { DemandBadge } from "../../design-bits";
 import { PriceQuantityChart, pcs } from "../../design-chart";
@@ -18,9 +18,9 @@ export const metadata: Metadata = { title: "Design" };
  * and the test against the bulk. Never buyer names, carts, our cost or margin.
  */
 export default async function DesignPage({ params }: PageProps<"/seller/designs/[id]">) {
-  const seller = await requireSeller();
+  const seller = await requireFactory("products");
   const { id } = await params;
-  const d = await designInsight(seller.id, id);
+  const d = await designInsight(seller.factoryId, id);
   if (!d) notFound();
   const boughtTotal = d.sizes.reduce((n, s) => n + s.bought, 0);
 

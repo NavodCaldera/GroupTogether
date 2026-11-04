@@ -13,7 +13,13 @@ const ofFactory = (factoryId: string) => ({
 });
 
 /** The factory says the parcel is packed and ready for the PickMe driver. */
-export async function markFactoryPacked(factoryId: string, cartId: string, now = new Date()) {
+/** `byId` is the person who packed it: the factory account or one of its staff (2026-11-04). */
+export async function markFactoryPacked(
+  factoryId: string,
+  cartId: string,
+  byId = factoryId,
+  now = new Date(),
+) {
   const cart = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${cartId} FOR UPDATE`;
     const c = await tx.groupCart.findFirst({
@@ -26,7 +32,7 @@ export async function markFactoryPacked(factoryId: string, cartId: string, now =
       throw new CartError("Only a paid order waiting to ship can be packed");
     await tx.groupCart.update({
       where: { id: cartId },
-      data: { factoryPackedAt: now, factoryPackedById: factoryId },
+      data: { factoryPackedAt: now, factoryPackedById: byId },
     });
     return c;
   });

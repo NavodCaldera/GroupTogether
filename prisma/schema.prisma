@@ -21,6 +21,14 @@ enum AdminArea {
   CORE
 }
 
+/// A factory staff member's fixed job (product owner, 2026-11-04). Only owners see money.
+enum FactoryRole {
+  OWNER
+  PACKING
+  PLANNER
+  SALES
+}
+
 enum Role {
   /// A buyer: joins and fills carts
   CUSTOMER
@@ -32,12 +40,12 @@ enum Role {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  role         Role       @default(CUSTOMER)
+  id           String       @id @default(cuid())
+  role         Role         @default(CUSTOMER)
   adminArea    AdminArea? // admins only
   name         String
-  email        String     @unique
-  phone        String?    @unique
+  email        String       @unique
+  phone        String?      @unique
   passwordHash String
   /// Default drop-off for carts this user owns
   address      String?
@@ -49,10 +57,17 @@ model User {
   company      String?
   /// Premium brand partner: offers gift products and fulfils paid basket gifts directly.
   /// `website` verifies retail references on the brand's own site.
-  isBrand      Boolean    @default(false)
+  isBrand      Boolean      @default(false)
   website      String?
-  locked       Boolean    @default(false)
-  createdAt    DateTime   @default(now())
+  locked       Boolean      @default(false)
+  /// Factory staff: the factory account they work for, and their job. The factory account itself
+  /// has neither and is always an owner.
+  factoryId    String?
+  factory      User?        @relation("FactoryStaff", fields: [factoryId], references: [id], onDelete: Cascade)
+  factoryRole  FactoryRole?
+  createdAt    DateTime     @default(now())
+
+  staff User[] @relation("FactoryStaff")
 
   sampleRequests     SampleRequest[]
   sessions           Session[]
@@ -81,6 +96,8 @@ model User {
   brandConversations BrandConversation[]     @relation("ConversationBrand")
   brandMessages      BrandMessage[]
   brandReads         BrandConversationRead[]
+
+  @@index([factoryId])
 }
 
 model Session {

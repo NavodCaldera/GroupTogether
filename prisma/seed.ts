@@ -6,7 +6,10 @@
  *   premium@groupbasket.lk   luxury brand admin → /admin/brands
  *   factory@groupbasket.lk   factory admin   → /admin/factory
  *   buyers@groupbasket.lk    buyers admin    → /admin/warehouse
- *   seller@example.com      seller      → /seller (Ceylon Apparel Mills: a tested linen shirt and its bulk)
+ *   seller@example.com      seller      → /seller (Ceylon Apparel Mills owner: a tested linen shirt and its bulk)
+ *   packing@example.com     factory staff → /seller (Ruwan, packing: Home and Orders)
+ *   planner@example.com     factory staff → /seller (Malini, planner: Home, Products, Ratings)
+ *   sales@example.com       factory staff → /seller (Chamari, sales: Home, Products, Ratings)
  *   brand@example.com       brand       → /seller (Serendib Atelier, a luxury brand)
  *   packer@example.com      packing     → /packing (Kasun: one paid order to check and gather)
  *   packer2@example.com     packing     → /packing (Ishara: rechecks and packs what Kasun gathered)
@@ -594,6 +597,23 @@ async function main() {
       passwordHash,
     },
   });
+  // Its staff, one login per job (2026-11-04). Nuwan's own account is the owner.
+  await db.user.createMany({
+    data: [
+      ["Ruwan Perera", "packing@example.com", "PACKING"],
+      ["Malini Silva", "planner@example.com", "PLANNER"],
+      ["Chamari Fernando", "sales@example.com", "SALES"],
+    ].map(([name, email, factoryRole]) => ({
+      role: "SELLER" as const,
+      factoryId: seller.id,
+      factoryRole: factoryRole as "PACKING" | "PLANNER" | "SALES",
+      name,
+      email,
+      company: "Ceylon Apparel Mills",
+      city: "Ja-Ela",
+      passwordHash,
+    })),
+  });
   const sellerProducts = [
     {
       title: "Factory leather loafer",
@@ -1000,7 +1020,8 @@ async function main() {
   console.log(`Seeded. Every password is password123.
   Admins  core@groupbasket.lk → /admin/users, premium@groupbasket.lk → /admin/brands,
           factory@groupbasket.lk → /admin/factory, buyers@groupbasket.lk → /admin/warehouse
-  Seller  seller@example.com      → /seller (a tested linen shirt and its bulk)
+  Seller  seller@example.com      → /seller (factory owner: a tested linen shirt and its bulk)
+  Staff   packing@example.com, planner@example.com, sales@example.com → /seller (one job each)
   Brand   brand@example.com       → /seller (Serendib Atelier: a luxury brand's discounted products)
   Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)
   Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)

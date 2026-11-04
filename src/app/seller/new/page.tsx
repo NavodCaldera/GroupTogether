@@ -7,23 +7,29 @@ import { BrandOfferForm } from "../brand-offer-form";
 import { ProductForm } from "@/app/admin/products/product-form";
 import { saveFactoryProductAction } from "@/server/seller-actions";
 import { snapshotTerms } from "@/server/brand-reviews";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { canFactory, factoryOf } from "@/lib/factory-roles";
 
 export const metadata: Metadata = { title: "Add product" };
 
 export default async function NewOfferPage({ searchParams }: PageProps<"/seller/new">) {
   const seller = await requireSeller();
-  const [me] = await Promise.all([
-    db.user.findUniqueOrThrow({
-      where: { id: seller.id },
-      select: { isBrand: true, website: true, company: true, name: true },
-    }),
-  ]);
+  const login = await db.user.findUniqueOrThrow({
+    where: { id: seller.id },
+    select: { id: true, isBrand: true, factoryId: true, factoryRole: true },
+  });
+  // Brands add gift products here; factory staff need a job that edits listings (2026-11-04).
+  const { factoryId, factoryRole } = factoryOf(login);
+  if (!login.isBrand && !canFactory(factoryRole, "products")) redirect("/seller");
+  const me = await db.user.findUniqueOrThrow({
+    where: { id: factoryId },
+    select: { isBrand: true, website: true, company: true, name: true },
+  });
   const { offerId } = await searchParams;
   const offer =
     me.isBrand && typeof offerId === "string"
       ? await db.stockOffer.findFirst({
-          where: { id: offerId, sellerId: seller.id },
+          where: { id: offerId, sellerId: factoryId },
           include: { revisions: { orderBy: { version: "desc" }, take: 1 } },
         })
       : null;

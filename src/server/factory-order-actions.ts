@@ -1,7 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { requireSeller } from "./auth/session";
+import { requireFactory } from "./auth/session";
 import { CartError } from "./carts/service";
 import { markFactoryPacked } from "./factory-orders";
 import { flash } from "./flash";
@@ -12,9 +12,9 @@ export async function markFactoryPackedAction(
   _p: FactoryOrderState,
   fd: FormData,
 ): Promise<FactoryOrderState> {
-  const seller = await requireSeller();
+  const me = await requireFactory("orders");
   try {
-    await markFactoryPacked(seller.id, String(fd.get("cartId") ?? ""));
+    await markFactoryPacked(me.factoryId, String(fd.get("cartId") ?? ""), me.id);
   } catch (e) {
     if (e instanceof CartError) return { error: e.message };
     throw e;

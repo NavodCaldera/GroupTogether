@@ -44,6 +44,10 @@ Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/se
 - Wanted counts derive from retained cart lines, including expired/unpaid carts; they are not guaranteed demand or a complete interest event log.
 - Factory payments are external bulk purchases; do not introduce supplier balances. Premium gift bills are owned by [brands-rewards](brands-rewards.md).
 
+## Factory staff
+
+- Since 2026-11-04 (`FAC-001`) factory listings and stock are edited by the factory's Owner, Planner or Sales logins; pass `requireFactory("products").factoryId` as `sellerId`. Packing staff cannot edit listings.
+
 ## Admin boundaries
 
 The factory admin landing page is `/admin/factory`, with accepted-stock collection and warehouse receipt queues. `User.adminArea` separates factory, premium and warehouse operations; use `requireAdmin("FACTORY")` on factory pages/actions. There is no unrestricted admin (`ADMIN-002`): the Stock dashboard (`/admin`) and store-size/lot-margin settings belong to FACTORY; the orders CSV export lives on warehouse Orders. Lots owns costs, Slips owns payment

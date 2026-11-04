@@ -1,8 +1,11 @@
 import { Atkinson_Hyperlegible } from "next/font/google";
+import type { Route } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui";
+import type { FactoryRole } from "@/generated/prisma/client";
 import type { sizeGrid } from "@/lib/factory-insights";
+import { type FactorySection, canFactory } from "@/lib/factory-roles";
 
 /**
  * The factory area's look (product owner, 2026-11-03): a cutting ticket, like the job dockets on a
@@ -11,47 +14,96 @@ import type { sizeGrid } from "@/lib/factory-insights";
  */
 const legible = Atkinson_Hyperlegible({ subsets: ["latin"], weight: ["400", "700"] });
 
-const TABS = [
-  ["home", "/seller", "Home"],
-  ["orders", "/seller/orders", "Orders"],
-  ["products", "/seller/products", "Products"],
-  ["insights", "/seller/insights", "Ratings"],
-] as const;
+const TABS: { key: FactorySection; href: Route; label: string; icon: ReactNode }[] = [
+  {
+    key: "home",
+    href: "/seller",
+    label: "Home",
+    icon: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" />,
+  },
+  {
+    key: "orders",
+    href: "/seller/orders",
+    label: "Orders",
+    icon: <path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" />,
+  },
+  {
+    key: "products",
+    href: "/seller/products",
+    label: "Products",
+    icon: <path d="M8 3 4 6v4h3v11h10V10h3V6l-4-3a4 4 0 0 1-8 0z" />,
+  },
+  {
+    key: "insights",
+    href: "/seller/insights",
+    label: "Ratings",
+    icon: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1 6.2-5.5-2.9-5.5 2.9 1-6.2L3 9.6l6.2-.9z" />,
+  },
+  {
+    key: "team",
+    href: "/seller/team",
+    label: "Team",
+    icon: (
+      <path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM2 21a7 7 0 0 1 14 0M16 3.5a4 4 0 0 1 0 7M18 14a7 7 0 0 1 4 7" />
+    ),
+  },
+];
 
-/** The page frame for a factory: its typeface, a title and the four sections. */
+/**
+ * The page frame for a factory login: its typeface, a title and the sections its job may open
+ * (2026-11-04). On a phone the sections are a bottom tab bar in thumb reach; from `sm` up they
+ * sit under the title.
+ */
 export function FactoryShell({
   active,
+  role,
   title,
   action,
   children,
 }: {
-  active: (typeof TABS)[number][0];
+  active: FactorySection;
+  role: FactoryRole;
   title: string;
   action?: ReactNode;
   children: ReactNode;
 }) {
+  const tabs = TABS.filter((t) => canFactory(role, t.key));
   return (
     <div className={cx(legible.className, "mx-auto w-full max-w-2xl text-base leading-normal")}>
       <div className="mb-3 flex items-end justify-between gap-3">
         <h1 className="text-[1.75rem] leading-tight font-bold break-words">{title}</h1>
         {action}
       </div>
-      <nav aria-label="Factory" className="mb-5 grid grid-cols-4 border-b-2 border-ink text-sm">
-        {TABS.map(([key, href, label]) => (
-          <Link
-            key={key}
-            href={href}
-            aria-current={key === active ? "page" : undefined}
-            className={cx(
-              "-mb-0.5 grid min-h-12 place-items-center border-b-4 px-1",
-              key === active ? "border-accent font-bold" : "border-transparent text-subtle",
-            )}
-          >
-            {label}
-          </Link>
-        ))}
+      <nav
+        aria-label="Factory"
+        className="fixed inset-x-0 bottom-0 z-20 border-t-2 border-ink bg-paper pb-[env(safe-area-inset-bottom)] sm:static sm:z-auto sm:mb-5 sm:border-t-0 sm:border-b-2 sm:pb-0"
+      >
+        <ul className="flex">
+          {tabs.map((t) => (
+            <li key={t.key} className="flex-1">
+              <Link
+                href={t.href}
+                aria-current={t.key === active ? "page" : undefined}
+                className={cx(
+                  "flex min-h-14 flex-col items-center justify-center gap-0.5 border-t-4 px-1 text-xs sm:-mb-0.5 sm:min-h-12 sm:border-t-0 sm:border-b-4 sm:text-sm",
+                  t.key === active ? "border-accent font-bold" : "border-transparent text-subtle",
+                )}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                  className="size-5 fill-none stroke-current stroke-[1.8] [stroke-linecap:round] [stroke-linejoin:round] sm:hidden"
+                >
+                  {t.icon}
+                </svg>
+                {t.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
       </nav>
       {children}
+      <div aria-hidden className="h-20 sm:hidden" />
     </div>
   );
 }

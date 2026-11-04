@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
-import { requireSeller } from "./auth/session";
+import { requireFactory, requireSeller } from "./auth/session";
 import { createBrandOffer, reviseBrandOffer } from "./brands";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
 import { createOffer } from "./offers";
@@ -75,9 +75,7 @@ export async function saveFactoryProductAction(
   _p: SellerState,
   fd: FormData,
 ): Promise<SellerState> {
-  const seller = await requireSeller();
-  if (await db.user.count({ where: { id: seller.id, isBrand: true } }))
-    return { error: "Luxury brands add gift products" };
+  const { factoryId } = await requireFactory("products");
   const id = str(fd, "id") || null;
   const photo = fd.get("photo");
   let savedId = id;
@@ -86,7 +84,7 @@ export async function saveFactoryProductAction(
       id,
       Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")),
       photo instanceof File ? photo : null,
-      { sellerId: seller.id },
+      { sellerId: factoryId },
     );
     savedId = p.id;
   } catch (e) {
@@ -102,11 +100,11 @@ export async function saveFactoryProductAction(
 }
 
 export async function factoryStockAction(_p: SellerState, fd: FormData): Promise<SellerState> {
-  const seller = await requireSeller();
+  const { factoryId } = await requireFactory("products");
   const productId = str(fd, "productId");
   try {
     await adjustStock(productId, str(fd, "size"), str(fd, "colour"), Number(str(fd, "delta")), {
-      sellerId: seller.id,
+      sellerId: factoryId,
     });
   } catch (e) {
     if (e instanceof CatalogueError) return { error: e.message };
@@ -123,13 +121,13 @@ export async function factoryStockAction(_p: SellerState, fd: FormData): Promise
  * no client script. Problems come back as the pop-up message.
  */
 export async function factorySizeStockAction(fd: FormData) {
-  const seller = await requireSeller();
+  const { factoryId } = await requireFactory("products");
   const productId = str(fd, "productId");
   const qty = Number(str(fd, "qty"));
   const sign = str(fd, "dir") === "remove" ? -1 : 1;
   try {
     await adjustStock(productId, str(fd, "size"), str(fd, "colour"), sign * qty, {
-      sellerId: seller.id,
+      sellerId: factoryId,
     });
     await flash(sign > 0 ? `Added ${qty}` : `Removed ${qty}`);
   } catch (e) {
@@ -142,14 +140,14 @@ export async function factorySizeStockAction(fd: FormData) {
 
 /** A sold-out size that was never in a cart can be taken off the listing. */
 export async function removeFactorySizeAction(fd: FormData) {
-  const seller = await requireSeller();
+  const { factoryId } = await requireFactory("products");
   const removed = await db.variant.deleteMany({
     where: {
       id: str(fd, "variantId"),
       available: 0,
       reserved: 0,
       lines: { none: {} },
-      product: { sellerId: seller.id },
+      product: { sellerId: factoryId },
     },
   });
   await flash(removed.count ? "Size removed" : "This size has orders, so it stays");

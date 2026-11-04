@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Badge, EmptyState, cx } from "@/components/ui";
 import { sizeGrid } from "@/lib/factory-insights";
 import { formatDate } from "@/lib/format";
-import { requireSeller } from "@/server/auth/session";
+import { requireFactory } from "@/server/auth/session";
 import { type FactoryStage, STAGES, factoryOrderBoard } from "@/server/factory-dashboard";
 import { FactoryShell, SizeGrid, Ticket } from "../factory-bits";
 import { MarkPacked } from "./mark-packed";
@@ -31,11 +31,11 @@ const DELIVERY: Record<string, string> = {
  * paid date and PickMe status. "Mark packed" is the only action. Never buyer names or phones.
  */
 export default async function FactoryOrdersPage() {
-  const seller = await requireSeller();
-  const { counts, orders } = await factoryOrderBoard(seller.id);
+  const seller = await requireFactory("orders");
+  const { counts, orders } = await factoryOrderBoard(seller.factoryId);
   const label = Object.fromEntries(STAGES) as Record<FactoryStage, string>;
   return (
-    <FactoryShell active="orders" title="Orders">
+    <FactoryShell active="orders" role={seller.factoryRole} title="Orders">
       <ol aria-label="Orders by stage" className="mb-5 grid grid-cols-5 text-center text-xs">
         {STAGES.map(([s, name], i) => (
           <li key={s} className="relative flex flex-col items-center gap-1">

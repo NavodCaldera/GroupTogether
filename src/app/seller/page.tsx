@@ -7,6 +7,7 @@ import { requireSeller } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { factoryHome } from "@/server/factory-dashboard";
+import { canFactory, editsListings, factoryOf, seesMoney } from "@/lib/factory-roles";
 import { BrandDashboard } from "./brand-dashboard";
 import { pcs } from "./design-chart";
 import { FactoryShell, Figure, SizeGrid, TONE_BORDER, Tape, Ticket } from "./factory-bits";
@@ -25,29 +26,43 @@ const SHOWN_ALERTS = 3;
 export default async function SellerHome({ searchParams }: PageProps<"/seller">) {
   const seller = await requireSeller();
   const search = await searchParams;
-  const me = await db.user.findUniqueOrThrow({
+  const login = await db.user.findUniqueOrThrow({
     where: { id: seller.id },
-    select: { isBrand: true, company: true },
+    select: { id: true, isBrand: true, factoryId: true, factoryRole: true },
   });
-  if (me.isBrand) {
+  if (login.isBrand) {
     await sweep();
     return <BrandDashboard brandId={seller.id} search={search} />;
   }
-  const d = await factoryHome(seller.id);
+  // Staff work for the factory account; only owners see money (2026-11-04).
+  const { factoryId, factoryRole } = factoryOf(login);
+  const money = seesMoney(factoryRole);
+  const listings = editsListings(factoryRole);
+  const [me, d] = await Promise.all([
+    db.user.findUniqueOrThrow({ where: { id: factoryId }, select: { company: true, name: true } }),
+    factoryHome(factoryId),
+  ]);
+  // Each job sees only the alerts it can act on.
+  d.alerts = d.alerts.filter((a) =>
+    canFactory(factoryRole, a.href.startsWith("/seller/orders") ? "orders" : "products"),
+  );
   const best = Math.max(1, ...d.months.map((m) => m.pieces));
   const more = d.alerts.length - SHOWN_ALERTS;
 
   return (
     <FactoryShell
       active="home"
-      title={me.company || seller.name}
+      role={factoryRole}
+      title={me.company || me.name}
       action={
-        <Link
-          href="/seller/new"
-          className="inline-flex min-h-12 shrink-0 items-center rounded-md border-2 border-ink px-3 font-bold"
-        >
-          Add product
-        </Link>
+        listings && (
+          <Link
+            href="/seller/new"
+            className="inline-flex min-h-12 shrink-0 items-center rounded-md border-2 border-ink px-3 font-bold"
+          >
+            Add product
+          </Link>
+        )
       }
     >
       {search.done === "sent" && <Toast>Sent for review.</Toast>}
@@ -85,7 +100,11 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
       </ul>
 
       {d.toPack ? (
-        <Link href="/seller/orders" aria-label={`Orders to pack: ${d.toPack}`} className="block">
+        <Link
+          href={canFactory(factoryRole, "orders") ? "/seller/orders" : "/seller"}
+          aria-label={`Orders to pack: ${d.toPack}`}
+          className="block"
+        >
           <Ticket
             tone="accent"
             className="mb-5"
@@ -115,9 +134,14 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
         <h2 id="month" className="mb-2 font-bold">
           This month, paid orders
         </h2>
-        <div className="grid grid-cols-[1fr_1.7fr_auto] gap-3 border-y-2 border-ink py-3">
+        <div
+          className={cx(
+            "grid gap-3 border-y-2 border-ink py-3",
+            money ? "grid-cols-[1fr_1.7fr_auto]" : "grid-cols-2",
+          )}
+        >
           <Figure label="Sold (paid)" value={pcs(d.month.pieces)} />
-          <Figure label="Sales (paid)" value={formatLKR(d.month.value)} />
+          {money && <Figure label="Sales (paid)" value={formatLKR(d.month.value)} />}
           <Figure label="Delivered" value={String(d.month.delivered)} />
         </div>
       </section>
@@ -133,18 +157,21 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
               <Tape share={m.pieces / best} />
               <span />
               <span className="text-sm tabular-nums">
-                {pcs(m.pieces)}, {formatLKR(m.value)}
+                {pcs(m.pieces)}
+                {money && `, ${formatLKR(m.value)}`}
               </span>
             </li>
           ))}
         </ul>
       </section>
-      <Link
-        href="/seller/insights"
-        className="inline-flex min-h-11 items-center font-bold text-accent underline"
-      >
-        See ratings and insights
-      </Link>
+      {canFactory(factoryRole, "insights") && (
+        <Link
+          href="/seller/insights"
+          className="inline-flex min-h-11 items-center font-bold text-accent underline"
+        >
+          See ratings and insights
+        </Link>
+      )}
     </FactoryShell>
   );
 }

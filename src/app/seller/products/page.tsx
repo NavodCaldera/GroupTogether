@@ -3,8 +3,9 @@ import Link from "next/link";
 import { ProductImage } from "@/components/cart-bits";
 import { Badge, Button, EmptyState, cx } from "@/components/ui";
 import { stockAlert } from "@/lib/factory-insights";
+import { seesMoney } from "@/lib/factory-roles";
 import { formatLKR } from "@/lib/format";
-import { requireSeller } from "@/server/auth/session";
+import { requireFactory } from "@/server/auth/session";
 import { factoryProducts } from "@/server/factory-dashboard";
 import { factorySizeStockAction, removeFactorySizeAction } from "@/server/seller-actions";
 import { pcs } from "../design-chart";
@@ -19,11 +20,13 @@ export const metadata: Metadata = { title: "Products" };
  * only while it has stock and isn't hidden by us.
  */
 export default async function FactoryProductsPage() {
-  const seller = await requireSeller();
-  const products = await factoryProducts(seller.id);
+  const seller = await requireFactory("products");
+  const products = await factoryProducts(seller.factoryId);
+  const money = seesMoney(seller.factoryRole);
   return (
     <FactoryShell
       active="products"
+      role={seller.factoryRole}
       title="Products"
       action={
         <Link
@@ -70,7 +73,8 @@ export default async function FactoryProductsPage() {
                         </div>
                         <p className="tabular-nums">{formatLKR(p.price)}</p>
                         <p className="text-sm tabular-nums">
-                          Sold (paid) {pcs(p.pieces)}, {formatLKR(p.value)}
+                          Sold (paid) {pcs(p.pieces)}
+                          {money && `, ${formatLKR(p.value)}`}
                         </p>
                       </div>
                     </div>
