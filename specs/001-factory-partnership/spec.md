@@ -134,10 +134,10 @@ longer see it; remove a factory and check its listings vanish and unpaid cart it
    in unpaid carts are removed.
 3. **Given** an admin removes a factory, **Then** all its listings vanish, its items are removed
    from unpaid carts, its staff can no longer sign in, and no message is sent to the factory.
-4. **Given** a removed factory with paid orders, **When** the admin reviews each order, **Then** the
-   admin chooses either "let the factory finish it" or "cancel it".
-5. **Given** an admin cancels a paid order line, **Then** each member receives tokens equal to the
-   price of their own cancelled items.
+4. **Given** a removed factory with paid orders not yet delivered, **Then** all those orders are
+   cancelled at once and each buyer is told the reason.
+5. **Given** a paid order is cancelled by a removal, **Then** each member receives tokens equal to
+   the price of their own cancelled items.
 
 ---
 
@@ -231,6 +231,9 @@ that item is removed.
   rejected application.
 - **FR-006**: Identity, business and bank documents MUST be viewable only by Factories admins and
   the core admin, never by buyers, factory staff or the public.
+- **FR-007a**: Factories already on GroupBasket when this goes live MUST complete the checks and
+  accept the agreement within 30 days; their listings stay live during those 30 days and are hidden
+  after day 30 until both are done.
 - **FR-007**: Only the owner or manager is onboarded by GroupBasket; they add their own staff, and
   only after accepting the agreement.
 
@@ -269,14 +272,16 @@ that item is removed.
   do either automatically.
 - **FR-020**: Removing a factory MUST hide its listings, remove its items from unpaid carts, end its
   staff access, and send no message to the factory.
-- **FR-021**: For each paid order of a removed factory, an admin MUST choose "let it finish" or
-  "cancel"; cancelling gives each member tokens for their own items.
+- **FR-021**: Removing a factory MUST cancel all its paid orders not yet delivered, tell each
+  affected buyer the reason, and give each member tokens for their own items.
 - **FR-022**: System MUST let an admin mark a removed factory's earned money as held, with a note;
   the release decision is manual.
 
 **Tokens**
 
 - **FR-023**: Tokens MUST be worth LKR 1 each, never expire, and belong to one person.
+- **FR-023a**: Tokens given for a cancellation or return MUST equal the full price the buyer paid
+  for the item, commission included; GroupBasket gives up its commission on that item.
 - **FR-024**: A member MAY spend tokens only on their own items, in any factory's cart, up to the
   full item price.
 - **FR-025**: Tokens spent MUST reduce the owner's transfer; the cart minimum MUST use the full item
@@ -343,6 +348,14 @@ that item is removed.
 - Q: What happens to tokens on an unpaid cart? → A: The member's amount drops when they choose
   tokens; if the item is removed or the cart expires or is cancelled unpaid, all tokens return at
   once.
+- Q: What happens to factories already selling before the checks existed? → A: 30 days to
+  complete checks and accept the agreement; listings hidden after day 30 until done.
+- Q: How does a removed factory finish paid orders? → A: It does not; all its undelivered paid
+  orders are cancelled, each buyer is told the reason and receives tokens. (Replaces the earlier
+  per-order "finish or cancel" choice.)
+- Q: Who can open the private documents? → A: Factories admins and the core admin.
+- Q: Do tokens equal the price paid or only the factory's share? → A: The full price the buyer
+  paid, including commission.
 
 ## Assumptions
 
@@ -350,9 +363,6 @@ that item is removed.
   by GroupBasket and reviewed by a Sri Lankan lawyer; the system only records acceptance.
 - Ratings are 1 to 5 stars, matching the existing factory rating.
 - "Several flagged products" for a factory flag means 3 or more.
-- Existing factories are asked to complete checks and accept the agreement; until they do, their
-  listings stay live for a transition period set by the admin (assumption, to confirm in
-  clarification).
 - Existing rules stay: only the cart owner pays (`PAY-001`), cart minimum (`CART-001`), one active
   cart per buyer (`CART-003`), one factory per cart (`FUL-001`).
 - Factory payouts are out of this version; "factory not paid for that item" means the item is

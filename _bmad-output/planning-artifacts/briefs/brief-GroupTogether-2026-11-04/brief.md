@@ -57,8 +57,8 @@ Existing factory work (listing, packing, PickMe, staff jobs) stays where it fits
    admin may hide that product. A factory is flagged under 3.0 over 20+ ratings or when several of its
    products are flagged. Nothing is removed automatically.
 8. **Removal.** An admin can remove a factory for bad quality without notifying it. Listings vanish
-   and unpaid cart items are removed at once. For each paid order the admin chooses: let the factory
-   finish it, or cancel it. Money already earned is reviewed case by case.
+   and unpaid cart items are removed at once. All paid orders not yet delivered are cancelled; each
+   buyer is told the reason and gets tokens. Money already earned is reviewed case by case.
 9. **Tokens.** For a cancelled order, each member receives tokens for their own items (1 token =
    LKR 1, never expire). They spend tokens only on items they themselves add to a later cart; this
    lowers the owner's transfer. The cart minimum counts full item value.
@@ -97,7 +97,7 @@ another cart.
 
 - The agreement text and the "remove without notice" clause need review by a Sri Lankan lawyer;
   the system records acceptance, it does not make the text legally valid.
-- NIC, BR and bank documents are private: only Factories admins may open them.
+- NIC, BR and bank documents are private: only Factories admins and the core admin may open them.
 - Money uses the existing decimal rules; one active cart per buyer and one factory per cart stay.
 - Phone first, low running cost, no paid services.
 
