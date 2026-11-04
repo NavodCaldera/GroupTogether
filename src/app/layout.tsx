@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { SiteHeader, hasTabBar } from "@/components/site-header";
 import { FlashToast } from "@/components/toast";
 import { getCurrentUser } from "@/server/auth/session";
+import { currentTheme } from "@/server/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -10,24 +11,24 @@ export const metadata: Metadata = {
     "Factory-surplus and B-grade shoes and apparel at bulk prices. Share a cart, reach the minimum together.",
 };
 
-export const viewport: Viewport = {
+const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#0d1110" },
-  ],
 };
 
+export async function generateViewport(): Promise<Viewport> {
+  return { ...viewport, themeColor: (await currentTheme()) === "dark" ? "#0d1110" : "#ffffff" };
+}
+
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const user = await getCurrentUser();
+  const [user, theme] = await Promise.all([getCurrentUser(), currentTheme()]);
   const tabBar = hasTabBar(user);
   // Only shoppers (visitors and customers) get the consumer footer. Admins, packing staff and
   // sellers manage the platform and get a clean, uncluttered interface.
   const footer = !user || user.role === "CUSTOMER";
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" data-theme={theme} className="h-full antialiased">
       <body className="flex min-h-full flex-col">
         <SiteHeader />
         <main

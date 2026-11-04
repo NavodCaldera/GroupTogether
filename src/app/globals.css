@@ -1,8 +1,9 @@
 @import "tailwindcss";
 
 :root {
-  /* GroupBasket: ink + one green accent, amber for deadlines. Follows the device's day/night. */
-  color-scheme: light dark;
+  /* GroupBasket: ink + one green accent, amber for deadlines. White (light) by default; dark is
+     an option in the header (2026-11-04). */
+  color-scheme: light;
   --paper: light-dark(#ffffff, #0d1110);
   --ink: light-dark(#111614, #eef2f0);
   --accent: light-dark(#0b7a55, #3fcf98);
@@ -17,6 +18,10 @@
   --subtle: light-dark(#5b6762, #9aa7a1);
   --warn: light-dark(#a35a00, #f2b45c);
   --danger: light-dark(#b42318, #ff8a80);
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @theme inline {

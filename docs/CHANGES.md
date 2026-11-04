@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-04 - White light mode by default, dark mode optional
+
+- Owner request: white background, light mode as the default, with an option for dark. The site no longer follows the device's night setting; a sun/moon button in the header switches theme and remembers it in the `gt_theme` cookie (`src/server/theme.ts`, `data-theme` on `<html>`). Colour tokens are unchanged.
+
 ## 2026-11-04 - Factory staff logins and per-role tabs (dashboard phase 1)
 
 - Owner request: build the agreed factory dashboard, starting with phase 1. Each factory person now has their own login with a fixed job (`FactoryRole`: Owner, Packing, Planner, Sales; `User.factoryId` links staff to the factory account, migration `factory_staff`). The factory account is always an owner. Owners add staff, change jobs and lock someone who leaves on the new **Team** page (`/seller/team`, one row per person with orders packed this week). Each job sees only its own sections as **bottom tabs on the phone** (top tabs from `sm` up): Packing gets Home and Orders; Planner and Sales get Home, Products and Ratings; owners get all five. Only owners see rupee figures. Mark packed records the person who packed. Demo staff: `packing@`, `planner@`, `sales@example.com`. Rules in `src/lib/factory-roles.ts`, team service in `src/server/factory-team.ts`. `DEC-012`.

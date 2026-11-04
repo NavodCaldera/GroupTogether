@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/server/auth/session";
 import { NavLink } from "./nav-link";
 import { unreadMessageCount } from "@/server/carts/chat";
 import { unreadCount } from "@/server/notify";
+import { currentTheme } from "@/server/theme";
+import { toggleThemeAction } from "@/server/theme-actions";
 
 /** Roles with one section (Admin, Packing or My products), which the logo opens. They don't shop. */
 const STAFF_HOME: Record<string, string> = {
@@ -26,7 +28,7 @@ export function hasTabBar(user: { role: string } | null) {
  * move into the top bar and the tab bar is hidden. No client JavaScript.
  */
 export async function SiteHeader() {
-  const user = await getCurrentUser();
+  const [user, theme] = await Promise.all([getCurrentUser(), currentTheme()]);
   // Packing staff get no messages or bell: only their packing list and profile (2026-10-19).
   // Factory sellers keep the bell (product live / needs changes) but never message shoppers.
   const inbox = !!user && user.role !== "PACKER";
@@ -119,6 +121,36 @@ export async function SiteHeader() {
             </NavLink>
           ))}
           <span className="flex-1" />
+          <form action={toggleThemeAction}>
+            <button
+              type="submit"
+              className={`${link} cursor-pointer`}
+              aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+              title={theme === "dark" ? "Light mode" : "Dark mode"}
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="20"
+                height="20"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                className="text-ink"
+              >
+                {theme === "dark" ? (
+                  <>
+                    <circle cx="12" cy="12" r="4" />
+                    <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
+                  </>
+                ) : (
+                  <path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z" />
+                )}
+              </svg>
+            </button>
+          </form>
           {user ? (
             <>
               {inbox && (
