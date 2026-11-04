@@ -7,8 +7,8 @@ import type { Demand } from "@/lib/design-rules";
 import { formatDate, formatLKR } from "@/lib/format";
 import { requireFactory } from "@/server/auth/session";
 import { designInsight } from "@/server/designs";
-import { DemandBadge } from "../../design-bits";
-import { PriceQuantityChart, pcs } from "../../design-chart";
+import { DemandBadge } from "@/app/seller/design-bits";
+import { PriceQuantityChart, pcs } from "@/app/seller/design-chart";
 
 export const metadata: Metadata = { title: "Design" };
 

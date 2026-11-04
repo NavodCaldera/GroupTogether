@@ -19,7 +19,7 @@ export function PartnerForm({
       ) : (
         <>
           {children}
-          <Button disabled={pending}>{pending ? "Working?" : submit}</Button>
+          <Button disabled={pending}>{pending ? "Working..." : submit}</Button>
         </>
       )}
       {state.error && <Alert>{state.error}</Alert>}

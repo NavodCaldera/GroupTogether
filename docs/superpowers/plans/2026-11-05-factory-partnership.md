@@ -64,9 +64,9 @@ zod, playwright-cli.
 - Migration data step: every existing `SELLER` user without `factoryId` gets a `FactoryProfile`
   with `complianceDueAt = migration time + 30 days`.
 
-- [ ] Step 1: Add models, run `npx prisma migrate dev --name factory_partnership_joining`; expected: migration created, client generated.
-- [ ] Step 2: Run `npm run typecheck`; expected: PASS.
-- [ ] Step 3: Commit.
+- [x] Step 1: Add models, run `npx prisma migrate dev --name factory_partnership_joining`; expected: migration created, client generated.
+- [x] Step 2: Run `npm run typecheck`; expected: PASS.
+- [x] Step 3: Commit.
 
 ### Task 1.2: Application, review and private documents
 
@@ -86,11 +86,11 @@ zod, playwright-cli.
 - `reviewApplication(adminId: string, id: string, decision: "APPROVE" | "REJECT", note?: string): Promise<void>` — approve creates SELLER `User` + `FactoryProfile`, sends sign-in link via `notify`.
 - `recordVisit(adminId: string, id: string, date: Date, notes: string): Promise<void>`
 
-- [ ] Step 1: Unit tests: `bankNameMatches("LANKA SHIRTS (PVT) LTD", "Lanka Shirts (Pvt) Ltd", "Kamal Perera") === true`; `bankNameMatches("K. Perera", "Lanka Shirts", "Kamal Perera") === false`; `missingItems` lists `"BR certificate"`, `"NIC photo"`, `"Factory photo"` when absent.
-- [ ] Step 2: Integration tests: submit without NIC photo → `PartnerError` naming it; reapply with a rejected BR number → refused; reapply with a rejected NIC → refused; approve with mismatched bank name → refused; approve valid → seller user + ACTIVE profile exists; used invite token reused → refused; `GET /api/partner-docs/<id>` as CUSTOMER, SELLER, ADMIN(PREMIUM) → 404; as ADMIN(FACTORY) and ADMIN(CORE) → 200.
-- [ ] Step 3: Run `npm test -- partner-rules` and `npm run test:int -- partners`; expected: FAIL.
-- [ ] Step 4: Implement; uploads through `saveUpload(file, "partner-docs", IMAGE_TYPES)`; doc route streams from `storage()` after the admin-area check.
-- [ ] Step 5: Run both; expected: PASS. Commit.
+- [x] Step 1: Unit tests: `bankNameMatches("LANKA SHIRTS (PVT) LTD", "Lanka Shirts (Pvt) Ltd", "Kamal Perera") === true`; `bankNameMatches("K. Perera", "Lanka Shirts", "Kamal Perera") === false`; `missingItems` lists `"BR certificate"`, `"NIC photo"`, `"Factory photo"` when absent.
+- [x] Step 2: Integration tests: submit without NIC photo → `PartnerError` naming it; reapply with a rejected BR number → refused; reapply with a rejected NIC → refused; approve with mismatched bank name → refused; approve valid → seller user + ACTIVE profile exists; used invite token reused → refused; `GET /api/partner-docs/<id>` as CUSTOMER, SELLER, ADMIN(PREMIUM) → 404; as ADMIN(FACTORY) and ADMIN(CORE) → 200.
+- [x] Step 3: Run `npm test -- partner-rules` and `npm run test:int -- partners`; expected: FAIL.
+- [x] Step 4: Implement; uploads through `saveUpload(file, "partner-docs", IMAGE_TYPES)`; doc route streams from `storage()` after the admin-area check.
+- [x] Step 5: Run both; expected: PASS. Commit.
 
 ### Task 1.3: Agreement versions, acceptance and the selling guard
 
@@ -108,9 +108,9 @@ zod, playwright-cli.
 - `canSell(factoryUserId: string, now?: Date): Promise<boolean>`; `publishVersion(coreAdminId: string, text: string)`; `acceptLatest(ownerUserId: string, now?: Date)`.
 - Seller layout redirects owners to `/seller/agreement` while `canSell` is false.
 
-- [ ] Step 1: Unit tests: accepted 2026-12-01 → `endsAtFor` = 2027-12-01; `sellingAllowed` false when REMOVED, false when acceptance is of an older version, false after `endsAt`, true for legacy within `complianceDueAt`, false for legacy after it; `reminderDue` true at 30 days left, false at 31, false if already reminded.
-- [ ] Step 2: Integration tests: listing and staff adding refused before acceptance; publishing a new version blocks listing until re-accepted; non-CORE admin publishing → refused; after expiry (`now` injected) the factory's products are absent from shop queries but a paid cart for them keeps status; sweep sends one reminder.
-- [ ] Step 3: Run; expected FAIL. Implement. Run; expected PASS. Commit.
+- [x] Step 1: Unit tests: accepted 2026-12-01 → `endsAtFor` = 2027-12-01; `sellingAllowed` false when REMOVED, false when acceptance is of an older version, false after `endsAt`, true for legacy within `complianceDueAt`, false for legacy after it; `reminderDue` true at 30 days left, false at 31, false if already reminded.
+- [x] Step 2: Integration tests: listing and staff adding refused before acceptance; publishing a new version blocks listing until re-accepted; non-CORE admin publishing → refused; after expiry (`now` injected) the factory's products are absent from shop queries but a paid cart for them keeps status; sweep sends one reminder.
+- [x] Step 3: Run; expected FAIL. Implement. Run; expected PASS. Commit.
 
 ### Part 1 verification (Claude Code)
 `npm run check`, `npm run test:int`, `npm run build`; skills `groupbasket-access-review`, `groupbasket-browser-review` (apply form at 360px, admin review, agreement gate).

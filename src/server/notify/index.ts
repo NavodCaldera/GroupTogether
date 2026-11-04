@@ -9,11 +9,17 @@ export function appUrl(path = "") {
 }
 
 /** In-app notification for each user. Call after the transaction that caused it commits. */
-export async function notify(userIds: string[], notice: Notice) {
+export async function notify(userIds: string[], notice: Notice, deduplicationKey?: string) {
   const ids = [...new Set(userIds)];
   if (ids.length === 0) return;
   await db.notification.createMany({
-    data: ids.map((userId) => ({ userId, ...notice, href: notice.href ?? null })),
+    data: ids.map((userId) => ({
+      ...(deduplicationKey ? { id: `${deduplicationKey}:${userId}` } : {}),
+      userId,
+      ...notice,
+      href: notice.href ?? null,
+    })),
+    skipDuplicates: !!deduplicationKey,
   });
 }
 

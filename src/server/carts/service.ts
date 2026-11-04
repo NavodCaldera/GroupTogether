@@ -25,6 +25,8 @@ import { type Notice, notify } from "../notify";
 import { getSettings } from "../settings";
 import { releaseGiftReservations } from "../gifts";
 
+import { canSellIn, remindAgreements, sellingFactoryWhere } from "../agreements";
+
 export class CartError extends Error {}
 
 /** Row lock on the cart: every change to a cart's lines or status runs under it. */
@@ -208,6 +210,13 @@ export async function setLine(
         where: { id: variantId, product: { seller: { isBrand: true } } },
       });
       if (premium) throw new CartError("Premium brand products are complimentary gifts only");
+      const product = await tx.variant.findUnique({
+        where: { id: variantId },
+        select: { product: { select: { sellerId: true, status: true } } },
+      });
+      if (product?.product.status === "ARCHIVED") throw new CartError("This product is hidden");
+      if (product?.product.sellerId && !(await canSellIn(tx, product.product.sellerId, now)))
+        throw new CartError("This factory's agreement does not allow new sales");
       if (!line) await assertSameFactory(tx, cartId, [variantId]);
       // Atomic: the row lock taken by UPDATE re-checks `available` against concurrent carts.
       const locked = await tx.variant.updateMany({
@@ -331,6 +340,18 @@ export async function acceptAndPay(
     assertEditable(cart, now);
     if (cart.status !== "READY" || !meetsMinimum(toD(cart.total), toD(cart.minOrderValue)))
       throw new CartError(`The cart must reach ${formatLKR(cart.minOrderValue)} first`);
+    const blocked = await tx.cartLine.count({
+      where: {
+        cartId,
+        variant: {
+          product: {
+            sellerId: { not: null },
+            NOT: { seller: { is: await sellingFactoryWhere(now, tx) } },
+          },
+        },
+      },
+    });
+    if (blocked) throw new CartError("This factory's agreement does not allow starting payment");
     const pin = await tx.cartMember.findUnique({
       where: { cartId_userId: { cartId, userId: ownerId } },
       select: { lat: true, lng: true },
@@ -399,6 +420,7 @@ export async function cancelCart(actor: { id: string; role: Role }, cartId: stri
  * the reduced price (`reduceDueLots`).
  */
 export async function sweep(now = new Date(), cartId?: string) {
+  if (!cartId) await remindAgreements(now);
   // No lot price drop while factories ship directly (product owner, 2026-11-03).
   if (!cartId && !factoryFulfilment()) await reduceDueLots(now);
   const due = await db.groupCart.findMany({

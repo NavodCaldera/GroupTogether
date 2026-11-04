@@ -36,7 +36,7 @@ export const normalizedIdentity = (value: string) =>
   value
     .normalize("NFKC")
     .toLowerCase()
-    .replace(/[^\p{L}\p{N}]/gu, "");
+    .replace(/[^\p{L}\p{M}\p{N}]/gu, "");
 export function bankNameMatches(
   accountName: string,
   businessName: string,

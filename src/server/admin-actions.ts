@@ -15,7 +15,7 @@ import { requireAdmin, requireAnyAdmin } from "./auth/session";
 import { assertManagesUser } from "./admin-users";
 import { CartError, cancelCart } from "./carts/service";
 import { approveSlip, rejectSlip } from "./carts/slips";
-import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
+import { CatalogueError, adjustStock, saveProduct, setProductHidden } from "./catalogue";
 import { db } from "./db";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
 import { flash } from "./flash";
@@ -153,10 +153,11 @@ export async function saveProductAction(_p: AdminState, fd: FormData): Promise<A
 export async function setProductHiddenAction(fd: FormData) {
   await requireAdmin("FACTORY");
   const hide = str(fd, "hide") === "1";
-  await db.product.update({
-    where: { id: str(fd, "productId") },
-    data: { status: hide ? "ARCHIVED" : "LIVE" },
-  });
+  const result = await attempt(() => setProductHidden(str(fd, "productId"), hide));
+  if (result.error) {
+    await flash(result.error);
+    return;
+  }
   revalidatePath("/admin/products", "layout");
   revalidatePath("/shop");
   await flash(hide ? "Hidden from the shop" : "Back in the shop");

@@ -8,9 +8,16 @@ import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { factoryHome } from "@/server/factory-dashboard";
 import { canFactory, editsListings, factoryOf, seesMoney } from "@/lib/factory-roles";
-import { BrandDashboard } from "./brand-dashboard";
-import { pcs } from "./design-chart";
-import { FactoryShell, Figure, SizeGrid, TONE_BORDER, Tape, Ticket } from "./factory-bits";
+import { BrandDashboard } from "@/app/seller/brand-dashboard";
+import { pcs } from "@/app/seller/design-chart";
+import {
+  FactoryShell,
+  Figure,
+  SizeGrid,
+  TONE_BORDER,
+  Tape,
+  Ticket,
+} from "@/app/seller/factory-bits";
 
 export const metadata: Metadata = { title: "Home" };
 

@@ -43,6 +43,7 @@ test("buyer, admin, brand and packing workspaces remain usable at the configured
     ["seller@example.com", "/seller/products"],
     ["seller@example.com", "/seller/insights"],
     ["seller@example.com", "/seller/team"],
+    ["seller@example.com", "/seller/agreement"],
     ["packing@example.com", "/seller"],
     ["packer@example.com", "/packing"],
   ]) {

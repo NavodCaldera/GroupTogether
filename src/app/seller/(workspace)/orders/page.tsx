@@ -4,7 +4,7 @@ import { sizeGrid } from "@/lib/factory-insights";
 import { formatDate } from "@/lib/format";
 import { requireFactory } from "@/server/auth/session";
 import { type FactoryStage, STAGES, factoryOrderBoard } from "@/server/factory-dashboard";
-import { FactoryShell, SizeGrid, Ticket } from "../factory-bits";
+import { FactoryShell, SizeGrid, Ticket } from "@/app/seller/factory-bits";
 import { MarkPacked } from "./mark-packed";
 
 export const metadata: Metadata = { title: "Orders" };

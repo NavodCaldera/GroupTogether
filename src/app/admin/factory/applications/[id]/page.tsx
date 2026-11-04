@@ -32,7 +32,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const match = bankNameMatches(a.accountName, a.businessName, a.ownerName);
   return (
     <div className="max-w-2xl">
-      <Link href="/admin/factory/applications" className="mb-4 inline-block underline">
+      <Link
+        href="/admin/factory/applications"
+        className="mb-4 inline-flex min-h-11 items-center underline"
+      >
         Back to applications
       </Link>
       <PageHeader title={a.businessName} />

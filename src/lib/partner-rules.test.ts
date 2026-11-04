@@ -22,6 +22,8 @@ describe("partner rules", () => {
     expect(bankNameMatches("K. Perera", "Lanka Shirts", "Kamal Perera")).toBe(false);
     expect(bankNameMatches(" kamal-perera ", "Lanka Shirts", "Kamal Perera")).toBe(true);
     expect(bankNameMatches("...", "", "")).toBe(false);
+    // Sinhala vowel marks are part of the name, not punctuation.
+    expect(bankNameMatches("\u0d9a\u0db8\u0dbd\u0dcf", "\u0d9a\u0db8\u0dbd", "Other")).toBe(false);
   });
   it("names every missing document and required field", () => {
     expect(missingItems(input, [])).toEqual(["BR certificate", "NIC photo", "Factory photo"]);

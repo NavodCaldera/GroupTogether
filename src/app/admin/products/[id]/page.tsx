@@ -5,7 +5,6 @@ import { StockTable } from "@/components/stock-table";
 import { Button, Card, Field, Input, PageHeader } from "@/components/ui";
 import { adjustStockAction, setProductHiddenAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
-import { getProduct } from "@/server/catalogue";
 import { db } from "@/server/db";
 import { lotChoices } from "@/server/lots";
 import { AdminForm } from "../../admin-form";
@@ -16,7 +15,16 @@ export const metadata: Metadata = { title: "Edit product" };
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
   await requireAdmin("FACTORY");
   const { id } = await params;
-  const [product, lots] = await Promise.all([getProduct(id), lotChoices()]);
+  const [product, lots] = await Promise.all([
+    db.product.findFirst({
+      where: { id, OR: [{ sellerId: null }, { seller: { isBrand: false } }] },
+      include: {
+        variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
+        seller: { select: { name: true, company: true } },
+      },
+    }),
+    lotChoices(),
+  ]);
   if (!product) notFound();
   const seller = product.sellerId
     ? await db.user.findUnique({

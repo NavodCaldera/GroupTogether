@@ -23,7 +23,14 @@ afterAll(() => db.$disconnect());
 async function factoryVariant(available = 10) {
   const factory = await db.user.update({
     where: { id: (await makeUser()).id },
-    data: { role: "SELLER", company: "Lanka Knits", address: "5 Mill Rd", city: "Kandy" },
+    // Existing-factory fixture explicitly represents the migration's 30-day grace.
+    data: {
+      role: "SELLER",
+      company: "Lanka Knits",
+      address: "5 Mill Rd",
+      city: "Kandy",
+      factoryProfile: { create: { complianceDueAt: new Date(Date.now() + 30 * 86400000) } },
+    },
   });
   const v = await makeVariant("25000", available);
   await db.product.update({ where: { id: v.productId }, data: { sellerId: factory.id } });

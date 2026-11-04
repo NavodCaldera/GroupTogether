@@ -6,7 +6,7 @@ import { requireFactory } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { factoryTeam, packedThisWeek } from "@/server/factory-team";
 import { addStaffAction, updateStaffAction } from "@/server/factory-team-actions";
-import { FactoryShell, Ticket } from "../factory-bits";
+import { FactoryShell, Ticket } from "@/app/seller/factory-bits";
 
 export const metadata: Metadata = { title: "Team" };
 

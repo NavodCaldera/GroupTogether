@@ -3,7 +3,7 @@ import { BackLink } from "@/components/client";
 import { Card, PageHeader } from "@/components/ui";
 import { requireSeller } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { BrandOfferForm } from "../brand-offer-form";
+import { BrandOfferForm } from "@/app/seller/brand-offer-form";
 import { ProductForm } from "@/app/admin/products/product-form";
 import { saveFactoryProductAction } from "@/server/seller-actions";
 import { snapshotTerms } from "@/server/brand-reviews";

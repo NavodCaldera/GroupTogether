@@ -3,7 +3,10 @@ import { test, expect } from "@playwright/test";
 import { seedBrowserFixtures } from "./seed-fixtures";
 test.beforeAll(seedBrowserFixtures);
 test.use({ viewport: { width: 360, height: 800 } });
-test("factory applies and admin visits and approves at 360px", async ({ page }) => {
+test("factory joins, accepts and renews the current agreement at 360px", async ({
+  page,
+}, testInfo) => {
+  test.setTimeout(180_000);
   await page.goto("/factories/apply");
   await page.getByLabel("Business name", { exact: true }).focus();
   await page.keyboard.press("Tab");
@@ -43,6 +46,14 @@ test("factory applies and admin visits and approves at 360px", async ({ page }) 
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL("**/admin/factory");
   await page.goto("/admin/factory/applications");
+  await expect(page.getByRole("link", { name: "Applications", exact: true })).toHaveAttribute(
+    "aria-current",
+    "page",
+  );
+  await expect(page.getByRole("link", { name: "Factories", exact: true })).not.toHaveAttribute(
+    "aria-current",
+    "page",
+  );
   await page.getByRole("link", { name: /Browser Shirts/ }).click();
   await expect(page.getByRole("heading", { name: "Browser Shirts" })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -50,6 +61,7 @@ test("factory applies and admin visits and approves at 360px", async ({ page }) 
     (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
       .violations,
   ).toEqual([]);
+  await page.screenshot({ path: testInfo.outputPath("admin-review-360.png"), fullPage: true });
   const docHref = await page.getByRole("link", { name: "NIC photo 2" }).getAttribute("href");
   expect((await page.request.get(docHref!)).status()).toBe(200);
   await page.getByLabel("Visit date").fill("2026-11-05");
@@ -59,6 +71,46 @@ test("factory applies and admin visits and approves at 360px", async ({ page }) 
   await page.getByLabel("Decision").selectOption("APPROVE");
   await page.getByRole("button", { name: "Save decision" }).click();
   await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
+  const signInUrl = await page.getByLabel("Sign-in link").inputValue();
   await page.context().clearCookies();
   expect((await page.request.get(docHref!)).status()).toBe(404);
+  await page.goto(signInUrl);
+  await page.getByLabel("Set password").fill("ownerpassword123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL("**/seller/agreement");
+  await expect(page.getByRole("heading", { name: "Agreement v1", exact: true })).toBeVisible();
+  expect(
+    (await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze())
+      .violations,
+  ).toEqual([]);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath("agreement-360.png"), fullPage: true });
+  await page.getByLabel("I accept this agreement").check();
+  await page.getByRole("button", { name: "Accept agreement", exact: true }).click();
+  await page.waitForURL((url) => url.pathname === "/seller");
+  const ownerCookies = await page.context().cookies();
+  await page.context().clearCookies();
+  await page.goto("/sign-in");
+  await page.getByLabel("Email", { exact: true }).fill("core@groupbasket.lk");
+  await page.getByLabel("Password", { exact: true }).fill("password123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL("**/admin/users");
+  await page.goto("/admin/settings");
+  await page
+    .getByLabel("New agreement text")
+    .fill("Agreement version two for browser verification");
+  await page.getByRole("button", { name: "Publish agreement", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "Factory agreement v2", exact: true }),
+  ).toBeVisible();
+  await page.context().clearCookies();
+  await page.context().addCookies(ownerCookies);
+  await page.goto("/seller/new");
+  await page.waitForURL("**/seller/agreement");
+  await expect(page.getByRole("heading", { name: "Agreement v2", exact: true })).toBeVisible();
+  await page.getByLabel("I accept this agreement").check();
+  await page.getByRole("button", { name: "Accept agreement", exact: true }).click();
+  await page.waitForURL((url) => url.pathname === "/seller");
+  await page.goto("/seller/new");
+  await expect(page.getByRole("heading", { name: "Add product", exact: true })).toBeVisible();
 });

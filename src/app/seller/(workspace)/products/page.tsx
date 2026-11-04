@@ -8,8 +8,8 @@ import { formatLKR } from "@/lib/format";
 import { requireFactory } from "@/server/auth/session";
 import { factoryProducts } from "@/server/factory-dashboard";
 import { factorySizeStockAction, removeFactorySizeAction } from "@/server/seller-actions";
-import { pcs } from "../design-chart";
-import { FactoryShell, Ticket } from "../factory-bits";
+import { pcs } from "@/app/seller/design-chart";
+import { FactoryShell, Ticket } from "@/app/seller/factory-bits";
 
 export const metadata: Metadata = { title: "Products" };
 

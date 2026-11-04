@@ -50,7 +50,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           <NavLink
             key={href}
             href={href}
-            exact={href === "/admin"}
+            exact={href === "/admin" || href === "/admin/factory"}
             className={link}
             activeClassName={active}
           >

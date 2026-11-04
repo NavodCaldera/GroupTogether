@@ -7,6 +7,7 @@ import { formatLKR } from "@/lib/format";
 import { linkOnSite } from "@/lib/brand-rules";
 import { lotPrice } from "@/lib/stock-rules";
 import { db } from "./db";
+import { canSell, sellingFactoryWhere } from "./agreements";
 import { logPrices } from "./prices";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
@@ -46,15 +47,23 @@ export const IN_SHOP = {
   AND: [{ OR: [{ sellerId: null }, { seller: { isBrand: false } }] }],
 } satisfies Prisma.ProductWhereInput;
 
+async function shopEligibility(now: Date) {
+  return {
+    OR: [{ sellerId: null }, { seller: { is: await sellingFactoryWhere(now) } }],
+  } satisfies Prisma.ProductWhereInput;
+}
+
 /** Products in the shop. Sizes with no free stock are still listed but marked sold out. */
 export async function listProducts(
   f: ProductFilters = {},
   take = 60,
   order: "newest" | "cheapest" = "newest",
+  now = new Date(),
 ) {
   return db.product.findMany({
     where: {
       ...IN_SHOP,
+      AND: [await shopEligibility(now)],
       audience: f.audience,
       kind: f.kind,
       stockType: f.stockType,
@@ -75,12 +84,13 @@ export async function listProducts(
 }
 
 /** A few products in the shop matching what the shopper has typed, for the search dropdown. */
-export async function suggestProducts(q: string, take = 6) {
+export async function suggestProducts(q: string, take = 6, now = new Date()) {
   const term = q.trim().slice(0, 60);
   if (term.length < 2) return [];
   const rows = await db.product.findMany({
     where: {
       ...IN_SHOP,
+      AND: [await shopEligibility(now)],
       OR: [
         { title: { contains: term, mode: "insensitive" } },
         { brand: { contains: term, mode: "insensitive" } },
@@ -95,16 +105,17 @@ export async function suggestProducts(q: string, take = 6) {
   return rows.sort((a, b) => starts(a.title) - starts(b.title)).slice(0, take);
 }
 
-export async function shopFacets() {
+export async function shopFacets(now = new Date()) {
+  const eligibility = await shopEligibility(now);
   const [brands, sizes] = await Promise.all([
     db.product.findMany({
-      where: IN_SHOP,
+      where: { ...IN_SHOP, AND: [eligibility] },
       distinct: ["brand"],
       select: { brand: true },
       orderBy: { brand: "asc" },
     }),
     db.variant.findMany({
-      where: { available: { gt: 0 }, product: { AND: IN_SHOP.AND } },
+      where: { available: { gt: 0 }, product: { ...IN_SHOP, AND: [eligibility] } },
       distinct: ["size"],
       select: { size: true },
       orderBy: { size: "asc" },
@@ -114,9 +125,9 @@ export async function shopFacets() {
 }
 
 /** One product with its sizes. Opens even when sold out, so links from carts keep working. */
-export async function getProduct(id: string) {
+export async function getProduct(id: string, now = new Date()) {
   return db.product.findFirst({
-    where: { id, AND: IN_SHOP.AND },
+    where: { id, AND: [await shopEligibility(now)] },
     include: {
       variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
       seller: { select: { name: true, company: true } },
@@ -180,6 +191,13 @@ export async function saveProduct(
     throw new CatalogueError("Premium brand products are managed in Brand rewards");
   if (sellerId && id && !(await db.product.count({ where: { id, sellerId } })))
     throw new CatalogueError("Product not found");
+  const ownerId =
+    sellerId ??
+    (id
+      ? (await db.product.findUnique({ where: { id }, select: { sellerId: true } }))?.sellerId
+      : null);
+  if (ownerId && !(await canSell(ownerId)))
+    throw new CatalogueError("Accept the current factory agreement before listing products");
   const parsed = productSchema.parse(input);
   // Factories set their own price; lots and brand links are ours.
   const { lotId, price, ...p } = sellerId ? { ...parsed, lotId: undefined, brandUrl: "" } : parsed;
@@ -257,9 +275,9 @@ export async function adjustStock(
  * How far below retail our live prices are, over products that list a retail price above ours
  * (total saving / total retail, whole percent). Null until at least 3 products qualify.
  */
-export async function retailSaving() {
+export async function retailSaving(now = new Date()) {
   const rows = await db.product.findMany({
-    where: { ...IN_SHOP, retailPrice: { not: null } },
+    where: { ...IN_SHOP, AND: [await shopEligibility(now)], retailPrice: { not: null } },
     select: { price: true, retailPrice: true },
   });
   let retail = new D(0);
@@ -284,4 +302,19 @@ export async function salesSnapshot() {
     _sum: { total: true },
   });
   return { total: formatLKR(s._sum.total ?? 0), updatedAt: new Date().toISOString() };
+}
+
+/** Admin publish/hide keeps agreement eligibility intact. */
+export async function setProductHidden(productId: string, hidden: boolean) {
+  const product = await db.product.findUnique({
+    where: { id: productId },
+    select: { sellerId: true },
+  });
+  if (!product) throw new CatalogueError("Product not found");
+  if (!hidden && product.sellerId && !(await canSell(product.sellerId)))
+    throw new CatalogueError("The factory must accept the current agreement before publishing");
+  return db.product.update({
+    where: { id: productId },
+    data: { status: hidden ? "ARCHIVED" : "LIVE" },
+  });
 }

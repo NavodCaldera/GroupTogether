@@ -8,6 +8,7 @@ import { createBrandOffer, reviseBrandOffer } from "./brands";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
 import { createOffer } from "./offers";
 import { db } from "./db";
+import { canSell } from "./agreements";
 import { flash } from "./flash";
 import { UploadError } from "./storage";
 
@@ -80,6 +81,8 @@ export async function saveFactoryProductAction(
   const photo = fd.get("photo");
   let savedId = id;
   try {
+    if (!(await canSell(factoryId)))
+      return { error: "Accept the current factory agreement before listing products" };
     const p = await saveProduct(
       id,
       Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")),

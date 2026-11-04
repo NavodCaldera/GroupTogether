@@ -52,3 +52,7 @@ Check participant isolation, role restrictions, internal-note privacy, retry ded
 read markers and draft preservation. Coordinate financial events with
 [brands-rewards](brands-rewards.md) and rendering with [frontend](frontend.md).
 See [qa-review](qa-review.md) for commands.
+
+## Factory agreement reminders
+
+Full cart sweeps call `remindAgreements` after collecting current agreement terms. Acceptance `remindedAt` claims are committed before notification delivery. `notify` accepts an optional deduplication key; reminders use deterministic per-term/per-owner notice IDs and retry missing deliveries, with batched term/notice reads. Approval uses an in-app notice plus an admin-reviewable one-time sign-in link; email/SMS delivery is not implemented. First sign-in sets the owner's password atomically with consuming the hashed token.

@@ -6,13 +6,19 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Factory partnership Part 1: agreement and selling gate
+
+- Task 1.3 adds append-only CORE-published agreement versions, owner acceptance at `/seller/agreement`, 12-calendar-month terms in Colombo time (leap-day anniversaries clamp to February 28), and retry-safe, duplicate-safe 30-day in-app reminders from full sweeps. Acceptance records the person/time/version; stale displayed versions cannot be accepted. Listing creation/edits, admin republishing, staff creation, public catalogue/search/facets/detail/savings and positive cart additions and starting payment from an unpaid cart enforce selling eligibility. Paid carts and their snapshots stay unchanged.
+- Legacy owners retain their 30-day window; after it, both approved checks and current acceptance are required. The agreement page links to the same public form, which securely associates the signed-in owner. The existing seller routes use a `(workspace)` layout group so the agreement page cannot redirect to itself. Staff retain fulfilment access; brands remain outside the factory agreement flow.
+- Approval sign-in links are reviewable by the admin for manual delivery; the one-time exchange now sets the owner's password atomically so later sign-ins work. Notifications remain in-app only. Public forms support up to twelve 5 MB images, with the action body limit increased for multipart uploads. Parts 2-4 are not implemented.
+
 ## 2026-11-05 - Factory partnership Part 1: applications and checks
 
 - Task 1.2 adds public/invited application forms, the Factories/Core admin review queue, optional visits, seven-day single-use invites, rejected BR/NIC blocking and bank-name approval checks. Identity documents stay in private storage and return 404 outside FACTORY/CORE admins. Approval creates the seller/profile and a one-time sign-in link through the existing in-app notification channel; external email/SMS delivery is not implemented. Authenticated legacy owners submit through the same form without creating another seller. Unit, integration and 360px browser coverage accompany the flow.
 
 ## 2026-11-05 - Factory partnership Part 1: joining schema
 
-- Added application, private document, invite, agreement version/acceptance and factory profile models. The `factory_partnership_joining` migration backfills existing seller owners with ACTIVE profiles and a 30-day compliance deadline; demo seeding adds agreement v1 and the demo factory profile. Application and agreement workflows follow in Tasks 1.2 and 1.3. Parts 2?4 remain unbuilt.
+- Added application, private document, invite, agreement version/acceptance and factory profile models. The `factory_partnership_joining` migration backfills existing seller owners with ACTIVE profiles and a 30-day compliance deadline; demo seeding adds agreement v1 and the demo factory profile. Application and agreement workflows follow in Tasks 1.2 and 1.3. Parts 2-4 remain unbuilt.
 
 ## 2026-11-05 - Factory partnership specification approved (not built)
 

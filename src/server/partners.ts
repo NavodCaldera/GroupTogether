@@ -247,7 +247,10 @@ export async function recordVisit(
   if (!changed.count) throw new PartnerError("Application not found or already reviewed");
 }
 /** Exchange the approval link once; GET/prefetch never consumes it. */
-export async function redeemApprovalLink(token: string): Promise<string> {
+export async function redeemApprovalLink(token: string, password: string): Promise<string> {
+  if (password.length < 8 || password.length > 200)
+    throw new PartnerError("Use a password of 8 to 200 characters");
+  const passwordHash = await hashPassword(password);
   if (!token.startsWith("partner_")) throw new PartnerError("Invalid sign-in link");
   return db.$transaction(async (tx) => {
     const id = hashToken(token);
@@ -261,6 +264,7 @@ export async function redeemApprovalLink(token: string): Promise<string> {
       select: { userId: true },
     });
     if (!row) throw new PartnerError("Sign-in link expired or already used");
+    await tx.user.update({ where: { id: row.userId }, data: { passwordHash } });
     await tx.session.delete({ where: { id } });
     return row.userId;
   });

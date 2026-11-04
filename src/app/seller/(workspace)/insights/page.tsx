@@ -3,7 +3,7 @@ import { EmptyState } from "@/components/ui";
 import { MIN_CITY_ORDERS, MIN_RATINGS, PRICE_BANDS } from "@/lib/factory-insights";
 import { requireFactory } from "@/server/auth/session";
 import { factoryInsights } from "@/server/factory-dashboard";
-import { FactoryShell, ScrollTable, Ticket } from "../factory-bits";
+import { FactoryShell, ScrollTable, Ticket } from "@/app/seller/factory-bits";
 
 export const metadata: Metadata = { title: "Ratings and insights" };
 

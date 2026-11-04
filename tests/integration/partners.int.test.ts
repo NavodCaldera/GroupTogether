@@ -3,6 +3,7 @@ const principal = vi.hoisted(() => ({
   user: null as null | { id: string; role: string; adminArea?: string | null; locked?: boolean },
 }));
 vi.mock("@/server/auth/session", () => ({ getCurrentUser: async () => principal.user }));
+import { authenticate } from "@/server/auth/service";
 import { db } from "@/server/db";
 import {
   PartnerError,
@@ -82,8 +83,9 @@ describe("factory applications", () => {
     ).toBe(1);
     const notice = await db.notification.findFirstOrThrow({ where: { userId: seller.id } });
     const token = notice.href!.split("/").at(-1)!;
-    expect(await redeemApprovalLink(token)).toBe(seller.id);
-    await expect(redeemApprovalLink(token)).rejects.toThrow();
+    expect(await redeemApprovalLink(token, "ownerpassword123")).toBe(seller.id);
+    expect((await authenticate(seller.email, "ownerpassword123")).id).toBe(seller.id);
+    await expect(redeemApprovalLink(token, "ownerpassword123")).rejects.toThrow();
     await expect(reviewApplication(admin.id, a.id, "APPROVE")).rejects.toThrow(/reviewed/i);
   });
   it("validates invite expiry, one-time use and admin boundaries", async () => {

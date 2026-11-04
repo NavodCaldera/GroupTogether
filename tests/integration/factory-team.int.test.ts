@@ -17,7 +17,13 @@ afterAll(() => db.$disconnect());
 async function factory() {
   return db.user.update({
     where: { id: (await makeUser()).id },
-    data: { role: "SELLER", company: "Lanka Knits", city: "Kandy" },
+    // Existing-factory fixture explicitly represents the migration's 30-day grace.
+    data: {
+      role: "SELLER",
+      company: "Lanka Knits",
+      city: "Kandy",
+      factoryProfile: { create: { complianceDueAt: new Date(Date.now() + 30 * 86400000) } },
+    },
   });
 }
 

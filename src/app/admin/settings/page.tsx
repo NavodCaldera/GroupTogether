@@ -1,3 +1,7 @@
+import { PartnerForm } from "@/components/partner-form";
+import { publishAgreementAction } from "@/server/agreement-actions";
+import { latestAgreement } from "@/server/agreements";
+import { Textarea } from "@/components/ui";
 import type { Metadata } from "next";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
 import { saveSettingsAction } from "@/server/admin-actions";
@@ -17,7 +21,7 @@ export default async function SettingsPage() {
   // The core admin owns every setting (product owner, 2026-11-03).
   const admin = await requireAnyAdmin();
   if (admin.adminArea !== "CORE") redirect(adminHome(admin.adminArea));
-  const s = await getSettings();
+  const [s, agreement] = await Promise.all([getSettings(), latestAgreement()]);
   const system: [string, string, boolean][] = [
     [
       "Delivery",
@@ -43,6 +47,19 @@ export default async function SettingsPage() {
       <div>
         <PageHeader title="Settings" />
         <div className="flex flex-col gap-6">
+          <Card>
+            <h2 className="mb-3 font-semibold">
+              Factory agreement{agreement ? ` v${agreement.version}` : ""}
+            </h2>
+            {agreement && (
+              <div className="mb-4 break-words whitespace-pre-wrap">{agreement.text}</div>
+            )}
+            <PartnerForm action={publishAgreementAction} submit="Publish agreement">
+              <Field name="text" label="New agreement text">
+                <Textarea name="text" maxLength={100000} required />
+              </Field>
+            </PartnerForm>
+          </Card>
           <Card>
             <AdminForm action={saveSettingsAction} submit="Save settings">
               <Field

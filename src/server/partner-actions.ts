@@ -94,7 +94,7 @@ export async function approvalSignInAction(
   fd: FormData,
 ): Promise<PartnerState> {
   try {
-    await signInAs(await redeemApprovalLink(str(fd, "token")));
+    await signInAs(await redeemApprovalLink(str(fd, "token"), String(fd.get("password") ?? "")));
   } catch (e) {
     if (e instanceof PartnerError) return { error: e.message };
     throw e;

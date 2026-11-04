@@ -37,7 +37,7 @@ export default async function ApplicationsPage() {
           >
             <strong className="break-words">{a.businessName}</strong>
             <div className="text-sm">
-              {a.status} ? {formatDateTime(a.createdAt)}
+              {a.status} | {formatDateTime(a.createdAt)}
             </div>
           </Link>
         ))}

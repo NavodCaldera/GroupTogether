@@ -5,6 +5,7 @@ import { FACTORY_ROLES } from "@/lib/factory-roles";
 import { hashPassword } from "./auth/password";
 import { phoneSchema } from "./auth/service";
 import { db } from "./db";
+import { canSell } from "./agreements";
 
 /**
  * Factory staff (product owner, 2026-11-04): an owner adds each person with their own login and a
@@ -59,6 +60,8 @@ export async function addStaff(factoryId: string, raw: unknown) {
     select: { company: true, city: true },
   });
   if (!factory) throw new TeamError("Factory not found");
+  if (!(await canSell(factoryId)))
+    throw new TeamError("Accept the current factory agreement before adding staff");
   return db.user.create({
     data: {
       role: "SELLER",
