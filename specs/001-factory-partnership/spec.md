@@ -258,8 +258,8 @@ that item is removed.
 - **FR-016**: A 1 or 2 star rating MUST include a report with a reason; reasons damaged, wrong item
   and stitching MUST include a photo.
 - **FR-017**: System MUST show a score per product and a factory score combining all product
-  ratings with the factory's old whole-factory ratings. [NEEDS CLARIFICATION: how much do old
-  whole-factory ratings count compared with new product ratings?]
+  ratings with the factory's old whole-factory ratings. Each old whole-factory rating counts the
+  same as one product rating.
 
 **Flags and removal**
 
@@ -336,6 +336,8 @@ that item is removed.
 
 - Q: What if a factory does not answer a return application? → A: It has 2 days; after that the
   return goes to an admin automatically.
+- Q: How much do old whole-factory ratings count? → A: Each counts the same as one new product
+  rating.
 
 ## Assumptions
 

@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain (2 open: old-rating weight, tokens on unpaid carts)
+- [ ] No [NEEDS CLARIFICATION] markers remain (1 open: tokens on unpaid carts)
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
