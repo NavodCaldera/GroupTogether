@@ -1,6 +1,6 @@
 # Factory partnership — technical design
 
-**Date:** 2026-11-05 · **Status:** Draft for owner approval
+**Date:** 2026-11-05 · **Status:** Approved by the owner 2026-11-05
 **Business contract:** [spec](../../../specs/001-factory-partnership/spec.md) (approved) · `DEC-013`
 **Builder:** Codex writes the code from per-part prompts; Claude Code tests each part.
 
