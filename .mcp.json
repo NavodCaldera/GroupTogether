@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "groupbasket-next-devtools": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["node_modules/next-devtools-mcp/dist/index.js"]
+    },
+    "groupbasket-postgres-read-only": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["scripts/postgres-inspector.mjs"]
+    },
+    "groupbasket-context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    }
+  }
+}
