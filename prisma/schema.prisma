@@ -67,7 +67,14 @@ model User {
   factoryRole  FactoryRole?
   createdAt    DateTime     @default(now())
 
-  staff User[] @relation("FactoryStaff")
+  staff                User[]                @relation("FactoryStaff")
+  factoryProfile       FactoryProfile?
+  factoryApplications  FactoryApplication[]  @relation("ApplicationFactory")
+  reviewedApplications FactoryApplication[]  @relation("ApplicationReviewer")
+  factoryInvites       FactoryInvite[]
+  publishedAgreements  AgreementVersion[]
+  factoryAcceptances   AgreementAcceptance[] @relation("AcceptanceFactory")
+  acceptedAgreements   AgreementAcceptance[] @relation("AcceptancePerson")
 
   sampleRequests     SampleRequest[]
   sessions           Session[]
@@ -761,4 +768,116 @@ model FactoryRating {
 
   @@unique([cartId, userId])
   @@index([factoryId, createdAt])
+}
+
+enum ApplicationStatus {
+  WAITING
+  APPROVED
+  REJECTED
+}
+
+enum FactoryDocKind {
+  BR_CERT
+  NIC_PHOTO
+  FACTORY_PHOTO
+}
+
+enum FactoryStatus {
+  ACTIVE
+  REMOVED
+}
+
+model FactoryApplication {
+  id            String            @id @default(cuid())
+  businessName  String
+  brNumber      String
+  ownerName     String
+  ownerNic      String
+  phone         String
+  email         String
+  address       String
+  city          String
+  bankName      String
+  bankBranch    String
+  accountName   String
+  accountNumber String
+  status        ApplicationStatus @default(WAITING)
+  reviewerId    String?
+  reviewer      User?             @relation("ApplicationReviewer", fields: [reviewerId], references: [id])
+  reviewedAt    DateTime?
+  reviewNote    String?
+  visitDate     DateTime?
+  visitNotes    String?
+  inviteId      String?           @unique
+  invite        FactoryInvite?    @relation(fields: [inviteId], references: [id])
+  factoryUserId String?
+  factory       User?             @relation("ApplicationFactory", fields: [factoryUserId], references: [id])
+  createdAt     DateTime          @default(now())
+  documents     FactoryDocument[]
+
+  @@index([brNumber])
+  @@index([ownerNic])
+  @@index([status, createdAt])
+  @@index([factoryUserId])
+}
+
+model FactoryDocument {
+  id            String             @id @default(cuid())
+  applicationId String
+  application   FactoryApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  kind          FactoryDocKind
+  storageKey    String
+  contentType   String
+
+  @@index([applicationId])
+}
+
+model FactoryInvite {
+  id          String              @id @default(cuid())
+  token       String              @unique
+  phone       String?
+  email       String?
+  invitedBy   String
+  inviter     User                @relation(fields: [invitedBy], references: [id])
+  expiresAt   DateTime
+  usedAt      DateTime?
+  application FactoryApplication?
+}
+
+model AgreementVersion {
+  id          String                @id @default(cuid())
+  version     Int                   @unique
+  text        String
+  publishedAt DateTime              @default(now())
+  publishedBy String
+  publisher   User                  @relation(fields: [publishedBy], references: [id])
+  acceptances AgreementAcceptance[]
+}
+
+model AgreementAcceptance {
+  id            String           @id @default(cuid())
+  factoryUserId String
+  factory       User             @relation("AcceptanceFactory", fields: [factoryUserId], references: [id], onDelete: Cascade)
+  acceptedById  String
+  acceptedBy    User             @relation("AcceptancePerson", fields: [acceptedById], references: [id])
+  versionId     String
+  version       AgreementVersion @relation(fields: [versionId], references: [id])
+  acceptedAt    DateTime         @default(now())
+  endsAt        DateTime
+  remindedAt    DateTime?
+
+  @@index([factoryUserId, acceptedAt])
+  @@index([remindedAt, endsAt])
+}
+
+model FactoryProfile {
+  factoryUserId    String        @id
+  factory          User          @relation(fields: [factoryUserId], references: [id], onDelete: Cascade)
+  status           FactoryStatus @default(ACTIVE)
+  complianceDueAt  DateTime?
+  removedAt        DateTime?
+  removedBy        String?
+  removalReason    String?
+  earningsHeld     Boolean       @default(false)
+  earningsHeldNote String?
 }

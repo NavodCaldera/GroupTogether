@@ -280,6 +280,10 @@ async function main() {
       passwordHash,
     })),
   });
+  const core = await db.user.findUniqueOrThrow({ where: { email: "core@groupbasket.lk" } });
+  await db.agreementVersion.create({
+    data: { version: 1, text: "Agreement text supplied by GroupBasket", publishedBy: core.id },
+  });
   // Packing staff (rule 17): they pack paid orders and check each other's packing.
   const [kasun, ishara] = await Promise.all(
     [
@@ -595,6 +599,13 @@ async function main() {
       lat: 7.0827,
       lng: 79.9021,
       passwordHash,
+    },
+  });
+  await db.factoryProfile.create({
+    data: {
+      factoryUserId: seller.id,
+      status: "ACTIVE",
+      complianceDueAt: addHours(new Date(), 30 * 24),
     },
   });
   // Its staff, one login per job (2026-11-04). Nuwan's own account is the owner.

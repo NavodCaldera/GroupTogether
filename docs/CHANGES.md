@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Factory partnership Part 1: joining schema
+
+- Added application, private document, invite, agreement version/acceptance and factory profile models. The `factory_partnership_joining` migration backfills existing seller owners with ACTIVE profiles and a 30-day compliance deadline; demo seeding adds agreement v1 and the demo factory profile. Application and agreement workflows follow in Tasks 1.2 and 1.3. Parts 2?4 remain unbuilt.
+
 ## 2026-11-05 - Factory partnership specification approved (not built)
 
 - Owner request: rethink how factories join and stay on GroupBasket. Worked through BMad Method (product brief) and GitHub Spec Kit (specification and clarification); the approved contract is [the factory partnership spec](../specs/001-factory-partnership/spec.md). Checks, in-app 12-month agreement, per-product ratings and reports, flags, hide product, remove factory, tokens instead of refunds, returns within 2 days, commission added on top of the factory price. `DEC-013`.

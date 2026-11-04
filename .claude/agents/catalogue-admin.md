@@ -76,3 +76,7 @@ pays transport; there is no sample sending fee. `src/server/samples.ts` locks re
 checks the group owner and records transport-quote acceptance before warehouse dispatch.
 Buyer `/samples` and warehouse `/admin/warehouse` share the request and tracking record.
 Do not invent sample ownership, return, deposit or loss/damage policies.
+
+## Factory partnership joining
+
+Task 1.1 adds `FactoryApplication`, `FactoryDocument`, `FactoryInvite`, `AgreementVersion`, `AgreementAcceptance` and `FactoryProfile`. Migration `factory_partnership_joining` grants existing seller owners a 30-day compliance window. The schema alone does not enforce selling eligibility; see implementation status for workflow progress.

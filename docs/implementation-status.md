@@ -136,3 +136,7 @@ delivery. Mobile admin screenshots were visually reviewed. Sample duplicate-requ
 stale-quote, quote-acceptance and merge-history cases are covered. Next.js DevTools compiled
 the running development warehouse route without issues. No production deployment or
 external courier/bank operation was performed.
+
+## Factory partnership Part 1 (2026-11-05)
+
+Task 1.1 provides the joining models and legacy profile backfill in `prisma/schema.prisma` and migration `factory_partnership_joining`. Demo seeding includes agreement v1 and the factory profile. Application, review and agreement enforcement are not yet implemented. Parts 2?4 remain outside this change.
