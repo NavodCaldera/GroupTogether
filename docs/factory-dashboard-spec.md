@@ -77,3 +77,51 @@ decided here are also in [decisions](decisions.md) (`DEC-012`).
 
 - Comments, questions and replies **post at once**; anyone can report one and an admin hides it
   if needed.
+
+# Priority and layout (agreed 2026-11-04)
+
+Phone first. Each role gets **3–4 bottom tabs** for its own work only; owners get every tab.
+
+## Packing / floor staff
+
+- **First screen: next order first.** Strips above it for anything more urgent, in this order:
+  a **driver arriving now**, then **parcels coming back** from a failed drop. Below the big
+  "Next to pack" card (code, city, size × pieces, **Start packing**): how many more are waiting,
+  then orders waiting for a driver, then returns.
+- **Checklist: one big tap row per product + size + quantity**; a tapped row turns green. "1 of 2
+  ticked"; **Report a problem**; **Mark packed** stays locked until every row is ticked.
+- **After packing: one screen with the steps in order** (1 Packed, 2 Photo, 3 Book PickMe with
+  Small/Medium/Large and "booked in the app instead?", 4 Give to driver). Finished steps
+  collapse with who and when; the current step is open.
+
+## Stock / production planner
+
+- **First screen: restock list first** (sizes running out soonest, with days left; sold out on
+  top), then **batches in production**, then **design drafts** with interest and stars, and a
+  **New design** button.
+- **Draft results:** wanted vs the minimum as a bar, **interest per size**, stars with count,
+  vote results, latest comments; **Make it**, **Edit**, **Drop**.
+- **Stock on sale:** one **row per size**: left, held in unpaid carts, sold per week, days until it
+  runs out, coloured by urgency; **+ Production batch**.
+- **Batch done:** the batch lists planned pieces per size; the planner enters what was made and
+  taps **Add to stock**.
+
+## Sales / listing
+
+- **First screen: things to answer first** (unanswered questions, new ratings and comments), then
+  **best and worst sellers** (30 days), then all listings, and **New listing**.
+- **Product numbers: a funnel** views → in carts → paid with the drop between, expired unpaid,
+  rating with count, price history.
+- **Listing editor: one page with sections** (Photos, Details incl. fabric and care, Colours &
+  sizes, Size chart, Price & sale with end date); save once.
+- **One inbox** for questions, ratings and comments with filters; reply or report inline.
+
+## Owner / manager
+
+- **First screen: problems first** (failed drops, reported problems, low ratings), then money
+  (owed now, paid this month), then sales and commission by week, then links to Team, Delivery,
+  Reputation.
+- **Payouts: a statement per delivered order:** pieces, sale, minus LKR 100 × pieces, payout,
+  and **Paid** with bank reference or **Owed**; owed total.
+- **Team: one row per person:** name, role, orders packed this week, usual pack time, problems
+  reported; tap to change role or lock; **Add staff**.

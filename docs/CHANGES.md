@@ -8,7 +8,7 @@ Newest first.
 
 ## 2026-11-04 - Factory dashboard content agreed (not built)
 
-- Owner request: stop the dashboard build and agree, role by role, what the factory dashboard contains before deciding priority and layout. Content for packing staff, planner, sales and owner is recorded in [the factory dashboard spec](factory-dashboard-spec.md). Business rules: one login per person with fixed roles, commission LKR 100 per piece, payout per order after delivery by bank transfer, cart owner still pays the PickMe driver, public feedback posts at once and is removed on report (`DEC-012`). Layout is next.
+- Owner request: stop the dashboard build and agree, role by role, what the factory dashboard contains before deciding priority and layout. Content for packing staff, planner, sales and owner is recorded in [the factory dashboard spec](factory-dashboard-spec.md). Business rules: one login per person with fixed roles, commission LKR 100 per piece, payout per order after delivery by bank transfer, cart owner still pays the PickMe driver, public feedback posts at once and is removed on report (`DEC-012`). Layout agreed the same day for each role (bottom tabs per role; packing: next order first with driver and return strips above, tap-row checklist, steps on one screen; planner: restock first; sales: things to answer first, funnel, one-page editor, one inbox; owner: problems first, per-order payout statement, team rows), recorded in the spec.
 
 ## 2026-11-03 - Factory dashboard redesigned as cutting tickets
 
