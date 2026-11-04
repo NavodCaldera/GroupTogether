@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-04 - Factory dashboard content agreed (not built)
+
+- Owner request: stop the dashboard build and agree, role by role, what the factory dashboard contains before deciding priority and layout. Content for packing staff, planner, sales and owner is recorded in [the factory dashboard spec](factory-dashboard-spec.md). Business rules: one login per person with fixed roles, commission LKR 100 per piece, payout per order after delivery by bank transfer, cart owner still pays the PickMe driver, public feedback posts at once and is removed on report (`DEC-012`). Layout is next.
+
 ## 2026-11-03 - Factory dashboard redesigned as cutting tickets
 
 - Owner request: connect the `frontend-design` skill from github.com/anthropics/skills (installed at `.claude/skills/frontend-design/`) and rebuild the factory dashboard with it. Owner chose the "cutting ticket" direction: each order and the Home "Pack these" card is a ticket with a thick frame, a dashed tear line and a large sizes-across, pieces-down grid (`sizeGrid` in `src/lib/factory-insights.ts`, sizes in reading order). The factory pages use Atkinson Hyperlegible for readability, the app's own green/amber/red, a five-stage pipeline joined by a line, and a tape-measure monthly chart. The factory pages are now part of the axe accessibility checks; scrollable tables can be reached by keyboard. Behaviour, figures and privacy rules are unchanged.
