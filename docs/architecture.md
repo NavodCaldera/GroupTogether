@@ -160,3 +160,7 @@ current group members; only the requester accepts transport. `/admin/warehouse` 
 actions require WAREHOUSE access. Courier operations and transport payment remain external.
 
 Group merges move sample request records to the destination group before source deletion, preserving requester, delivery snapshot, accepted transport and tracking history.
+
+## Factory partnership joining (Part 1)
+
+Applications hold private business, identity and bank fields. FactoryDocument stores private storage keys, exposed only through the FACTORY/CORE checked `/api/partner-docs/[id]` route. `partners.ts` validates submissions and serializes review/invite consumption; `partner-actions.ts` derives principals from sessions. `/factories/apply` and its invite route share the form; `/admin/factory/applications` holds review and visits. Approval links use hashed, expiring Session rows, exchanged once by POST at `/factories/sign-in/[token]`; GET does not consume credentials. Delivery uses in-app notices only. FactoryProfile, AgreementVersion and AgreementAcceptance retain lifecycle records alongside the factory User.

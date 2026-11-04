@@ -22,6 +22,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     ],
     FACTORY: [
       ["/admin/factory", "Factories", 0],
+      ["/admin/factory/applications", "Applications", 0],
       ["/admin", "Stock", 0],
       ["/admin/lots", "Lots", 0],
       ["/admin/products", "Products", badges.lowStock, "muted"],

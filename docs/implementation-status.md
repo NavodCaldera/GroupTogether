@@ -139,4 +139,4 @@ external courier/bank operation was performed.
 
 ## Factory partnership Part 1 (2026-11-05)
 
-Task 1.1 provides the joining models and legacy profile backfill in `prisma/schema.prisma` and migration `factory_partnership_joining`. Demo seeding includes agreement v1 and the factory profile. Application, review and agreement enforcement are not yet implemented. Parts 2?4 remain outside this change.
+Task 1.1 provides the joining models and legacy profile backfill in `prisma/schema.prisma` and migration `factory_partnership_joining`. Demo seeding includes agreement v1 and the factory profile. Task 1.2 implements public/invite applications, FACTORY/CORE admin review and visits, private document access, identity reapply checks and bank-name approval checks in `src/server/partners.ts`. Approval adds the owner/profile and an in-app notice containing a one-time sign-in link. No email/SMS delivery exists. Agreement enforcement follows in Task 1.3. Parts 2?4 remain outside this change.

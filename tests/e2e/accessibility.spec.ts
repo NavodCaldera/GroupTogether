@@ -16,7 +16,7 @@ async function inspect(page: Page) {
 test("public catalogue and sign-in are accessible without horizontal overflow", async ({
   page,
 }) => {
-  for (const route of ["/shop", "/sign-in"]) {
+  for (const route of ["/factories/apply", "/shop", "/sign-in"]) {
     await page.goto(route);
     await inspect(page);
   }
@@ -34,6 +34,7 @@ test("buyer, admin, brand and packing workspaces remain usable at the configured
     ["buyer@example.com", "/dashboard"],
     ["buyer@example.com", "/samples"],
     ["factory@groupbasket.lk", "/admin"],
+    ["factory@groupbasket.lk", "/admin/factory/applications"],
     ["buyers@groupbasket.lk", "/admin/warehouse"],
     ["premium@groupbasket.lk", "/admin/brands"],
     ["brand@example.com", "/seller?tab=products"],

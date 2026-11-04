@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Factory partnership Part 1: applications and checks
+
+- Task 1.2 adds public/invited application forms, the Factories/Core admin review queue, optional visits, seven-day single-use invites, rejected BR/NIC blocking and bank-name approval checks. Identity documents stay in private storage and return 404 outside FACTORY/CORE admins. Approval creates the seller/profile and a one-time sign-in link through the existing in-app notification channel; external email/SMS delivery is not implemented. Authenticated legacy owners submit through the same form without creating another seller. Unit, integration and 360px browser coverage accompany the flow.
+
 ## 2026-11-05 - Factory partnership Part 1: joining schema
 
 - Added application, private document, invite, agreement version/acceptance and factory profile models. The `factory_partnership_joining` migration backfills existing seller owners with ACTIVE profiles and a 30-day compliance deadline; demo seeding adds agreement v1 and the demo factory profile. Application and agreement workflows follow in Tasks 1.2 and 1.3. Parts 2?4 remain unbuilt.

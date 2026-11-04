@@ -12,8 +12,8 @@ const nextConfig: NextConfig = {
     },
   },
   experimental: {
-    // A bank slip or product photo of up to 5 MB, plus multipart overhead.
-    serverActions: { bodySizeLimit: "8mb" },
+    // Up to twelve private partnership images (5 MB each), plus multipart overhead.
+    serverActions: { bodySizeLimit: "64mb" },
     // `next upgrade --agent` applies security releases.
     agentUpgrade: "security",
   },
