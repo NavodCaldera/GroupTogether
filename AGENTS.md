@@ -48,7 +48,7 @@ Their presence does not require spawning agents.
 
 ### Engineering standards
 
-- Repository skills live in `.agents/skills/`. Apply `groupbasket-money-review`, `groupbasket-cart-concurrency`, `groupbasket-access-review` and `groupbasket-browser-review` when their scopes apply. Vendor skills supplement these rules; they do not override installed framework documentation or business policy. Tooling setup and provenance live in [development tooling](docs/development-tooling.md).
+- Repository skills live in `.agents/skills/`. Apply `groupbasket-money-review`, `groupbasket-cart-concurrency`, `groupbasket-access-review` and `groupbasket-browser-review` when their scopes apply. Vendor skills supplement these rules; they do not override installed framework documentation or business policy. Claude Code reaches the same skills through pointer files in `.claude/skills/`; edit only `.agents/skills/`. Tooling setup and provenance live in [development tooling](docs/development-tooling.md).
 
 - Read relevant installed Next.js guides before framework code, as required above.
 - Prioritize speed and low running cost: server rendering, system fonts and small client islands. Avoid heavy UI libraries, paid services and always-on workers unless specifically authorized.

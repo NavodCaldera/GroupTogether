@@ -56,6 +56,18 @@ Next.js discovered the app on port 3002 and returned no configuration/session er
 PostgreSQL reported `gb_ai_reader`, database `groupbasket`, read-only transactions, and denied
 direct access to `public."User"`. Context7's new transport requires a client refresh to mount.
 
+### Claude Code
+
+Added 2026-11-05. Claude Code reads skills from `.claude/skills/` and project MCP servers from
+[`.mcp.json`](../.mcp.json). Each repository skill has a pointer in `.claude/skills/<name>/SKILL.md`
+with the same header, sending the reader to `.agents/skills/<name>/SKILL.md`, which stays the only
+copy of the instructions; `tests/tooling/claude-skill-pointers.test.mjs` fails on drift.
+`.mcp.json` starts the same three servers as `.codex/config.toml` with the same pinned packages and
+no keys; Claude Code asks for approval before first use. `.mcp.json` has no tool allowlist, so each
+MCP tool call asks for approval unless the owner adds permission rules for exactly the tools Codex
+enables. Context7 questions must be public library questions only: never code, records, IDs or
+secrets.
+
 ### Restricted local database reader
 
 `npm run mcp:setup-reader -- --apply` is explicit administrative setup, separate from inspection.
