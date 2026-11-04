@@ -2,7 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 > **This project:** each Part below is handed to Codex as one prompt; Claude Code then runs the
-> Part's verification and the repo review skills before the next Part starts.
+> Part's verification and the repo review skills before the next Part starts. Codex does not have
+> the Superpowers skills and does not need them: it follows the plan's steps directly (test first,
+> one task at a time, one commit per task), as authorised by the owner on 2026-11-05.
 
 **Goal:** Factories join through checks and a versioned agreement, buyers see factory price plus
 commission, quality is tracked per product, and cancellations and returns pay buyers in tokens.

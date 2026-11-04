@@ -58,6 +58,9 @@ partnership feature, in the repo at the current directory, on branch `main`.
 
 ## How to work
 
+- The plan's header names `superpowers:*` execution skills. Those exist only in Claude Code; you
+  are authorised to proceed without them by following the steps below and the plan's checkboxes.
+
 - Test first for every function: write the unit and integration tests listed in the plan for
   Tasks 1.2 and 1.3 with the exact values given, run them and see them fail, then implement.
 - Unit tests: `npm test`. Integration: `npm run test:int` (uses the local `groupbasket_test`
