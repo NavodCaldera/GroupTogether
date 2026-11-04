@@ -284,8 +284,10 @@ that item is removed.
 - **FR-026**: Every token gain and spend MUST be recorded with its reason, and a token MUST never be
   spent twice.
 - **FR-027**: Tokens held on an unpaid cart MUST return to the member if the item leaves the cart or
-  the cart does not go ahead. [NEEDS CLARIFICATION: confirm tokens come back in full when a cart
-  is not paid or expires.]
+  the cart does not go ahead. When a member chooses to use tokens, the amount they owe for their
+  item drops at once. If they remove the item, or the cart (theirs or someone else's) expires or is
+  cancelled without payment, all those tokens return to them straight away. Tokens are finally
+  spent only when the cart is paid.
 
 **Returns**
 
@@ -338,6 +340,9 @@ that item is removed.
   return goes to an admin automatically.
 - Q: How much do old whole-factory ratings count? → A: Each counts the same as one new product
   rating.
+- Q: What happens to tokens on an unpaid cart? → A: The member's amount drops when they choose
+  tokens; if the item is removed or the cart expires or is cancelled unpaid, all tokens return at
+  once.
 
 ## Assumptions
 
