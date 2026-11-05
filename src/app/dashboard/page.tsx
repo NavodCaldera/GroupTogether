@@ -5,7 +5,14 @@ import { ProgressBar, StatusBadge } from "@/components/cart-bits";
 import { CopyLinkButton, Countdown } from "@/components/client";
 import { Toast } from "@/components/toast";
 import { Alert, Button, Card, LinkButton } from "@/components/ui";
-import { HOLDS_STOCK, JOURNEY, cartTotal, journeyStep, nextStep } from "@/lib/cart-rules";
+import {
+  HOLDS_STOCK,
+  JOURNEY,
+  amountDue,
+  cartTotal,
+  journeyStep,
+  nextStep,
+} from "@/lib/cart-rules";
 import { formatLKR } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
 import { markReceivedAction } from "@/server/carts/actions";
@@ -39,7 +46,10 @@ export default async function BuyerDashboard({ searchParams }: PageProps<"/dashb
   const rows = carts.map((c) => ({
     ...c,
     mine: c.ownerId === user.id,
-    share: cartTotal(c.lines),
+    share: amountDue(
+      cartTotal(c.lines),
+      c.lines.map((l) => l.tokensApplied.toString()),
+    ),
     label: c.name || `${c.owner.name}'s cart`,
   }));
   // The cart that needs attention: the active one, else an order still on its way.
@@ -137,7 +147,7 @@ function CurrentCart({ cart: c }: { cart: DashCart }) {
     status: c.status,
     mine: c.mine,
     code: c.code,
-    total: c.total.toString(),
+    total: amountDue(c.total.toString(), [c.tokensApplied]),
     minOrderValue: c.minOrderValue.toString(),
     share: c.share,
     ownerName: c.owner.name + (c.owner.phone ? ` (${c.owner.phone})` : ""),

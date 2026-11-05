@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { cartTotal, remaining, statusAfterChange, type CartStatus } from "./cart-rules";
+import { amountDue, cartTotal, remaining, statusAfterChange, type CartStatus } from "./cart-rules";
 import { D } from "./decimal";
 
 const money = fc.integer({ min: 0, max: 100_000_000 }).map((cents) => ({
@@ -44,4 +44,20 @@ describe("cart monetary invariants", () => {
       { seed: 20261028, numRuns: 200 },
     );
   });
+});
+
+it("amount due matches integer cents and stays between zero and the gross total", () => {
+  fc.assert(
+    fc.property(money, fc.array(money, { maxLength: 20 }), (total, holds) => {
+      const applied = holds.reduce((sum, h) => sum + h.cents, 0n);
+      const expected = total.cents > applied ? total.cents - applied : 0n;
+      const due = amountDue(
+        total.price,
+        holds.map((h) => h.price),
+      );
+      expect(due.times(100).toFixed(0)).toBe(expected.toString());
+      expect(due.gte(0) && due.lte(total.price)).toBe(true);
+    }),
+    { seed: 20261106, numRuns: 300 },
+  );
 });

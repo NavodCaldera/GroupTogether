@@ -8,6 +8,7 @@ Newest first.
 
 ## 2026-11-05 - Factory partnership Part 2: commission and tokens
 
+- Task 2.3 wires holds into cart lifecycle releases, excess-only quantity reductions, merge preservation and approval SPEND markers. Owner transfers/slips and dashboard prompts subtract tokens while gross minimums stay unchanged. Own-line controls and customer-only balance/history include a 360px browser journey; lifecycle, retry, concurrency and integer-cent property tests cover the amounts.
 - Task 2.1: factory listings snapshot CORE's per-piece commission (default LKR 100), with separate `factoryPrice` and `commission` Decimal(14,2) columns while `Product.price` remains the buyer price. Factory price edits reuse the listing snapshot. Own, premium and lot pricing keep their existing paths. The mandatory development count of factory listings below LKR 100 was **0** before the guarded migration; existing non-lot factory prices are preserved with factory price = buyer price minus 100.
 - Only unlocked CORE admins can change commission; zero is valid, negative/over-precision amounts are refused. New listing creation share-locks the setting until commit so a concurrent setting update cannot overtake the snapshot. The seller form previews buyer price with Decimal arithmetic. Existing demo buyer prices are preserved. Rules and regressions: `price-rules.test.ts`, `commission.int.test.ts`.
 

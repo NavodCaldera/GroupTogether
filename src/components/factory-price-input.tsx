@@ -11,7 +11,7 @@ export function FactoryPriceInput({
   commission: string;
 }) {
   const [price, setPrice] = useState(initial);
-  let buyer = "�";
+  let buyer = "\u2014";
   try {
     buyer = formatLKR(buyerPrice(price, commission));
   } catch {}

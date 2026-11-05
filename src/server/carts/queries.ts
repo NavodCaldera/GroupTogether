@@ -163,7 +163,10 @@ export async function buyerDashboard(userId: string, now = new Date()) {
             ownerId: true,
             updatedAt: true,
             owner: { select: { name: true, phone: true } },
-            lines: { where: { userId }, select: { qty: true, unitPrice: true } },
+            lines: {
+              where: { userId },
+              select: { qty: true, unitPrice: true, tokensApplied: true },
+            },
             slips: {
               orderBy: { createdAt: "desc" },
               take: 1,
@@ -195,7 +198,19 @@ export async function buyerDashboard(userId: string, now = new Date()) {
       take: 5,
     }),
   ]);
-  return { carts: memberships.map((m) => m.cart), invites };
+  const held = await db.cartLine.groupBy({
+    by: ["cartId"],
+    where: { cartId: { in: memberships.map((m) => m.cart.id) } },
+    _sum: { tokensApplied: true },
+  });
+  const totals = new Map(held.map((row) => [row.cartId, row._sum.tokensApplied]));
+  return {
+    carts: memberships.map((m) => ({
+      ...m.cart,
+      tokensApplied: totals.get(m.cart.id)?.toString() ?? "0",
+    })),
+    invites,
+  };
 }
 
 /** The user's one active cart, if any (same test as `assertOneCart` in service.ts). */

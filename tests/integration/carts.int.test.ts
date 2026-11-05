@@ -1,6 +1,8 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { addHours } from "@/lib/cart-rules";
+import { addHours, amountDue, meetsMinimum } from "@/lib/cart-rules";
 import {
+  requestMerge,
+  acceptMerge,
   setLine,
   acceptAndPay,
   cancelCart,
@@ -12,6 +14,8 @@ import {
 } from "@/server/carts/service";
 import { approveSlip, rejectSlip, uploadSlip } from "@/server/carts/slips";
 import { bookDelivery, markReceived } from "@/server/delivery";
+import { D } from "@/lib/decimal";
+import { credit, applyTokens, tokenBalance } from "@/server/tokens";
 import { db } from "@/server/db";
 import { cartRow, makeUser, makeVariant, resetDb, slipFile, variantRow } from "./helpers";
 
@@ -247,5 +251,115 @@ describe("one cart at a time", () => {
     const a = await makeUser();
     const results = await Promise.allSettled([createCart(a.id, {}), createCart(a.id, {})]);
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+  });
+});
+
+// Exact Part 2 values: Kasun owns the 1500 line in Nimal's cart.
+async function tokenCart(qty = 1) {
+  const owner = await makeUser(),
+    member = await makeUser(),
+    admin = await makeUser("ADMIN");
+  const cart = await createCart(owner.id, {}),
+    v = await makeVariant("1500", 10);
+  await setLine(member.id, cart.id, v.id, qty);
+  const line = await db.cartLine.findFirstOrThrow({
+    where: { cartId: cart.id, userId: member.id },
+  });
+  await db.$transaction((tx) =>
+    credit(
+      tx,
+      member.id,
+      new D("3000"),
+      "CANCELLATION",
+      { cartLineId: `fund:${member.id}` },
+      "Test credit",
+    ),
+  );
+  return { owner, member, admin, cart, v, line };
+}
+describe("tokens in the cart lifecycle", () => {
+  it.each(["remove", "leave", "expire", "cancel"])(
+    "releases holds on %s exactly once",
+    async (operation) => {
+      const f = await tokenCart();
+      await applyTokens(f.member.id, f.line.id, "1500");
+      expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("1500.00");
+      expect(amountDue("1500", ["1500"]).toFixed(2)).toBe("0.00");
+      if (operation === "remove") await setLine(f.member.id, f.cart.id, f.v.id, 0);
+      if (operation === "leave") await leaveCart(f.member.id, f.cart.id);
+      if (operation === "expire") await sweep(addHours(new Date(), 25), f.cart.id);
+      if (operation === "cancel") await cancelCart(f.owner, f.cart.id);
+      expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("3000.00");
+      expect(await db.tokenEntry.count({ where: { cartLineId: f.line.id, kind: "RELEASE" } })).toBe(
+        1,
+      );
+    },
+  );
+  it("releases only excess tokens before reducing quantity", async () => {
+    const f = await tokenCart(3);
+    await applyTokens(f.member.id, f.line.id, "3000");
+    await setLine(f.member.id, f.cart.id, f.v.id, 1);
+    const line = await db.cartLine.findUniqueOrThrow({ where: { id: f.line.id } });
+    expect(line.tokensApplied.toFixed(2)).toBe("1500.00");
+    expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("1500.00");
+    expect((await cartRow(f.cart.id)).total.toFixed(2)).toBe("1500.00");
+  });
+  it("uses gross minimum, records the transfer amount, and spends without a second debit", async () => {
+    const f = await tokenCart();
+    const filler = await makeVariant("48500", 2);
+    await setLine(f.owner.id, f.cart.id, filler.id, 1);
+    await applyTokens(f.member.id, f.line.id, "1500");
+    const cart = await cartRow(f.cart.id);
+    expect(cart.status).toBe("READY");
+    expect(meetsMinimum(cart.total.toString(), cart.minOrderValue.toString())).toBe(true);
+    await acceptAndPay(f.owner.id, f.cart.id, drop);
+    await uploadSlip(f.owner.id, f.cart.id, slipFile());
+    const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: f.cart.id } });
+    expect(slip.amount.toFixed(2)).toBe("48500.00");
+    await approveSlip(f.admin.id, slip.id);
+    expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("1500.00");
+    expect(await db.tokenEntry.count({ where: { cartLineId: f.line.id, kind: "SPEND" } })).toBe(1);
+  });
+  it("keeps rejected-slip holds and releases them after the new deadline", async () => {
+    const f = await tokenCart();
+    const filler = await makeVariant("48500", 2);
+    await setLine(f.owner.id, f.cart.id, filler.id, 1);
+    await applyTokens(f.member.id, f.line.id, "1500");
+    await acceptAndPay(f.owner.id, f.cart.id, drop);
+    await uploadSlip(f.owner.id, f.cart.id, slipFile());
+    const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: f.cart.id } }),
+      now = new Date();
+    await rejectSlip(f.admin.id, slip.id, "Wrong reference", now);
+    expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("1500.00");
+    await sweep(addHours(now, 3), f.cart.id);
+    expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("3000.00");
+  });
+  it("moves line ids and holds intact through a merge and spends on target payment", async () => {
+    const f = await tokenCart();
+    const targetOwner = await makeUser(),
+      target = await createCart(targetOwner.id, {});
+    const filler = await makeVariant("48500", 2);
+    await setLine(targetOwner.id, target.id, filler.id, 1);
+    await applyTokens(f.member.id, f.line.id, "1500");
+    const request = await requestMerge(f.member.id, target.id);
+    await acceptMerge(targetOwner.id, request.id);
+    const moved = await db.cartLine.findUniqueOrThrow({ where: { id: f.line.id } });
+    expect(moved.cartId).toBe(target.id);
+    expect(moved.tokensApplied.toFixed(2)).toBe("1500.00");
+    await acceptAndPay(targetOwner.id, target.id, drop);
+    await uploadSlip(targetOwner.id, target.id, slipFile());
+    const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: target.id } });
+    await approveSlip(f.admin.id, slip.id);
+    expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("1500.00");
+    expect(await db.tokenEntry.count({ where: { cartLineId: f.line.id, kind: "SPEND" } })).toBe(1);
+  });
+  it("serializes applying tokens against removal without losing balance", async () => {
+    const f = await tokenCart();
+    await Promise.allSettled([
+      applyTokens(f.member.id, f.line.id, "1500"),
+      setLine(f.member.id, f.cart.id, f.v.id, 0),
+    ]);
+    expect(await db.cartLine.count({ where: { id: f.line.id } })).toBe(0);
+    expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("3000.00");
   });
 });

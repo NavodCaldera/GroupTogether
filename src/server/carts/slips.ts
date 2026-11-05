@@ -1,6 +1,8 @@
 import "server-only";
 import { assertAdminArea } from "../auth/service";
-import { addHours } from "@/lib/cart-rules";
+import { toD } from "@/lib/decimal";
+import { spendCartTokens } from "../tokens";
+import { addHours, amountDue } from "@/lib/cart-rules";
 import { formatLKR } from "@/lib/format";
 import { db } from "../db";
 import { factoryFulfilment } from "@/lib/fulfilment";
@@ -28,16 +30,27 @@ export async function uploadSlip(
   if (before.status !== "AWAITING_SLIP") throw new CartError("This cart isn't waiting for a slip");
   const saved = await saveUpload(file!, `slips/${cartId}`, SLIP_TYPES);
 
-  const cart = await withCartTransaction([cartId], [ownerId], async (tx) => {
+  const { cart, due } = await withCartTransaction([cartId], [ownerId], async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${cartId} FOR UPDATE`;
     const cart = await tx.groupCart.findUniqueOrThrow({ where: { id: cartId } });
     if (cart.status !== "AWAITING_SLIP") throw new CartError("This cart isn't waiting for a slip");
     if (cart.slipDueAt && cart.slipDueAt <= now)
       throw new CartError("The 2-hour payment window has closed");
-    await tx.paymentSlip.create({
-      data: { cartId, uploaderId: ownerId, amount: cart.total, ...saved },
+    const lines = await tx.cartLine.findMany({
+      where: { cartId },
+      select: { tokensApplied: true },
     });
-    return tx.groupCart.update({ where: { id: cartId }, data: { status: "SLIP_REVIEW" } });
+    const due = amountDue(
+      toD(cart.total),
+      lines.map((l) => toD(l.tokensApplied)),
+    );
+    await tx.paymentSlip.create({
+      data: { cartId, uploaderId: ownerId, amount: due.toFixed(2), ...saved },
+    });
+    return {
+      cart: await tx.groupCart.update({ where: { id: cartId }, data: { status: "SLIP_REVIEW" } }),
+      due,
+    };
   });
 
   const admins = await db.user.findMany({
@@ -48,7 +61,7 @@ export async function uploadSlip(
     admins.map((a) => a.id),
     {
       title: "Bank slip to review",
-      body: `Cart ${cart.code}: ${formatLKR(cart.total)}`,
+      body: `Cart ${cart.code}: ${formatLKR(due)}`,
       href: "/admin/slips",
     },
   );
@@ -74,6 +87,7 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
       where: { id: slipId },
       data: { status: "APPROVED", reviewerId: adminId, reviewedAt: now },
     });
+    await spendCartTokens(tx, cart.id);
     const lines = await tx.cartLine.findMany({ where: { cartId: cart.id } });
     await tx.giftOrder.updateMany({
       where: { cartId: cart.id, status: "RESERVED" },

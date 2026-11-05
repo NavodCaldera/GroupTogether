@@ -1,5 +1,6 @@
 "use server";
 
+import { applyTokens } from "../tokens";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
@@ -290,4 +291,18 @@ export async function rateFactoryAction(_p: ActionState, fd: FormData): Promise<
   });
   revalidatePath("/c/[code]", "page");
   return res;
+}
+
+export async function applyTokensAction(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireUser(["CUSTOMER"], "/account");
+  return attempt(async () => {
+    const lineId = str(fd, "lineId"),
+      requestKey = str(fd, "requestKey");
+    if (!requestKey) throw new CartError("Invalid token request");
+    await applyTokens(user.id, lineId, str(fd, "amount"), requestKey);
+    revalidatePath("/c/[code]", "page");
+    revalidatePath("/account");
+    revalidatePath("/dashboard");
+    return "Tokens applied";
+  });
 }

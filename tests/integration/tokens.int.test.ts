@@ -81,11 +81,12 @@ describe("token ledger", () => {
       applyTokens(member.id, line.id, "1500", "same-request"),
     ]);
     expect((await tokenBalance(member.id)).toFixed(2)).toBe("1500.00");
-    await Promise.allSettled(
+    const releases = await Promise.allSettled(
       Array.from({ length: 4 }, () =>
         withCartTransaction([cart.id], [member.id], (tx) => releaseLineTokens(tx, line.id)),
       ),
     );
+    expect(releases.every((r) => r.status === "fulfilled")).toBe(true);
     expect((await tokenBalance(member.id)).toFixed(2)).toBe("3000.00");
     expect(await db.tokenEntry.count({ where: { cartLineId: line.id, kind: "RELEASE" } })).toBe(1);
     await applyTokens(member.id, line.id, "1500");

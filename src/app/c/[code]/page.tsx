@@ -1,3 +1,8 @@
+import { randomUUID } from "node:crypto";
+import { TokenForm } from "@/components/token-form";
+import { tokenBalance } from "@/server/tokens";
+import { maxApplicable } from "@/lib/token-rules";
+import { D } from "@/lib/decimal";
 import type { Metadata } from "next";
 import { GiftProductDetails } from "@/components/gift-product-details";
 import Link from "next/link";
@@ -7,6 +12,7 @@ import { BackLink, Countdown } from "@/components/client";
 import { Toast } from "@/components/toast";
 import { Alert, Badge, Button, Card, LinkButton } from "@/components/ui";
 import {
+  amountDue,
   cartTotal,
   isEditable,
   lineTotal,
@@ -60,6 +66,11 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   const isOwner = user?.id === cart.ownerId;
   const isMember = !!user && cart.members.some((m) => m.userId === user.id);
   const editable = isEditable(cart.status);
+  const balance = isMember && user?.role === "CUSTOMER" ? await tokenBalance(user.id) : new D("0");
+  const due = amountDue(
+    cart.total.toString(),
+    cart.lines.map((l) => l.tokensApplied.toString()),
+  );
   // Members rate the factory once the order is delivered (2026-11-03).
   const factoryOf =
     cart.status === "DELIVERED" && isMember && user
@@ -332,6 +343,24 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
                         <span className="ml-auto text-right sm:w-28">
                           {formatLKR(lineTotal(l))}
                         </span>
+                        <span className="basis-full text-subtle">
+                          Tokens applied: {formatLKR(l.tokensApplied)}
+                        </span>
+                        {editable &&
+                          user?.role === "CUSTOMER" &&
+                          maxApplicable(balance, lineTotal(l), l.tokensApplied.toString()).gt(
+                            0,
+                          ) && (
+                            <TokenForm
+                              lineId={l.id}
+                              requestKey={randomUUID()}
+                              maximum={maxApplicable(
+                                balance,
+                                lineTotal(l),
+                                l.tokensApplied.toString(),
+                              ).toFixed(2)}
+                            />
+                          )}
                       </li>
                     ))}
                   </ul>
@@ -342,6 +371,16 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
         </div>
       </section>
 
+      {isMember && (
+        <Card className="text-sm">
+          <dl className="grid grid-cols-2 gap-2">
+            <dt>Your token balance</dt>
+            <dd className="text-right">{formatLKR(balance)}</dd>
+            <dt>Transfer amount</dt>
+            <dd className="text-right">{formatLKR(due)}</dd>
+          </dl>
+        </Card>
+      )}
       {myGifts.length > 0 && (
         <section className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Your complimentary gift</h2>

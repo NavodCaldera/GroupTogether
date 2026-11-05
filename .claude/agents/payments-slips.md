@@ -57,3 +57,13 @@ User rows. Changed membership snapshots retry before any ledger mutation. Never 
 advisory after a cart row. `src/server/tokens.ts` appends signed ledger entries; HOLD debits once,
 RELEASE credits unused amounts, and SPEND is a zero-delta marker. Stable event keys and line
 revisions allow a later hold while deduplicating retries. Ledger rows cannot be updated/deleted.
+
+## Part 2 token lifecycle and verification
+
+`setLine` releases excess tokens before lowering quantity; remove/leave/close paths release
+unused holds inside their cart transaction. Rejected slips keep holds. `approveSlip` appends
+zero-delta SPEND markers; the original HOLD remains the only debit. Merges preserve line IDs.
+`amountDue` drives transfer/slip/dashboard amounts; readiness and stock retain gross snapshots.
+Only a customer's own line can apply tokens; account balance/history are principal-scoped.
+Verify `tests/integration/tokens.int.test.ts`, `tests/integration/carts.int.test.ts`, the fixed-seed
+`src/lib/cart-money.property.test.ts` and `tests/e2e/commission-tokens.spec.ts` (360px, keyboard, axe).

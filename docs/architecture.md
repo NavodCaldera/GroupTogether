@@ -219,3 +219,17 @@ participants before locks were acquired, the transaction rolls back and retries,
 a newly discovered advisory lock after a cart lock. Cart creation and merge requests retain their
 existing user-first advisory path. Helpers release/spend run inside the caller's cart transaction;
 notifications remain after commit. A credit with no cart context takes only its User-row suffix.
+
+### Token lifecycle and presentation (Part 2)
+
+Cart-line reductions release only tokens above the remaining full line value before updating
+quantity. Removal, leaving, unpaid expiry and cancellation release all unused holds in the same
+transaction as stock restoration. A rejected slip preserves holds; approval appends a zero-delta
+SPEND marker. Ledger references intentionally survive deleted lines. Merge updates only the
+line's cart ID, preserving its applied amount, revision and ledger identity.
+
+Cart totals and minimums remain gross. `amountDue` subtracts token snapshots for owner pay pages,
+slip recording and dashboard payment prompts. Member settlement prompts subtract that member's
+applied tokens. The cart renders controls only on the viewer's own lines; the action obtains the
+user from the session and the service checks ownership again under locks. Customer account
+history uses a principal-scoped cursor and 50-entry pages; no public credit/mint action exists.

@@ -29,7 +29,8 @@ import { canSellIn, remindAgreements, sellingFactoryWhere } from "../agreements"
 
 import { CartError } from "./errors";
 export { CartError } from "./errors";
-import { lockCart, withCartTransaction } from "./locks";
+import { releaseLineTokens } from "../tokens";
+import { lockCart, lockLedgerUsers, withCartTransaction } from "./locks";
 
 function assertEditable(cart: GroupCart, now: Date) {
   if (overdue(cart, now) === "EXPIRE") throw new CartError("This cart has expired");
@@ -234,6 +235,8 @@ export async function setLine(
       });
     }
 
+    if (line && qty < line.qty)
+      await releaseLineTokens(tx, line.id, toD(line.unitPrice).times(qty));
     if (qty === 0) {
       if (line) await tx.cartLine.delete({ where: key });
     } else if (line) {
@@ -287,7 +290,12 @@ async function releaseLines(
 ) {
   await releaseGiftReservations(tx, cartId, userId);
   const lines = await tx.cartLine.findMany({ where: { cartId, userId } });
+  await lockLedgerUsers(
+    tx,
+    lines.map((l) => l.userId),
+  );
   for (const l of lines) {
+    await releaseLineTokens(tx, l.id);
     await tx.variant.update({
       where: { id: l.variantId },
       data: { available: { increment: l.qty }, reserved: { decrement: l.qty } },

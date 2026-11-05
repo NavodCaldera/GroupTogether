@@ -40,6 +40,15 @@ export function cartTotal(lines: LineLike[]): D {
   return roundMoney(lines.reduce((sum, l) => sum.plus(lineTotal(l)), new D(0)));
 }
 
+/** Transfer value only; cart readiness always uses the gross total. */
+export function amountDue(total: Decimal.Value, tokensApplied: Decimal.Value[]): D {
+  const gross = D.max(0, new D(total));
+  return D.max(
+    0,
+    D.min(gross, gross.minus(tokensApplied.reduce<D>((sum, value) => sum.plus(value), new D("0")))),
+  );
+}
+
 export function meetsMinimum(total: Decimal.Value, min: Decimal.Value) {
   return new D(total).gte(min);
 }
