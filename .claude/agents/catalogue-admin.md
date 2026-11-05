@@ -92,3 +92,9 @@ hidden goods. Preserve stored cart.total; display projections and packing/factor
 CANCELLED lines. Call `flushCancellationNotices` after commit; durable markers/stable IDs make
 retries safe. A fully cancelled dispatched cart retains Delivery and alerts WAREHOUSE admins,
 without calling the provider. See `tests/integration/cancellations.int.test.ts`.
+
+Product-rating guard: `src/server/ratings.ts` accepts only actual delivered product receivers,
+once per user/cart/product, and preserves legacy factory ratings for score reads only. Private
+report photos use `/api/report-photos/[id]`, restricted to the rater and FACTORY/CORE admins.
+Verify `quality-rules.test.ts` and `ratings.int.test.ts`; public score queries never expose notes,
+photos or buyer identities. Delivered cart forms replace the former factory-wide write action.

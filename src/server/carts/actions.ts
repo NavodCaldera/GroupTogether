@@ -28,7 +28,8 @@ import {
 } from "./service";
 import { uploadSlip } from "./slips";
 import { markReceived } from "../delivery";
-import { rateFactory } from "../ratings";
+import { rateProduct } from "../ratings";
+import type { ReportReason } from "@/lib/quality-rules";
 import { flash } from "../flash";
 
 export type ActionState = {
@@ -288,14 +289,24 @@ export async function cancelMergeAction(fd: FormData) {
 }
 
 /** A member rates the factory of their delivered group order, 1–5 stars (2026-11-03). */
-export async function rateFactoryAction(_p: ActionState, fd: FormData): Promise<ActionState> {
-  const user = await requireUser();
-  const res = await attempt(async () => {
-    await rateFactory(user.id, str(fd, "cartId"), Number(str(fd, "stars")));
-    return "Thanks for rating the factory";
+export async function rateProductAction(_p: ActionState, fd: FormData): Promise<ActionState> {
+  const user = await requireUser(["CUSTOMER"]);
+  const result = await attempt(async () => {
+    const reason = str(fd, "reason");
+    const photos = fd.getAll("photos").filter((v): v is File => v instanceof File && v.size > 0);
+    await rateProduct(
+      user.id,
+      str(fd, "cartId"),
+      str(fd, "productId"),
+      Number(str(fd, "stars")),
+      reason ? { reason: reason as ReportReason, note: str(fd, "note"), photos } : undefined,
+    );
+    return "Rating saved";
   });
   revalidatePath("/c/[code]", "page");
-  return res;
+  revalidatePath("/shop");
+  revalidatePath("/products/[id]", "page");
+  return result;
 }
 
 export async function applyTokensAction(_p: ActionState, fd: FormData): Promise<ActionState> {

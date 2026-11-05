@@ -254,11 +254,18 @@ export async function factoryProducts(factoryId: string) {
 /** Ratings and insights: restock advice, pack time, active-cart demand, price bands, cities. */
 export async function factoryInsights(factoryId: string) {
   const [ratings, variants, packed, active, lines, cities] = await Promise.all([
-    db.factoryRating.findMany({
-      where: { factoryId },
-      select: { id: true, stars: true },
-      orderBy: { createdAt: "desc" },
-    }),
+    Promise.all([
+      db.factoryRating.findMany({
+        where: { factoryId },
+        select: { id: true, stars: true, createdAt: true },
+      }),
+      db.productRating.findMany({
+        where: { product: { sellerId: factoryId } },
+        select: { id: true, stars: true, createdAt: true },
+      }),
+    ]).then((groups) =>
+      groups.flat().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
+    ),
     db.variant.findMany({
       where: { product: { sellerId: factoryId } },
       select: { size: true, available: true, reserved: true, product: { select: { title: true } } },

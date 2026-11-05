@@ -8,6 +8,11 @@ Newest first.
 
 ## 2026-11-05 - Factory partnership Part 3: quality and cancellations
 
+- Task 3.2 adds per-product delivered-receiver ratings, required low-star reports and private
+  report photos. Product scores and combined legacy/new factory scores are displayed. The old
+  factory-rating write action is retired; history is preserved. Photo access is limited to the
+  rater and FACTORY/CORE admins, with no grants to the restricted inspector.
+
 - Task 3.1 adds ACTIVE/CANCELLED/RETURNED line state and hidden-product metadata. Paid cancellation
   credits the full captured line value once, including tokens already spent. Sold stock decreases
   without returning hidden goods to available stock; stored payment totals remain immutable while

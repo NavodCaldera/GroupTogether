@@ -11,7 +11,7 @@ import {
   factoryProducts,
 } from "@/server/factory-dashboard";
 import { markFactoryPacked } from "@/server/factory-orders";
-import { rateFactory, ratingSummaries } from "@/server/ratings";
+import { rateProduct, ratingSummaries } from "@/server/ratings";
 import { cartRow, makeUser, makeVariant, resetDb, slipFile } from "./helpers";
 
 beforeEach(async () => {
@@ -125,14 +125,12 @@ describe("factory-direct fulfilment", () => {
     expect(await inShop()).toBe(0);
   });
 
-  it("members rate the factory once after delivery; the dashboard counts sales", async () => {
+  it("receivers rate products after delivery; legacy ratings still count in factory scores", async () => {
     const [owner, friend, admin] = [await makeUser(), await makeUser(), await makeUser("ADMIN")];
     const { factory, v } = await factoryVariant();
     const cart = await createCart(owner.id, {});
     await setLine(owner.id, cart.id, v.id, 2);
-    await expect(rateFactory(owner.id, cart.id, 5)).rejects.toThrow(
-      "once your group order is delivered",
-    );
+    await expect(rateProduct(owner.id, cart.id, v.productId, 5)).rejects.toThrow("delivered");
     await db.cartMember.create({ data: { cartId: cart.id, userId: friend.id } });
     await acceptAndPay(owner.id, cart.id, {
       deliveryAddress: "12 Flower Rd",
@@ -147,11 +145,14 @@ describe("factory-direct fulfilment", () => {
     const d = await db.delivery.findUniqueOrThrow({ where: { cartId: cart.id } });
     await setDeliveryStatus(d.id, "DELIVERED");
 
-    await rateFactory(owner.id, cart.id, 5);
-    await rateFactory(friend.id, cart.id, 4);
-    await expect(rateFactory(owner.id, cart.id, 1)).rejects.toThrow("already rated");
-    await expect(rateFactory(admin.id, cart.id, 1)).rejects.toThrow("delivered");
-    await expect(rateFactory(friend.id, cart.id, 6)).rejects.toThrow("1 to 5");
+    await rateProduct(owner.id, cart.id, v.productId, 5);
+    await expect(rateProduct(friend.id, cart.id, v.productId, 4)).rejects.toThrow("received");
+    await db.factoryRating.create({
+      data: { cartId: cart.id, userId: friend.id, factoryId: factory.id, stars: 4 },
+    });
+    await expect(rateProduct(owner.id, cart.id, v.productId, 5)).rejects.toThrow("already rated");
+    await expect(rateProduct(admin.id, cart.id, v.productId, 5)).rejects.toThrow("delivered");
+    await expect(rateProduct(friend.id, cart.id, v.productId, 6)).rejects.toThrow("1 to 5");
     expect((await ratingSummaries([factory.id])).get(factory.id)).toEqual({
       average: 4.5,
       count: 2,

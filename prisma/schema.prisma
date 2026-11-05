@@ -40,32 +40,33 @@ enum Role {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  role         Role         @default(CUSTOMER)
-  adminArea    AdminArea? // admins only
-  name         String
-  email        String       @unique
-  phone        String?      @unique
-  passwordHash String
+  productRatings ProductRating[]
+  id             String          @id @default(cuid())
+  role           Role            @default(CUSTOMER)
+  adminArea      AdminArea? // admins only
+  name           String
+  email          String          @unique
+  phone          String?         @unique
+  passwordHash   String
   /// Default drop-off for carts this user owns
-  address      String?
-  city         String?
+  address        String?
+  city           String?
   /// Exact map pin of the address (mandatory at sign-up)
-  lat          Float?
-  lng          Float?
+  lat            Float?
+  lng            Float?
   /// Sellers: the factory or company name
-  company      String?
+  company        String?
   /// Premium brand partner: offers gift products and fulfils paid basket gifts directly.
   /// `website` verifies retail references on the brand's own site.
-  isBrand      Boolean      @default(false)
-  website      String?
-  locked       Boolean      @default(false)
+  isBrand        Boolean         @default(false)
+  website        String?
+  locked         Boolean         @default(false)
   /// Factory staff: the factory account they work for, and their job. The factory account itself
   /// has neither and is always an owner.
-  factoryId    String?
-  factory      User?        @relation("FactoryStaff", fields: [factoryId], references: [id], onDelete: Cascade)
-  factoryRole  FactoryRole?
-  createdAt    DateTime     @default(now())
+  factoryId      String?
+  factory        User?           @relation("FactoryStaff", fields: [factoryId], references: [id], onDelete: Cascade)
+  factoryRole    FactoryRole?
+  createdAt      DateTime        @default(now())
 
   staff                User[]                @relation("FactoryStaff")
   factoryProfile       FactoryProfile?
@@ -150,40 +151,41 @@ enum ProductStatus {
 }
 
 model Product {
-  hiddenAt     DateTime?
-  hiddenById   String?
-  hiddenReason String?
-  id           String        @id @default(cuid())
-  title        String
-  brand        String
-  description  String        @default("")
-  category     Category
+  productRatings ProductRating[]
+  hiddenAt       DateTime?
+  hiddenById     String?
+  hiddenReason   String?
+  id             String          @id @default(cuid())
+  title          String
+  brand          String
+  description    String          @default("")
+  category       Category
   /// Who it is for and the finer category (ids in src/lib/taxonomy.ts); null on older products
-  audience     Audience?
-  kind         String?
-  stockType    StockType
+  audience       Audience?
+  kind           String?
+  stockType      StockType
   /// No longer used (defects removed by the product owner, 2026-10-17); kept so old notes aren't lost
-  defectNotes  String?
-  retailPrice  Decimal?      @db.Decimal(14, 2)
-  price        Decimal       @db.Decimal(14, 2)
-  factoryPrice Decimal?      @db.Decimal(14, 2)
-  commission   Decimal?      @db.Decimal(14, 2)
-  status       ProductStatus @default(DRAFT)
-  photoKey     String?
-  photoType    String?
+  defectNotes    String?
+  retailPrice    Decimal?        @db.Decimal(14, 2)
+  price          Decimal         @db.Decimal(14, 2)
+  factoryPrice   Decimal?        @db.Decimal(14, 2)
+  commission     Decimal?        @db.Decimal(14, 2)
+  status         ProductStatus   @default(DRAFT)
+  photoKey       String?
+  photoType      String?
   /// The factory that listed it; null for our own listings
-  sellerId     String?
-  seller       User?         @relation("SellerProducts", fields: [sellerId], references: [id])
+  sellerId       String?
+  seller         User?           @relation("SellerProducts", fields: [sellerId], references: [id])
   /// Why an admin returned it to the seller (shown to the seller)
-  reviewNote   String?
+  reviewNote     String?
   /// A luxury brand's product: the page on the brand's own website showing its actual price
   /// (`retailPrice`), linked from our product page (2026-10-24)
-  brandUrl     String?
+  brandUrl       String?
   /// The bulk lot it came from; its price then follows the lot's cost and margin
-  lotId        String?
-  lot          Lot?          @relation(fields: [lotId], references: [id], onDelete: SetNull)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  lotId          String?
+  lot            Lot?            @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   samples  SampleRequest[]
   variants Variant[]
@@ -281,6 +283,7 @@ enum CartStatus {
 }
 
 model GroupCart {
+  productRatings     ProductRating[]
   cancelPickupReview Boolean         @default(false)
   id                 String          @id @default(cuid())
   /// Share code in /c/<code>
@@ -951,4 +954,50 @@ enum LineStatus {
   ACTIVE
   CANCELLED
   RETURNED
+}
+
+enum ReportReason {
+  DAMAGED
+  WRONG_ITEM
+  STITCHING
+  SIZE
+  OTHER
+}
+
+model ProductRating {
+  id        String         @id @default(cuid())
+  productId String
+  product   Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
+  cartId    String
+  cart      GroupCart      @relation(fields: [cartId], references: [id], onDelete: Restrict)
+  userId    String
+  user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+  stars     Int
+  createdAt DateTime       @default(now())
+  report    QualityReport?
+
+  @@unique([cartId, userId, productId])
+  @@index([productId, createdAt])
+}
+
+model QualityReport {
+  id        String        @id @default(cuid())
+  ratingId  String        @unique
+  rating    ProductRating @relation(fields: [ratingId], references: [id], onDelete: Cascade)
+  reason    ReportReason
+  note      String
+  createdAt DateTime      @default(now())
+  photos    ReportPhoto[]
+
+  @@index([createdAt])
+}
+
+model ReportPhoto {
+  id          String        @id @default(cuid())
+  reportId    String
+  report      QualityReport @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  storageKey  String
+  contentType String
+
+  @@index([reportId])
 }

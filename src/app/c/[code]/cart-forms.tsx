@@ -10,7 +10,6 @@ import {
   acceptAction,
   inviteAction,
   joinAction,
-  rateFactoryAction,
   uploadSlipAction,
 } from "@/server/carts/actions";
 
@@ -117,34 +116,6 @@ export function SlipForm({ cartId }: { cartId: string }) {
       </Field>
       <Button type="submit" disabled={pending}>
         {pending ? "Uploading…" : "Upload slip"}
-      </Button>
-    </form>
-  );
-}
-
-/** 1–5 stars for the factory that shipped a delivered order; one rating per member. */
-export function RateFactoryForm({ cartId, factory }: { cartId: string; factory: string }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(rateFactoryAction, {});
-  if (state.ok) return <p className="text-sm">{state.ok}</p>;
-  return (
-    <form action={action} className="flex flex-col gap-2">
-      {state.error && <Alert>{state.error}</Alert>}
-      <input type="hidden" name="cartId" value={cartId} />
-      <fieldset>
-        <legend className="mb-1 text-sm font-medium">Rate {factory}</legend>
-        <div className="flex gap-1">
-          {[1, 2, 3, 4, 5].map((n) => (
-            <label key={n} className="cursor-pointer">
-              <input type="radio" name="stars" value={n} required className="peer sr-only" />
-              <span className="grid size-11 place-items-center rounded-lg border border-line text-lg peer-checked:border-accent peer-checked:bg-accent peer-checked:text-on-accent peer-focus-visible:ring-2">
-                {n}★
-              </span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-      <Button type="submit" variant="secondary" disabled={pending}>
-        {pending ? "Saving…" : "Send rating"}
       </Button>
     </form>
   );

@@ -1,3 +1,4 @@
+import { ProductRatingForm } from "@/components/product-rating-form";
 import { MemberDoneControl, RemoveMemberControl } from "@/components/member-done-controls";
 import { randomUUID } from "node:crypto";
 import { TokenForm } from "@/components/token-form";
@@ -42,11 +43,10 @@ import {
 import { sweep } from "@/server/carts/service";
 import { conversationHref, listMessages, threadsFor } from "@/server/carts/chat";
 import { ChatPanel } from "./chat";
-import { AcceptForm, JoinForm, RateFactoryForm } from "./cart-forms";
+import { AcceptForm, JoinForm } from "./cart-forms";
 import { db } from "@/server/db";
 import { RewardForm } from "@/components/reward-form";
 import { removeGiftAction } from "@/server/gift-actions";
-import { myRating } from "@/server/ratings";
 import { GIFT_STATUS } from "@/lib/gift-rules";
 
 export async function generateMetadata({ params }: PageProps<"/c/[code]">): Promise<Metadata> {
@@ -73,19 +73,27 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
     cart.lines.map((l) => l.tokensApplied.toString()),
   );
   // Members rate the factory once the order is delivered (2026-11-03).
-  const factoryOf =
+  const productRatings =
     cart.status === "DELIVERED" && isMember && user
-      ? await db.user.findFirst({
-          where: {
-            products: { some: { variants: { some: { lines: { some: { cartId: cart.id } } } } } },
+      ? await db.productRating.findMany({
+          where: { cartId: cart.id, userId: user.id },
+          select: {
+            productId: true,
+            stars: true,
+            report: { select: { photos: { select: { id: true } } } },
           },
-          select: { name: true, company: true },
         })
-      : null;
-  const rating =
-    factoryOf && user
-      ? { factory: factoryOf.company || factoryOf.name, mine: await myRating(user.id, cart.id) }
-      : null;
+      : [];
+  const received =
+    cart.status === "DELIVERED" && user
+      ? [
+          ...new Map(
+            cart.lines
+              .filter((l) => l.userId === user.id && ["ACTIVE", "RETURNED"].includes(l.status))
+              .map((l) => [l.variant.product.id, l.variant.product]),
+          ).values(),
+        ]
+      : [];
   const myGifts =
     isMember && user
       ? await db.giftOrder.findMany({
@@ -215,12 +223,34 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
           defaults={user}
           merge={merge}
         />
-        {rating && !rating.mine && <RateFactoryForm cartId={cart.id} factory={rating.factory} />}
-        {rating?.mine && (
-          <p className="text-sm text-subtle">
-            You rated {rating.factory} {rating.mine.stars}★
-          </p>
-        )}
+        {received.map((product) => {
+          const mine = productRatings.find((r) => r.productId === product.id);
+          return mine ? (
+            <div key={product.id}>
+              <p className="text-sm">
+                {product.title}: {mine.stars} / 5
+              </p>
+              {mine.report?.photos.map((photo) => (
+                <a
+                  key={photo.id}
+                  href={`/api/report-photos/${photo.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mr-3 text-sm underline"
+                >
+                  Report photo
+                </a>
+              ))}
+            </div>
+          ) : (
+            <ProductRatingForm
+              key={product.id}
+              cartId={cart.id}
+              productId={product.id}
+              title={product.title}
+            />
+          );
+        })}
       </Card>
 
       {joinRequests.length > 0 && (

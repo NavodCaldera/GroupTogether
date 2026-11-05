@@ -276,3 +276,15 @@ review for a fully cancelled dispatched cart; Delivery is never changed by cance
 original payment record. Packing, delivery contents and factory operational views select ACTIVE
 lines. Delivered lines are ineligible for quality cancellation. Accepted, unpaid carts remain
 frozen until confirmation; hide/remove cleanup is implemented separately in Part 3.3.
+
+### Product ratings and private quality reports (Part 3.2)
+
+`ProductRating` is unique per cart/user/product, with a 1-5 database constraint. `QualityReport`
+has one rating and private `ReportPhoto` rows whose storage keys never enter public product
+queries. `rateProduct` validates receiver ownership on ACTIVE/RETURNED delivered lines, then
+serializes submission through the cart transaction. Low stars require a report; damage/wrong
+item/stitching require photos. Uploads use the existing private storage adapter and image limits.
+The report-photo route rechecks the actor from DB and returns 404 except for the rater and
+FACTORY/CORE admins. Product/factory scores are computed on reads; each legacy FactoryRating
+counts once alongside product ratings. Legacy write actions are retired, not migrated into
+multiple product ratings. The restricted reader has no access to the three new tables.

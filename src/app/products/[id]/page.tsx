@@ -1,3 +1,4 @@
+import { ProductScore } from "@/components/product-score";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -9,7 +10,7 @@ import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { editableCartsFor, joinableCart } from "@/server/carts/queries";
 import { getProduct } from "@/server/catalogue";
-import { ratingSummaries } from "@/server/ratings";
+import { ratingSummaries, productRatingSummaries } from "@/server/ratings";
 import { FactoryRating } from "@/components/factory-rating";
 import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 
@@ -23,11 +24,12 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const [product, user] = await Promise.all([getProduct(id), getCurrentUser()]);
   if (!product) notFound();
   const wanted = typeof sp.cart === "string" ? sp.cart.toUpperCase() : undefined;
-  const [carts, ratings] = await Promise.all([
+  const [carts, ratings, productScores] = await Promise.all([
     user
       ? editableCartsFor(user.id)
       : Promise.resolve([] as Awaited<ReturnType<typeof editableCartsFor>>),
     ratingSummaries([product.sellerId]),
+    productRatingSummaries([product.id]),
   ]);
   // Came from a shared cart they haven't joined yet: adding to it joins it.
   if (user && wanted && carts.length === 0 && !carts.some((c) => c.code === wanted)) {
@@ -49,6 +51,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
               rating={product.sellerId ? ratings.get(product.sellerId) : undefined}
               className="mt-1 text-sm text-subtle"
             />
+            <ProductScore score={productScores.get(product.id)} />
             <p className="mt-2 text-2xl font-bold">
               {formatLKR(product.price)}
               {product.retailPrice && (

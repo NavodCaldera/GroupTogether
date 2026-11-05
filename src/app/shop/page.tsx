@@ -1,3 +1,4 @@
+import { ProductScore } from "@/components/product-score";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -9,7 +10,7 @@ import { formatLKR } from "@/lib/format";
 import { findKind, isAudience, kindFits } from "@/lib/taxonomy";
 import { getCurrentUser } from "@/server/auth/session";
 import { type ProductFilters, listProducts } from "@/server/catalogue";
-import { ratingSummaries } from "@/server/ratings";
+import { ratingSummaries, productRatingSummaries } from "@/server/ratings";
 import { FactoryRating } from "@/components/factory-rating";
 
 export const metadata: Metadata = { title: "Shop" };
@@ -40,7 +41,10 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   // No filter or search: lowest prices first. Filtered: newest first.
   const unfiltered = Object.values(filters).every((v) => v === undefined);
   const products = await listProducts(filters, 60, unfiltered ? "cheapest" : "newest");
-  const ratings = await ratingSummaries(products.map((p) => p.sellerId));
+  const [ratings, productScores] = await Promise.all([
+    ratingSummaries(products.map((p) => p.sellerId)),
+    productRatingSummaries(products.map((p) => p.id)),
+  ]);
   // 16px text on phones so iOS doesn't zoom into the field.
   const select =
     "min-h-11 min-w-0 rounded-lg border border-line bg-paper px-2 text-base sm:min-h-10 sm:text-sm";
@@ -94,6 +98,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
                   factory={p.seller}
                   rating={p.sellerId ? ratings.get(p.sellerId) : undefined}
                 />
+                <ProductScore score={productScores.get(p.id)} />
                 <p className="mt-0.5 text-sm">
                   <strong>{formatLKR(p.price)}</strong>
                   {p.retailPrice && (
