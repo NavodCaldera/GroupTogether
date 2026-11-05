@@ -12,6 +12,8 @@ Newest first.
 - Redemption locks the owner and activation, verifies expiry/single use/account conditions, then atomically sets the password and `usedAt`. The existing action starts a normal session after redemption. `userForToken` remains session-only. Integration tests cover access, replay, expiry, renewal, legacy owners, concurrent redemption and migration safety; the 360px browser journey checks one-time display and old-link refusal.
 - Migration `factory_activation_tokens` identifies unredeemed old approval sessions by exact SHA-256 matches to token-bearing notification URLs and revokes them, then sanitizes all such notification links. Invalidated hash-only history is retained only for owners created after their application, enabling replacement links without granting legacy accounts activation access. Local development migration affected zero sessions/notifications and backfilled zero activations; no password hashes are changed. No reader grants are added.
 
+- Finding 2: the factory admin browser test now expects Applications immediately after Factories, retaining the exact tab list/order and existing badge-count matching.
+
 ## 2026-11-05 - Production hardening 4: security headers
 
 - Added config-only security headers in `next.config.ts`: production-only two-year HSTS without preload, frame denial, MIME sniffing protection, strict-origin referrers and a site CSP allowing the existing Leaflet, OpenStreetMap, Photon and Sentry origins. Inline bootstrap/style support remains; eval and WebSockets are development-only, and insecure requests are upgraded only in production. The Sentry wrapper remains intact.

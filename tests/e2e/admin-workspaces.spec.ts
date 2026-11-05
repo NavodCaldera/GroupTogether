@@ -31,7 +31,7 @@ test("four admins: three run their stream, the core admin runs settings and admi
       email: "factory@groupbasket.lk",
       home: "/admin/factory",
       title: "Apparel and factories",
-      tabs: ["Factories", "Stock", "Lots", "Products", "Offers", "Users"],
+      tabs: ["Factories", "Applications", "Stock", "Lots", "Products", "Offers", "Users"],
       denied: ["/admin/brands", "/admin/slips", "/admin/settings", "/admin/users/new-admin"],
       addUser: "Add factory",
     },
