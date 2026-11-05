@@ -4,7 +4,7 @@ import { latestAgreement } from "@/server/agreements";
 import { Textarea } from "@/components/ui";
 import type { Metadata } from "next";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
-import { saveSettingsAction } from "@/server/admin-actions";
+import { saveSettingsAction, setCommissionAction } from "@/server/admin-actions";
 import { saveStockSettingsAction } from "@/server/lot-actions";
 import { redirect } from "next/navigation";
 import { adminHome } from "@/lib/admin-access";
@@ -47,6 +47,18 @@ export default async function SettingsPage() {
       <div>
         <PageHeader title="Settings" />
         <div className="flex flex-col gap-6">
+          <Card>
+            <AdminForm action={setCommissionAction} submit="Save commission">
+              <Field label="Commission per piece (LKR)" name="commissionPerPiece">
+                <Input
+                  name="commissionPerPiece"
+                  inputMode="decimal"
+                  defaultValue={s.commissionPerPiece.toString()}
+                  required
+                />
+              </Field>
+            </AdminForm>
+          </Card>
           <Card>
             <h2 className="mb-3 font-semibold">
               Factory agreement{agreement ? ` v${agreement.version}` : ""}

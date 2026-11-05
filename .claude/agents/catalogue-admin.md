@@ -27,6 +27,8 @@ Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/se
 
 ## Catalogue and pricing guards
 
+- Direct non-brand factory listings snapshot `Settings.commissionPerPiece` at creation into `Product.commission`; `factoryPrice + commission` is stored in buyer-facing `Product.price`. CORE alone changes the setting. Existing-listing edits reuse the stored commission; own and lot pricing remain unchanged. See `src/lib/price-rules.ts` and `tests/integration/commission.int.test.ts`.
+
 - Free variant stock controls ordinary shop listings, search, facets and suggestions. Product status/review columns are legacy, not a publish workflow.
 - Ordinary product links may remain accessible without free stock. Brand-linked gift products are excluded from public catalogue/direct lookup and paid additions. Catalogue eligibility must append `...IN_SHOP.AND`, never overwrite it, including lists, suggestions, facets, savings and direct details. `tests/integration/catalogue-eligibility.int.test.ts` broadens factory eligibility to verify the independent brand boundary.
 - Stock adjustments change available quantities only; never manually change reserved/sold counts or remove more free stock than exists.

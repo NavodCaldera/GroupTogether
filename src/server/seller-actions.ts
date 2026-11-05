@@ -71,7 +71,7 @@ export async function sendBrandOfferAction(_p: SellerState, fd: FormData): Promi
   redirect("/seller?tab=products");
 }
 
-/** A factory publishes or edits its own listing; it goes live without review (2026-11-03). */
+/** Factory price is submitted here; saveProduct applies the listing commission snapshot. */
 export async function saveFactoryProductAction(
   _p: SellerState,
   fd: FormData,

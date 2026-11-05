@@ -149,35 +149,37 @@ enum ProductStatus {
 }
 
 model Product {
-  id          String        @id @default(cuid())
-  title       String
-  brand       String
-  description String        @default("")
-  category    Category
+  id           String        @id @default(cuid())
+  title        String
+  brand        String
+  description  String        @default("")
+  category     Category
   /// Who it is for and the finer category (ids in src/lib/taxonomy.ts); null on older products
-  audience    Audience?
-  kind        String?
-  stockType   StockType
+  audience     Audience?
+  kind         String?
+  stockType    StockType
   /// No longer used (defects removed by the product owner, 2026-10-17); kept so old notes aren't lost
-  defectNotes String?
-  retailPrice Decimal?      @db.Decimal(14, 2)
-  price       Decimal       @db.Decimal(14, 2)
-  status      ProductStatus @default(DRAFT)
-  photoKey    String?
-  photoType   String?
+  defectNotes  String?
+  retailPrice  Decimal?      @db.Decimal(14, 2)
+  price        Decimal       @db.Decimal(14, 2)
+  factoryPrice Decimal?      @db.Decimal(14, 2)
+  commission   Decimal?      @db.Decimal(14, 2)
+  status       ProductStatus @default(DRAFT)
+  photoKey     String?
+  photoType    String?
   /// The factory that listed it; null for our own listings
-  sellerId    String?
-  seller      User?         @relation("SellerProducts", fields: [sellerId], references: [id])
+  sellerId     String?
+  seller       User?         @relation("SellerProducts", fields: [sellerId], references: [id])
   /// Why an admin returned it to the seller (shown to the seller)
-  reviewNote  String?
+  reviewNote   String?
   /// A luxury brand's product: the page on the brand's own website showing its actual price
   /// (`retailPrice`), linked from our product page (2026-10-24)
-  brandUrl    String?
+  brandUrl     String?
   /// The bulk lot it came from; its price then follows the lot's cost and margin
-  lotId       String?
-  lot         Lot?          @relation(fields: [lotId], references: [id], onDelete: SetNull)
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
+  lotId        String?
+  lot          Lot?          @relation(fields: [lotId], references: [id], onDelete: SetNull)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
   samples  SampleRequest[]
   variants Variant[]
@@ -678,20 +680,21 @@ model BrandOfferRevision {
 
 /// One row (id = 1). Changes apply to carts started afterwards (minOrderValue is snapshotted).
 model Settings {
-  id                Int     @id @default(1)
-  minOrderValue     Decimal @default(50000) @db.Decimal(14, 2)
-  cartLifetimeHours Int     @default(24)
-  slipWindowHours   Int     @default(2)
-  bankName          String  @default("")
-  bankBranch        String  @default("")
-  accountName       String  @default("")
-  accountNumber     String  @default("")
+  commissionPerPiece Decimal @default(100) @db.Decimal(14, 2)
+  id                 Int     @id @default(1)
+  minOrderValue      Decimal @default(50000) @db.Decimal(14, 2)
+  cartLifetimeHours  Int     @default(24)
+  slipWindowHours    Int     @default(2)
+  bankName           String  @default("")
+  bankBranch         String  @default("")
+  accountName        String  @default("")
+  accountNumber      String  @default("")
   /// Pieces our store holds (product owner, 2026-10-21: 6,000)
-  storeCapacity     Int     @default(6000)
+  storeCapacity      Int     @default(6000)
   /// New lots: margin on cost for the first days, then the reduced margin (20% for 7 days, then 10%)
-  fullMarginPct     Int     @default(20)
-  reducedMarginPct  Int     @default(10)
-  fullMarginDays    Int     @default(7)
+  fullMarginPct      Int     @default(20)
+  reducedMarginPct   Int     @default(10)
+  fullMarginDays     Int     @default(7)
 }
 
 /// A private conversation between a cart's owner and one other user (a member or someone asking

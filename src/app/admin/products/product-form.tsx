@@ -1,3 +1,4 @@
+import { FactoryPriceInput } from "@/components/factory-price-input";
 import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { Field, Input, Select, Textarea } from "@/components/ui";
 import { formatDate } from "@/lib/format";
@@ -12,6 +13,8 @@ type ProductValues = {
   audience: string | null;
   kind: string | null;
   price: { toString(): string };
+  factoryPrice?: { toString(): string } | null;
+  commission?: { toString(): string } | null;
   retailPrice: { toString(): string } | null;
   brandUrl: string | null;
   lotId: string | null;
@@ -29,7 +32,7 @@ export function ProductForm({
   factory,
 }: {
   /** A factory's own listing: its own price and brand, no lot or brand link. */
-  factory?: { brand: string };
+  factory?: { brand: string; commission?: string };
   product?: ProductValues;
   /** Bulk lots to pick from: a product from a lot takes the lot's price (cost + margin). */
   lots?: LotChoice[];
@@ -39,6 +42,9 @@ export function ProductForm({
   offer?: { id: string; name: string; actualPrice?: string; productUrl?: string };
   action?: (prev: AdminState, fd: FormData) => Promise<AdminState>;
 }) {
+  const commission = !product?.lotId
+    ? (product?.commission?.toString() ?? factory?.commission)
+    : undefined;
   return (
     <AdminForm
       action={action}
@@ -72,14 +78,21 @@ export function ProductForm({
         </Field>
       )}
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={factory ? "Price (LKR)" : "Our price (LKR, no lot)"} name="price">
-          <Input
-            name="price"
-            inputMode="decimal"
-            defaultValue={product?.price.toString()}
-            required={!!factory}
+        {commission !== undefined ? (
+          <FactoryPriceInput
+            initial={(product?.factoryPrice ?? product?.price)?.toString()}
+            commission={commission}
           />
-        </Field>
+        ) : (
+          <Field label={factory ? "Price (LKR)" : "Our price (LKR, no lot)"} name="price">
+            <Input
+              name="price"
+              inputMode="decimal"
+              defaultValue={product?.price.toString()}
+              required={!!factory}
+            />
+          </Field>
+        )}
         <Field label="Retail price (LKR, optional)" name="retailPrice">
           <Input
             name="retailPrice"

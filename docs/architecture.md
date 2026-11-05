@@ -185,3 +185,14 @@ failure lands may finish, allowing extra guesses in a burst; failure recording r
 `AUTH-001` owns the rule; the table has no reader grants. Coverage in
 `tests/integration/login-lockout.int.test.ts` includes a 30-attempt pool regression that keeps
 verification pending and requires an unrelated `SELECT 1` to finish in under 200 ms.
+
+## Factory commission snapshots
+
+`src/lib/price-rules.ts` owns Decimal buyer-price addition and commission validation. Only CORE
+can call `setCommission` in `src/server/settings.ts`; the settings action derives the actor
+from the session. `saveProduct` stores `factoryPrice` plus the commission in `Product.price`
+for new direct non-brand factory listings. Creation share-locks Settings until commit; updates
+lock the product and reuse its stored commission, never the current setting. Own and lot
+products keep their original pricing. Existing factory buyer prices are retained by the guarded
+`factory_commission` migration. The form sends the factory price and previews the resulting
+buyer price in a small client island; all existing buyer price paths still use `Product.price`.

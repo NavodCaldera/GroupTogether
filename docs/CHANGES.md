@@ -6,6 +6,11 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Factory partnership Part 2: commission and tokens
+
+- Task 2.1: factory listings snapshot CORE's per-piece commission (default LKR 100), with separate `factoryPrice` and `commission` Decimal(14,2) columns while `Product.price` remains the buyer price. Factory price edits reuse the listing snapshot. Own, premium and lot pricing keep their existing paths. The mandatory development count of factory listings below LKR 100 was **0** before the guarded migration; existing non-lot factory prices are preserved with factory price = buyer price minus 100.
+- Only unlocked CORE admins can change commission; zero is valid, negative/over-precision amounts are refused. New listing creation share-locks the setting until commit so a concurrent setting update cannot overtake the snapshot. The seller form previews buyer price with Decimal arithmetic. Existing demo buyer prices are preserved. Rules and regressions: `price-rules.test.ts`, `commission.int.test.ts`.
+
 ## 2026-11-05 - Factory partnership Part 1: review fixes
 
 - Activation reissue follow-up (2026-11-05): `FactoryActivation.revokedAt` now marks replacement/revocation; `usedAt` means owner redemption only. Under the owner lock, any redeemed activation permanently blocks admin reissue with "This factory owner has already set a password". Redemption requires both markers to be null, and the admin action disappears after redemption. Migration `factory_activation_revoked` only adds the nullable column; ambiguous historical `usedAt` values stay unchanged and conservatively prevent reissue. Tests cover password preservation for FACTORY/CORE reissue attempts, repeated pre-activation replacement, revoked-link refusal and hidden post-activation controls.

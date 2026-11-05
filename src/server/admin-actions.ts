@@ -17,6 +17,7 @@ import { CartError, cancelCart } from "./carts/service";
 import { approveSlip, rejectSlip } from "./carts/slips";
 import { CatalogueError, adjustStock, saveProduct, setProductHidden } from "./catalogue";
 import { db } from "./db";
+import { setCommission, SettingsError } from "./settings";
 import { bookDelivery, setDeliveryStatus } from "./delivery";
 import { flash } from "./flash";
 import { linkOfferProduct } from "./designs";
@@ -37,6 +38,7 @@ async function attempt(fn: () => Promise<unknown>, ok?: string): Promise<AdminSt
       e instanceof CartError ||
       e instanceof CatalogueError ||
       e instanceof UploadError ||
+      e instanceof SettingsError ||
       e instanceof AuthError
     )
       return { error: e.message };
@@ -273,4 +275,15 @@ export async function createOperationalAdminAction(
   if (res.error) return res;
   revalidatePath("/admin/users");
   redirect("/admin/users");
+}
+
+export async function setCommissionAction(_p: AdminState, fd: FormData): Promise<AdminState> {
+  const admin = await requireAdmin("CORE");
+  const result = await attempt(
+    () => setCommission(admin.id, String(fd.get("commissionPerPiece") ?? "")),
+    "Commission saved",
+  );
+  revalidatePath("/admin/settings");
+  revalidatePath("/seller/new");
+  return result;
 }

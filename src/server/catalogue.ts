@@ -8,6 +8,8 @@ import { linkOnSite } from "@/lib/brand-rules";
 import { lotPrice } from "@/lib/stock-rules";
 import { db } from "./db";
 import { canSell, sellingFactoryWhere } from "./agreements";
+import { buyerPrice } from "@/lib/price-rules";
+import { getSettings } from "./settings";
 import { logPrices } from "./prices";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
@@ -191,16 +193,17 @@ export async function saveProduct(
     throw new CatalogueError("Premium brand products are managed in Brand rewards");
   if (sellerId && id && !(await db.product.count({ where: { id, sellerId } })))
     throw new CatalogueError("Product not found");
-  const ownerId =
-    sellerId ??
-    (id
-      ? (await db.product.findUnique({ where: { id }, select: { sellerId: true } }))?.sellerId
-      : null);
+  const existing = id
+    ? await db.product.findUnique({ where: { id }, select: { sellerId: true, lotId: true } })
+    : null;
+  const ownerId = sellerId ?? existing?.sellerId;
   if (ownerId && !(await canSell(ownerId)))
     throw new CatalogueError("Accept the current factory agreement before listing products");
   const parsed = productSchema.parse(input);
   // Factories set their own price; lots and brand links are ours.
-  const { lotId, price, ...p } = sellerId ? { ...parsed, lotId: undefined, brandUrl: "" } : parsed;
+  const { lotId, price, ...p } = sellerId
+    ? { ...parsed, lotId: existing?.lotId ?? undefined, brandUrl: "" }
+    : parsed;
   let lotData: { lotId: string | null; price: string };
   if (lotId) {
     const lot = await db.lot.findUnique({ where: { id: lotId } });
@@ -223,15 +226,46 @@ export async function saveProduct(
         })()
       : {}),
   };
-  const saved = id
-    ? await db.product.update({ where: { id }, data })
-    : await db.product.create({
-        data: {
-          ...data,
-          stockType: p.stockType ?? "FACTORY_SURPLUS",
-          ...(sellerId ? { sellerId, status: "LIVE" as const } : {}),
-        },
-      });
+  const factoryListing = !!ownerId && !lotData.lotId;
+  if (factoryListing && !id) await getSettings();
+  const saved = await db.$transaction(async (tx) => {
+    if (id) await tx.$queryRaw`SELECT 1 FROM "Product" WHERE id = ${id} FOR UPDATE`;
+    const fresh = id
+      ? await tx.product.findUniqueOrThrow({
+          where: { id },
+          select: { sellerId: true, commission: true },
+        })
+      : null;
+    if (sellerId && fresh && fresh.sellerId !== sellerId)
+      throw new CatalogueError("Product not found");
+    let pricing = {};
+    if (factoryListing) {
+      // Share-lock the setting through creation: a concurrent setting change cannot overtake this snapshot.
+      if (!id) await tx.$queryRaw`SELECT 1 FROM "Settings" WHERE id = 1 FOR SHARE`;
+      const commission = fresh
+        ? (fresh.commission?.toString() ?? "0")
+        : (await getSettings(tx)).commissionPerPiece.toString();
+      try {
+        pricing = {
+          factoryPrice: price!,
+          commission,
+          price: buyerPrice(price!, commission).toFixed(2),
+        };
+      } catch (error) {
+        throw new CatalogueError((error as Error).message);
+      }
+    }
+    return id
+      ? tx.product.update({ where: { id }, data: { ...data, ...pricing } })
+      : tx.product.create({
+          data: {
+            ...data,
+            ...pricing,
+            stockType: p.stockType ?? "FACTORY_SURPLUS",
+            ...(sellerId ? { sellerId, status: "LIVE" as const } : {}),
+          },
+        });
+  });
   await logPrices(db, [saved.id]);
   return saved;
 }
