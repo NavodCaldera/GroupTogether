@@ -23,6 +23,8 @@ guidance, not business policy. Verify code pointers before editing.
 
 ## Shared interface standards
 
+- Any new external origin must be added to the CSP in `next.config.ts`.
+
 - Prefer server components and small interactive islands. System fonts, existing primitives and tokens; no new icon/UI/chart library without task justification.
 - Read installed Next.js guides before framework code. Inspect current route typing and async params/searchParams conventions rather than copying remembered APIs.
 - Check at 360 px. Tap targets are at least 40 px; phone inputs use 16 px text. Preserve keyboard interaction, labels and focus states.

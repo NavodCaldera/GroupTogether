@@ -6,6 +6,13 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Production hardening 4: security headers
+
+- Added config-only security headers in `next.config.ts`: production-only two-year HSTS without preload, frame denial, MIME sniffing protection, strict-origin referrers and a site CSP allowing the existing Leaflet, OpenStreetMap, Photon and Sentry origins. Inline bootstrap/style support remains; eval and WebSockets are development-only, and insecure requests are upgraded only in production. The Sentry wrapper remains intact.
+- `tests/e2e/security-headers.spec.ts` checks site headers, a signed-in owner's single restrictive slip CSP, and CSP violations through shop/product photos, chat, admin slips, sign-up map/search and the error boundary. The site CSP explicitly excludes `/api/slips` and `/api/partner-docs` because config headers otherwise override their own stricter sandbox CSP; other security headers remain global.
+
+- Owner-authorized scope extension: initialize Zod with `jitless: true` in the browser before the shared location schemas are constructed. Its caught eval capability probe otherwise produces production CSP violations on sign-in/sign-up. Server validation settings and schema rules stay unchanged; production `unsafe-eval` remains prohibited. All three security-header tests now pass against the production build, including the zero-CSP-violation journey.
+
 ## 2026-11-05 - Production hardening 3: login rate limiting
 
 - Added private `LoginAttempt` counters per normalised email, including unknown accounts. Five consecutive wrong passwords lock sign-in for ten minutes without extending the deadline on refused attempts. Expiry resets failures; success deletes the counter. Dummy-hash protection and administrative account locking remain intact.

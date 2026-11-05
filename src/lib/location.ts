@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Configure Zod before constructing browser schemas: its eval probe itself violates the CSP.
+if (typeof window !== "undefined") z.config({ jitless: true });
+
 /** Rough bounding box of Sri Lanka; a pin outside it is almost certainly a mistake. */
 export const SL_BOUNDS = { latMin: 5.8, latMax: 9.9, lngMin: 79.4, lngMax: 82.0 } as const;
 export const SL_CENTER = { lat: 6.9271, lng: 79.8612 } as const; // Colombo
