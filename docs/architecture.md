@@ -174,10 +174,14 @@ Listing/staff services, admin republishing and positive `setLine` changes and st
 
 ## Password sign-in rate limiting
 
-`authenticate(email, password, now)` in `src/server/auth/service.ts` normalises email and
-holds a namespaced per-email PostgreSQL transaction advisory lock across the lockout check,
-password verification, atomic failure upsert and successful deletion. `LoginAttempt` is
-independent of `User`, so unknown emails use the same counters and deadlines. Expired rows
-are deleted before verification. Failure results leave the transaction before becoming
-`AuthError`, ensuring counters commit. `AUTH-001` owns the rule; the new table has no reader
-grants and is covered by `tests/integration/login-lockout.int.test.ts`.
+`authenticate(email, password, now)` in `src/server/auth/service.ts` normalises email,
+checks `LoginAttempt` with a plain query, then looks up the user and verifies the password
+without holding a transaction or pooled connection. There is no advisory lock. A single
+parameterised upsert records each failure, restarts expired locks at one failure and preserves
+an active lock's deadline. Successful sign-in deletes the counter with `deleteMany`.
+`LoginAttempt` is independent of `User`, so unknown emails use the same counters and deadlines
+and retain dummy-hash protection. Attempts already past the initial check when the fifth
+failure lands may finish, allowing extra guesses in a burst; failure recording remains atomic.
+`AUTH-001` owns the rule; the table has no reader grants. Coverage in
+`tests/integration/login-lockout.int.test.ts` includes a 30-attempt pool regression that keeps
+verification pending and requires an unrelated `SELECT 1` to finish in under 200 ms.

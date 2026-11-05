@@ -9,7 +9,7 @@ Newest first.
 ## 2026-11-05 - Production hardening 3: login rate limiting
 
 - Added private `LoginAttempt` counters per normalised email, including unknown accounts. Five consecutive wrong passwords lock sign-in for ten minutes without extending the deadline on refused attempts. Expiry resets failures; success deletes the counter. Dummy-hash protection and administrative account locking remain intact.
-- Per-email transaction locks serialize checks and cleanup; a parameterised atomic upsert records each failure. Migration `login_attempts` grants no reader access. `tests/integration/login-lockout.int.test.ts` covers the requested six scenarios plus exact expiry and administratively locked accounts. See `AUTH-001` in the operating brief.
+- Review fix: password verification holds no transaction, pooled connection or advisory lock. A parameterised atomic upsert records each failure, resets expired locks and preserves active lock deadlines. Attempts already past the initial check can finish after the fifth failure, so bursts may make extra guesses; failure recording stays atomic. Migration `login_attempts` grants no reader access. `tests/integration/login-lockout.int.test.ts` covers the requested six scenarios plus exact expiry, administratively locked accounts, expired-count restart and pool availability during 30 concurrent sign-ins. See `AUTH-001` in the operating brief.
 
 ## 2026-11-05 - Production hardening 2: Sentry error reporting
 

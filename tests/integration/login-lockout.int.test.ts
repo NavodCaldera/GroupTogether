@@ -1,5 +1,6 @@
-import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { authenticate, AuthError } from "@/server/auth/service";
+import * as passwordApi from "@/server/auth/password";
 import { hashPassword } from "@/server/auth/password";
 import { db } from "@/server/db";
 import { makeUser, resetDb } from "./helpers";
@@ -94,5 +95,46 @@ describe("email login lockout", () => {
     await expect(authenticate(user.email, password, now)).rejects.toThrow(
       "This account is locked. Contact support.",
     );
+  });
+  it("expired lock restarts the count", async () => {
+    await account();
+    await fail("user@x.lk");
+    await fail("user@x.lk", 1, new Date(now.getTime() + 11 * 60_000));
+    expect(await attempt()).toMatchObject({ failures: 1, lockedUntil: null });
+  });
+  it("sign-in does not hold a connection while hashing", async () => {
+    let release!: () => void;
+    const hashing = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    let entered = 0;
+    const original = passwordApi.verifyPassword;
+    // Keep verification pending so this checks connection ownership, not scrypt speed.
+    const verify = vi.spyOn(passwordApi, "verifyPassword").mockImplementation(async (...args) => {
+      entered++;
+      await hashing;
+      return original(...args);
+    });
+    const attempts = Promise.allSettled(
+      Array.from({ length: 30 }, (_, i) => authenticate(`pool-${i}@test.lk`, "wrong", now)),
+    );
+    let probe: Promise<unknown> | undefined;
+    try {
+      await vi.waitFor(() => expect(entered).toBeGreaterThanOrEqual(10));
+      const start = performance.now();
+      probe = Promise.resolve(db.$queryRaw`SELECT 1`);
+      await Promise.race([
+        probe,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Database connection held during hashing")), 250),
+        ),
+      ]);
+      expect(performance.now() - start).toBeLessThan(200);
+    } finally {
+      release();
+      await attempts;
+      await probe;
+      verify.mockRestore();
+    }
   });
 });

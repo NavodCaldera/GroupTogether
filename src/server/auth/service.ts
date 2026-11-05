@@ -161,41 +161,38 @@ export async function authenticate(
   now = new Date(),
 ): Promise<User> {
   email = email.trim().toLowerCase();
-  const result = await db.$transaction(
-    async (tx) => {
-      // Serialize checks as well as writes, including the first attempt and successful deletion.
-      // Hash collisions only serialize unrelated emails; counters remain keyed by the full email.
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`login:${email}`}, 0))`;
-      const attempt = await tx.loginAttempt.findUnique({ where: { email } });
-      if (attempt?.lockedUntil && attempt.lockedUntil > now) {
-        return { error: LOGIN_LOCKOUT_MESSAGE };
-      }
-      if (attempt?.lockedUntil) await tx.loginAttempt.delete({ where: { email } });
+  const attempt = await db.loginAttempt.findUnique({ where: { email } });
+  if (attempt?.lockedUntil && attempt.lockedUntil > now) {
+    throw new AuthError(LOGIN_LOCKOUT_MESSAGE);
+  }
 
-      const user = await tx.user.findUnique({ where: { email } });
-      // Unknown emails still pay the password hashing cost and accrue the same failures.
-      const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
-      if (!user || !ok) {
-        const lockedUntil = new Date(now.getTime() + 10 * 60_000);
-        await tx.$executeRaw`
-        INSERT INTO "LoginAttempt" ("email", "failures", "lockedUntil", "updatedAt")
-        VALUES (${email}, 1, NULL, ${now})
-        ON CONFLICT ("email") DO UPDATE SET
-          "failures" = "LoginAttempt"."failures" + 1,
-          "lockedUntil" = CASE WHEN "LoginAttempt"."failures" + 1 >= 5
-            THEN ${lockedUntil}::timestamp ELSE NULL END,
-          "updatedAt" = ${now}`;
-        // Return the failure so the transaction commits before AuthError is thrown.
-        return { error: "Email or password is incorrect" };
-      }
-      if (user.locked) return { error: "This account is locked. Contact support." };
-      await tx.loginAttempt.deleteMany({ where: { email } });
-      return { user };
-    },
-    { maxWait: 10_000, timeout: 15_000 },
-  );
-  if (result.error) throw new AuthError(result.error);
-  return result.user!;
+  const user = await db.user.findUnique({ where: { email } });
+  // No transaction or pooled connection is held during password verification.
+  // Attempts past the lock check when the fifth failure lands may finish checking:
+  // a burst can make extra guesses, but failure counts stay exact and the lock applies.
+  // Unknown emails still pay the hashing cost and accrue the same failures.
+  const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
+  if (!user || !ok) {
+    const lockedUntil = new Date(now.getTime() + 10 * 60_000);
+    await db.$executeRaw`
+      INSERT INTO "LoginAttempt" ("email", "failures", "lockedUntil", "updatedAt")
+      VALUES (${email}, 1, NULL, ${now})
+      ON CONFLICT ("email") DO UPDATE SET
+        "failures" = CASE
+          WHEN "LoginAttempt"."lockedUntil" IS NOT NULL AND "LoginAttempt"."lockedUntil" <= ${now}
+            THEN 1 ELSE "LoginAttempt"."failures" + 1 END,
+        "lockedUntil" = CASE
+          WHEN "LoginAttempt"."lockedUntil" > ${now} THEN "LoginAttempt"."lockedUntil"
+          WHEN "LoginAttempt"."lockedUntil" IS NOT NULL AND "LoginAttempt"."lockedUntil" <= ${now}
+            THEN NULL
+          WHEN "LoginAttempt"."failures" + 1 >= 5 THEN ${lockedUntil}::timestamp
+          ELSE NULL END,
+        "updatedAt" = ${now}`;
+    throw new AuthError("Email or password is incorrect");
+  }
+  if (user.locked) throw new AuthError("This account is locked. Contact support.");
+  await db.loginAttempt.deleteMany({ where: { email } });
+  return user;
 }
 /**
  * Admin control: a locked customer can't sign in, and locking ends all their sessions at once.

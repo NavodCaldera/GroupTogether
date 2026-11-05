@@ -69,7 +69,11 @@ when evidence changes; documentation cleanup alone does not establish new capabi
 `AUTH-001` in the [operating brief](groupbasket.md) governs password lockout.
 `tests/integration/login-lockout.int.test.ts` covers success cleanup, fifth-failure lockout,
 expiry (including the exact boundary), unknown-email parity, concurrent failures, email
-normalisation and administratively locked users. Check that active locks skip password
-verification and do not change their deadline. Failure writes must commit before an
+normalisation, administratively locked users and pool availability during 30 concurrent
+verifications (an unrelated query must finish in under 200 ms). Check that active locks skip password
+verification and do not change their deadline. Password verification must hold no transaction,
+connection or advisory lock. The atomic failure upsert resets expired locks and preserves
+active deadlines, including for attempts already past the initial check. Such in-flight attempts
+may finish checking after the fifth failure; this burst trade-off is accepted. Failure writes must finish before an
 `AuthError` is thrown. `LoginAttempt` contains private email identifiers; never grant it
 to `gb_ai_reader`.
