@@ -102,6 +102,9 @@ of the disabled UI. Line deltas, actual token holds/releases, gift reservation c
 arrivals reset Done atomically (`src/server/carts/member-done.ts`). Removal uses `releaseLines`,
 refuses done/owner targets, recomputes readiness and notifies after commit; rejoining is allowed.
 Everyone is done is emitted once per incomplete-to-complete transition, and Undo permits another.
+The shared `trackDoneTransition` captures before/after inside the locked transaction for Done,
+removeMember, leaveCart and setLine; `notifyDoneTransition` runs after commit. Completion requires
+at least one non-owner member with items.
 Phone controls use existing primitives: Done/Undo on own section, status badges, two-step Remove
 and the required-member completion count. Verify carts/gifts integration tests and the updated
 `journey.spec.ts`/`commission-tokens.spec.ts` browser flows at 360px.

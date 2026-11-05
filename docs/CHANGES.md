@@ -393,3 +393,10 @@ Newest first.
   size that follows the category. Products carry `audience` and `kind`; lists live in
   `src/lib/taxonomy.ts`. The admin product form uses the same fields. _Agents: catalogue-admin,
   backend-data, frontend._
+# 2026-11-06 — CART-006 completion transitions (Part A)
+
+The owner now receives Everyone is done when removing, leaving or emptying the last waiting
+member completes the remaining members. A shared check captures both states under the cart
+lock, excludes empty groups and sends notices after commit. Regression tests cover all three
+paths and removal of the only other member.
+

@@ -433,6 +433,28 @@ describe("zero-due owner confirmation", () => {
 const memberRow = (cartId: string, userId: string) =>
   db.cartMember.findUnique({ where: { cartId_userId: { cartId, userId } } });
 describe("member done before finish", () => {
+  it.each(["remove", "leave", "empty"])(
+    "notifies when the last waiting member exits by %s",
+    async (operation) => {
+      const f = await readyCart(false);
+      const waiting = await makeUser();
+      await setLine(waiting.id, f.cart.id, f.v.id, 1);
+      await markDone(f.member.id, f.cart.id);
+      if (operation === "remove") await removeMember(f.owner.id, f.cart.id, waiting.id);
+      if (operation === "leave") await leaveCart(waiting.id, f.cart.id);
+      if (operation === "empty") await setLine(waiting.id, f.cart.id, f.v.id, 0);
+      expect(
+        await db.notification.count({ where: { userId: f.owner.id, title: "Everyone is done" } }),
+      ).toBe(1);
+    },
+  );
+  it("does not notify when removing the only other member", async () => {
+    const f = await readyCart(false);
+    await removeMember(f.owner.id, f.cart.id, f.member.id);
+    expect(
+      await db.notification.count({ where: { userId: f.owner.id, title: "Everyone is done" } }),
+    ).toBe(0);
+  });
   it("blocks finish until members with items are done; ignores members without items", async () => {
     const f = await readyCart(false);
     await expect(acceptAndPay(f.owner.id, f.cart.id, drop)).rejects.toThrow(

@@ -29,7 +29,12 @@ import { releaseGiftReservations } from "../gifts";
 import { canSellIn, remindAgreements, sellingFactoryWhere } from "../agreements";
 
 import { confirmPaidCart, notifyCartConfirmed } from "./confirmation";
-import { doneProgress, resetMemberDone } from "./member-done";
+import {
+  doneProgress,
+  resetMemberDone,
+  trackDoneTransition,
+  notifyDoneTransition,
+} from "./member-done";
 import { CartError } from "./errors";
 export { CartError } from "./errors";
 import { releaseLineTokens } from "../tokens";
@@ -202,10 +207,16 @@ export async function setLine(
     const qty = add ? (line?.qty ?? 0) + amount : amount;
     if (qty > 99) throw new CartError("You can have at most 99 of one item");
     const delta = qty - (line?.qty ?? 0);
+    const doneTransition = await trackDoneTransition(tx, cart);
     if (qty === 0 && line) {
       await releaseLines(tx, cartId, { lineIds: [line.id] });
       const after = await recompute(tx, cart, now);
-      return { cart, ...after, members: after.becameReady ? await memberIds(tx, cartId) : [] };
+      return {
+        cart,
+        ...after,
+        becameDone: await doneTransition(),
+        members: after.becameReady ? await memberIds(tx, cartId) : [],
+      };
     }
 
     if (delta > 0) {
@@ -264,9 +275,15 @@ export async function setLine(
     if (delta !== 0) await resetMemberDone(tx, cartId, userId);
     if (delta < 0) await releaseGiftReservations(tx, cartId, userId);
     const after = await recompute(tx, cart, now);
-    return { cart, ...after, members: after.becameReady ? await memberIds(tx, cartId) : [] };
+    return {
+      cart,
+      ...after,
+      becameDone: await doneTransition(),
+      members: after.becameReady ? await memberIds(tx, cartId) : [],
+    };
   });
   if (result.becameReady) await notify(result.members, readyNotice(result.cart));
+  await notifyDoneTransition(result.cart, result.becameDone);
   return result;
 }
 
@@ -323,15 +340,18 @@ async function releaseLines(
 }
 
 export async function leaveCart(userId: string, cartId: string, now = new Date()) {
-  await withCartTransaction([cartId], [userId], async (tx) => {
+  const result = await withCartTransaction([cartId], [userId], async (tx) => {
     const cart = await lockCart(tx, cartId);
     if (cart.ownerId === userId)
       throw new CartError("You started this cart. Cancel it instead of leaving.");
     assertEditable(cart, now);
+    const doneTransition = await trackDoneTransition(tx, cart);
     await releaseLines(tx, cartId, { userId });
     await tx.cartMember.deleteMany({ where: { cartId, userId } });
     await recompute(tx, cart, now);
+    return { cart, becameDone: await doneTransition() };
   });
+  await notifyDoneTransition(result.cart, result.becameDone);
 }
 
 // ─── Owner accepts and pays ───────────────────────────────────────────────
@@ -707,21 +727,15 @@ async function changeDone(userId: string, cartId: string, done: boolean, now: Da
     if (cart.ownerId === userId) throw new CartError("The owner finishes the cart instead");
     const member = await tx.cartMember.findUnique({ where: { cartId_userId: { cartId, userId } } });
     if (!member) throw new CartError("Join the cart first");
-    const before = await doneProgress(tx, cartId, cart.ownerId);
+    const doneTransition = await trackDoneTransition(tx, cart);
     if (done ? member.doneAt === null : member.doneAt !== null)
       await tx.cartMember.update({ where: { id: member.id }, data: { doneAt: done ? now : null } });
-    const after = await doneProgress(tx, cartId, cart.ownerId);
     return {
       cart,
-      becameDone: done && before.done < before.required && after.done === after.required,
+      becameDone: await doneTransition(),
     };
   });
-  if (result.becameDone)
-    await notify([result.cart.ownerId], {
-      title: "Everyone is done",
-      body: "",
-      href: `/c/${result.cart.code}`,
-    });
+  await notifyDoneTransition(result.cart, result.becameDone);
 }
 export async function markDone(userId: string, cartId: string, now = new Date()) {
   await changeDone(userId, cartId, true, now);
@@ -735,21 +749,27 @@ export async function removeMember(
   memberId: string,
   now = new Date(),
 ) {
-  const cart = await withCartTransaction([cartId], [ownerId, memberId], async (tx) => {
-    const cart = await lockCart(tx, cartId);
-    if (cart.ownerId !== ownerId) throw new CartError("Only the owner can remove a member");
-    assertEditable(cart, now);
-    if (memberId === ownerId) throw new CartError("The owner cannot be removed");
-    const member = await tx.cartMember.findUnique({
-      where: { cartId_userId: { cartId, userId: memberId } },
-    });
-    if (!member) throw new CartError("This member is no longer in the cart");
-    if (member.doneAt !== null) throw new CartError("This member has marked their items done");
-    await releaseLines(tx, cartId, { userId: memberId });
-    await tx.cartMember.delete({ where: { id: member.id } });
-    await recompute(tx, cart, now);
-    return cart;
-  });
+  const { cart, becameDone } = await withCartTransaction(
+    [cartId],
+    [ownerId, memberId],
+    async (tx) => {
+      const cart = await lockCart(tx, cartId);
+      if (cart.ownerId !== ownerId) throw new CartError("Only the owner can remove a member");
+      assertEditable(cart, now);
+      if (memberId === ownerId) throw new CartError("The owner cannot be removed");
+      const member = await tx.cartMember.findUnique({
+        where: { cartId_userId: { cartId, userId: memberId } },
+      });
+      if (!member) throw new CartError("This member is no longer in the cart");
+      if (member.doneAt !== null) throw new CartError("This member has marked their items done");
+      const doneTransition = await trackDoneTransition(tx, cart);
+      await releaseLines(tx, cartId, { userId: memberId });
+      await tx.cartMember.delete({ where: { id: member.id } });
+      await recompute(tx, cart, now);
+      return { cart, becameDone: await doneTransition() };
+    },
+  );
+  await notifyDoneTransition(cart, becameDone);
   await notify([memberId], {
     title: `Removed from ${cart.name || cart.code}`,
     body: "",

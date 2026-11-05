@@ -1,5 +1,9 @@
 # Implementation status
 
+Updated **2026-11-06 (Part A)**: CART-006 completion notices also cover removal, leaving and
+emptying the last waiting member. The shared transaction-local transition check suppresses
+notices when no non-owner member has items. Regression coverage lives in `carts.int.test.ts`.
+
 Last inspected: **2026-10-24**, from repository source and schema. This is a static inspection, not a runtime test result, deployment audit, or confirmation of commercial partnerships.
 
 The [main agent brief](../.claude/agents/groupbasket.md) owns business policy. This file records what the code supports. Unresolved policy belongs in [business decisions](decisions.md). Update the affected row whenever implementation changes; an implemented feature does not override an approved business rule.
