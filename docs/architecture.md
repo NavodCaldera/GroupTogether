@@ -196,3 +196,26 @@ lock the product and reuse its stored commission, never the current setting. Own
 products keep their original pricing. Existing factory buyer prices are retained by the guarded
 `factory_commission` migration. The form sends the factory price and previews the resulting
 buyer price in a small client island; all existing buyer price paths still use `Product.price`.
+
+## Token ledger and lock order
+
+`src/server/tokens.ts` implements balance, credit, hold, release and spend-marker operations;
+`src/lib/token-rules.ts` owns pure Decimal balance/cap rules. `TokenEntry.amount` is the signed
+balance delta: positive credit/release, negative HOLD, zero SPEND. Database triggers reject entry
+updates/deletes. User references restrict deletion; line/return ids are immutable scalar audit
+references so deleting a cart line never rewrites or cascades the ledger.
+
+Unique `eventKey` values identify credits by `(kind, business reference)`, holds by
+`(line id, submission key)` (or the current revision for a new programmatic call), and
+RELEASE/SPEND by `(line id, tokenVersion, kind)`. A hold/release advances the line revision;
+repeated release finds no excess and spend retries hit the same unique marker. An optional
+request key preserves the binding three-argument applyTokens API while making UI resubmissions
+idempotent. A committed replay with different amount is refused. Ledger entries remain immutable.
+
+`src/server/carts/locks.ts` centralizes the ordering: sorted existing per-user advisory keys,
+then sorted cart rows, then sorted User ledger rows. Every changed cart/payment entry point uses
+`withCartTransaction`; snapshots include owners, members and line owners. If a join/merge changed
+participants before locks were acquired, the transaction rolls back and retries, never taking
+a newly discovered advisory lock after a cart lock. Cart creation and merge requests retain their
+existing user-first advisory path. Helpers release/spend run inside the caller's cart transaction;
+notifications remain after commit. A credit with no cart context takes only its User-row suffix.

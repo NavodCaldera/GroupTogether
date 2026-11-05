@@ -62,3 +62,12 @@ Buyer `/samples` and warehouse `/admin/warehouse` share the request and tracking
 Do not invent sample ownership, return, deposit or loss/damage policies.
 
 Preserve sample request history on merges: move source records before deleting an owned source cart; moving a member preserves that requester's records. Never rewrite sample destination snapshots or accepted transport.
+
+## Part 2 token locking foundation
+
+Cart/payment mutations use `withCartTransaction` from `src/server/carts/locks.ts`: sorted user
+advisories (same namespace as the active-cart guard), then sorted cart rows, then sorted ledger
+User rows. Changed membership snapshots retry before any ledger mutation. Never take a new user
+advisory after a cart row. `src/server/tokens.ts` appends signed ledger entries; HOLD debits once,
+RELEASE credits unused amounts, and SPEND is a zero-delta marker. Stable event keys and line
+revisions allow a later hold while deduplicating retries. Ledger rows cannot be updated/deleted.

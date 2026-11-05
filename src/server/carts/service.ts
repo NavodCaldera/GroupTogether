@@ -27,15 +27,9 @@ import { releaseGiftReservations } from "../gifts";
 
 import { canSellIn, remindAgreements, sellingFactoryWhere } from "../agreements";
 
-export class CartError extends Error {}
-
-/** Row lock on the cart: every change to a cart's lines or status runs under it. */
-async function lockCart(tx: Tx, cartId: string): Promise<GroupCart> {
-  await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${cartId} FOR UPDATE`;
-  const cart = await tx.groupCart.findUnique({ where: { id: cartId } });
-  if (!cart) throw new CartError("This cart no longer exists");
-  return cart;
-}
+import { CartError } from "./errors";
+export { CartError } from "./errors";
+import { lockCart, withCartTransaction } from "./locks";
 
 function assertEditable(cart: GroupCart, now: Date) {
   if (overdue(cart, now) === "EXPIRE") throw new CartError("This cart has expired");
@@ -161,7 +155,7 @@ export async function joinCart(
   location?: Location,
   now = new Date(),
 ) {
-  await db.$transaction(async (tx) => {
+  await withCartTransaction([cartId], [userId], async (tx) => {
     const cart = await lockCart(tx, cartId);
     assertEditable(cart, now);
     await assertOneCart(tx, userId, now, cartId);
@@ -190,7 +184,7 @@ export async function setLine(
 ) {
   if (!Number.isInteger(amount) || amount < (add ? 1 : 0) || amount > 99)
     throw new CartError("Choose a quantity of 1–99");
-  const result = await db.$transaction(async (tx) => {
+  const result = await withCartTransaction([cartId], [userId], async (tx) => {
     const cart = await lockCart(tx, cartId);
     assertEditable(cart, now);
     await assertOneCart(tx, userId, now, cartId);
@@ -303,7 +297,7 @@ async function releaseLines(
 }
 
 export async function leaveCart(userId: string, cartId: string, now = new Date()) {
-  await db.$transaction(async (tx) => {
+  await withCartTransaction([cartId], [userId], async (tx) => {
     const cart = await lockCart(tx, cartId);
     if (cart.ownerId === userId)
       throw new CartError("You started this cart. Cancel it instead of leaving.");
@@ -334,7 +328,7 @@ export async function acceptAndPay(
 ) {
   const delivery = acceptSchema.parse(input);
   const settings = await getSettings();
-  const cart = await db.$transaction(async (tx) => {
+  const cart = await withCartTransaction([cartId], [ownerId], async (tx) => {
     const cart = await lockCart(tx, cartId);
     if (cart.ownerId !== ownerId) throw new CartError("Only the cart owner can accept the order");
     assertEditable(cart, now);
@@ -387,7 +381,7 @@ async function close(tx: Tx, cart: GroupCart, status: CartStatus, reason: string
 
 export async function cancelCart(actor: { id: string; role: Role }, cartId: string, reason = "") {
   if (actor.role === "ADMIN") await assertAdminArea(actor.id, "WAREHOUSE");
-  const { cart, members } = await db.$transaction(async (tx) => {
+  const { cart, members } = await withCartTransaction([cartId], [actor.id], async (tx) => {
     const cart = await lockCart(tx, cartId);
     const isAdmin = actor.role === "ADMIN";
     if (!isAdmin && cart.ownerId !== actor.id) throw new CartError("Only the owner can cancel");
@@ -437,7 +431,7 @@ export async function sweep(now = new Date(), cartId?: string) {
   let closed = 0;
   const notices: Promise<unknown>[] = [];
   for (const { id } of due) {
-    const done = await db.$transaction(async (tx) => {
+    const done = await withCartTransaction([id], [], async (tx) => {
       const cart = await lockCart(tx, id);
       const what = overdue(cart, now);
       if (!what) return null;
@@ -530,7 +524,7 @@ export async function acceptMerge(ownerId: string, requestId: string, now = new 
   const first = await db.cartMergeRequest.findUnique({ where: { id: requestId } });
   if (!first || first.status !== "PENDING") throw new CartError("This request is no longer open");
   const ids = [first.fromCartId, first.toCartId].filter((x): x is string => !!x).sort();
-  const out = await db.$transaction(async (tx) => {
+  const out = await withCartTransaction(ids, [ownerId, first.userId], async (tx) => {
     for (const id of ids) await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${id} FOR UPDATE`;
     const req = await tx.cartMergeRequest.findUniqueOrThrow({ where: { id: requestId } });
     if (req.status !== "PENDING" || !req.fromCartId)

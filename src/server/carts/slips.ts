@@ -7,7 +7,8 @@ import { factoryFulfilment } from "@/lib/fulfilment";
 import { notify, notifyRole } from "../notify";
 import { getSettings } from "../settings";
 import { SLIP_TYPES, checkUpload, saveUpload } from "../storage";
-import { CartError } from "./service";
+import { CartError } from "./errors";
+import { withCartTransaction } from "./locks";
 import { appendBrandEvent, flushBrandNotices } from "../brand-communications";
 
 /**
@@ -27,7 +28,7 @@ export async function uploadSlip(
   if (before.status !== "AWAITING_SLIP") throw new CartError("This cart isn't waiting for a slip");
   const saved = await saveUpload(file!, `slips/${cartId}`, SLIP_TYPES);
 
-  const cart = await db.$transaction(async (tx) => {
+  const cart = await withCartTransaction([cartId], [ownerId], async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${cartId} FOR UPDATE`;
     const cart = await tx.groupCart.findUniqueOrThrow({ where: { id: cartId } });
     if (cart.status !== "AWAITING_SLIP") throw new CartError("This cart isn't waiting for a slip");
@@ -63,7 +64,7 @@ async function lockedSlip(slipId: string) {
 export async function approveSlip(adminId: string, slipId: string, now = new Date()) {
   await assertAdminArea(adminId, "WAREHOUSE");
   const slip = await lockedSlip(slipId);
-  const cart = await db.$transaction(async (tx) => {
+  const cart = await withCartTransaction([slip.cartId], [adminId], async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${slip.cartId} FOR UPDATE`;
     const cart = await tx.groupCart.findUniqueOrThrow({ where: { id: slip.cartId } });
     const fresh = await tx.paymentSlip.findUniqueOrThrow({ where: { id: slipId } });
@@ -145,7 +146,7 @@ export async function rejectSlip(adminId: string, slipId: string, note: string, 
   if (reason.length < 3) throw new CartError("Say why the slip was rejected");
   const slip = await lockedSlip(slipId);
   const settings = await getSettings();
-  const cart = await db.$transaction(async (tx) => {
+  const cart = await withCartTransaction([slip.cartId], [adminId], async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${slip.cartId} FOR UPDATE`;
     const cart = await tx.groupCart.findUniqueOrThrow({ where: { id: slip.cartId } });
     const fresh = await tx.paymentSlip.findUniqueOrThrow({ where: { id: slipId } });

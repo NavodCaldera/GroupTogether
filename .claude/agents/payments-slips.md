@@ -48,3 +48,12 @@ plus `gifts.int.test.ts` when changing approval hooks. Check owner/admin access,
 privacy, duplicate review, rejection windows and atomic stock/gift activation.
 Coordinate lifecycle changes with [carts](carts.md) and gift changes with
 [brands-rewards](brands-rewards.md). See [qa-review](qa-review.md) for commands.
+
+## Part 2 token locking foundation
+
+Cart/payment mutations use `withCartTransaction` from `src/server/carts/locks.ts`: sorted user
+advisories (same namespace as the active-cart guard), then sorted cart rows, then sorted ledger
+User rows. Changed membership snapshots retry before any ledger mutation. Never take a new user
+advisory after a cart row. `src/server/tokens.ts` appends signed ledger entries; HOLD debits once,
+RELEASE credits unused amounts, and SPEND is a zero-delta marker. Stable event keys and line
+revisions allow a later hold while deduplicating retries. Ledger rows cannot be updated/deleted.

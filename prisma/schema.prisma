@@ -79,6 +79,7 @@ model User {
   acceptedAgreements   AgreementAcceptance[] @relation("AcceptancePerson")
 
   sampleRequests     SampleRequest[]
+  tokenEntries       TokenEntry[]
   sessions           Session[]
   ownedCarts         GroupCart[]             @relation("CartOwner")
   factoryPackedCarts GroupCart[]             @relation("FactoryPacked")
@@ -346,17 +347,19 @@ model CartMember {
 /// One member's quantity of one variant. Its stock is locked while the cart is OPEN, READY,
 /// AWAITING_SLIP or SLIP_REVIEW; closed carts keep their lines as history.
 model CartLine {
-  id        String    @id @default(cuid())
-  cartId    String
-  cart      GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User      @relation(fields: [userId], references: [id])
-  variantId String
-  variant   Variant   @relation(fields: [variantId], references: [id])
-  qty       Int
+  id            String    @id @default(cuid())
+  cartId        String
+  cart          GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  userId        String
+  user          User      @relation(fields: [userId], references: [id])
+  variantId     String
+  variant       Variant   @relation(fields: [variantId], references: [id])
+  tokensApplied Decimal   @default(0) @db.Decimal(14, 2)
+  tokenVersion  Int       @default(0)
+  qty           Int
   /// Product price when first added
-  unitPrice Decimal   @db.Decimal(14, 2)
-  createdAt DateTime  @default(now())
+  unitPrice     Decimal   @db.Decimal(14, 2)
+  createdAt     DateTime  @default(now())
 
   @@unique([cartId, userId, variantId])
   @@index([variantId])
@@ -907,4 +910,29 @@ model FactoryActivation {
   revokedAt   DateTime?
 
   @@index([userId])
+}
+
+enum TokenKind {
+  CANCELLATION
+  RETURN
+  HOLD
+  RELEASE
+  SPEND
+}
+
+model TokenEntry {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  amount     Decimal   @db.Decimal(14, 2)
+  kind       TokenKind
+  /// Immutable audit references survive line deletion; deliberately not cascading foreign keys.
+  cartLineId String?
+  returnId   String?
+  eventKey   String    @unique
+  note       String
+  createdAt  DateTime  @default(now())
+
+  @@index([userId, createdAt])
+  @@index([cartLineId])
 }
