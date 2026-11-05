@@ -10,7 +10,7 @@ import {
   normalizedIdentity,
   type ApplicationInput,
 } from "@/lib/partner-rules";
-import { db } from "./db";
+import { db, type Tx } from "./db";
 import { getCurrentUser } from "./auth/session";
 import { hashPassword } from "./auth/password";
 import { hashToken, phoneSchema } from "./auth/service";
@@ -144,14 +144,13 @@ export async function reviewApplication(
   id: string,
   decision: "APPROVE" | "REJECT",
   note?: string,
-): Promise<void> {
+): Promise<{ activationUrl?: string }> {
   await assertPartnerAdmin(adminId);
   if (!["APPROVE", "REJECT"].includes(decision)) throw new PartnerError("Choose approve or reject");
   if ((note?.length ?? 0) > 2000) throw new PartnerError("Use at most 2000 characters");
-  const token = `partner_${randomBytes(32).toString("base64url")}`;
   const passwordHash =
     decision === "APPROVE" ? await hashPassword(randomBytes(32).toString("base64url")) : "";
-  const userId = await db.$transaction(async (tx) => {
+  const result = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(731901)) AS l`;
     await tx.$queryRaw`SELECT 1 FROM "FactoryApplication" WHERE id = ${id} FOR UPDATE`;
     const a = await tx.factoryApplication.findUnique({
@@ -161,6 +160,8 @@ export async function reviewApplication(
     if (!a) throw new PartnerError("Application not found");
     if (a.status !== "WAITING") throw new PartnerError("Application already reviewed");
     let factoryUserId = a.factoryUserId;
+    let activationUrl: string | undefined;
+    const newOwner = !factoryUserId;
     if (decision === "APPROVE") {
       const missing = missingItems(
         a,
@@ -204,13 +205,8 @@ export async function reviewApplication(
         create: { factoryUserId, status: "ACTIVE" },
         update: {},
       });
-      await tx.session.create({
-        data: {
-          id: hashToken(token),
-          userId: factoryUserId,
-          expiresAt: new Date(Date.now() + 7 * 86400000),
-        },
-      });
+      // Existing authenticated owners already have a password and must never receive activation links.
+      if (newOwner) activationUrl = await createActivation(tx, factoryUserId, adminId);
     }
     await tx.factoryApplication.update({
       where: { id },
@@ -222,14 +218,15 @@ export async function reviewApplication(
         reviewNote: note?.trim() || null,
       },
     });
-    return decision === "APPROVE" ? factoryUserId : null;
+    return { userId: decision === "APPROVE" ? factoryUserId : null, activationUrl };
   });
-  if (userId)
-    await notify([userId], {
+  if (result.userId)
+    await notify([result.userId], {
       title: "Factory application approved",
       body: "Sign in to accept the agreement.",
-      href: `/factories/sign-in/${token}`,
+      href: "/sign-in",
     });
+  return result.activationUrl ? { activationUrl: result.activationUrl } : {};
 }
 export async function recordVisit(
   adminId: string,
@@ -246,26 +243,71 @@ export async function recordVisit(
   });
   if (!changed.count) throw new PartnerError("Application not found or already reviewed");
 }
+/** Only the hash is persisted. The raw URL is returned to the authorized action caller once. */
+async function createActivation(tx: Tx, userId: string, createdById: string, now = new Date()) {
+  const token = `partner_${randomBytes(32).toString("base64url")}`;
+  await tx.factoryActivation.create({
+    data: {
+      id: hashToken(token),
+      userId,
+      createdById,
+      expiresAt: new Date(now.getTime() + 7 * 86400000),
+    },
+  });
+  return `/factories/sign-in/${token}`;
+}
+
+export async function issueActivationLink(adminId: string, applicationId: string) {
+  await assertPartnerAdmin(adminId);
+  return db.$transaction(async (tx) => {
+    const application = await tx.factoryApplication.findUnique({
+      where: { id: applicationId },
+      select: { status: true, factoryUserId: true },
+    });
+    if (application?.status !== "APPROVED" || !application.factoryUserId)
+      throw new PartnerError("Application not approved");
+    const userId = application.factoryUserId;
+    // Renewal and redemption lock the owner first, then activations, in the same order.
+    await tx.$queryRaw`SELECT 1 FROM "User" WHERE id = ${userId} FOR UPDATE`;
+    const owner = await tx.user.findFirst({
+      where: { id: userId, role: "SELLER", factoryId: null, isBrand: false, locked: false },
+      select: { id: true },
+    });
+    if (!owner) throw new PartnerError("Factory owner not found");
+    // Activation history exists only for accounts created by approval, never legacy applicants.
+    if (!(await tx.factoryActivation.count({ where: { userId } })))
+      throw new PartnerError("Existing factory owners sign in with their password");
+    await tx.factoryActivation.updateMany({
+      where: { userId, usedAt: null },
+      data: { usedAt: new Date() },
+    });
+    return { activationUrl: await createActivation(tx, userId, adminId) };
+  });
+}
+
 /** Exchange the approval link once; GET/prefetch never consumes it. */
 export async function redeemApprovalLink(token: string, password: string): Promise<string> {
   if (password.length < 8 || password.length > 200)
     throw new PartnerError("Use a password of 8 to 200 characters");
-  const passwordHash = await hashPassword(password);
   if (!token.startsWith("partner_")) throw new PartnerError("Invalid sign-in link");
+  const passwordHash = await hashPassword(password);
   return db.$transaction(async (tx) => {
     const id = hashToken(token);
-    await tx.$queryRaw`SELECT 1 FROM "Session" WHERE id = ${id} FOR UPDATE`;
-    const row = await tx.session.findFirst({
+    await tx.$queryRaw`SELECT 1 FROM "User" WHERE id = (SELECT "userId" FROM "FactoryActivation" WHERE id = ${id}) FOR UPDATE`;
+    await tx.$queryRaw`SELECT 1 FROM "FactoryActivation" WHERE id = ${id} FOR UPDATE`;
+    const now = new Date();
+    const row = await tx.factoryActivation.findFirst({
       where: {
         id,
-        expiresAt: { gt: new Date() },
+        usedAt: null,
+        expiresAt: { gt: now },
         user: { role: "SELLER", locked: false, factoryId: null, isBrand: false },
       },
       select: { userId: true },
     });
     if (!row) throw new PartnerError("Sign-in link expired or already used");
     await tx.user.update({ where: { id: row.userId }, data: { passwordHash } });
-    await tx.session.delete({ where: { id } });
+    await tx.factoryActivation.update({ where: { id }, data: { usedAt: now } });
     return row.userId;
   });
 }

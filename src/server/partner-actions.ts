@@ -12,9 +12,15 @@ import {
   reviewApplication,
   recordVisit,
   redeemApprovalLink,
+  issueActivationLink,
 } from "./partners";
 import { flash } from "./flash";
-export type PartnerState = { error?: string; ok?: boolean; inviteUrl?: string };
+export type PartnerState = {
+  error?: string;
+  ok?: boolean;
+  inviteUrl?: string;
+  activationUrl?: string;
+};
 const str = (fd: FormData, key: string) => String(fd.get(key) ?? "").trim();
 async function admin() {
   const user = await getCurrentUser();
@@ -61,9 +67,10 @@ export async function reviewApplicationAction(
   _prev: PartnerState,
   fd: FormData,
 ): Promise<PartnerState> {
+  let result: { activationUrl?: string };
   try {
     const user = await admin();
-    await reviewApplication(
+    result = await reviewApplication(
       user.id,
       str(fd, "id"),
       str(fd, "decision") as "APPROVE" | "REJECT",
@@ -75,7 +82,19 @@ export async function reviewApplicationAction(
   }
   revalidatePath("/admin/factory/applications");
   await flash("Application reviewed");
-  return {};
+  return result;
+}
+export async function issueActivationLinkAction(
+  _prev: PartnerState,
+  fd: FormData,
+): Promise<PartnerState> {
+  try {
+    const user = await admin();
+    return await issueActivationLink(user.id, str(fd, "id"));
+  } catch (e) {
+    if (e instanceof PartnerError) return { error: e.message };
+    throw e;
+  }
 }
 export async function recordVisitAction(_prev: PartnerState, fd: FormData): Promise<PartnerState> {
   try {

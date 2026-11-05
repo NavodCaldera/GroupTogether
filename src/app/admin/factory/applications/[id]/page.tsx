@@ -5,9 +5,12 @@ import { PartnerForm } from "@/components/partner-form";
 import { APPLICATION_FIELDS, DOCUMENT_LABELS, bankNameMatches } from "@/lib/partner-rules";
 import { requireAnyAdmin } from "@/server/auth/session";
 import { assertPartnerAdmin } from "@/server/partners";
-import { reviewApplicationAction, recordVisitAction } from "@/server/partner-actions";
+import {
+  reviewApplicationAction,
+  recordVisitAction,
+  issueActivationLinkAction,
+} from "@/server/partner-actions";
 import { db } from "@/server/db";
-import { appUrl } from "@/server/notify";
 import { formatDateTime } from "@/lib/format";
 export default async function ApplicationPage({ params }: { params: Promise<{ id: string }> }) {
   const admin = await requireAnyAdmin();
@@ -17,18 +20,10 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     include: { documents: { select: { id: true, kind: true } } },
   });
   if (!a) notFound();
-  const signIn =
-    a.status === "APPROVED" && a.factoryUserId
-      ? await db.notification.findFirst({
-          where: {
-            userId: a.factoryUserId,
-            title: "Factory application approved",
-            href: { startsWith: "/factories/sign-in/" },
-          },
-          select: { href: true },
-          orderBy: { createdAt: "desc" },
-        })
-      : null;
+  const canIssueLink =
+    a.status === "APPROVED" &&
+    !!a.factoryUserId &&
+    (await db.factoryActivation.count({ where: { userId: a.factoryUserId } })) > 0;
   const match = bankNameMatches(a.accountName, a.businessName, a.ownerName);
   return (
     <div className="max-w-2xl">
@@ -40,18 +35,6 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
       </Link>
       <PageHeader title={a.businessName} />
       <div className="grid gap-4">
-        {signIn?.href && (
-          <Card>
-            <Field name="signInLink" label="Sign-in link">
-              <Input
-                name="signInLink"
-                readOnly
-                value={appUrl(signIn.href)}
-                className="w-full min-w-0"
-              />
-            </Field>
-          </Card>
-        )}
         <Card>
           <dl className="grid gap-3">
             {APPLICATION_FIELDS.map(([key, label]) => (
@@ -105,24 +88,33 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
                 </Field>
               </PartnerForm>
             </Card>
-            <Card>
-              <PartnerForm action={reviewApplicationAction} submit="Save decision">
-                <input type="hidden" name="id" value={a.id} />
-                <Field name="decision" label="Decision">
-                  <Select name="decision" required>
-                    <option value="">Choose</option>
-                    <option value="APPROVE" disabled={!match}>
-                      Approve
-                    </option>
-                    <option value="REJECT">Reject</option>
-                  </Select>
-                </Field>
-                <Field name="note" label="Review note">
-                  <Textarea name="note" maxLength={2000} />
-                </Field>
-              </PartnerForm>
-            </Card>
           </>
+        )}
+        {(a.status === "WAITING" || canIssueLink) && (
+          <Card key="decision">
+            <PartnerForm
+              action={a.status === "WAITING" ? reviewApplicationAction : issueActivationLinkAction}
+              submit={a.status === "WAITING" ? "Save decision" : "New sign-in link"}
+            >
+              <input type="hidden" name="id" value={a.id} />
+              {a.status === "WAITING" && (
+                <>
+                  <Field name="decision" label="Decision">
+                    <Select name="decision" required>
+                      <option value="">Choose</option>
+                      <option value="APPROVE" disabled={!match}>
+                        Approve
+                      </option>
+                      <option value="REJECT">Reject</option>
+                    </Select>
+                  </Field>
+                  <Field name="note" label="Review note">
+                    <Textarea name="note" maxLength={2000} />
+                  </Field>
+                </>
+              )}
+            </PartnerForm>
+          </Card>
         )}
       </div>
     </div>

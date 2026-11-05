@@ -1,6 +1,6 @@
 "use client";
 import { type ReactNode, useActionState } from "react";
-import { Alert, Button } from "./ui";
+import { Alert, Button, Field, Input } from "./ui";
 import type { PartnerState } from "@/server/partner-actions";
 export function PartnerForm({
   action,
@@ -23,6 +23,16 @@ export function PartnerForm({
         </>
       )}
       {state.error && <Alert>{state.error}</Alert>}
+      {state.activationUrl && (
+        <Field name="signInLink" label="Sign-in link">
+          <Input
+            name="signInLink"
+            readOnly
+            value={new URL(state.activationUrl, window.location.origin).href}
+            className="w-full min-w-0"
+          />
+        </Field>
+      )}
       {state.inviteUrl && (
         <a className="break-all underline" href={state.inviteUrl}>
           Open invite

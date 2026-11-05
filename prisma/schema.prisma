@@ -71,6 +71,8 @@ model User {
   factoryProfile       FactoryProfile?
   factoryApplications  FactoryApplication[]  @relation("ApplicationFactory")
   reviewedApplications FactoryApplication[]  @relation("ApplicationReviewer")
+  factoryActivations   FactoryActivation[]   @relation("ActivationOwner")
+  createdActivations   FactoryActivation[]   @relation("ActivationCreator")
   factoryInvites       FactoryInvite[]
   publishedAgreements  AgreementVersion[]
   factoryAcceptances   AgreementAcceptance[] @relation("AcceptanceFactory")
@@ -887,4 +889,18 @@ model LoginAttempt {
   failures    Int       @default(0)
   lockedUntil DateTime?
   updatedAt   DateTime  @updatedAt
+}
+
+model FactoryActivation {
+  /// SHA-256 of the raw activation token; never a session credential.
+  id          String    @id
+  userId      String
+  user        User      @relation("ActivationOwner", fields: [userId], references: [id], onDelete: Cascade)
+  createdById String
+  createdBy   User      @relation("ActivationCreator", fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+  expiresAt   DateTime
+  usedAt      DateTime?
+
+  @@index([userId])
 }

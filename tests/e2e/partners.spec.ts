@@ -71,9 +71,22 @@ test("factory joins, accepts and renews the current agreement at 360px", async (
   await page.getByLabel("Decision").selectOption("APPROVE");
   await page.getByRole("button", { name: "Save decision" }).click();
   await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
+  const oldSignInUrl = await page.getByLabel("Sign-in link").inputValue();
+  await page.reload();
+  await expect(page.getByLabel("Sign-in link")).toHaveCount(0);
+  await page.getByRole("button", { name: "New sign-in link", exact: true }).click();
   const signInUrl = await page.getByLabel("Sign-in link").inputValue();
+  expect(signInUrl).not.toBe(oldSignInUrl);
+  await page.screenshot({ path: testInfo.outputPath("activation-link-360.png"), fullPage: true });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.context().clearCookies();
   expect((await page.request.get(docHref!)).status()).toBe(404);
+  await page.goto(oldSignInUrl);
+  await page.getByLabel("Set password").fill("ownerpassword123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Sign-in link expired or already used" }),
+  ).toBeVisible();
   await page.goto(signInUrl);
   await page.getByLabel("Set password").fill("ownerpassword123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
