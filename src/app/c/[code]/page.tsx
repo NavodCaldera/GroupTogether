@@ -1,4 +1,8 @@
 import { ProductRatingForm } from "@/components/product-rating-form";
+import { ReturnForm } from "@/components/return-form";
+import { ReturnCard } from "@/components/return-card";
+import { buyerReturns } from "@/server/returns";
+import { withinWindow } from "@/lib/return-rules";
 import { MemberDoneControl, RemoveMemberControl } from "@/components/member-done-controls";
 import { randomUUID } from "node:crypto";
 import { TokenForm } from "@/components/token-form";
@@ -67,6 +71,29 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   const isOwner = user?.id === cart.ownerId;
   const isMember = !!user && cart.members.some((m) => m.userId === user.id);
   const editable = isEditable(cart.status);
+  const returns =
+    user?.role === "CUSTOMER" && isMember && cart.status === "DELIVERED"
+      ? await buyerReturns(user.id, cart.id)
+      : [];
+  const returnable =
+    user?.role === "CUSTOMER" &&
+    isMember &&
+    cart.status === "DELIVERED" &&
+    cart.delivery?.deliveredAt &&
+    withinWindow(cart.delivery.deliveredAt, new Date())
+      ? cart.lines.filter(
+          (l) =>
+            l.userId === user.id &&
+            l.status === "ACTIVE" &&
+            l.returnedQty < l.qty &&
+            !returns.some(
+              (r) =>
+                r.cartLineId === l.id &&
+                r.status !== "COMPLETED" &&
+                !(r.status === "REJECTED" && r.adminDecision === false),
+            ),
+        )
+      : [];
   const balance = isMember && user?.role === "CUSTOMER" ? await tokenBalance(user.id) : new D("0");
   const due = amountDue(
     cart.total.toString(),
@@ -223,6 +250,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
           defaults={user}
           merge={merge}
         />
+        {received.length > 0 && <h2 className="font-semibold">Product ratings</h2>}
         {received.map((product) => {
           const mine = productRatings.find((r) => r.productId === product.id);
           return mine ? (
@@ -252,6 +280,20 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
           );
         })}
       </Card>
+
+      {returnable.map((line) => (
+        <Card key={line.id} className="min-w-0">
+          <details>
+            <summary className="min-h-11 cursor-pointer font-semibold">
+              Return · {line.variant.product.title} · {line.variant.size}
+            </summary>
+            <ReturnForm id={line.id} op="file" maxQty={line.qty - line.returnedQty} />
+          </details>
+        </Card>
+      ))}
+      {returns.map((r) => (
+        <ReturnCard key={r.id} request={r} viewer="buyer" />
+      ))}
 
       {joinRequests.length > 0 && (
         <Card className="flex flex-col gap-3">

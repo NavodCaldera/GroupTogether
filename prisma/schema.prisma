@@ -356,24 +356,26 @@ model CartMember {
 /// One member's quantity of one variant. Its stock is locked while the cart is OPEN, READY,
 /// AWAITING_SLIP or SLIP_REVIEW; closed carts keep their lines as history.
 model CartLine {
-  status           LineStatus @default(ACTIVE)
+  returnedQty      Int             @default(0)
+  returns          ReturnRequest[]
+  status           LineStatus      @default(ACTIVE)
   cancelledAt      DateTime?
   cancelReason     String?
-  notEarned        Boolean    @default(false)
+  notEarned        Boolean         @default(false)
   cancelNotifiedAt DateTime?
-  id               String     @id @default(cuid())
+  id               String          @id @default(cuid())
   cartId           String
-  cart             GroupCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  cart             GroupCart       @relation(fields: [cartId], references: [id], onDelete: Cascade)
   userId           String
-  user             User       @relation(fields: [userId], references: [id])
+  user             User            @relation(fields: [userId], references: [id])
   variantId        String
-  variant          Variant    @relation(fields: [variantId], references: [id])
-  tokensApplied    Decimal    @default(0) @db.Decimal(14, 2)
-  tokenVersion     Int        @default(0)
+  variant          Variant         @relation(fields: [variantId], references: [id])
+  tokensApplied    Decimal         @default(0) @db.Decimal(14, 2)
+  tokenVersion     Int             @default(0)
   qty              Int
   /// Product price when first added
-  unitPrice        Decimal    @db.Decimal(14, 2)
-  createdAt        DateTime   @default(now())
+  unitPrice        Decimal         @db.Decimal(14, 2)
+  createdAt        DateTime        @default(now())
 
   @@unique([cartId, userId, variantId])
   @@index([variantId])
@@ -475,6 +477,7 @@ enum DeliveryStatus {
 /// One PickMe drop per confirmed cart, to the owner. The owner pays the driver directly:
 /// the platform never charges, collects or refunds the fee (quotedFee is shown only).
 model Delivery {
+  deliveredAt DateTime?
   id          String         @id @default(cuid())
   cartId      String         @unique
   cart        GroupCart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
@@ -1009,6 +1012,81 @@ model QualityNotice {
   user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   title       String
   body        String
+  href        String
+  deliveredAt DateTime?
+
+  @@index([deliveredAt])
+}
+
+enum ReturnStatus {
+  WAITING_FACTORY
+  WITH_ADMIN
+  ACCEPTED
+  REJECTED
+  PICKED_UP
+  RECEIVED
+  COMPLETED
+}
+
+enum ReturnFault {
+  FACTORY
+  BUYER
+}
+
+model ReturnRequest {
+  id                 String         @id @default(cuid())
+  cartLineId         String
+  cartLine           CartLine       @relation(fields: [cartLineId], references: [id], onDelete: Restrict)
+  buyerId            String
+  factoryId          String
+  qty                Int
+  reason             ReportReason
+  fault              ReturnFault
+  note               String
+  status             ReturnStatus   @default(WAITING_FACTORY)
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
+  factoryDueAt       DateTime
+  factoryDecidedAt   DateTime?
+  factoryDecidedById String?
+  escalatedAt        DateTime?
+  adminDecision      Boolean?
+  adminId            String?
+  adminNote          String?
+  receivedAt         DateTime?
+  receivedById       String?
+  unusedWithTags     Boolean?
+  receivedCondition  String?
+  pickupRef          String?
+  pickupDriver       String?
+  pickupBookedAt     DateTime?
+  pickupBookedById   String?
+  paidBy             ReturnFault?
+  photos             ReturnPhoto[]
+  notices            ReturnNotice[]
+
+  @@index([factoryId, status])
+  @@index([buyerId, createdAt])
+  @@index([status, factoryDueAt])
+  @@index([cartLineId])
+}
+
+model ReturnPhoto {
+  id          String        @id @default(cuid())
+  returnId    String
+  request     ReturnRequest @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  storageKey  String
+  contentType String
+
+  @@index([returnId])
+}
+
+model ReturnNotice {
+  id          String        @id
+  returnId    String
+  request     ReturnRequest @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  userId      String
+  title       String
   href        String
   deliveredAt DateTime?
 

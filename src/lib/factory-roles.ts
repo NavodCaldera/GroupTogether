@@ -5,7 +5,7 @@ import type { FactoryRole } from "@/generated/prisma/client";
  * Each job sees only its own sections; owners see every section and are the only ones who see
  * money (sales value, commission, payouts). The factory account itself is always an owner.
  */
-export type FactorySection = "home" | "orders" | "products" | "insights" | "team";
+export type FactorySection = "home" | "orders" | "products" | "insights" | "team" | "returns";
 
 export const FACTORY_ROLES: FactoryRole[] = ["OWNER", "PACKING", "PLANNER", "SALES"];
 
@@ -17,10 +17,10 @@ export const FACTORY_ROLE_LABEL: Record<FactoryRole, string> = {
 };
 
 const SECTIONS: Record<FactoryRole, FactorySection[]> = {
-  OWNER: ["home", "orders", "products", "insights", "team"],
+  OWNER: ["home", "orders", "products", "insights", "team", "returns"],
   PACKING: ["home", "orders"],
   PLANNER: ["home", "products", "insights"],
-  SALES: ["home", "products", "insights"],
+  SALES: ["home", "products", "insights", "returns"],
 };
 
 export const factorySections = (role: FactoryRole) => SECTIONS[role];

@@ -5,6 +5,15 @@ description: "In-app notifications, private owner chat and premium-brand partner
 
 # Notifications
 
+## Return notices (Part 4)
+
+`ReturnNotice` persists return events in the business transaction. `flushReturnNotices` runs
+after commit and on overdue sweeps, with stable IDs deduplicating delivery retries. Filing
+notifies owner/SALES, decisions/booking/receipt notify the buyer or other side, escalation
+notifies FACTORY/CORE, and accepted factory-fault returns notify WAREHOUSE to book PickMe
+externally. Removal suppresses queued factory notices and sends only buyer/admin handoff
+notices. Return notices link to the buyer cart, `/seller/returns` or `/admin/factory/returns`.
+
 ## Read first
 
 Follow [repository instructions](../../AGENTS.md), then the

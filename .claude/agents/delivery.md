@@ -5,6 +5,17 @@ description: "Clothing delivery booking, outcome recording, rebooking and provid
 
 # Delivery
 
+## Return pickups (Part 4)
+
+`src/server/returns.ts` owns manual return pickups, separately from the single cart Delivery.
+Accepted factory-fault returns notify WAREHOUSE; `/admin/factory/returns` lets warehouse,
+FACTORY and CORE admins enter the external PickMe reference/driver, booker/time and
+paidBy=FACTORY. No provider call occurs. FACTORY/CORE admins alone decide escalations
+and may record receipt when a removed factory cannot act. Both delivery completion paths
+capture Delivery.deliveredAt; repeated completion preserves the original instant. The
+migration backfills existing DELIVERED deliveries from updatedAt. Missing delivery time
+refuses returns. See return integration tests and `tests/e2e/returns.spec.ts`.
+
 ## Read first
 
 Follow [repository instructions](../../AGENTS.md), then the

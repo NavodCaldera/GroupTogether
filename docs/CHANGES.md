@@ -153,7 +153,6 @@ Newest first.
 
 - **Split administrative work and clarified group samples.** Requested separate premium-brand, factory-apparel and warehouse/delivery administration connected to their stakeholders. Added `SAMPLE-001` / `DEC-009`: before purchase a group may request a design/pattern sample, with no sample sending fee and group-paid transport. Added group-owner sample requests and warehouse quote/dispatch/delivery records, explicit transport-quote acceptance, scoped group tracking and a non-destructive sample migration. Sample returns, ownership and exception terms remain open; no courier or bank automation is implied.
 
-
 - **Fixed stale success feedback blocking the next cart action.** Hosted browser verification exposed the previous join-cart flash covering the add-item confirmation's View cart link until both expired. `FlashToast` now dismisses the preceding global message when a new form submission begins. The buyer journey checks that the old join message is gone before clicking the new confirmation normally; no forced click, extra timeout or retry masks the interaction.
 
 - **Completed the remaining documentation MCP setup.** Replaced Context7's failing Windows subprocess with its official hosted endpoint; verified the handshake, real public-library IDs and clean shutdown, enabled the configuration and removed the unused local package/dependencies. Exercised the current session's Next.js and restricted PostgreSQL tools, including runtime error inspection and private-table denial. Plugin account authorization and GitHub branch protection remain external account steps; no subscriptions or repository visibility were changed.
@@ -393,6 +392,7 @@ Newest first.
   size that follows the category. Products carry `audience` and `kind`; lists live in
   `src/lib/taxonomy.ts`. The admin product form uses the same fields. _Agents: catalogue-admin,
   backend-data, frontend._
+
 # 2026-11-06 — CART-006 completion transitions (Part A)
 
 The owner now receives Everyone is done when removing, leaving or emptying the last waiting
@@ -400,3 +400,23 @@ member completes the remaining members. A shared check captures both states unde
 lock, excludes empty groups and sends notices after commit. Regression tests cover all three
 paths and removal of the only other member.
 
+# 2026-11-06 — Factory partnership Part 4: returns
+
+Added buyer returns within 48 hours inclusive of deliveredAt, partial quantities, private
+photos, owner/SALES factory decisions, timeout/admin escalation and final admin decisions.
+Factory removal immediately hands open returns to admins and ends factory access. Receipt
+credits the captured unit price × return quantity once as tokens; fully returned lines become
+RETURNED/notEarned. No cash refunds or factory payouts were added.
+
+PickMe return booking remains external and manual. ReturnRequest stores the reference, driver,
+booker, time and FACTORY payer; Warehouse admins receive booking notices. The original cart
+Delivery remains singular. Both delivery completion paths capture deliveredAt; the migration
+backfills existing delivered deliveries from updatedAt.
+
+Implemented Claude's call for buyer-fault items received used/without tags: rejection with a
+condition note, one buyer appeal, and final admin acceptance credits the already received item.
+This handling awaits owner confirmation under DEC-013. A rejected return still eligible for
+appeal reserves its line until resolved, preventing overlapping appeal credits. Removal preserves
+an existing final acceptance while putting fulfilment with admins. RECEIVED and COMPLETED occur
+in one transaction with the credit. Tests include the Lanka Shirts browser journey on desktop
+and at 360px, private-photo HTTP denial checks and receipt/decision races.

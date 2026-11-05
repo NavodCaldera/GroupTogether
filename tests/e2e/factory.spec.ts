@@ -68,10 +68,10 @@ test("factory staff: each job gets its own bottom tabs; the owner adds staff", a
   await expect(page).toHaveURL(/\/seller$/);
 
   await signIn(page, "sales@example.com");
-  await expect(tabs()).toHaveText(["Home", "Products", "Ratings"]);
+  await expect(tabs()).toHaveText(["Returns", "Home", "Products", "Ratings"]);
 
   await signIn(page, "seller@example.com");
-  await expect(tabs()).toHaveText(["Home", "Orders", "Products", "Ratings", "Team"]);
+  await expect(tabs()).toHaveText(["Returns", "Home", "Orders", "Products", "Ratings", "Team"]);
   await tabs().getByText("Team").click();
   await expect(page.getByRole("listitem", { name: "Ruwan Perera" })).toBeVisible();
   await page.getByLabel("Name", { exact: true }).fill("Kamal Jayasuriya");

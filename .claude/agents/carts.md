@@ -5,6 +5,17 @@ description: "Shared-cart lifecycle, stock reservation, deadlines, discovery and
 
 # Carts
 
+## Delivered-item returns (Part 4)
+
+Buyer controls on `/c/[code]` scope to own delivered lines inside the inclusive 48-hour
+Delivery.deliveredAt window. `returns.ts` shares participant/factory advisories and the cart
+lock, then locks the return row before transitions/receipt, and ledger users before credits.
+One unresolved return per line prevents duplicate quantities, including an appealable rejection.
+Full sweep calls `escalateOverdue(now)`; late factory decisions refuse even before a sweep.
+Receipt increments returnedQty and credits unitPrice × quantity once. Only full return sets
+RETURNED/notEarned; original payment totals stay captured. Verify returns integration races,
+private routes and the desktop/360px Lanka Shirts journey.
+
 ## Read first
 
 Follow [repository instructions](../../AGENTS.md), then the

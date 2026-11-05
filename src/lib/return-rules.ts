@@ -1,0 +1,30 @@
+export const RETURN_STATUSES = [
+  "WAITING_FACTORY",
+  "WITH_ADMIN",
+  "ACCEPTED",
+  "REJECTED",
+  "PICKED_UP",
+  "RECEIVED",
+  "COMPLETED",
+] as const;
+export type ReturnStatus = (typeof RETURN_STATUSES)[number];
+const WINDOW = 48 * 60 * 60 * 1000;
+export function withinWindow(deliveredAt: Date, now: Date): boolean {
+  const elapsed = now.getTime() - deliveredAt.getTime();
+  return elapsed >= 0 && elapsed <= WINDOW;
+}
+export function factoryOverdue(createdAt: Date, now: Date): boolean {
+  return now.getTime() - createdAt.getTime() > WINDOW;
+}
+const MOVES: Record<ReturnStatus, readonly ReturnStatus[]> = {
+  WAITING_FACTORY: ["ACCEPTED", "REJECTED", "WITH_ADMIN"],
+  WITH_ADMIN: ["ACCEPTED", "REJECTED"],
+  ACCEPTED: ["PICKED_UP", "RECEIVED", "REJECTED", "WITH_ADMIN"],
+  REJECTED: ["WITH_ADMIN"],
+  PICKED_UP: ["RECEIVED", "REJECTED", "WITH_ADMIN"],
+  RECEIVED: ["COMPLETED"],
+  COMPLETED: [],
+};
+export function canMoveReturn(from: ReturnStatus, to: ReturnStatus): boolean {
+  return MOVES[from].includes(to);
+}

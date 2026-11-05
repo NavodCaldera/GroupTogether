@@ -127,6 +127,11 @@ that loses all active lines keeps its Delivery unchanged and alerts warehouse ad
 call is made. Hide/remove flags are persisted before separate per-cart cleanup transactions so
 partial failures can be retried safely.
 
+**Claude's call, awaiting owner confirmation (Part 4, 2026-11-06):** when a buyer-fault
+return arrives used or without tags, the factory records its condition note and rejects it
+at receipt, without credit. The buyer may appeal once; a final admin acceptance credits the
+already received item. This is implemented for the requested workflow, not approved policy.
+
 ### DEC-014 - Member done before cart finish
 
 **Status:** Approved by the owner on **2026-11-05**. **Rule:** `CART-006`.

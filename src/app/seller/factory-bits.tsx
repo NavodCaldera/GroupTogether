@@ -16,6 +16,12 @@ const legible = Atkinson_Hyperlegible({ subsets: ["latin"], weight: ["400", "700
 
 const TABS: { key: FactorySection; href: Route; label: string; icon: ReactNode }[] = [
   {
+    key: "returns",
+    href: "/seller/returns",
+    label: "Returns",
+    icon: <path d="M9 4 4 9l5 5M4 9h11a5 5 0 0 1 0 10h-3" />,
+  },
+  {
     key: "home",
     href: "/seller",
     label: "Home",

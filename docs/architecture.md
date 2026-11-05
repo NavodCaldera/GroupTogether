@@ -1,5 +1,41 @@
 # Architecture reference
 
+## Returns (factory partnership Part 4, 2026-11-06)
+
+`ReturnRequest` belongs to a captured CartLine and stores buyer/factory, quantity, reason,
+fault, decision actors/notes, deadline, receipt condition and manual pickup attribution.
+`ReturnPhoto` stores private image keys; `/api/return-photos/[id]` authorizes the buyer,
+own factory owner/SALES and FACTORY/CORE admins, returning 404 otherwise. `ReturnNotice`
+is a durable after-commit outbox with stable notification keys. No buyer names, addresses,
+phones or monetary figures are selected for the factory returns list.
+
+The pure move table is `src/lib/return-rules.ts`. WAITING_FACTORY → ACCEPTED/REJECTED or
+WITH_ADMIN after more than 48 hours; REJECTED → WITH_ADMIN for a single buyer appeal;
+WITH_ADMIN → ACCEPTED/REJECTED for the final admin decision. ACCEPTED → PICKED_UP
+optionally, then ACCEPTED/PICKED_UP → RECEIVED → COMPLETED atomically with the token
+credit. Buyer-fault receipt can instead reject with a condition note; final admin acceptance
+of that already received item completes it immediately. Removal moves unresolved requests
+(including accepted/picked-up requests) to WITH_ADMIN; a prior final acceptance is retained,
+and only an admin may resume its pickup/receipt. An appealable rejection reserves the line
+against another open request; a final rejection releases that eligibility.
+
+Every service mutation takes sorted participant/factory user advisories, the cart row,
+then the return row FOR UPDATE; credit subsequently takes the ledger user lock. Filing
+serializes on the cart before checking line quantity and open requests. The factory advisory
+also fences removal, which hands returns off in its metadata transaction, without acquiring
+cart or ledger locks. The full sweep calls `escalateOverdue(now)` and retries notice delivery.
+
+Completion credits `toD(unitPrice).times(returnQty)` via the idempotent RETURN ledger event,
+increments CartLine.returnedQty, and marks RETURNED/notEarned only when fully returned.
+Factory payouts and available-stock restocking are not introduced. Delivery.deliveredAt is
+captured on both completion paths, preserved on repeated callbacks and backfilled from
+updatedAt for existing delivered records. Missing timestamps prevent filing.
+
+Accepted factory-fault returns notify WAREHOUSE admins. An admin records the external
+PickMe reference, driver, booked-by/time and paidBy=FACTORY on ReturnRequest. No provider
+is called and no second Delivery is created. Buyer-fault delivery is arranged and paid by
+the buyer. See DEC-013 for the unconfirmed buyer-fault receipt handling.
+
 Brand partnership communication (2026-10-26) uses `BrandConversation`, `BrandMessage`, `BrandConversationRead` and `BrandOfferRevision`. `brand-communications.ts` validates each subject and actor, locks conversations for read/notification consistency and deduplicates sends by request key. Business services append events within their transaction; notice delivery runs after commit and retries on workspace visits or the sweep endpoint. `brand-reviews.ts` activates explicit approved revisions without changing prior gift price snapshots. The admin brand workspace is separate from factory Offers, and partnership messages are separate from shopper chat.
 
 This describes the source tree inspected on 2026-10-24, with premium rewards updated on 2026-10-25. The [main agent brief](../.claude/agents/groupbasket.md) owns business policy; this document explains the implementation. Gifts support manual assignment, reservations and brand fulfilment/settlement records. Automatic family eligibility and body-measurement recommendations remain planned.
@@ -38,21 +74,21 @@ Added on 2026-10-26: `StockOffer` stores gift photo key/type, contents, pack siz
 
 ## Cart and fulfilment transitions
 
-| Trigger                         | Cart transition                        | Stock effect                                                  |
-| ------------------------------- | -------------------------------------- | ------------------------------------------------------------- |
-| Create a cart                   | → `OPEN`                               | None                                                          |
-| Add or increase an item         | `OPEN` / `READY`, then recompute total | Move the additional quantity from available to reserved       |
-| Cross the cart's saved minimum  | `OPEN` ↔ `READY`                       | No extra movement; notify on becoming ready                   |
-| Owner accepts with positive due                   | `READY` → `AWAITING_SLIP`              | Keep reservations; freeze edits and snapshot delivery details |
-| Owner accepts with zero due | `READY` -> `CONFIRMED` | Spend tokens, sell reservations, activate gifts; no slip/deadline |
-| Owner uploads evidence          | `AWAITING_SLIP` → `SLIP_REVIEW`        | Keep reservations; payment timer no longer closes the cart    |
-| Admin rejects evidence          | `SLIP_REVIEW` → `AWAITING_SLIP`        | Keep reservations; assign a fresh payment deadline            |
-| Admin approves evidence         | `SLIP_REVIEW` → `CONFIRMED`            | Move reserved quantities to sold                              |
-| Admin books delivery            | `CONFIRMED` → `DISPATCHED`             | None                                                          |
-| Delivery completed              | `DISPATCHED` → `DELIVERED`             | None                                                          |
-| Unaccepted cart deadline passes | `OPEN` / `READY` → `EXPIRED`           | Release reservations; retain lines as history                 |
-| Payment-upload deadline passes  | `AWAITING_SLIP` → `CANCELLED`          | Release reservations; retain lines as history                 |
-| Permitted cancellation          | Pre-confirmation state → `CANCELLED`   | Release reservations; retain lines as history                 |
+| Trigger                         | Cart transition                        | Stock effect                                                      |
+| ------------------------------- | -------------------------------------- | ----------------------------------------------------------------- |
+| Create a cart                   | → `OPEN`                               | None                                                              |
+| Add or increase an item         | `OPEN` / `READY`, then recompute total | Move the additional quantity from available to reserved           |
+| Cross the cart's saved minimum  | `OPEN` ↔ `READY`                       | No extra movement; notify on becoming ready                       |
+| Owner accepts with positive due | `READY` → `AWAITING_SLIP`              | Keep reservations; freeze edits and snapshot delivery details     |
+| Owner accepts with zero due     | `READY` -> `CONFIRMED`                 | Spend tokens, sell reservations, activate gifts; no slip/deadline |
+| Owner uploads evidence          | `AWAITING_SLIP` → `SLIP_REVIEW`        | Keep reservations; payment timer no longer closes the cart        |
+| Admin rejects evidence          | `SLIP_REVIEW` → `AWAITING_SLIP`        | Keep reservations; assign a fresh payment deadline                |
+| Admin approves evidence         | `SLIP_REVIEW` → `CONFIRMED`            | Move reserved quantities to sold                                  |
+| Admin books delivery            | `CONFIRMED` → `DISPATCHED`             | None                                                              |
+| Delivery completed              | `DISPATCHED` → `DELIVERED`             | None                                                              |
+| Unaccepted cart deadline passes | `OPEN` / `READY` → `EXPIRED`           | Release reservations; retain lines as history                     |
+| Payment-upload deadline passes  | `AWAITING_SLIP` → `CANCELLED`          | Release reservations; retain lines as history                     |
+| Permitted cancellation          | Pre-confirmation state → `CANCELLED`   | Release reservations; retain lines as history                     |
 
 The owner cannot cancel during `SLIP_REVIEW`; an admin can. Removing a line or leaving an editable cart releases the corresponding stock. An accepted merge moves existing lines without releasing their reservations. Cart services enforce one active cart per buyer.
 
@@ -165,7 +201,6 @@ Group merges move sample request records to the destination group before source 
 ## Factory partnership joining (Part 1)
 
 Applications hold private business, identity and bank fields. FactoryDocument stores private storage keys, exposed only through the FACTORY/CORE checked `/api/partner-docs/[id]` route. `partners.ts` validates submissions and serializes review/invite consumption; `partner-actions.ts` derives principals from sessions. `/factories/apply` and its invite route share the form; `/admin/factory/applications` holds review and visits. Approval links use separate hashed seven-day `FactoryActivation` rows (owner, creating admin, expiry, redeemed `usedAt` and separate `revokedAt` audit). No activation is accepted by session lookup. Approval creates these only for new owners and returns the raw URL once in the authorized admin action response; form state displays it until navigation/refresh. Notifications persist only `/sign-in`. New sign-in link requires FACTORY/CORE access, approval and activation history; it locks the owner, refuses if any activation has `usedAt` set, and revokes unused/non-revoked activations via `revokedAt` before issuing a replacement. The admin page hides this action after any redemption. Redemption locks the owner then the activation (`FOR UPDATE`), checks `usedAt = null`, `revokedAt = null`, expiry and account conditions, and atomically sets the password and used-at marker; the action then starts a normal session. GET never consumes credentials. Legacy applicants receive no activation. Migration cleanup hashes historical notification URL tokens to revoke only matching unredeemed approval sessions and sanitizes those URLs. It preserves invalidated hash-only activation history only for owners created after their application, excluding pre-existing legacy owners. Migration `factory_activation_revoked` adds only the nullable `revokedAt` column; existing ambiguous `usedAt` markers are not reclassified and conservatively block reissue. Delivery uses in-app notices only. FactoryProfile, AgreementVersion and AgreementAcceptance retain lifecycle records alongside the factory User.
-
 
 ### Agreement eligibility
 

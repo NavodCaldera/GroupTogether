@@ -5,6 +5,17 @@ description: "Clothing catalogue, variant stock, lot pricing, factory offers/des
 
 # Catalogue Admin
 
+## Returns (Part 4)
+
+`src/server/returns.ts` and `/admin/factory/returns` own FACTORY/CORE final return decisions;
+`/seller/returns` permits only factory owner/SALES. Private photos require per-return access,
+with 404 for other accounts/jobs/areas. Removal calls `handoffRemovedReturns` in its factory
+advisory metadata transaction so every unresolved return moves to WITH_ADMIN immediately;
+final acceptance survives and only admins fulfil it. Preserve the factory advisory before
+cart/return/ledger locks in ordinary mutations. No factory payouts; full return completion
+sets line RETURNED/notEarned, partial completion records returnedQty. See DEC-013 for
+Claude's unconfirmed used/untagged buyer-fault handling.
+
 ## Read first
 
 Follow [repository instructions](../../AGENTS.md), then the

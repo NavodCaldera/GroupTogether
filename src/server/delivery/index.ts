@@ -142,7 +142,10 @@ export async function markReceived(userId: string, cartId: string) {
       !["BOOKED", "PICKED_UP"].includes(c.delivery.status)
     )
       throw new CartError("This order isn't on its way, so it can't be marked delivered");
-    await tx.delivery.update({ where: { id: c.delivery.id }, data: { status: "DELIVERED" } });
+    await tx.delivery.update({
+      where: { id: c.delivery.id },
+      data: { status: "DELIVERED", deliveredAt: new Date() },
+    });
     await tx.groupCart.update({ where: { id: cartId }, data: { status: "DELIVERED" } });
     return tx.groupCart.findUnique({
       where: { id: cartId },
@@ -166,12 +169,28 @@ export async function markReceived(userId: string, cartId: string) {
 
 /** From the admin page or the PickMe webhook. DELIVERED closes the cart. */
 export async function setDeliveryStatus(deliveryId: string, status: DeliveryStatus) {
-  const d = await db.delivery.update({ where: { id: deliveryId }, data: { status } });
-  if (status === "DELIVERED") {
-    await db.groupCart.updateMany({
-      where: { id: d.cartId, status: "DISPATCHED" },
-      data: { status: "DELIVERED" },
+  return db.$transaction(async (tx) => {
+    const before = await tx.delivery.findUniqueOrThrow({
+      where: { id: deliveryId },
+      select: { cartId: true },
     });
-  }
-  return d;
+    await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id=${before.cartId} FOR UPDATE`;
+    const existing = await tx.delivery.findUniqueOrThrow({
+      where: { id: deliveryId },
+      select: { deliveredAt: true },
+    });
+    const d = await tx.delivery.update({
+      where: { id: deliveryId },
+      data: {
+        status,
+        ...(status === "DELIVERED" ? { deliveredAt: existing.deliveredAt ?? new Date() } : {}),
+      },
+    });
+    if (status === "DELIVERED")
+      await tx.groupCart.updateMany({
+        where: { id: d.cartId, status: "DISPATCHED" },
+        data: { status: "DELIVERED" },
+      });
+    return d;
+  });
 }

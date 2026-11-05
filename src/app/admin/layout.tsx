@@ -24,6 +24,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/factory", "Factories", 0],
       ["/admin/factory/applications", "Applications", 0],
       ["/admin/factory/quality", "Quality", 0],
+      ["/admin/factory/returns", "Returns", 0],
       ["/admin", "Stock", 0],
       ["/admin/lots", "Lots", 0],
       ["/admin/products", "Products", badges.lowStock, "muted"],
@@ -34,12 +35,14 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/warehouse", "Buyers & orders", 0],
       ["/admin/slips", "Slips", badges.slips],
       ["/admin/orders", "Orders", badges.orders],
+      ["/admin/factory/returns", "Return pickups", 0],
       ["/admin/carts", "Carts", 0],
       ["/admin/users", "Buyers", 0],
     ],
     CORE: [
       ["/admin/users", "Admins", 0],
       ["/admin/settings", "Settings", 0],
+      ["/admin/factory/returns", "Returns", 0],
       ["/admin/factory/quality", "Quality", 0],
     ],
   };

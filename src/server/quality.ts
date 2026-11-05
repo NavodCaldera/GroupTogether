@@ -7,6 +7,7 @@ import { cancelPaidLines, flushCancellationNotices } from "./cancellations";
 import { flushQualityNotices } from "./quality-notices";
 import { setUserLocked } from "./auth/service";
 import { factoryScore, productFlagged, factoryFlagged } from "@/lib/quality-rules";
+import { handoffRemovedReturns, flushReturnNotices } from "./returns";
 export class QualityError extends CartError {}
 export async function assertQualityAdmin(adminId: string) {
   const admin = await db.user.findFirst({
@@ -124,6 +125,7 @@ export async function removeFactory(
         data: { earningsHeld: true, earningsHeldNote: note!.trim() },
       });
     const profile = await tx.factoryProfile.findUniqueOrThrow({ where: { factoryUserId } });
+    await handoffRemovedReturns(tx, factoryUserId);
     // Acquire product rows in the same sorted order as confirmation's share locks.
     // The owner advisory also fences new listings and staff creation; no cart locks here.
     await tx.$queryRaw`SELECT 1 FROM "Product" WHERE "sellerId"=${factoryUserId} ORDER BY id FOR UPDATE`;
@@ -136,6 +138,7 @@ export async function removeFactory(
       },
     });
   });
+  await flushReturnNotices();
   const users = await db.user.findMany({
     where: { role: "SELLER", OR: [{ id: factoryUserId }, { factoryId: factoryUserId }] },
     select: { id: true },

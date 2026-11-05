@@ -39,6 +39,7 @@ import { CartError } from "./errors";
 export { CartError } from "./errors";
 import { releaseLineTokens } from "../tokens";
 import { lockCart, lockLedgerUsers, withCartTransaction } from "./locks";
+import { escalateOverdue } from "../returns";
 
 function assertEditable(cart: GroupCart, now: Date) {
   if (overdue(cart, now) === "EXPIRE") throw new CartError("This cart has expired");
@@ -476,6 +477,7 @@ export async function cancelCart(actor: { id: string; role: Role }, cartId: stri
  * the reduced price (`reduceDueLots`).
  */
 export async function sweep(now = new Date(), cartId?: string) {
+  if (!cartId) await escalateOverdue(now);
   if (!cartId) await remindAgreements(now);
   // No lot price drop while factories ship directly (product owner, 2026-11-03).
   if (!cartId && !factoryFulfilment()) await reduceDueLots(now);
