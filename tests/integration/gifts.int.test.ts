@@ -14,6 +14,8 @@ import {
   updateGiftDelivery,
 } from "@/server/gifts";
 import {
+  markDone,
+  removeMember,
   acceptAndPay,
   acceptMerge,
   cancelCart,
@@ -286,4 +288,52 @@ it("zero-due acceptance activates gifts, records brand events and notifies the f
     await db.notification.count({ where: { userId: factory.id, title: "New order to pack" } }),
   ).toBe(1);
   expect(await db.paymentSlip.count({ where: { cartId: f.cart.id } })).toBe(0);
+});
+
+it("gift reservation changes reset done and owner removal releases the gift", async () => {
+  const f = await fixture(),
+    member = await makeUser();
+  await setLine(member.id, f.cart.id, f.variant.id, 1);
+  await markDone(member.id, f.cart.id);
+  const gift = await reserveGift(f.admin.id, f.cart.id, member.id, f.offer.id);
+  const membership = () =>
+    db.cartMember.findUniqueOrThrow({
+      where: { cartId_userId: { cartId: f.cart.id, userId: member.id } },
+    });
+  expect((await membership()).doneAt).toBeNull();
+  await markDone(member.id, f.cart.id);
+  await cancelReservedGift(member.id, gift.id);
+  expect((await membership()).doneAt).toBeNull();
+  const next = await reserveGift(f.admin.id, f.cart.id, member.id, f.offer.id);
+  await removeMember(f.owner.id, f.cart.id, member.id);
+  expect((await db.giftOrder.findUniqueOrThrow({ where: { id: next.id } })).status).toBe(
+    "CANCELLED",
+  );
+});
+
+it("serializes a reservation cancellation against a member merge", async () => {
+  const f = await fixture(),
+    member = await makeUser(),
+    targetOwner = await makeUser();
+  await setLine(member.id, f.cart.id, f.variant.id, 1);
+  const gift = await reserveGift(f.admin.id, f.cart.id, member.id, f.offer.id);
+  const target = await createCart(targetOwner.id, {});
+  await setLine(targetOwner.id, target.id, f.variant.id, 1);
+  await markDone(member.id, f.cart.id);
+  const request = await requestMerge(member.id, target.id);
+  const results = await Promise.allSettled([
+    acceptMerge(targetOwner.id, request.id),
+    cancelReservedGift(member.id, gift.id),
+  ]);
+  expect(results[0].status).toBe("fulfilled");
+  const saved = await db.giftOrder.findUniqueOrThrow({ where: { id: gift.id } });
+  expect(["RESERVED", "CANCELLED"]).toContain(saved.status);
+  if (saved.status === "RESERVED") expect(saved.cartId).toBe(target.id);
+  expect(
+    (
+      await db.cartMember.findUniqueOrThrow({
+        where: { cartId_userId: { cartId: target.id, userId: member.id } },
+      })
+    ).doneAt,
+  ).toBeNull();
 });

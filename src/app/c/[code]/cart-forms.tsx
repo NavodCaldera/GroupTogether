@@ -64,8 +64,12 @@ export function AcceptForm({
   cartId,
   back,
   defaults,
+  done,
+  required,
 }: {
   cartId: string;
+  done: number;
+  required: number;
   /** This cart's page, to come back to after changing the profile */
   back: string;
   defaults: { address: string | null; city: string | null; phone: string | null } | null;
@@ -85,7 +89,10 @@ export function AcceptForm({
           Change
         </Link>
       </div>
-      <Button type="submit" disabled={pending}>
+      <p className="text-sm">
+        {done} of {required} done
+      </p>
+      <Button type="submit" disabled={pending || done !== required}>
         {pending ? "Locking…" : "Accept & pay"}
       </Button>
     </form>

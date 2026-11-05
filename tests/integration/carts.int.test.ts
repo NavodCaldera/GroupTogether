@@ -3,6 +3,9 @@ import { addHours, amountDue, meetsMinimum } from "@/lib/cart-rules";
 import {
   requestMerge,
   acceptMerge,
+  markDone,
+  undoDone,
+  removeMember,
   setLine,
   acceptAndPay,
   cancelCart,
@@ -31,12 +34,13 @@ beforeEach(async () => {
 afterAll(() => db.$disconnect());
 
 /** Owner + member fill a cart to exactly 50,000 with two 25,000 items. */
-async function readyCart() {
+async function readyCart(done = true) {
   const [owner, member, admin] = [await makeUser(), await makeUser(), await makeUser("ADMIN")];
   const v = await makeVariant("25000", 5);
   const cart = await createCart(owner.id, { name: "Test" });
   await setLine(owner.id, cart.id, v.id, 1);
   const r = await setLine(member.id, cart.id, v.id, 1);
+  if (done) await markDone(member.id, cart.id);
   return { owner, member, admin, v, cart, becameReady: r.becameReady };
 }
 
@@ -312,6 +316,7 @@ describe("tokens in the cart lifecycle", () => {
     const cart = await cartRow(f.cart.id);
     expect(cart.status).toBe("READY");
     expect(meetsMinimum(cart.total.toString(), cart.minOrderValue.toString())).toBe(true);
+    await markDone(f.member.id, f.cart.id);
     await acceptAndPay(f.owner.id, f.cart.id, drop);
     await uploadSlip(f.owner.id, f.cart.id, slipFile());
     const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: f.cart.id } });
@@ -325,6 +330,7 @@ describe("tokens in the cart lifecycle", () => {
     const filler = await makeVariant("48500", 2);
     await setLine(f.owner.id, f.cart.id, filler.id, 1);
     await applyTokens(f.member.id, f.line.id, "1500");
+    await markDone(f.member.id, f.cart.id);
     await acceptAndPay(f.owner.id, f.cart.id, drop);
     await uploadSlip(f.owner.id, f.cart.id, slipFile());
     const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: f.cart.id } }),
@@ -346,6 +352,7 @@ describe("tokens in the cart lifecycle", () => {
     const moved = await db.cartLine.findUniqueOrThrow({ where: { id: f.line.id } });
     expect(moved.cartId).toBe(target.id);
     expect(moved.tokensApplied.toFixed(2)).toBe("1500.00");
+    await markDone(f.member.id, target.id);
     await acceptAndPay(targetOwner.id, target.id, drop);
     await uploadSlip(targetOwner.id, target.id, slipFile());
     const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: target.id } });
@@ -368,6 +375,7 @@ async function fullyCoveredCart(amount = "1500") {
   await db.settings.update({ where: { id: 1 }, data: { minOrderValue: "1500" } });
   const f = await tokenCart();
   await applyTokens(f.member.id, f.line.id, amount);
+  await markDone(f.member.id, f.cart.id);
   return f;
 }
 describe("zero-due owner confirmation", () => {
@@ -375,6 +383,7 @@ describe("zero-due owner confirmation", () => {
     const f = await fullyCoveredCart(),
       now = new Date();
     const before = await tokenBalance(f.member.id);
+    await markDone(f.member.id, f.cart.id);
     await acceptAndPay(f.owner.id, f.cart.id, drop, now);
     const cart = await cartRow(f.cart.id);
     expect(cart).toMatchObject({
@@ -398,6 +407,7 @@ describe("zero-due owner confirmation", () => {
   });
   it("keeps the bank-slip flow when exactly 0.01 remains", async () => {
     const f = await fullyCoveredCart("1499.99");
+    await markDone(f.member.id, f.cart.id);
     await acceptAndPay(f.owner.id, f.cart.id, drop);
     const cart = await cartRow(f.cart.id);
     expect(cart.status).toBe("AWAITING_SLIP");
@@ -417,5 +427,172 @@ describe("zero-due owner confirmation", () => {
     expect(await db.tokenEntry.count({ where: { cartLineId: f.line.id, kind: "SPEND" } })).toBe(1);
     expect(await variantRow(f.v.id)).toMatchObject({ reserved: 0, sold: 1 });
     expect(await db.notification.count({ where: { title: "Group order confirmed" } })).toBe(2);
+  });
+});
+
+const memberRow = (cartId: string, userId: string) =>
+  db.cartMember.findUnique({ where: { cartId_userId: { cartId, userId } } });
+describe("member done before finish", () => {
+  it("blocks finish until members with items are done; ignores members without items", async () => {
+    const f = await readyCart(false);
+    await expect(acceptAndPay(f.owner.id, f.cart.id, drop)).rejects.toThrow(
+      "Waiting for every member to mark their items done",
+    );
+    const empty = await makeUser();
+    await joinCart(empty.id, f.cart.id);
+    await markDone(f.member.id, f.cart.id);
+    await acceptAndPay(f.owner.id, f.cart.id, drop);
+    expect((await cartRow(f.cart.id)).status).toBe("AWAITING_SLIP");
+  });
+  it.each(["qty", "remove", "tokens"])("resets done after %s changes", async (change) => {
+    const f = await readyCart(false);
+    await markDone(f.member.id, f.cart.id);
+    if (change === "qty") await setLine(f.member.id, f.cart.id, f.v.id, 2);
+    if (change === "remove") {
+      await setLine(f.owner.id, f.cart.id, f.v.id, 2);
+      await setLine(f.member.id, f.cart.id, f.v.id, 0);
+      expect((await memberRow(f.cart.id, f.member.id))?.doneAt).toBeNull();
+      await setLine(f.member.id, f.cart.id, f.v.id, 1);
+    }
+    if (change === "tokens") {
+      await db.$transaction((tx) =>
+        credit(
+          tx,
+          f.member.id,
+          new D("3000"),
+          "CANCELLATION",
+          { cartLineId: "done-test-credit" },
+          "Test credit",
+        ),
+      );
+      const line = await db.cartLine.findFirstOrThrow({
+        where: { cartId: f.cart.id, userId: f.member.id },
+      });
+      await applyTokens(f.member.id, line.id, "1500");
+    }
+    expect((await memberRow(f.cart.id, f.member.id))?.doneAt).toBeNull();
+    await expect(acceptAndPay(f.owner.id, f.cart.id, drop)).rejects.toThrow(
+      "Waiting for every member to mark their items done",
+    );
+  });
+  it("allows undo only for a current member before finish", async () => {
+    const f = await readyCart(false),
+      outsider = await makeUser();
+    await expect(markDone(outsider.id, f.cart.id)).rejects.toThrow();
+    await expect(markDone(f.owner.id, f.cart.id)).rejects.toThrow();
+    await markDone(f.member.id, f.cart.id);
+    await undoDone(f.member.id, f.cart.id);
+    expect((await memberRow(f.cart.id, f.member.id))?.doneAt).toBeNull();
+    await markDone(f.member.id, f.cart.id);
+    await acceptAndPay(f.owner.id, f.cart.id, drop);
+    await expect(undoDone(f.member.id, f.cart.id)).rejects.toThrow();
+    await expect(markDone(f.member.id, f.cart.id)).rejects.toThrow();
+  });
+  it("removes unfinished members, releases stock/tokens and permits rejoining", async () => {
+    const f = await readyCart(false);
+    const line = await db.cartLine.findFirstOrThrow({
+      where: { cartId: f.cart.id, userId: f.member.id },
+    });
+    await db.$transaction((tx) =>
+      credit(
+        tx,
+        f.member.id,
+        new D("3000"),
+        "CANCELLATION",
+        { cartLineId: "remove-credit" },
+        "Test credit",
+      ),
+    );
+    await applyTokens(f.member.id, line.id, "1500");
+    await removeMember(f.owner.id, f.cart.id, f.member.id);
+    expect(await memberRow(f.cart.id, f.member.id)).toBeNull();
+    expect(await db.cartLine.count({ where: { id: line.id } })).toBe(0);
+    expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("3000.00");
+    expect(await variantRow(f.v.id)).toMatchObject({ available: 4, reserved: 1 });
+    expect((await cartRow(f.cart.id)).status).toBe("OPEN");
+    expect(
+      await db.notification.count({
+        where: { userId: f.member.id, title: `Removed from ${f.cart.name || f.cart.code}` },
+      }),
+    ).toBe(1);
+    await joinCart(f.member.id, f.cart.id);
+    expect((await memberRow(f.cart.id, f.member.id))?.doneAt).toBeNull();
+  });
+  it("denies removal of done members, owners and by other accounts or after expiry", async () => {
+    const f = await readyCart(false);
+    await markDone(f.member.id, f.cart.id);
+    await expect(removeMember(f.owner.id, f.cart.id, f.member.id)).rejects.toThrow(
+      "This member has marked their items done",
+    );
+    await expect(removeMember(f.owner.id, f.cart.id, f.owner.id)).rejects.toThrow();
+    await expect(removeMember(f.member.id, f.cart.id, f.owner.id)).rejects.toThrow();
+    await undoDone(f.member.id, f.cart.id);
+    await db.groupCart.update({ where: { id: f.cart.id }, data: { expiresAt: new Date(0) } });
+    await expect(markDone(f.member.id, f.cart.id)).rejects.toThrow();
+    await expect(undoDone(f.member.id, f.cart.id)).rejects.toThrow();
+    await expect(removeMember(f.owner.id, f.cart.id, f.member.id)).rejects.toThrow();
+  });
+  it("serializes done with acceptance and edits", async () => {
+    const f = await readyCart(false);
+    await Promise.allSettled([
+      markDone(f.member.id, f.cart.id),
+      acceptAndPay(f.owner.id, f.cart.id, drop),
+    ]);
+    const cart = await cartRow(f.cart.id);
+    expect((await memberRow(f.cart.id, f.member.id))?.doneAt).not.toBeNull();
+    if (cart.status !== "READY")
+      expect((await memberRow(f.cart.id, f.member.id))?.doneAt).not.toBeNull();
+  });
+  it("serializes line edits with done and checks the final share before finishing", async () => {
+    const f = await readyCart(false);
+    const results = await Promise.allSettled([
+      setLine(f.member.id, f.cart.id, f.v.id, 2),
+      markDone(f.member.id, f.cart.id),
+    ]);
+    expect(results.every((r) => r.status === "fulfilled")).toBe(true);
+    expect(
+      (await db.cartLine.findFirstOrThrow({ where: { cartId: f.cart.id, userId: f.member.id } }))
+        .qty,
+    ).toBe(2);
+    const m = await memberRow(f.cart.id, f.member.id);
+    if (m?.doneAt) await acceptAndPay(f.owner.id, f.cart.id, drop);
+    else
+      await expect(acceptAndPay(f.owner.id, f.cart.id, drop)).rejects.toThrow(/Waiting for every/);
+  });
+  it("serializes remove with done to exactly one outcome", async () => {
+    const f = await readyCart(false);
+    const results = await Promise.allSettled([
+      removeMember(f.owner.id, f.cart.id, f.member.id),
+      markDone(f.member.id, f.cart.id),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    const m = await memberRow(f.cart.id, f.member.id);
+    if (m) expect(m.doneAt).not.toBeNull();
+    else
+      expect(await db.cartLine.count({ where: { cartId: f.cart.id, userId: f.member.id } })).toBe(
+        0,
+      );
+  });
+  it("resets members arriving by merge", async () => {
+    const f = await readyCart(false),
+      targetOwner = await makeUser(),
+      target = await createCart(targetOwner.id, {});
+    await setLine(targetOwner.id, target.id, f.v.id, 1);
+    await markDone(f.member.id, f.cart.id);
+    const req = await requestMerge(f.member.id, target.id);
+    await acceptMerge(targetOwner.id, req.id);
+    expect((await memberRow(target.id, f.member.id))?.doneAt).toBeNull();
+  });
+  it("notifies once per all-done transition, including a new transition after undo", async () => {
+    const f = await readyCart(false);
+    await Promise.all([markDone(f.member.id, f.cart.id), markDone(f.member.id, f.cart.id)]);
+    expect(
+      await db.notification.count({ where: { userId: f.owner.id, title: "Everyone is done" } }),
+    ).toBe(1);
+    await undoDone(f.member.id, f.cart.id);
+    await markDone(f.member.id, f.cart.id);
+    expect(
+      await db.notification.count({ where: { userId: f.owner.id, title: "Everyone is done" } }),
+    ).toBe(2);
   });
 });

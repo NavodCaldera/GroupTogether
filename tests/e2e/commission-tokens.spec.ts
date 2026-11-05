@@ -122,6 +122,9 @@ test("commission preview and owned token line work at 360px through payment", as
   await fits(page);
   expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
   await page.screenshot({ path: "test-results/tokens-account-mobile.png", fullPage: true });
+  await page.goto(`/c/${code}`);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
   await signIn(page, "buyer@example.com");
   await page.goto("/account?before=token-browser-credit");
   await expect(page.getByText("Synthetic token credit")).toHaveCount(0);
@@ -181,6 +184,9 @@ test("fully token-covered owner acceptance confirms without a bank-slip screen",
   } finally {
     await db.end();
   }
+  await page.goto(`/c/${code}`);
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
   await signIn(page, "buyer@example.com");
   await page.goto(`/c/${code}`);
   await page.getByLabel("Tokens (LKR)", { exact: true }).fill("48500");
@@ -206,4 +212,43 @@ test("fully token-covered owner acceptance confirms without a bank-slip screen",
   } finally {
     await verify.end();
   }
+});
+
+test("member Done, Undo and owner Remove work at 360px", async ({ page }) => {
+  await fixture();
+  await page.setViewportSize({ width: 360, height: 800 });
+  await signIn(page, "buyer@example.com");
+  await page.goto(`/c/${code}`);
+  await expect(page.getByRole("button", { name: "Accept & pay", exact: true })).toBeDisabled();
+  await expect(page.getByText("0 of 1 done", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Remove", exact: true })).toHaveCount(1);
+  await fits(page);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+  await signIn(page, "buyer3@example.com");
+  await page.goto(`/c/${code}`);
+  const done = page.getByRole("button", { name: "Done", exact: true });
+  await done.focus();
+  await expect(done).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+  await fits(page);
+  await page.screenshot({ path: "test-results/member-done-mobile.png", fullPage: true });
+  await signIn(page, "buyer@example.com");
+  await page.goto(`/c/${code}`);
+  await expect(page.getByText("1 of 1 done", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Accept & pay", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Remove", exact: true })).toHaveCount(0);
+  await signIn(page, "buyer3@example.com");
+  await page.goto(`/c/${code}`);
+  await page.getByRole("button", { name: "Undo", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Done", exact: true })).toBeVisible();
+  await signIn(page, "buyer@example.com");
+  await page.goto(`/c/${code}`);
+  await page.getByRole("button", { name: "Remove", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Yes, remove", exact: true })).toBeVisible();
+  await fits(page);
+  await page.screenshot({ path: "test-results/member-remove-mobile.png", fullPage: true });
+  await page.getByRole("button", { name: "Yes, remove", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Remove", exact: true })).toHaveCount(0);
+  expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
 });

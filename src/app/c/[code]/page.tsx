@@ -1,3 +1,4 @@
+import { MemberDoneControl, RemoveMemberControl } from "@/components/member-done-controls";
 import { randomUUID } from "node:crypto";
 import { TokenForm } from "@/components/token-form";
 import { tokenBalance } from "@/server/tokens";
@@ -262,6 +263,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
             const who = (
               <span className="min-w-0 font-medium">
                 {mine ? "You" : m.user.name}
+                {m.userId !== cart.ownerId && <Badge>{m.doneAt ? "Done" : "Not done"}</Badge>}
                 {m.userId === cart.ownerId && (
                   <span className="ml-2 text-xs text-accent">Owner</span>
                 )}
@@ -271,10 +273,15 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
               return (
                 <div
                   key={m.id}
-                  className="flex items-center justify-between gap-2 rounded-xl border border-line bg-paper p-4"
+                  role="group"
+                  aria-label={m.user.name}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-line bg-paper p-4"
                 >
                   {who}
                   <span className="text-sm font-semibold">{formatLKR(cartTotal(lines))}</span>
+                  {isOwner && editable && !m.doneAt && (
+                    <RemoveMemberControl cartId={cart.id} memberId={m.userId} />
+                  )}
                 </div>
               );
             return (
@@ -364,6 +371,13 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
                       </li>
                     ))}
                   </ul>
+                )}
+                {editable && !isOwner && (
+                  <MemberDoneControl
+                    key={m.doneAt?.toISOString() ?? "not-done"}
+                    cartId={cart.id}
+                    done={m.doneAt !== null}
+                  />
                 )}
               </details>
             );
@@ -539,7 +553,24 @@ function StatusPanel({
       // Members add items from the shop; an open cart needs no button here.
       if (cart.status === "OPEN") return null;
       return isOwner ? (
-        <AcceptForm cartId={cart.id} back={`/c/${cart.code}`} defaults={defaults} />
+        <AcceptForm
+          cartId={cart.id}
+          back={`/c/${cart.code}`}
+          defaults={defaults}
+          required={
+            cart.members.filter(
+              (m) => m.userId !== cart.ownerId && cart.lines.some((l) => l.userId === m.userId),
+            ).length
+          }
+          done={
+            cart.members.filter(
+              (m) =>
+                m.userId !== cart.ownerId &&
+                m.doneAt !== null &&
+                cart.lines.some((l) => l.userId === m.userId),
+            ).length
+          }
+        />
       ) : (
         <p className="text-sm">Waiting for the owner to pay.</p>
       );

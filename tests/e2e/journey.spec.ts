@@ -35,6 +35,9 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
   const cartUrl = new URL(page.url()).pathname;
   await expect(page.getByText("Waiting for the owner to pay")).toBeVisible();
 
+  await page.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Undo", exact: true })).toBeVisible();
+
   // Dilan (the owner) accepts and uploads one bank slip.
   await signIn(page, "buyer@example.com");
   await page.goto(cartUrl);

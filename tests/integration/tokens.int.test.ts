@@ -9,7 +9,7 @@ import {
   spendCartTokens,
 } from "@/server/tokens";
 import { withCartTransaction } from "@/server/carts/locks";
-import { createCart, setLine } from "@/server/carts/service";
+import { createCart, setLine, markDone } from "@/server/carts/service";
 import { makeUser, makeVariant, resetDb } from "./helpers";
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
@@ -81,12 +81,20 @@ describe("token ledger", () => {
       applyTokens(member.id, line.id, "1500", "same-request"),
     ]);
     expect((await tokenBalance(member.id)).toFixed(2)).toBe("1500.00");
+    await markDone(member.id, cart.id);
     const releases = await Promise.allSettled(
       Array.from({ length: 4 }, () =>
         withCartTransaction([cart.id], [member.id], (tx) => releaseLineTokens(tx, line.id)),
       ),
     );
     expect(releases.every((r) => r.status === "fulfilled")).toBe(true);
+    expect(
+      (
+        await db.cartMember.findUniqueOrThrow({
+          where: { cartId_userId: { cartId: cart.id, userId: member.id } },
+        })
+      ).doneAt,
+    ).toBeNull();
     expect((await tokenBalance(member.id)).toFixed(2)).toBe("3000.00");
     expect(await db.tokenEntry.count({ where: { cartLineId: line.id, kind: "RELEASE" } })).toBe(1);
     await applyTokens(member.id, line.id, "1500");

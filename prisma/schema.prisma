@@ -333,6 +333,7 @@ model CartMember {
   cart     GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
   userId   String
   user     User      @relation(fields: [userId], references: [id])
+  doneAt   DateTime?
   joinedAt DateTime  @default(now())
   /// Where this member is, pinned on the map when they joined
   address  String?

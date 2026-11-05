@@ -246,3 +246,18 @@ warehouse packing) notices and flushes brand notices after commit. Delivery snap
 accepted/confirmed timestamps are stored together; zero-due carts have no PaymentSlip or
 slipDueAt. Positive amounts keep the configured upload window. The acceptance action opens the
 confirmed cart directly; the pay page's existing non-payable redirect also returns there.
+
+## Member completion before cart acceptance (CART-006)
+
+`CartMember.doneAt` is nullable and starts null on existing/new memberships. `markDone`,
+`undoDone`, `removeMember` and acceptance use `withCartTransaction` and `lockCart`: sorted user
+advisories, cart row(s), then ledger users if releases require them. `doneProgress` counts only
+non-owner users with lines. Acceptance rechecks it under lock; a rendered disabled button is
+not authorization. Repeated Done is idempotent, and only the transition from incomplete to all
+required members done sends Everyone is done after commit. Undo enables a later transition.
+
+`resetMemberDone` runs in the share-changing transaction: nonzero quantity deltas, new token
+holds, actual token releases, gift reservation creation/cancellation/release and merge arrivals.
+Gift reservation mutations use the same user-before-cart wrapper. Removal refuses owner/done
+members, calls the existing `releaseLines`, deletes membership and recomputes gross readiness;
+its removed-member notice follows commit. Done does not freeze edits; acceptance still does.

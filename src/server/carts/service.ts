@@ -29,6 +29,7 @@ import { releaseGiftReservations } from "../gifts";
 import { canSellIn, remindAgreements, sellingFactoryWhere } from "../agreements";
 
 import { confirmPaidCart, notifyCartConfirmed } from "./confirmation";
+import { doneProgress, resetMemberDone } from "./member-done";
 import { CartError } from "./errors";
 export { CartError } from "./errors";
 import { releaseLineTokens } from "../tokens";
@@ -252,6 +253,7 @@ export async function setLine(
         data: { cartId, userId, variantId, qty, unitPrice: variant.product.price },
       });
     }
+    if (delta !== 0) await resetMemberDone(tx, cartId, userId);
     if (delta < 0) await releaseGiftReservations(tx, cartId, userId);
     const after = await recompute(tx, cart, now);
     return { cart, ...after, members: after.becameReady ? await memberIds(tx, cartId) : [] };
@@ -344,6 +346,9 @@ export async function acceptAndPay(
     assertEditable(cart, now);
     if (cart.status !== "READY" || !meetsMinimum(toD(cart.total), toD(cart.minOrderValue)))
       throw new CartError(`The cart must reach ${formatLKR(cart.minOrderValue)} first`);
+    const progress = await doneProgress(tx, cartId, ownerId);
+    if (progress.done !== progress.required)
+      throw new CartError("Waiting for every member to mark their items done");
     const blocked = await tx.cartLine.count({
       where: {
         cartId,
@@ -600,7 +605,7 @@ export async function acceptMerge(ownerId: string, requestId: string, now = new 
     await tx.cartMember.upsert({
       where: { cartId_userId: { cartId: to.id, userId: req.userId } },
       create: { cartId: to.id, userId: req.userId },
-      update: {},
+      update: { doneAt: null },
     });
     // Preserve existing sample shipments when the source cart is deleted or its requester moves.
     // Snapshot destinations and accepted transport remain unchanged.
@@ -679,3 +684,61 @@ export const declineMerge = (ownerId: string, requestId: string, now = new Date(
 
 export const cancelMerge = (userId: string, requestId: string, now = new Date()) =>
   decideMerge({ userId, asOwner: false }, requestId, "CANCELLED", now);
+
+/** The authenticated member changes only their own done flag, under the common cart lock. */
+async function changeDone(userId: string, cartId: string, done: boolean, now: Date) {
+  const result = await withCartTransaction([cartId], [userId], async (tx) => {
+    const cart = await lockCart(tx, cartId);
+    assertEditable(cart, now);
+    if (cart.ownerId === userId) throw new CartError("The owner finishes the cart instead");
+    const member = await tx.cartMember.findUnique({ where: { cartId_userId: { cartId, userId } } });
+    if (!member) throw new CartError("Join the cart first");
+    const before = await doneProgress(tx, cartId, cart.ownerId);
+    if (done ? member.doneAt === null : member.doneAt !== null)
+      await tx.cartMember.update({ where: { id: member.id }, data: { doneAt: done ? now : null } });
+    const after = await doneProgress(tx, cartId, cart.ownerId);
+    return {
+      cart,
+      becameDone: done && before.done < before.required && after.done === after.required,
+    };
+  });
+  if (result.becameDone)
+    await notify([result.cart.ownerId], {
+      title: "Everyone is done",
+      body: "",
+      href: `/c/${result.cart.code}`,
+    });
+}
+export async function markDone(userId: string, cartId: string, now = new Date()) {
+  await changeDone(userId, cartId, true, now);
+}
+export async function undoDone(userId: string, cartId: string, now = new Date()) {
+  await changeDone(userId, cartId, false, now);
+}
+export async function removeMember(
+  ownerId: string,
+  cartId: string,
+  memberId: string,
+  now = new Date(),
+) {
+  const cart = await withCartTransaction([cartId], [ownerId, memberId], async (tx) => {
+    const cart = await lockCart(tx, cartId);
+    if (cart.ownerId !== ownerId) throw new CartError("Only the owner can remove a member");
+    assertEditable(cart, now);
+    if (memberId === ownerId) throw new CartError("The owner cannot be removed");
+    const member = await tx.cartMember.findUnique({
+      where: { cartId_userId: { cartId, userId: memberId } },
+    });
+    if (!member) throw new CartError("This member is no longer in the cart");
+    if (member.doneAt !== null) throw new CartError("This member has marked their items done");
+    await releaseLines(tx, cartId, { userId: memberId });
+    await tx.cartMember.delete({ where: { id: member.id } });
+    await recompute(tx, cart, now);
+    return cart;
+  });
+  await notify([memberId], {
+    title: `Removed from ${cart.name || cart.code}`,
+    body: "",
+    href: `/c/${cart.code}`,
+  });
+}

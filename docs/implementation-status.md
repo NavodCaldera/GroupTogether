@@ -176,3 +176,26 @@ Zero-due verification (2026-11-05): the new confirmation/race tests failed befor
 notice coverage. Production and E2E builds passed. The full `CI=1 npm run e2e` suite passed
 21 tests; the zero-due confirmed cart and direct pay-link redirect passed at 360px, and the
 confirmed screen was visually reviewed.
+
+## Cart member done before finish (CART-006)
+
+Implemented on 2026-11-05, independently of factory partnership Parts 3-4. Migration
+`cart_member_done` adds nullable `CartMember.doneAt`; existing rows remain null. Acceptance
+checks all non-owner members with lines under the cart lock. Self-only Done/Undo and owner-only
+removal require editable, unexpired carts. Removal uses normal stock/token/gift release and
+recomputes readiness. Empty members do not block, and removed members can rejoin. Share changes
+reset Done in the same transaction, including lines, actual token holds/releases and gift
+reservation changes. Merge arrivals start not done. Owner notices fire once per all-done
+transition. Cart controls show Done/Undo, member status, confirmed removal and completion count.
+Regression coverage: carts/gifts integration tests and updated journey/commission-token browser
+specs, including 360px ownership controls.
+
+CART-006 verification (2026-11-05): the new guard/member-operation tests failed first.
+`npm run check` passed (122 unit/property tests, 8 tooling tests and monetary/doc/type/lint
+checks); `npm run test:int` passed 165 tests across 26 files. The production build passed;
+`npx prisma migrate status` reported 34 migrations up to date. The E2E production build and
+full `CI=1 npm run e2e` suite passed all 22 tests, including the updated checkout and 360px
+Done/Undo/Remove journey, keyboard activation, completion count, disabled acceptance and axe
+checks. Phone screenshots were visually reviewed. The added gift cancellation/merge race guard
+prevents resetting Done on a cart whose lock was not acquired. No partnership Part 3 work was
+included.

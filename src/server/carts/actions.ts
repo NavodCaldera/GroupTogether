@@ -11,6 +11,9 @@ import { UploadError } from "../storage";
 import { sendMessage } from "./chat";
 import { inviteToCart } from "./invites";
 import {
+  markDone,
+  undoDone,
+  removeMember,
   CartError,
   acceptAndPay,
   cancelCart,
@@ -307,4 +310,28 @@ export async function applyTokensAction(_p: ActionState, fd: FormData): Promise<
     revalidatePath("/dashboard");
     return "Tokens applied";
   });
+}
+
+async function memberDoneAction(
+  fd: FormData,
+  operation: "done" | "undo" | "remove",
+): Promise<ActionState> {
+  const user = await requireUser(["CUSTOMER"]);
+  const cartId = str(fd, "cartId");
+  return attempt(async () => {
+    if (operation === "done") await markDone(user.id, cartId);
+    else if (operation === "undo") await undoDone(user.id, cartId);
+    else await removeMember(user.id, cartId, str(fd, "memberId"));
+    revalidatePath(`/c/${await cartCode(cartId)}`);
+    revalidatePath("/notifications");
+  });
+}
+export async function markDoneAction(_p: ActionState, fd: FormData) {
+  return memberDoneAction(fd, "done");
+}
+export async function undoDoneAction(_p: ActionState, fd: FormData) {
+  return memberDoneAction(fd, "undo");
+}
+export async function removeMemberAction(_p: ActionState, fd: FormData) {
+  return memberDoneAction(fd, "remove");
 }

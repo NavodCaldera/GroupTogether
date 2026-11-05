@@ -8,7 +8,7 @@ import {
   userForToken,
 } from "@/server/auth/service";
 import { hashPassword } from "@/server/auth/password";
-import { acceptAndPay, createCart, setLine } from "@/server/carts/service";
+import { markDone, acceptAndPay, createCart, setLine } from "@/server/carts/service";
 import { approveSlip, uploadSlip } from "@/server/carts/slips";
 import { db } from "@/server/db";
 import { makeUser, makeVariant, resetDb, slipFile } from "./helpers";
@@ -53,6 +53,7 @@ describe("sales figures and tab counts", () => {
     const paid = await createCart(owner.id, { name: "Paid" });
     await setLine(owner.id, paid.id, v.id, 1);
     await setLine(member.id, paid.id, v.id, 1);
+    await markDone(member.id, paid.id);
     await acceptAndPay(owner.id, paid.id, {
       deliveryAddress: "12 Flower Rd",
       deliveryCity: "Colombo",

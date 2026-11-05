@@ -4,6 +4,7 @@ import { D, toD } from "@/lib/decimal";
 import { maxApplicable } from "@/lib/token-rules";
 import { validCommission } from "@/lib/price-rules";
 import { db, type Tx } from "./db";
+import { resetMemberDone } from "./carts/member-done";
 import { CartError } from "./carts/errors";
 import { lockCart, lockLedgerUsers, withCartTransaction } from "./carts/locks";
 export class TokenError extends CartError {}
@@ -107,6 +108,7 @@ export async function applyTokens(
             note: "Tokens applied to item",
           },
         });
+        await resetMemberDone(tx, cart.id, userId);
         await tx.cartLine.update({
           where: { id: line.id },
           data: { tokensApplied: applied.toFixed(2), tokenVersion: { increment: 1 } },
@@ -136,6 +138,7 @@ export async function releaseLineTokens(
     throw new TokenError("Paid tokens cannot be released");
   const release = D.max(0, toD(line.tokensApplied).minus(D.max(0, new D(keepApplied))));
   if (release.isZero()) return;
+  await resetMemberDone(tx, line.cartId, line.userId);
   await tx.tokenEntry.create({
     data: {
       userId: line.userId,

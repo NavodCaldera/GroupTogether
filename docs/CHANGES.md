@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Members mark items done before owner finish
+
+- Added CART-006/DEC-014 and nullable CartMember.doneAt (existing memberships start not done).
+  Acceptance checks all non-owner members with lines inside the cart transaction. Members can
+  Done/Undo, while owners can remove unfinished members through the existing release path.
+- Line, token and gift-reservation changes reset Done; incoming merges start not done.
+  Owner notifications occur once per all-done transition. Added completion badges/counts,
+  confirmed removal, race/access/lifecycle tests and 360px browser coverage.
+
 ## 2026-11-05 - Token-covered carts confirm on owner acceptance
 
 - Approved DEC-013: exactly zero transfer due skips the bank-slip step. Acceptance atomically

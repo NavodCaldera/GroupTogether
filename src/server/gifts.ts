@@ -1,5 +1,7 @@
 import "server-only";
 import { canAdminArea } from "@/lib/admin-access";
+import { withCartTransaction, lockCart } from "./carts/locks";
+import { resetMemberDone } from "./carts/member-done";
 import type { Tx } from "./db";
 import { db } from "./db";
 import { CatalogueError } from "./catalogue";
@@ -27,6 +29,12 @@ async function assertAdmin(adminId: string) {
 
 /** Caller locks the cart first. No brand charge is created for an unpaid reservation. */
 export async function releaseGiftReservations(tx: Tx, cartId: string, recipientId?: string) {
+  const released = await tx.giftOrder.findMany({
+    where: { cartId, recipientId, status: "RESERVED" },
+    select: { recipientId: true },
+    distinct: ["recipientId"],
+  });
+  for (const gift of released) await resetMemberDone(tx, cartId, gift.recipientId);
   await tx.giftOrder.updateMany({
     where: { cartId, recipientId, status: "RESERVED" },
     data: { status: "CANCELLED" },
@@ -42,8 +50,8 @@ export async function reserveGift(
   now = new Date(),
 ) {
   await assertAdmin(adminId);
-  return db.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${cartId} FOR UPDATE`;
+  return withCartTransaction([cartId], [adminId, recipientId], async (tx) => {
+    await lockCart(tx, cartId);
     const cart = await tx.groupCart.findUniqueOrThrow({ where: { id: cartId } });
     if (!["OPEN", "READY"].includes(cart.status) || cart.expiresAt <= now)
       throw new CatalogueError("Gifts can be reserved only in an editable, unexpired basket");
@@ -74,6 +82,7 @@ export async function reserveGift(
     const city = member.city || member.user.city;
     if (!address || !city || !member.user.phone)
       throw new CatalogueError("The recipient needs an address, city and phone");
+    await resetMemberDone(tx, cartId, recipientId);
     return tx.giftOrder.create({
       data: {
         offerId,
@@ -93,8 +102,7 @@ export async function reserveGift(
 
 export async function cancelReservedGift(actorId: string, giftId: string) {
   const before = await db.giftOrder.findUniqueOrThrow({ where: { id: giftId } });
-  await db.$transaction(async (tx) => {
-    await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${before.cartId} FOR UPDATE`;
+  await withCartTransaction([before.cartId], [actorId, before.recipientId], async (tx) => {
     const [actor, gift] = await Promise.all([
       tx.user.findUniqueOrThrow({ where: { id: actorId } }),
       tx.giftOrder.findUniqueOrThrow({ where: { id: giftId }, include: { cart: true } }),
@@ -105,8 +113,12 @@ export async function cancelReservedGift(actorId: string, giftId: string) {
         (actor.role !== "CUSTOMER" || actor.id !== gift.recipientId))
     )
       throw new CatalogueError("This gift is not yours to remove");
+    if (gift.cartId !== before.cartId)
+      throw new CatalogueError("This gift moved to another cart. Try again.");
+    await lockCart(tx, before.cartId);
     if (gift.status !== "RESERVED" || !["OPEN", "READY"].includes(gift.cart.status))
       throw new CatalogueError("This gift is already locked for payment");
+    await resetMemberDone(tx, gift.cartId, gift.recipientId);
     await tx.giftOrder.update({ where: { id: giftId }, data: { status: "CANCELLED" } });
   });
 }

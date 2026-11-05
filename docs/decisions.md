@@ -116,6 +116,19 @@ stock to sold, activates gifts with their brand events, and sends the usual conf
 fulfilment notices after commit. Delivery details and acceptance/confirmation timestamps are
 captured together. Any positive amount, including LKR 0.01, retains the bank-slip flow.
 
+### DEC-014 - Member done before cart finish
+
+**Status:** Approved by the owner on **2026-11-05**. **Rule:** `CART-006`.
+
+Every non-owner member with clothing lines must mark their own share Done before owner acceptance.
+The owner needs no separate Done; empty members do not block. Done is reversible while the cart
+is editable and unexpired, and share changes (lines, tokens, gift reservations) reset it. Joins
+and incoming merges start not done. An owner may remove a not-done member, releasing all their
+reservations and recomputing the cart minimum. Done members and the owner cannot be removed.
+Removal is notified after commit and does not block rejoining. The owner receives Everyone is
+done only on each transition to all required members done; Undo followed by Done permits a new
+notice. Existing post-accept immutability, payment and token rules continue unchanged.
+
 ## Legacy rule references
 
 Former `CLAUDE.md` rules are mapped below so historical comments and specialist notes remain traceable. New work should reference stable IDs in the [main brief](../.claude/agents/groupbasket.md#6-business-rules).

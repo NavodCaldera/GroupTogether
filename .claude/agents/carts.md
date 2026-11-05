@@ -92,3 +92,16 @@ and appends brand events. Do not loosen token-spend guards or send the owner-is-
 for zero-due carts. Acceptance records delivery details and timestamps, with no PaymentSlip or
 slip deadline. Verify the zero/one-cent/race cases in `carts.int.test.ts`, gift/factory effects in
 `gifts.int.test.ts`, and the no-slip/pay-route redirect in `commission-tokens.spec.ts`.
+
+## Member done before finish (CART-006, DEC-014)
+
+`CartMember.doneAt` is nullable. Self-only `markDone`/`undoDone` and owner-only `removeMember`
+live in `src/server/carts/service.ts`, with session-scoped actions and the shared cart lock order.
+Only non-owner members with lines block acceptance. Recheck inside the transaction, regardless
+of the disabled UI. Line deltas, actual token holds/releases, gift reservation changes and merge
+arrivals reset Done atomically (`src/server/carts/member-done.ts`). Removal uses `releaseLines`,
+refuses done/owner targets, recomputes readiness and notifies after commit; rejoining is allowed.
+Everyone is done is emitted once per incomplete-to-complete transition, and Undo permits another.
+Phone controls use existing primitives: Done/Undo on own section, status badges, two-step Remove
+and the required-member completion count. Verify carts/gifts integration tests and the updated
+`journey.spec.ts`/`commission-tokens.spec.ts` browser flows at 360px.
