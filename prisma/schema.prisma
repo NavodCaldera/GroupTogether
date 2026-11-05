@@ -901,6 +901,7 @@ model FactoryActivation {
   createdAt   DateTime  @default(now())
   expiresAt   DateTime
   usedAt      DateTime?
+  revokedAt   DateTime?
 
   @@index([userId])
 }

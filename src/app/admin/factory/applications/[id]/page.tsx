@@ -20,10 +20,15 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
     include: { documents: { select: { id: true, kind: true } } },
   });
   if (!a) notFound();
+  const activations =
+    a.status === "APPROVED" && a.factoryUserId
+      ? await db.factoryActivation.aggregate({
+          where: { userId: a.factoryUserId },
+          _count: { _all: true, usedAt: true },
+        })
+      : null;
   const canIssueLink =
-    a.status === "APPROVED" &&
-    !!a.factoryUserId &&
-    (await db.factoryActivation.count({ where: { userId: a.factoryUserId } })) > 0;
+    !!activations && activations._count._all > 0 && activations._count.usedAt === 0;
   const match = bankNameMatches(a.accountName, a.businessName, a.ownerName);
   return (
     <div className="max-w-2xl">

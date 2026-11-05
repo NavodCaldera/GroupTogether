@@ -190,13 +190,42 @@ describe("factory applications", () => {
     const admin = await makeUser("ADMIN", "FACTORY");
     const a = await submitApplication(input, files());
     const old = await reviewApplication(admin.id, a.id, "APPROVE");
+    const replaced = await issueActivationLink(admin.id, a.id);
     const fresh = await issueActivationLink(admin.id, a.id);
+    for (const link of [old.activationUrl!, replaced.activationUrl]) {
+      const row = await db.factoryActivation.findUniqueOrThrow({
+        where: { id: hashToken(link.split("/").at(-1)!) },
+      });
+      expect(row).toMatchObject({ usedAt: null, revokedAt: expect.any(Date) });
+      await expect(redeemApprovalLink(link.split("/").at(-1)!, "ownerpassword123")).rejects.toThrow(
+        "Sign-in link expired or already used",
+      );
+    }
     await expect(
       redeemApprovalLink(old.activationUrl!.split("/").at(-1)!, "ownerpassword123"),
     ).rejects.toThrow("Sign-in link expired or already used");
     expect(
       await redeemApprovalLink(fresh.activationUrl.split("/").at(-1)!, "ownerpassword123"),
     ).toBeTruthy();
+  });
+  it("refuses reissue after redemption without changing the owner's password", async () => {
+    const admin = await makeUser("ADMIN", "FACTORY");
+    const core = await makeUser("ADMIN", "CORE");
+    const a = await submitApplication(input, files());
+    const { activationUrl } = await reviewApplication(admin.id, a.id, "APPROVE");
+    const token = activationUrl!.split("/").at(-1)!;
+    const ownerId = await redeemApprovalLink(token, "ownerpassword123");
+    const owner = await db.user.findUniqueOrThrow({ where: { id: ownerId } });
+    for (const actor of [admin, core]) {
+      await expect(issueActivationLink(actor.id, a.id)).rejects.toThrow(
+        "This factory owner has already set a password",
+      );
+      expect((await db.user.findUniqueOrThrow({ where: { id: ownerId } })).passwordHash).toBe(
+        owner.passwordHash,
+      );
+    }
+    expect(await db.factoryActivation.count({ where: { userId: ownerId } })).toBe(1);
+    expect((await authenticate(owner.email, "ownerpassword123")).id).toBe(ownerId);
   });
   it("never issues activations or changes passwords for authenticated legacy owners", async () => {
     const created = await makeUser();
@@ -315,7 +344,10 @@ describe("factory applications", () => {
     expect(
       await db.notification.count({ where: { href: { startsWith: "/factories/sign-in/" } } }),
     ).toBe(0);
-    expect((await issueActivationLink(admin.id, apps[0])).activationUrl).toContain("partner_");
+    // Historical usedAt markers are ambiguous and must conservatively block reissue.
+    await expect(issueActivationLink(admin.id, apps[0])).rejects.toThrow(
+      "This factory owner has already set a password",
+    );
     await expect(issueActivationLink(admin.id, apps[1])).rejects.toThrow(
       "Existing factory owners sign in with their password",
     );

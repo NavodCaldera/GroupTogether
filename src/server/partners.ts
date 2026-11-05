@@ -274,14 +274,22 @@ export async function issueActivationLink(adminId: string, applicationId: string
       select: { id: true },
     });
     if (!owner) throw new PartnerError("Factory owner not found");
-    // Activation history exists only for accounts created by approval, never legacy applicants.
-    if (!(await tx.factoryActivation.count({ where: { userId } })))
-      throw new PartnerError("Existing factory owners sign in with their password");
-    await tx.factoryActivation.updateMany({
-      where: { userId, usedAt: null },
-      data: { usedAt: new Date() },
+    const activations = await tx.factoryActivation.aggregate({
+      where: { userId },
+      _count: { _all: true, usedAt: true },
     });
-    return { activationUrl: await createActivation(tx, userId, adminId) };
+    // Redemption is terminal for provisioning: an admin cannot turn this into password reset.
+    if (activations._count.usedAt > 0)
+      throw new PartnerError("This factory owner has already set a password");
+    // Activation history exists only for accounts created by approval, never legacy applicants.
+    if (activations._count._all === 0)
+      throw new PartnerError("Existing factory owners sign in with their password");
+    const now = new Date();
+    await tx.factoryActivation.updateMany({
+      where: { userId, usedAt: null, revokedAt: null },
+      data: { revokedAt: now },
+    });
+    return { activationUrl: await createActivation(tx, userId, adminId, now) };
   });
 }
 
@@ -300,6 +308,7 @@ export async function redeemApprovalLink(token: string, password: string): Promi
       where: {
         id,
         usedAt: null,
+        revokedAt: null,
         expiresAt: { gt: now },
         user: { role: "SELLER", locked: false, factoryId: null, isBrand: false },
       },

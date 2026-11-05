@@ -71,6 +71,7 @@ test("factory joins, accepts and renews the current agreement at 360px", async (
   await page.getByLabel("Decision").selectOption("APPROVE");
   await page.getByRole("button", { name: "Save decision" }).click();
   await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
+  const applicationUrl = page.url();
   const oldSignInUrl = await page.getByLabel("Sign-in link").inputValue();
   await page.reload();
   await expect(page.getByLabel("Sign-in link")).toHaveCount(0);
@@ -108,6 +109,10 @@ test("factory joins, accepts and renews the current agreement at 360px", async (
   await page.getByLabel("Password", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL("**/admin/users");
+  await page.goto(applicationUrl);
+  await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "New sign-in link", exact: true })).toHaveCount(0);
+  await expect(page.getByLabel("Sign-in link")).toHaveCount(0);
   await page.goto("/admin/settings");
   await page
     .getByLabel("New agreement text")
