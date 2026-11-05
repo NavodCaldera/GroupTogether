@@ -1,3 +1,4 @@
+import { visibleTotals, cancelledValue } from "@/server/carts/visible-totals";
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -101,11 +102,13 @@ export default async function AdminCartsPage({ searchParams }: PageProps<"/admin
         }),
     db.groupCart.groupBy({ by: ["status"], where: search, _count: true, _sum: { total: true } }),
   ]);
-  const carts = rows.slice(0, PAGE);
+  const carts = await visibleTotals(rows.slice(0, PAGE));
   const count = (list: readonly CartStatus[]) =>
     byStatus.filter((b) => list.includes(b.status)).reduce((n, b) => n + b._count, 0);
   const inView = byStatus.filter((b) => statuses.includes(b.status));
-  const viewTotal = inView.reduce((sum, b) => sum.plus(b._sum.total?.toString() ?? 0), new D(0));
+  const viewTotal = inView
+    .reduce((sum, b) => sum.plus(b._sum.total?.toString() ?? 0), new D(0))
+    .minus(await cancelledValue({ ...search, status: { in: [...statuses] } }));
   const holding = count(statuses.filter((s) => HOLDS_STOCK.includes(s)));
   const href = (values: Record<string, string | number | undefined>) =>
     hrefWith("/admin/carts", {

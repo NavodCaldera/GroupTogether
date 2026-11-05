@@ -56,3 +56,13 @@ See [qa-review](qa-review.md) for commands.
 ## Factory agreement reminders
 
 Full cart sweeps call `remindAgreements` after collecting current agreement terms. Acceptance `remindedAt` claims are committed before notification delivery. `notify` accepts an optional deduplication key; reminders use deterministic per-term/per-owner notice IDs and retry missing deliveries, with batched term/notice reads. Approval uses an in-app notice plus an admin-reviewable one-time sign-in link; email/SMS delivery is not implemented. First sign-in sets the owner's password atomically with consuming the hashed token.
+
+## Quality cancellation (Part 3)
+
+`cancelPaidLines` in `src/server/cancellations.ts` requires participant advisories and the cart
+row, then sorted ledger users. Only ACTIVE lines in CONFIRMED/DISPATCHED carts cancel; delivered
+lines are untouched. Credit the full captured line price once, decrement sold, never restock
+hidden goods. Preserve stored cart.total; display projections and packing/factory lists exclude
+CANCELLED lines. Call `flushCancellationNotices` after commit; durable markers/stable IDs make
+retries safe. A fully cancelled dispatched cart retains Delivery and alerts WAREHOUSE admins,
+without calling the provider. See `tests/integration/cancellations.int.test.ts`.

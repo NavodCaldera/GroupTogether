@@ -261,3 +261,18 @@ holds, actual token releases, gift reservation creation/cancellation/release and
 Gift reservation mutations use the same user-before-cart wrapper. Removal refuses owner/done
 members, calls the existing `releaseLines`, deletes membership and recomputes gross readiness;
 its removed-member notice follows commit. Done does not freeze edits; acceptance still does.
+
+## Quality cancellation foundation (Part 3.1)
+
+`CartLine.status` defaults ACTIVE; cancellation records time/reason and notEarned. Under the
+existing user-advisory -> cart-row -> ledger-user order, `cancelPaidLines(tx, lineIds, reason)`
+processes one CONFIRMED/DISPATCHED cart, credits captured qty * unitPrice exactly once using the
+existing credit event key, and decrements sold without returning hidden goods to available.
+`cancelNotifiedAt` is a durable post-commit notice marker. `flushCancellationNotices` uses stable
+notification IDs before marking delivery complete. `cancelPickupReview` persists manual pickup
+review for a fully cancelled dispatched cart; Delivery is never changed by cancellation.
+
+`visibleTotals` subtracts cancelled line snapshots for display, leaving GroupCart.total as the
+original payment record. Packing, delivery contents and factory operational views select ACTIVE
+lines. Delivered lines are ineligible for quality cancellation. Accepted, unpaid carts remain
+frozen until confirmation; hide/remove cleanup is implemented separately in Part 3.3.

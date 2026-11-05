@@ -199,3 +199,13 @@ Done/Undo/Remove journey, keyboard activation, completion count, disabled accept
 checks. Phone screenshots were visually reviewed. The added gift cancellation/merge race guard
 prevents resetting Done on a cart whose lock was not acquired. No partnership Part 3 work was
 included.
+
+## Factory partnership Part 3: quality
+
+**Partial, Task 3.1:** line cancellation state, full-price idempotent token credits and cancellation
+notice retry markers are implemented in `src/server/cancellations.ts`. Callers hold the cart/user
+locks and flush notices after commit. Cancellation decrements sold without restocking hidden
+items, leaves delivered lines untouched and cancels a cart only when no ACTIVE lines remain.
+Stored payment totals stay unchanged; read projections and operational lists exclude cancelled
+lines. Fully cancelled dispatched carts retain Delivery and alert warehouse admins once. Product
+ratings/reports and hide/remove orchestration remain pending in Tasks 3.2-3.3; Part 4 is excluded.

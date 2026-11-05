@@ -105,3 +105,13 @@ Everyone is done is emitted once per incomplete-to-complete transition, and Undo
 Phone controls use existing primitives: Done/Undo on own section, status badges, two-step Remove
 and the required-member completion count. Verify carts/gifts integration tests and the updated
 `journey.spec.ts`/`commission-tokens.spec.ts` browser flows at 360px.
+
+## Quality cancellation (Part 3)
+
+`cancelPaidLines` in `src/server/cancellations.ts` requires participant advisories and the cart
+row, then sorted ledger users. Only ACTIVE lines in CONFIRMED/DISPATCHED carts cancel; delivered
+lines are untouched. Credit the full captured line price once, decrement sold, never restock
+hidden goods. Preserve stored cart.total; display projections and packing/factory lists exclude
+CANCELLED lines. Call `flushCancellationNotices` after commit; durable markers/stable IDs make
+retries safe. A fully cancelled dispatched cart retains Delivery and alerts WAREHOUSE admins,
+without calling the provider. See `tests/integration/cancellations.int.test.ts`.

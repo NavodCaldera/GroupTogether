@@ -100,7 +100,7 @@ const queueSelect = {
   confirmedAt: true,
   deliveryCity: true,
   owner: { select: { name: true } },
-  lines: { select: { qty: true } },
+  lines: { where: { status: "ACTIVE" }, select: { qty: true } },
   delivery: { select: { status: true, externalRef: true, driverName: true } },
   packing: { select: packingSelect },
 } satisfies Prisma.GroupCartSelect;
@@ -156,6 +156,7 @@ export async function packingOrder(code: string) {
         orderBy: { joinedAt: "asc" },
       },
       lines: {
+        where: { status: "ACTIVE" },
         select: {
           id: true,
           userId: true,

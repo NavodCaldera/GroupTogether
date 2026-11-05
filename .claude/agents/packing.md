@@ -61,3 +61,13 @@ pays transport; there is no sample sending fee. `src/server/samples.ts` locks re
 checks the group owner and records transport-quote acceptance before warehouse dispatch.
 Buyer `/samples` and warehouse `/admin/warehouse` share the request and tracking record.
 Do not invent sample ownership, return, deposit or loss/damage policies.
+
+## Quality cancellation (Part 3)
+
+`cancelPaidLines` in `src/server/cancellations.ts` requires participant advisories and the cart
+row, then sorted ledger users. Only ACTIVE lines in CONFIRMED/DISPATCHED carts cancel; delivered
+lines are untouched. Credit the full captured line price once, decrement sold, never restock
+hidden goods. Preserve stored cart.total; display projections and packing/factory lists exclude
+CANCELLED lines. Call `flushCancellationNotices` after commit; durable markers/stable IDs make
+retries safe. A fully cancelled dispatched cart retains Delivery and alerts WAREHOUSE admins,
+without calling the provider. See `tests/integration/cancellations.int.test.ts`.

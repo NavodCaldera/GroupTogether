@@ -19,6 +19,7 @@ const orderSelect = {
   deliveryPhone: true,
   owner: { select: { name: true } },
   lines: {
+    where: { status: "ACTIVE" },
     select: { qty: true, variant: { select: { product: { select: { sellerId: true } } } } },
   },
   delivery: {

@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Factory partnership Part 3: quality and cancellations
+
+- Task 3.1 adds ACTIVE/CANCELLED/RETURNED line state and hidden-product metadata. Paid cancellation
+  credits the full captured line value once, including tokens already spent. Sold stock decreases
+  without returning hidden goods to available stock; stored payment totals remain immutable while
+  read views and packing/factory fulfilment exclude cancelled lines.
+- Cancellation notices have durable retry markers and stable notification keys. Fully cancelled
+  dispatched carts retain Delivery unchanged and notify warehouse admins for manual pickup review.
+
 ## 2026-11-05 - Members mark items done before owner finish
 
 - Added CART-006/DEC-014 and nullable CartMember.doneAt (existing memberships start not done).

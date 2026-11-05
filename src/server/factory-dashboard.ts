@@ -22,8 +22,13 @@ import { db } from "./db";
  * and orders; buyer names and phones are never selected. Sales are paid carts only; stock held in
  * unpaid carts is reported separately as "wanted in active carts".
  */
-const own = (factoryId: string) => ({ variant: { product: { sellerId: factoryId } } });
-const ownCarts = (factoryId: string) => ({ lines: { some: own(factoryId) } });
+const own = (factoryId: string) => ({
+  status: "ACTIVE" as const,
+  variant: { product: { sellerId: factoryId } },
+});
+const ownCarts = (factoryId: string) => ({
+  lines: { some: own(factoryId) },
+});
 const month = (d: Date) => colomboIsoDay(d).slice(0, 7);
 
 /** The order stage a factory sees. */
@@ -173,6 +178,7 @@ export async function factoryOrderBoard(factoryId: string) {
       deliveryCity: true,
       updatedAt: true,
       lines: {
+        where: { status: "ACTIVE" },
         select: {
           qty: true,
           variant: { select: { size: true, colour: true, product: { select: { title: true } } } },

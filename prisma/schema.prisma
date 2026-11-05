@@ -150,6 +150,9 @@ enum ProductStatus {
 }
 
 model Product {
+  hiddenAt     DateTime?
+  hiddenById   String?
+  hiddenReason String?
   id           String        @id @default(cuid())
   title        String
   brand        String
@@ -278,36 +281,37 @@ enum CartStatus {
 }
 
 model GroupCart {
-  id                String          @id @default(cuid())
+  cancelPickupReview Boolean         @default(false)
+  id                 String          @id @default(cuid())
   /// Share code in /c/<code>
-  code              String          @unique
-  name              String          @default("")
-  ownerId           String
-  owner             User            @relation("CartOwner", fields: [ownerId], references: [id])
-  visibility        Visibility      @default(PUBLIC)
-  status            CartStatus      @default(OPEN)
+  code               String          @unique
+  name               String          @default("")
+  ownerId            String
+  owner              User            @relation("CartOwner", fields: [ownerId], references: [id])
+  visibility         Visibility      @default(PUBLIC)
+  status             CartStatus      @default(OPEN)
   /// Snapshot of Settings.minOrderValue when the cart started
-  minOrderValue     Decimal         @db.Decimal(14, 2)
+  minOrderValue      Decimal         @db.Decimal(14, 2)
   /// Sum of qty × unitPrice over all lines, kept in step in the same transaction
-  total             Decimal         @default(0) @db.Decimal(14, 2)
-  expiresAt         DateTime
-  readyAt           DateTime?
-  acceptedAt        DateTime?
-  slipDueAt         DateTime?
-  confirmedAt       DateTime?
+  total              Decimal         @default(0) @db.Decimal(14, 2)
+  expiresAt          DateTime
+  readyAt            DateTime?
+  acceptedAt         DateTime?
+  slipDueAt          DateTime?
+  confirmedAt        DateTime?
   /// Factory-direct fulfilment (2026-11-03): when and by whom the factory packed this order
-  factoryPackedAt   DateTime?
-  factoryPackedById String?
-  factoryPackedBy   User?           @relation("FactoryPacked", fields: [factoryPackedById], references: [id])
-  factoryRatings    FactoryRating[]
-  deliveryAddress   String?
-  deliveryCity      String?
-  deliveryPhone     String?
-  deliveryLat       Float?
-  deliveryLng       Float?
-  closedReason      String?
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @updatedAt
+  factoryPackedAt    DateTime?
+  factoryPackedById  String?
+  factoryPackedBy    User?           @relation("FactoryPacked", fields: [factoryPackedById], references: [id])
+  factoryRatings     FactoryRating[]
+  deliveryAddress    String?
+  deliveryCity       String?
+  deliveryPhone      String?
+  deliveryLat        Float?
+  deliveryLng        Float?
+  closedReason       String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
 
   members  CartMember[]
   lines    CartLine[]
@@ -348,19 +352,24 @@ model CartMember {
 /// One member's quantity of one variant. Its stock is locked while the cart is OPEN, READY,
 /// AWAITING_SLIP or SLIP_REVIEW; closed carts keep their lines as history.
 model CartLine {
-  id            String    @id @default(cuid())
-  cartId        String
-  cart          GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  userId        String
-  user          User      @relation(fields: [userId], references: [id])
-  variantId     String
-  variant       Variant   @relation(fields: [variantId], references: [id])
-  tokensApplied Decimal   @default(0) @db.Decimal(14, 2)
-  tokenVersion  Int       @default(0)
-  qty           Int
+  status           LineStatus @default(ACTIVE)
+  cancelledAt      DateTime?
+  cancelReason     String?
+  notEarned        Boolean    @default(false)
+  cancelNotifiedAt DateTime?
+  id               String     @id @default(cuid())
+  cartId           String
+  cart             GroupCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User       @relation(fields: [userId], references: [id])
+  variantId        String
+  variant          Variant    @relation(fields: [variantId], references: [id])
+  tokensApplied    Decimal    @default(0) @db.Decimal(14, 2)
+  tokenVersion     Int        @default(0)
+  qty              Int
   /// Product price when first added
-  unitPrice     Decimal   @db.Decimal(14, 2)
-  createdAt     DateTime  @default(now())
+  unitPrice        Decimal    @db.Decimal(14, 2)
+  createdAt        DateTime   @default(now())
 
   @@unique([cartId, userId, variantId])
   @@index([variantId])
@@ -936,4 +945,10 @@ model TokenEntry {
 
   @@index([userId, createdAt])
   @@index([cartLineId])
+}
+
+enum LineStatus {
+  ACTIVE
+  CANCELLED
+  RETURNED
 }

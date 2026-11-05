@@ -30,14 +30,22 @@ export function isEditable(status: CartStatus) {
   return EDITABLE.includes(status);
 }
 
-export type LineLike = { qty: number; unitPrice: Decimal.Value | { toString(): string } };
+export type LineLike = {
+  status?: string;
+  qty: number;
+  unitPrice: Decimal.Value | { toString(): string };
+};
 
 export function lineTotal(line: LineLike): D {
   return new D(line.unitPrice.toString()).times(line.qty);
 }
 
 export function cartTotal(lines: LineLike[]): D {
-  return roundMoney(lines.reduce((sum, l) => sum.plus(lineTotal(l)), new D(0)));
+  return roundMoney(
+    lines
+      .filter((l) => l.status !== "CANCELLED")
+      .reduce((sum, l) => sum.plus(lineTotal(l)), new D(0)),
+  );
 }
 
 /** Transfer value only; cart readiness always uses the gross total. */

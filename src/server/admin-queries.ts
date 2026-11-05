@@ -1,3 +1,4 @@
+import { cancelledValue, visibleTotals } from "./carts/visible-totals";
 import "server-only";
 import type { CartStatus, Prisma } from "@/generated/prisma/client";
 import type { OperationalAdminArea } from "@/lib/admin-access";
@@ -20,7 +21,12 @@ async function salesSince(from: Date) {
     _sum: { total: true },
     _count: { _all: true },
   });
-  return { orders: r._count._all, total: toD(r._sum.total ?? 0) };
+  return {
+    orders: r._count._all,
+    total: toD(r._sum.total ?? 0).minus(
+      await cancelledValue({ status: { in: PAID }, confirmedAt: { gte: from } }),
+    ),
+  };
 }
 
 /** The sales line on the admin Stock page: confirmed sales today, 7 days, 30 days, and money in carts. */
@@ -60,12 +66,12 @@ export async function suggestCarts(q: string) {
   if (term.length < 2) return [];
   const rows = await db.groupCart.findMany({
     where: cartSearch(term),
-    select: { code: true, status: true, total: true, owner: { select: { name: true } } },
+    select: { id: true, code: true, status: true, total: true, owner: { select: { name: true } } },
     orderBy: { updatedAt: "desc" },
     take: 20,
   });
   const starts = (c: string) => (c.startsWith(term.toUpperCase()) ? 0 : 1);
-  return rows
+  return (await visibleTotals(rows))
     .sort((a, b) => starts(a.code) - starts(b.code))
     .slice(0, 6)
     .map((c) => ({

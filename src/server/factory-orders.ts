@@ -9,7 +9,7 @@ import { notifyRole } from "./notify";
  * A cart holds one factory's products, so the factory is the seller of any of its lines.
  */
 const ofFactory = (factoryId: string) => ({
-  lines: { some: { variant: { product: { sellerId: factoryId } } } },
+  lines: { some: { status: "ACTIVE" as const, variant: { product: { sellerId: factoryId } } } },
 });
 
 /** The factory says the parcel is packed and ready for the PickMe driver. */

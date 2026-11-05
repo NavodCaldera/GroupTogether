@@ -1,3 +1,4 @@
+import { visibleTotals } from "@/server/carts/visible-totals";
 import { toCsv } from "@/lib/csv";
 import { toD } from "@/lib/decimal";
 import { colomboDayStart, formatIsoDateTime } from "@/lib/format";
@@ -12,9 +13,10 @@ export async function GET(req: Request) {
   const asked = Number(new URL(req.url).searchParams.get("days"));
   const days = Number.isInteger(asked) && asked >= 1 && asked <= 366 ? asked : 30;
   const now = new Date();
-  const carts = await db.groupCart.findMany({
+  const found = await db.groupCart.findMany({
     where: { status: { in: PAID }, confirmedAt: { gte: colomboDayStart(now, days - 1) } },
     select: {
+      id: true,
       code: true,
       name: true,
       status: true,
@@ -22,12 +24,13 @@ export async function GET(req: Request) {
       total: true,
       deliveryCity: true,
       owner: { select: { name: true, email: true, phone: true } },
-      lines: { select: { qty: true } },
+      lines: { where: { status: "ACTIVE" }, select: { qty: true } },
       _count: { select: { members: true } },
       packing: { select: packingSelect },
     },
     orderBy: { confirmedAt: "asc" },
   });
+  const carts = await visibleTotals(found);
   const rows = [
     [
       "Cart",

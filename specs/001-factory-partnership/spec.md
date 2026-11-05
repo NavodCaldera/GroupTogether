@@ -202,6 +202,13 @@ that item is removed.
 
 ### Edge Cases
 
+- Hiding/removing products after owner acceptance leaves AWAITING_SLIP/SLIP_REVIEW lines,
+  totals and transfer amount frozen. Confirmation (including token-only acceptance) cancels hidden
+  lines atomically with full-price token credits and reasons. A rejected slip that later times out
+  releases normal reservations without cancellation credit. OPEN/READY removal resets member
+  Done through existing paths. Delivered carts are unchanged. A fully cancelled dispatched cart
+  retains Delivery and alerts warehouse admins for manual pickup handling (DEC-013, 2026-11-05).
+
 - Tokens cover the whole cart (`amountDue` = LKR 0.00): owner acceptance immediately confirms
   it and spends the holds, without a bank slip, payment deadline or admin review. Stock sale,
   gift activation/brand events and confirmation/fulfilment notices match approved-slip effects.

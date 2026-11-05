@@ -1,3 +1,4 @@
+import { cancelledValue } from "./carts/visible-totals";
 import "server-only";
 import { z } from "zod";
 import type { Prisma, StockType } from "@/generated/prisma/client";
@@ -339,7 +340,14 @@ export async function salesSnapshot() {
     where: { status: { in: ["CONFIRMED", "DISPATCHED", "DELIVERED"] } },
     _sum: { total: true },
   });
-  return { total: formatLKR(s._sum.total ?? 0), updatedAt: new Date().toISOString() };
+  return {
+    total: formatLKR(
+      toD(s._sum.total ?? 0).minus(
+        await cancelledValue({ status: { in: ["CONFIRMED", "DISPATCHED", "DELIVERED"] } }),
+      ),
+    ),
+    updatedAt: new Date().toISOString(),
+  };
 }
 
 /** Admin publish/hide keeps agreement eligibility intact. */

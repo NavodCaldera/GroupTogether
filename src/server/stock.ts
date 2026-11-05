@@ -59,7 +59,10 @@ export async function storeSnapshot(now = new Date()) {
       select: {
         delivery: { select: { status: true } },
         packing: { select: { handedOverAt: true } },
-        lines: { select: { qty: true, variant: { select: { productId: true } } } },
+        lines: {
+          where: { status: "ACTIVE" },
+          select: { qty: true, variant: { select: { productId: true } } },
+        },
       },
     }),
     db.$queryRaw<{ lotId: string; revenue: Money | null }[]>`
@@ -204,7 +207,7 @@ async function weeklyFlow(lots: { receivedAt: Date; pieces: number }[], now: Dat
     select: {
       packing: { select: { handedOverAt: true } },
       delivery: { select: { status: true, updatedAt: true } },
-      lines: { select: { qty: true } },
+      lines: { where: { status: "ACTIVE" }, select: { qty: true } },
     },
   });
   let last28 = 0;
@@ -233,7 +236,7 @@ function closingSoon(now: Date) {
       total: true,
       minOrderValue: true,
       expiresAt: true,
-      lines: { select: { qty: true } },
+      lines: { where: { status: "ACTIVE" }, select: { qty: true } },
     },
     orderBy: { expiresAt: "asc" },
     take: 10,
@@ -246,7 +249,7 @@ async function cartOutcomes(now: Date) {
   const [paid, back, expired] = await Promise.all([
     db.cartLine.aggregate({
       _sum: { qty: true },
-      where: { cart: { status: { in: PAID }, confirmedAt: { gte: from } } },
+      where: { status: "ACTIVE", cart: { status: { in: PAID }, confirmedAt: { gte: from } } },
     }),
     db.cartLine.aggregate({
       _sum: { qty: true },

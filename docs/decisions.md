@@ -116,6 +116,17 @@ stock to sold, activates gifts with their brand events, and sends the usual conf
 fulfilment notices after commit. Delivery details and acceptance/confirmation timestamps are
 captured together. Any positive amount, including LKR 0.01, retains the bank-slip flow.
 
+**Accepted-cart quality rule approved on 2026-11-05:** once the owner accepts, AWAITING_SLIP
+and SLIP_REVIEW cart lines and their payment amount are frozen. Hiding/removal leaves them
+unchanged. On confirmation, hidden-product lines are cancelled atomically with full-price token
+credits and reasons; token-only confirmation follows the same path. Rejection followed by a
+missed payment deadline uses normal reservation release, with no cancellation credit. OPEN/READY
+removals use existing line-removal/reset paths (including CART-006). Delivered carts are untouched.
+Paid cancellation decrements sold without restocking available hidden goods. A dispatched cart
+that loses all active lines keeps its Delivery unchanged and alerts warehouse admins; no provider
+call is made. Hide/remove flags are persisted before separate per-cart cleanup transactions so
+partial failures can be retried safely.
+
 ### DEC-014 - Member done before cart finish
 
 **Status:** Approved by the owner on **2026-11-05**. **Rule:** `CART-006`.

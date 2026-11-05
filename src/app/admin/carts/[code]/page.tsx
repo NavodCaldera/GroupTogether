@@ -1,3 +1,4 @@
+import { visibleTotals } from "@/server/carts/visible-totals";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -25,7 +26,7 @@ export default async function AdminCartPage({ params }: PageProps<"/admin/carts/
   await requireAdmin("WAREHOUSE");
   await sweep();
   const { code } = await params;
-  const cart = await db.groupCart.findUnique({
+  const found = await db.groupCart.findUnique({
     where: { code: code.toUpperCase() },
     include: {
       owner: { select: { name: true, phone: true, email: true } },
@@ -34,6 +35,7 @@ export default async function AdminCartPage({ params }: PageProps<"/admin/carts/
         orderBy: { joinedAt: "asc" },
       },
       lines: {
+        where: { status: { not: "CANCELLED" } },
         include: { variant: { include: { product: { select: { title: true, brand: true } } } } },
         orderBy: { variant: { product: { title: "asc" } } },
       },
@@ -42,7 +44,8 @@ export default async function AdminCartPage({ params }: PageProps<"/admin/carts/
       packing: { select: packingSelect },
     },
   });
-  if (!cart) notFound();
+  if (!found) notFound();
+  const cart = (await visibleTotals([found]))[0];
   const items = cart.lines.reduce((n, l) => n + l.qty, 0);
   const now = new Date();
   const stage = adminStage(cart.status);

@@ -21,6 +21,7 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
     include: {
       owner: true,
       lines: {
+        where: { status: "ACTIVE" },
         select: {
           qty: true,
           variant: {
@@ -167,7 +168,10 @@ export async function markReceived(userId: string, cartId: string) {
 export async function setDeliveryStatus(deliveryId: string, status: DeliveryStatus) {
   const d = await db.delivery.update({ where: { id: deliveryId }, data: { status } });
   if (status === "DELIVERED") {
-    await db.groupCart.update({ where: { id: d.cartId }, data: { status: "DELIVERED" } });
+    await db.groupCart.updateMany({
+      where: { id: d.cartId, status: "DISPATCHED" },
+      data: { status: "DELIVERED" },
+    });
   }
   return d;
 }

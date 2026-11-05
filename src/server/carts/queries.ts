@@ -1,3 +1,4 @@
+import { visibleTotals } from "./visible-totals";
 import "server-only";
 import { type Point, distanceKm, sortNearest } from "@/lib/distance";
 import { db } from "../db";
@@ -65,7 +66,7 @@ export async function recentCarts(
 export type PanelCart = Awaited<ReturnType<typeof recentCarts>>[number];
 
 export async function cartByCode(code: string) {
-  return db.groupCart.findUnique({
+  const row = await db.groupCart.findUnique({
     where: { code: code.toUpperCase() },
     include: {
       owner: { select: { id: true, name: true, city: true } },
@@ -74,6 +75,7 @@ export async function cartByCode(code: string) {
         orderBy: { joinedAt: "asc" },
       },
       lines: {
+        where: { status: { not: "CANCELLED" } },
         include: {
           variant: {
             select: {
@@ -91,6 +93,7 @@ export async function cartByCode(code: string) {
       delivery: true,
     },
   });
+  return row ? (await visibleTotals([row]))[0] : null;
 }
 
 export type FullCart = NonNullable<Awaited<ReturnType<typeof cartByCode>>>;
@@ -118,7 +121,7 @@ export async function joinableCart(code: string, now = new Date()) {
 
 /** A buyer's finished carts (orders and closed ones), newest first, with their own lines. */
 export async function myCarts(userId: string) {
-  return db.groupCart.findMany({
+  const rows = await db.groupCart.findMany({
     where: {
       members: { some: { userId } },
       status: { in: ["CONFIRMED", "DISPATCHED", "DELIVERED", "EXPIRED", "CANCELLED"] },
@@ -132,11 +135,15 @@ export async function myCarts(userId: string) {
       createdAt: true,
       confirmedAt: true,
       owner: { select: { name: true } },
-      lines: { where: { userId }, select: { qty: true, unitPrice: true } },
+      lines: {
+        where: { userId, status: { not: "CANCELLED" } },
+        select: { qty: true, unitPrice: true },
+      },
     },
     orderBy: { updatedAt: "desc" },
     take: 100,
   });
+  return visibleTotals(rows);
 }
 
 /**
@@ -164,7 +171,7 @@ export async function buyerDashboard(userId: string, now = new Date()) {
             updatedAt: true,
             owner: { select: { name: true, phone: true } },
             lines: {
-              where: { userId },
+              where: { userId, status: { not: "CANCELLED" } },
               select: { qty: true, unitPrice: true, tokensApplied: true },
             },
             slips: {
@@ -200,13 +207,17 @@ export async function buyerDashboard(userId: string, now = new Date()) {
   ]);
   const held = await db.cartLine.groupBy({
     by: ["cartId"],
-    where: { cartId: { in: memberships.map((m) => m.cart.id) } },
+    where: { cartId: { in: memberships.map((m) => m.cart.id) }, status: { not: "CANCELLED" } },
     _sum: { tokensApplied: true },
   });
+  const visible = new Map(
+    (await visibleTotals(memberships.map((m) => m.cart))).map((c) => [c.id, c.total]),
+  );
   const totals = new Map(held.map((row) => [row.cartId, row._sum.tokensApplied]));
   return {
     carts: memberships.map((m) => ({
       ...m.cart,
+      total: visible.get(m.cart.id)!,
       tokensApplied: totals.get(m.cart.id)?.toString() ?? "0",
     })),
     invites,
