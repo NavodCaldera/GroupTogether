@@ -32,6 +32,7 @@ guidance, not business policy. Verify code pointers before editing.
 - Format money with `formatLKR` and dates with `formatDateTime` using Asia/Colombo. Display saved/configured thresholds, not fixed example amounts.
 - Reuse `SuggestInput` for search suggestions, native GET filters, `FilterSelect` for long mobile chip rows, and mobile cards/desktop tables.
 - Reuse chart tokens, focusable CSS tooltips and a ?Show as table? fallback. Factory price/quantity charts use two panels on a common day axis, not dual y-axes.
+- Unexpected render errors fall to `src/app/error.tsx` (root layout failures: `global-error.tsx`). Never render `error.message` there. `/e2e-error` is a test-only fixture that 404s outside e2e builds.
 - Inner/detail/form pages use the existing `BackLink` pattern. Navigation uses `NavLink` with appropriate `aria-current`.
 
 ## Role and journey boundaries

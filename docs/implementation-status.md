@@ -90,6 +90,10 @@ two buyer journeys rerun after correcting the stale active-cart navigation asser
 Semgrep rule fixtures passed and the application scan reported no findings. `npm audit`
 reported zero vulnerabilities. Hosted CI results must be checked on GitHub separately.
 
+## Production hardening (2026-11-05)
+
+- **Implemented:** app-wide error boundaries (`src/app/error.tsx`, `src/app/global-error.tsx`) with retry; covered by `tests/e2e/error-boundary.spec.ts`. The root-layout fallback has no automated test.
+
 ## Deployment dependencies
 
 Hosting remains undecided in the project brief. Uploads use [local storage](../src/server/storage/local.ts); a deployment needs durable storage, or a replacement adapter if its filesystem is ephemeral. The repository does not establish that a production database, storage, bank details or scheduled jobs have been configured.

@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Production hardening 1: error boundaries
+
+- Added `src/app/error.tsx` and `src/app/global-error.tsx`: a "Something went wrong" heading, Try again (the framework `retry()`) and Go to home, built from the shared `Button`/`LinkButton` primitives. The error message is never shown, so no personal data reaches the screen. A test-only `/e2e-error` page throws in e2e builds and returns 404 otherwise; `tests/e2e/error-boundary.spec.ts` checks that the boundary appears instead of a raw crash page.
+
 ## 2026-11-05 - Factory partnership Part 1: agreement and selling gate
 
 - Task 1.3 adds append-only CORE-published agreement versions, owner acceptance at `/seller/agreement`, 12-calendar-month terms in Colombo time (leap-day anniversaries clamp to February 28), and retry-safe, duplicate-safe 30-day in-app reminders from full sweeps. Acceptance records the person/time/version; stale displayed versions cannot be accepted. Listing creation/edits, admin republishing, staff creation, public catalogue/search/facets/detail/savings and positive cart additions and starting payment from an unpaid cart enforce selling eligibility. Paid carts and their snapshots stay unchanged.
