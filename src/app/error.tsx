@@ -1,9 +1,14 @@
 "use client";
 
+import * as Sentry from "@sentry/nextjs";
+import { useEffect } from "react";
 import { Button, LinkButton } from "@/components/ui";
 
 // Never show error.message: client errors can carry user data. Server errors arrive generic.
-export default function ErrorBoundary({ retry }: { error: unknown; retry: () => void }) {
+export default function ErrorBoundary({ error, retry }: { error: unknown; retry: () => void }) {
+  useEffect(() => {
+    Sentry.captureException(error);
+  }, [error]);
   return (
     <div
       role="alert"

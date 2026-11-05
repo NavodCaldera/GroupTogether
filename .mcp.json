@@ -13,6 +13,10 @@
     "groupbasket-context7": {
       "type": "http",
       "url": "https://mcp.context7.com/mcp"
+    },
+    "groupbasket-sentry-errors": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp/${SENTRY_ORG}/${SENTRY_PROJECT}?skills=inspect"
     }
   }
 }

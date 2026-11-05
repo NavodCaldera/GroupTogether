@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Production hardening 2: Sentry error reporting
+
+- Owner request: send real production errors to Sentry (free tier) so Claude Code can read them through the Sentry MCP. Added `@sentry/nextjs` 11.10.0 (errors only), server capture through `onRequestError`, boundary capture in `error.tsx`/`global-error.tsx`, source map upload with deletion after upload, and a tested scrubber. NIC numbers, bank details, slips, tokens and payment evidence are never sent. DSN and tokens are environment variables only. `.mcp.json` adds the project-scoped hosted Sentry MCP with the `inspect` skill; only Claude Code uses it, not Codex. See [development tooling](development-tooling.md#sentry-error-reporting).
+
 ## 2026-11-05 - Production hardening 1: error boundaries
 
 - Added `src/app/error.tsx` and `src/app/global-error.tsx`: a "Something went wrong" heading, Try again (the framework `retry()`) and Go to home, built from the shared `Button`/`LinkButton` primitives. The error message is never shown, so no personal data reaches the screen. A test-only `/e2e-error` page throws in e2e builds and returns 404 otherwise; `tests/e2e/error-boundary.spec.ts` checks that the boundary appears instead of a raw crash page.

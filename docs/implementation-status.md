@@ -93,6 +93,7 @@ reported zero vulnerabilities. Hosted CI results must be checked on GitHub separ
 ## Production hardening (2026-11-05)
 
 - **Implemented:** app-wide error boundaries (`src/app/error.tsx`, `src/app/global-error.tsx`) with retry; covered by `tests/e2e/error-boundary.spec.ts`. The root-layout fallback has no automated test.
+- **Partial:** Sentry error reporting is configured and scrubbed but inactive until a DSN is set; no event has been sent to a real Sentry project yet. The Sentry MCP needs `SENTRY_ORG`/`SENTRY_PROJECT` and Claude Code approval on restart.
 
 ## Deployment dependencies
 

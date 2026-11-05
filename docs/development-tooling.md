@@ -68,6 +68,32 @@ MCP tool call asks for approval unless the owner adds permission rules for exact
 enables. Context7 questions must be public library questions only: never code, records, IDs or
 secrets.
 
+### Sentry error reporting
+
+Added 2026-11-05. `@sentry/nextjs` (free tier) reports errors only: no tracing, replay or logs.
+It is off unless `SENTRY_DSN` / `NEXT_PUBLIC_SENTRY_DSN` are set, and always off in e2e builds.
+Server component, route handler and server action errors arrive through `onRequestError` in
+`src/instrumentation.ts`; browser render errors through `error.tsx` and `global-error.tsx`.
+
+- **Sent:** error type, scrubbed message, stack trace (file, line, function), scrubbed page URL
+  without query string, scrubbed breadcrumbs, environment and the user id only.
+- **Never sent:** request bodies, cookies, headers, query strings, stack-frame variables,
+  database query data, user email/IP and `extra`. `src/sentry.options.ts` switches these off in
+  `dataCollection` (v11 collects them by default) and `src/lib/sentry-scrub.ts` removes them again
+  in `beforeSend`/`beforeBreadcrumb`. Remaining text has NIC numbers, long digit runs (bank
+  accounts, phones), emails, long tokens, and sign-in, invite, cart-share, slip, partner-document
+  and brand-photo path segments masked. Unit tests cover the scrubber.
+- **Source maps:** uploaded at build time only when `SENTRY_AUTH_TOKEN`, `SENTRY_ORG` and
+  `SENTRY_PROJECT` are set, then deleted from the build so browsers never receive them.
+- **Secrets:** DSN and auth token come from environment variables only; `.env*` stays ignored.
+
+`.mcp.json` adds `groupbasket-sentry-errors`, Sentry's hosted MCP server, scoped to
+`${SENTRY_ORG}/${SENTRY_PROJECT}` (set both before starting Claude Code) with only the `inspect`
+skill. Sign-in is Sentry's browser OAuth; no token is stored in the repository. Sentry offers no
+read-only switch: the `inspect` skill limits it to issue and event lookup tools, and each call
+still asks for approval. **Only Claude Code uses the Sentry MCP. Do not add it to
+`.codex/config.toml`; Codex works from the issue details a person gives it.**
+
 ### Restricted local database reader
 
 `npm run mcp:setup-reader -- --apply` is explicit administrative setup, separate from inspection.
