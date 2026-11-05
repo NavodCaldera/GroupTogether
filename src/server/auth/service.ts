@@ -153,15 +153,50 @@ export async function updateProfile(userId: string, input: ProfileInput) {
   await db.user.update({ where: { id: userId }, data: input });
 }
 
-export async function authenticate(email: string, password: string): Promise<User> {
-  const user = await db.user.findUnique({ where: { email: email.trim().toLowerCase() } });
-  // Verify against a dummy hash when the user is missing so timing doesn't reveal accounts.
-  const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
-  if (!user || !ok) throw new AuthError("Email or password is incorrect");
-  if (user.locked) throw new AuthError("This account is locked. Contact support.");
-  return user;
-}
+const LOGIN_LOCKOUT_MESSAGE = "Too many sign-in attempts. Try again in 10 minutes.";
 
+export async function authenticate(
+  email: string,
+  password: string,
+  now = new Date(),
+): Promise<User> {
+  email = email.trim().toLowerCase();
+  const result = await db.$transaction(
+    async (tx) => {
+      // Serialize checks as well as writes, including the first attempt and successful deletion.
+      // Hash collisions only serialize unrelated emails; counters remain keyed by the full email.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`login:${email}`}, 0))`;
+      const attempt = await tx.loginAttempt.findUnique({ where: { email } });
+      if (attempt?.lockedUntil && attempt.lockedUntil > now) {
+        return { error: LOGIN_LOCKOUT_MESSAGE };
+      }
+      if (attempt?.lockedUntil) await tx.loginAttempt.delete({ where: { email } });
+
+      const user = await tx.user.findUnique({ where: { email } });
+      // Unknown emails still pay the password hashing cost and accrue the same failures.
+      const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
+      if (!user || !ok) {
+        const lockedUntil = new Date(now.getTime() + 10 * 60_000);
+        await tx.$executeRaw`
+        INSERT INTO "LoginAttempt" ("email", "failures", "lockedUntil", "updatedAt")
+        VALUES (${email}, 1, NULL, ${now})
+        ON CONFLICT ("email") DO UPDATE SET
+          "failures" = "LoginAttempt"."failures" + 1,
+          "lockedUntil" = CASE WHEN "LoginAttempt"."failures" + 1 >= 5
+            THEN ${lockedUntil}::timestamp ELSE NULL END,
+          "updatedAt" = ${now}`;
+        // Return the failure so the transaction commits before AuthError is thrown.
+        return { error: "Email or password is incorrect" };
+      }
+      if (user.locked) return { error: "This account is locked. Contact support." };
+      await tx.loginAttempt.deleteMany({ where: { email } });
+      return { user };
+    },
+    { maxWait: 10_000, timeout: 15_000 },
+  );
+  if (result.error) throw new AuthError(result.error);
+  return result.user!;
+}
 /**
  * Admin control: a locked customer can't sign in, and locking ends all their sessions at once.
  * Their carts are left as they are (an admin can cancel them separately). Admins can't be locked.

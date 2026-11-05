@@ -881,3 +881,10 @@ model FactoryProfile {
   earningsHeld     Boolean       @default(false)
   earningsHeldNote String?
 }
+
+model LoginAttempt {
+  email       String    @id
+  failures    Int       @default(0)
+  lockedUntil DateTime?
+  updatedAt   DateTime  @updatedAt
+}

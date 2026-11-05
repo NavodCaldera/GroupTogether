@@ -63,3 +63,13 @@ names/fixtures instead of relying on historical scenario counts.
 
 Report checks, outcomes and material unverified behavior. Update implementation status only
 when evidence changes; documentation cleanup alone does not establish new capabilities.
+
+## Login rate limiting
+
+`AUTH-001` in the [operating brief](groupbasket.md) governs password lockout.
+`tests/integration/login-lockout.int.test.ts` covers success cleanup, fifth-failure lockout,
+expiry (including the exact boundary), unknown-email parity, concurrent failures, email
+normalisation and administratively locked users. Check that active locks skip password
+verification and do not change their deadline. Failure writes must commit before an
+`AuthError` is thrown. `LoginAttempt` contains private email identifiers; never grant it
+to `gb_ai_reader`.

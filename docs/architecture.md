@@ -171,3 +171,13 @@ Applications hold private business, identity and bank fields. FactoryDocument st
 `src/lib/agreement-rules.ts` owns the pure calendar/eligibility/reminder rules; `src/server/agreements.ts` persists versions and acceptances. Publication and acceptance share an advisory transaction lock; acceptance also locks the factory profile. Published versions are append-only through services/actions. Forms bind acceptance to the version displayed. `canSell` resolves the factory account/profile/current acceptance and requires legacy checks after the grace deadline. `sellingFactoryWhere` expresses the same visibility in database queries, before limits and facet aggregation. `IN_SHOP` remains the administrative stock/status baseline, not a complete public eligibility predicate.
 
 Listing/staff services, admin republishing and positive `setLine` changes and starting payment from an unpaid cart enforce the gate. Existing cart-row/user locks and guarded stock updates are preserved. Full `sweep()` calls claim reminder markers then deliver notices with deterministic IDs, allowing retries without duplicate notices; reads of current terms and delivered notices are batched. Agreement expiry never changes paid-cart rows or prices. Seller route URLs are unchanged; `(workspace)/layout.tsx` gates owners while `/seller/agreement` remains outside that group. Staff fulfilment and brand routes remain available.
+
+## Password sign-in rate limiting
+
+`authenticate(email, password, now)` in `src/server/auth/service.ts` normalises email and
+holds a namespaced per-email PostgreSQL transaction advisory lock across the lockout check,
+password verification, atomic failure upsert and successful deletion. `LoginAttempt` is
+independent of `User`, so unknown emails use the same counters and deadlines. Expired rows
+are deleted before verification. Failure results leave the transaction before becoming
+`AuthError`, ensuring counters commit. `AUTH-001` owns the rule; the new table has no reader
+grants and is covered by `tests/integration/login-lockout.int.test.ts`.

@@ -195,3 +195,7 @@ policy rather than a second copy of repository workflow.
 | [Changelog](../../docs/CHANGES.md)                             | History, not competing current policy.                             |
 
 Keep rule IDs stable. Reference IDs and named topics rather than section positions or old numbers; the [legacy mapping](../../docs/decisions.md#legacy-rule-references) preserves older references.
+
+## Login rate limiting
+
+- **AUTH-001 (2026-11-05):** password sign-in counts consecutive failures per trimmed, lower-case email, including unknown emails. The fifth failure locks that email for ten minutes. Active locks refuse before password verification with the same message for every email and are not extended by refused attempts. The first attempt at or after expiry starts at zero; successful sign-in clears the counter. Wrong passwords count even for administratively locked users; their correct-password support message remains. Unknown unlocked emails retain dummy-hash timing protection.

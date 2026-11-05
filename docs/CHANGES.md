@@ -6,6 +6,11 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Production hardening 3: login rate limiting
+
+- Added private `LoginAttempt` counters per normalised email, including unknown accounts. Five consecutive wrong passwords lock sign-in for ten minutes without extending the deadline on refused attempts. Expiry resets failures; success deletes the counter. Dummy-hash protection and administrative account locking remain intact.
+- Per-email transaction locks serialize checks and cleanup; a parameterised atomic upsert records each failure. Migration `login_attempts` grants no reader access. `tests/integration/login-lockout.int.test.ts` covers the requested six scenarios plus exact expiry and administratively locked accounts. See `AUTH-001` in the operating brief.
+
 ## 2026-11-05 - Production hardening 2: Sentry error reporting
 
 - Owner request: send real production errors to Sentry (free tier) so Claude Code can read them through the Sentry MCP. Added `@sentry/nextjs` 11.10.0 (errors only), server capture through `onRequestError`, boundary capture in `error.tsx`/`global-error.tsx`, source map upload with deletion after upload, and a tested scrubber. NIC numbers, bank details, slips, tokens and payment evidence are never sent. DSN and tokens are environment variables only. `.mcp.json` adds the project-scoped hosted Sentry MCP with the `inspect` skill; only Claude Code uses it, not Codex. See [development tooling](development-tooling.md#sentry-error-reporting).
