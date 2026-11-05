@@ -25,7 +25,7 @@ guidance, not business policy. Verify code pointers before editing.
 
 - Bank transfer is the payment method. Only the owner uploads evidence for the whole cart.
 - Validate JPEG/PNG/WebP/PDF and the 5 MB limit with `checkUpload(file, SLIP_TYPES)`. Check eligibility before file storage and again under the cart lock.
-- Upload requires AWAITING_SLIP before its deadline; create a PENDING slip at the cart total and move to SLIP_REVIEW, stopping timeout cancellation.
+- Upload requires AWAITING_SLIP before its deadline; create a PENDING slip at the transfer amount due and move to SLIP_REVIEW, stopping timeout cancellation.
 - Approval atomically marks the slip APPROVED, confirms the cart, records `confirmedAt`, moves reserved stock to sold and activates reserved gifts. Notify members and packing staff after commit.
 - Rejection requires a reason, marks the slip REJECTED and restores AWAITING_SLIP with a fresh configured window. Preserve rejection history for the next upload.
 - Repeated review must fail. The owner cannot cancel during review; admin cancellation follows the canonical cancellable states.
@@ -67,3 +67,14 @@ zero-delta SPEND markers; the original HOLD remains the only debit. Merges prese
 Only a customer's own line can apply tokens; account balance/history are principal-scoped.
 Verify `tests/integration/tokens.int.test.ts`, `tests/integration/carts.int.test.ts`, the fixed-seed
 `src/lib/cart-money.property.test.ts` and `tests/e2e/commission-tokens.spec.ts` (360px, keyboard, axe).
+
+## Zero-due confirmation (DEC-013, approved 2026-11-05)
+
+`acceptAndPay` computes `amountDue` under the cart lock. Exactly zero confirms immediately;
+positive amounts retain AWAITING_SLIP. `src/server/carts/confirmation.ts` owns the shared
+`confirmPaidCart(tx, cartId, actorId, now)` and after-commit `notifyCartConfirmed(cart)` used
+by acceptance and slip approval. Confirmation spends once, sells reservations, activates gifts
+and appends brand events. Do not loosen token-spend guards or send the owner-is-paying notice
+for zero-due carts. Acceptance records delivery details and timestamps, with no PaymentSlip or
+slip deadline. Verify the zero/one-cent/race cases in `carts.int.test.ts`, gift/factory effects in
+`gifts.int.test.ts`, and the no-slip/pay-route redirect in `commission-tokens.spec.ts`.

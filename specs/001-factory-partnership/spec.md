@@ -202,6 +202,11 @@ that item is removed.
 
 ### Edge Cases
 
+- Tokens cover the whole cart (`amountDue` = LKR 0.00): owner acceptance immediately confirms
+  it and spends the holds, without a bank slip, payment deadline or admin review. Stock sale,
+  gift activation/brand events and confirmation/fulfilment notices match approved-slip effects.
+  A positive remainder, even LKR 0.01, still requires the existing slip flow (DEC-013, 2026-11-05).
+
 - An owner's agreement expires while their staff are mid-packing: paid orders continue; only
   listing and new sales stop.
 - A product is hidden while it sits in a paid cart: that item is cancelled and its buyer gets

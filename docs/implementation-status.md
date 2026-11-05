@@ -164,3 +164,15 @@ Part 1 verification on 2026-11-05: `npm run check` passed (110 unit tests, eight
 **Implemented (Tasks 2.1?2.3):** `Settings.commissionPerPiece` is CORE-only, default LKR 100, and new direct factory listings persist `Product.factoryPrice` and a commission snapshot. `Product.price` remains the buyer price, while existing-listing edits reuse the stored snapshot and lot/own/premium paths retain their pricing. The seller form shows a Decimal-based live buyer-price preview. Migration `factory_commission` preserves existing buyer prices; the mandatory development count below LKR 100 was zero. Tests: `src/lib/price-rules.test.ts`, `tests/integration/commission.int.test.ts`. The append-only token ledger and transactional credit/apply/release/spend helpers now exist, with stable event keys, line revisions and user-first cart locks. Tests cover replay and concurrent cross-cart spending. Cart removal, excess quantity reduction, leaving, expiry and pre-payment cancellation release holds; rejected slips retain them and approval appends a zero-delta SPEND. Merges preserve line IDs and holds. Minimums use gross value; the pay page, recorded slip and dashboard use `amountDue`. Members apply tokens only to their own lines, and customer accounts show their own balance and paginated ledger history. Regression evidence: `tests/integration/carts.int.test.ts`, `src/lib/cart-money.property.test.ts` and the 360px `tests/e2e/commission-tokens.spec.ts`. Parts 3?4 remain unimplemented.
 
 Part 2 verification (2026-11-05): `npm run check` passes (122 unit/property tests and 8 tooling tests); `npm run test:int` passes (147 tests, 26 files); production and E2E builds pass; migration status is current (33 migrations). The full production browser suite passes 20 tests, including 360px token/commission and accessibility coverage. The read-only inspector was refused access to the new TokenEntry table.
+
+Zero-due owner confirmation (DEC-013, 2026-11-05): `acceptAndPay` now confirms fully
+token-covered carts atomically through shared `confirmPaidCart`; gifts, stock, tokens and
+post-commit notices match slip approval. Positive transfer amounts retain the slip flow. The
+acceptance action opens the confirmed cart, and direct pay links use the existing redirect.
+
+Zero-due verification (2026-11-05): the new confirmation/race tests failed before implementation.
+`npm run check` passed (122 unit/property and 8 tooling tests); `npm run test:int` passed
+151 tests across 26 files, including unchanged slip regressions and new zero-due gift/factory
+notice coverage. Production and E2E builds passed. The full `CI=1 npm run e2e` suite passed
+21 tests; the zero-due confirmed cart and direct pay-link redirect passed at 360px, and the
+confirmed screen was visually reviewed.

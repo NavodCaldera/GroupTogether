@@ -7,6 +7,7 @@ import type { CartStatus, GroupCart, Role } from "@/generated/prisma/client";
 import {
   CANCELLABLE,
   addHours,
+  amountDue,
   cartTotal,
   isEditable,
   mergeBlockReason,
@@ -27,6 +28,7 @@ import { releaseGiftReservations } from "../gifts";
 
 import { canSellIn, remindAgreements, sellingFactoryWhere } from "../agreements";
 
+import { confirmPaidCart, notifyCartConfirmed } from "./confirmation";
 import { CartError } from "./errors";
 export { CartError } from "./errors";
 import { releaseLineTokens } from "../tokens";
@@ -325,8 +327,8 @@ export const acceptSchema = z.object({
 });
 
 /**
- * READY → AWAITING_SLIP. Freezes the cart (its stock is already locked) and starts the owner's
- * window to pay the whole cart and upload one bank slip.
+ * READY -> AWAITING_SLIP for a positive transfer, or CONFIRMED when tokens cover the cart.
+ * Both paths freeze edits and snapshot the owner's delivery details.
  */
 export async function acceptAndPay(
   ownerId: string,
@@ -358,18 +360,31 @@ export async function acceptAndPay(
       where: { cartId_userId: { cartId, userId: ownerId } },
       select: { lat: true, lng: true },
     });
-    return tx.groupCart.update({
+    const lines = await tx.cartLine.findMany({
+      where: { cartId },
+      select: { tokensApplied: true },
+    });
+    const zeroDue = amountDue(
+      toD(cart.total),
+      lines.map((l) => toD(l.tokensApplied)),
+    ).isZero();
+    const accepted = await tx.groupCart.update({
       where: { id: cartId },
       data: {
         ...delivery,
         deliveryLat: pin?.lat ?? null,
         deliveryLng: pin?.lng ?? null,
-        status: "AWAITING_SLIP",
+        status: zeroDue ? "READY" : "AWAITING_SLIP",
         acceptedAt: now,
-        slipDueAt: addHours(now, settings.slipWindowHours),
+        slipDueAt: zeroDue ? null : addHours(now, settings.slipWindowHours),
       },
     });
+    return zeroDue ? confirmPaidCart(tx, cartId, ownerId, now) : accepted;
   });
+  if (cart.status === "CONFIRMED") {
+    await notifyCartConfirmed(cart);
+    return cart;
+  }
   const others = (await memberIds(db, cartId)).filter((id) => id !== ownerId);
   await notify(others, {
     title: "Your group order is locked in",

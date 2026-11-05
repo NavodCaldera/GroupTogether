@@ -1,3 +1,5 @@
+import { D } from "@/lib/decimal";
+import { credit, applyTokens } from "@/server/tokens";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createBrandOffer, reviseBrandOffer } from "@/server/brands";
 import { db } from "@/server/db";
@@ -236,4 +238,52 @@ describe("direct fulfilment and settlement", () => {
     expect(dashboard.settlements[0].amount.toString()).toBe("3500");
     expect(dashboard.gifts[0].settlementId).toBe(dashboard.settlements[0].id);
   });
+});
+
+it("zero-due acceptance activates gifts, records brand events and notifies the factory", async () => {
+  const f = await fixture();
+  const factory = await db.user.update({
+    where: { id: (await makeUser()).id },
+    data: { role: "SELLER" },
+  });
+  await db.factoryProfile.create({
+    data: { factoryUserId: factory.id, complianceDueAt: new Date("2099-01-01") },
+  });
+  await db.product.update({
+    where: { id: f.variant.productId },
+    data: { sellerId: factory.id, category: "APPAREL", title: "Token-covered shirts" },
+  });
+  const gift = await reserveGift(f.admin.id, f.cart.id, f.owner.id, f.offer.id);
+  const line = await db.cartLine.findFirstOrThrow({ where: { cartId: f.cart.id } });
+  await db.$transaction((tx) =>
+    credit(
+      tx,
+      f.owner.id,
+      new D("50000"),
+      "CANCELLATION",
+      { cartLineId: `fund:${line.id}` },
+      "Test credit",
+    ),
+  );
+  await applyTokens(f.owner.id, line.id, "50000");
+  const now = new Date();
+  await acceptAndPay(
+    f.owner.id,
+    f.cart.id,
+    { deliveryAddress: "1 Test Rd", deliveryCity: "Colombo", deliveryPhone: f.owner.phone! },
+    now,
+  );
+  expect(await db.giftOrder.findUniqueOrThrow({ where: { id: gift.id } })).toMatchObject({
+    status: "READY",
+    paidAt: now,
+  });
+  expect(
+    await db.brandMessage.count({
+      where: { requestKey: `gift-payment:${gift.id}`, authorId: f.owner.id, system: true },
+    }),
+  ).toBe(1);
+  expect(
+    await db.notification.count({ where: { userId: factory.id, title: "New order to pack" } }),
+  ).toBe(1);
+  expect(await db.paymentSlip.count({ where: { cartId: f.cart.id } })).toBe(0);
 });

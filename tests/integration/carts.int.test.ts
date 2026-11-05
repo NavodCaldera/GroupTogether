@@ -363,3 +363,59 @@ describe("tokens in the cart lifecycle", () => {
     expect((await tokenBalance(f.member.id)).toFixed(2)).toBe("3000.00");
   });
 });
+
+async function fullyCoveredCart(amount = "1500") {
+  await db.settings.update({ where: { id: 1 }, data: { minOrderValue: "1500" } });
+  const f = await tokenCart();
+  await applyTokens(f.member.id, f.line.id, amount);
+  return f;
+}
+describe("zero-due owner confirmation", () => {
+  it("confirms a fully covered cart without a slip and notifies members once", async () => {
+    const f = await fullyCoveredCart(),
+      now = new Date();
+    const before = await tokenBalance(f.member.id);
+    await acceptAndPay(f.owner.id, f.cart.id, drop, now);
+    const cart = await cartRow(f.cart.id);
+    expect(cart).toMatchObject({
+      status: "CONFIRMED",
+      slipDueAt: null,
+      acceptedAt: now,
+      confirmedAt: now,
+      ...drop,
+    });
+    expect(await db.paymentSlip.count({ where: { cartId: f.cart.id } })).toBe(0);
+    expect(await db.tokenEntry.count({ where: { cartLineId: f.line.id, kind: "SPEND" } })).toBe(1);
+    expect((await tokenBalance(f.member.id)).eq(before)).toBe(true);
+    expect(await variantRow(f.v.id)).toMatchObject({ reserved: 0, sold: 1, available: 9 });
+    const notices = await db.notification.findMany({
+      where: { userId: { in: [f.owner.id, f.member.id] }, title: "Group order confirmed" },
+    });
+    expect(notices.map((n) => n.userId).sort()).toEqual([f.owner.id, f.member.id].sort());
+    expect(await db.notification.count({ where: { title: "Your group order is locked in" } })).toBe(
+      0,
+    );
+  });
+  it("keeps the bank-slip flow when exactly 0.01 remains", async () => {
+    const f = await fullyCoveredCart("1499.99");
+    await acceptAndPay(f.owner.id, f.cart.id, drop);
+    const cart = await cartRow(f.cart.id);
+    expect(cart.status).toBe("AWAITING_SLIP");
+    expect(cart.slipDueAt).not.toBeNull();
+    expect(cart.confirmedAt).toBeNull();
+    expect(await db.tokenEntry.count({ where: { kind: "SPEND" } })).toBe(0);
+    expect(await variantRow(f.v.id)).toMatchObject({ reserved: 1, sold: 0 });
+  });
+  it("concurrent accepts confirm and move stock only once", async () => {
+    const f = await fullyCoveredCart();
+    const results = await Promise.allSettled([
+      acceptAndPay(f.owner.id, f.cart.id, drop),
+      acceptAndPay(f.owner.id, f.cart.id, drop),
+    ]);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect((await cartRow(f.cart.id)).status).toBe("CONFIRMED");
+    expect(await db.tokenEntry.count({ where: { cartLineId: f.line.id, kind: "SPEND" } })).toBe(1);
+    expect(await variantRow(f.v.id)).toMatchObject({ reserved: 0, sold: 1 });
+    expect(await db.notification.count({ where: { title: "Group order confirmed" } })).toBe(2);
+  });
+});

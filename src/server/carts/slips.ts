@@ -1,17 +1,15 @@
 import "server-only";
 import { assertAdminArea } from "../auth/service";
 import { toD } from "@/lib/decimal";
-import { spendCartTokens } from "../tokens";
 import { addHours, amountDue } from "@/lib/cart-rules";
 import { formatLKR } from "@/lib/format";
 import { db } from "../db";
-import { factoryFulfilment } from "@/lib/fulfilment";
-import { notify, notifyRole } from "../notify";
+import { notify } from "../notify";
 import { getSettings } from "../settings";
 import { SLIP_TYPES, checkUpload, saveUpload } from "../storage";
 import { CartError } from "./errors";
 import { withCartTransaction } from "./locks";
-import { appendBrandEvent, flushBrandNotices } from "../brand-communications";
+import { confirmPaidCart, notifyCartConfirmed } from "./confirmation";
 
 /**
  * The owner's one bank slip for the whole cart. There are no refunds: stock is locked from the
@@ -87,70 +85,9 @@ export async function approveSlip(adminId: string, slipId: string, now = new Dat
       where: { id: slipId },
       data: { status: "APPROVED", reviewerId: adminId, reviewedAt: now },
     });
-    await spendCartTokens(tx, cart.id);
-    const lines = await tx.cartLine.findMany({ where: { cartId: cart.id } });
-    await tx.giftOrder.updateMany({
-      where: { cartId: cart.id, status: "RESERVED" },
-      data: { status: "READY", paidAt: now },
-    });
-    const gifts = await tx.giftOrder.findMany({
-      where: { cartId: cart.id, status: "READY" },
-      include: { offer: { select: { sellerId: true, name: true } } },
-    });
-    for (const gift of gifts)
-      await appendBrandEvent(tx, {
-        brandId: gift.offer.sellerId,
-        kind: "GIFT",
-        subjectId: gift.id,
-        title: `${gift.offer.name} · G-${gift.id.slice(-8).toUpperCase()}`,
-        authorId: adminId,
-        body: "Basket payment approved. This gift is ready for the brand to acknowledge and dispatch.",
-        requestKey: `gift-payment:${gift.id}`,
-      });
-    for (const l of lines) {
-      await tx.variant.update({
-        where: { id: l.variantId },
-        data: { reserved: { decrement: l.qty }, sold: { increment: l.qty } },
-      });
-    }
-    return tx.groupCart.update({
-      where: { id: cart.id },
-      data: { status: "CONFIRMED", confirmedAt: now },
-    });
+    return confirmPaidCart(tx, cart.id, adminId, now);
   });
-  const members = await db.cartMember.findMany({
-    where: { cartId: cart.id },
-    select: { userId: true },
-  });
-  await notify(
-    members.map((m) => m.userId),
-    {
-      title: "Group order confirmed",
-      body: `Payment for "${cart.name || cart.code}" is confirmed. We'll send it by PickMe to the cart owner. The owner pays the delivery fee to the driver.`,
-      href: `/c/${cart.code}`,
-    },
-  );
-  if (factoryFulfilment()) {
-    const factory = await db.user.findFirst({
-      where: {
-        products: { some: { variants: { some: { lines: { some: { cartId: cart.id } } } } } },
-      },
-      select: { id: true },
-    });
-    if (factory)
-      await notify([factory.id], {
-        title: "New order to pack",
-        body: `Cart ${cart.code} is paid. Pack it and mark it packed for PickMe pickup.`,
-        href: "/seller/orders",
-      });
-  } else {
-    await notifyRole("PACKER", {
-      title: "New order to pack",
-      body: `Cart ${cart.code} is paid. One of you checks and gathers it, someone else rechecks and packs it.`,
-      href: `/packing/${cart.code}`,
-    });
-  }
-  await flushBrandNotices().catch(() => {});
+  await notifyCartConfirmed(cart);
 }
 
 /** SLIP_REVIEW → AWAITING_SLIP with a fresh payment window, so the owner can upload again. */

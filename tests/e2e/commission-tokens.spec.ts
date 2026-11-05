@@ -8,7 +8,7 @@ const pool = () =>
   new Pool({
     connectionString: assertTestDatabase(process.env.TEST_DATABASE_URL, process.env.DATABASE_URL),
   });
-test.beforeAll(async () => {
+async function fixture() {
   seedBrowserFixtures();
   const db = pool();
   try {
@@ -74,7 +74,9 @@ test.beforeAll(async () => {
   } finally {
     await db.end();
   }
-});
+}
+test.beforeAll(fixture);
+
 async function signIn(page: Page, email: string) {
   await page.context().clearCookies();
   await page.goto("/sign-in");
@@ -150,5 +152,58 @@ test("commission preview and owned token line work at 360px through payment", as
     ).toBe("48500.00");
   } finally {
     await db.end();
+  }
+});
+
+test("fully token-covered owner acceptance confirms without a bank-slip screen", async ({
+  page,
+}) => {
+  await fixture();
+  await page.setViewportSize({ width: 360, height: 800 });
+  await signIn(page, "buyer3@example.com");
+  await page.goto(`/c/${code}`);
+  await page.getByLabel("Tokens (LKR)", { exact: true }).fill("1500");
+  await page.getByRole("button", { name: "Apply tokens" }).click();
+  await expect(page.getByText("Tokens applied:", { exact: false })).toContainText(/1,500/);
+  const db = pool();
+  try {
+    await db.query(
+      `INSERT INTO "TokenEntry" (id,"userId",amount,kind,"eventKey",note,"createdAt") SELECT $1,id,$2,$3,$4,$5,timezone('UTC',now()) FROM "User" WHERE email=$6`,
+      [
+        "zero-due-owner-credit",
+        "48500",
+        "CANCELLATION",
+        "credit:zero-due-owner",
+        "Synthetic zero-due credit",
+        "buyer@example.com",
+      ],
+    );
+  } finally {
+    await db.end();
+  }
+  await signIn(page, "buyer@example.com");
+  await page.goto(`/c/${code}`);
+  await page.getByLabel("Tokens (LKR)", { exact: true }).fill("48500");
+  await page.getByRole("button", { name: "Apply tokens" }).click();
+  await expect(page.getByText("Tokens applied:", { exact: false })).toContainText(/48,500/);
+  await page.getByRole("button", { name: "Accept & pay", exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(`/c/${code}$`));
+  await expect(page.getByText("Confirmed", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Pay LKR/ })).toHaveCount(0);
+  await page.goto(`/c/${code}/pay`);
+  await expect(page).toHaveURL(new RegExp(`/c/${code}$`));
+  await fits(page);
+  await page.screenshot({ path: "test-results/zero-due-confirmed-mobile.png", fullPage: true });
+  const verify = pool();
+  try {
+    const result = (
+      await verify.query(
+        'SELECT c.status,(SELECT count(*)::int FROM "PaymentSlip" s WHERE s."cartId"=c.id) slips,(SELECT count(*)::int FROM "TokenEntry" e JOIN "CartLine" l ON l.id=e."cartLineId" WHERE l."cartId"=c.id AND e.kind=$2) spends FROM "GroupCart" c WHERE c.code=$1',
+        [code, "SPEND"],
+      )
+    ).rows[0];
+    expect(result).toEqual({ status: "CONFIRMED", slips: 0, spends: 2 });
+  } finally {
+    await verify.end();
   }
 });

@@ -81,3 +81,14 @@ zero-delta SPEND markers; the original HOLD remains the only debit. Merges prese
 Only a customer's own line can apply tokens; account balance/history are principal-scoped.
 Verify `tests/integration/tokens.int.test.ts`, `tests/integration/carts.int.test.ts`, the fixed-seed
 `src/lib/cart-money.property.test.ts` and `tests/e2e/commission-tokens.spec.ts` (360px, keyboard, axe).
+
+## Zero-due confirmation (DEC-013, approved 2026-11-05)
+
+`acceptAndPay` computes `amountDue` under the cart lock. Exactly zero confirms immediately;
+positive amounts retain AWAITING_SLIP. `src/server/carts/confirmation.ts` owns the shared
+`confirmPaidCart(tx, cartId, actorId, now)` and after-commit `notifyCartConfirmed(cart)` used
+by acceptance and slip approval. Confirmation spends once, sells reservations, activates gifts
+and appends brand events. Do not loosen token-spend guards or send the owner-is-paying notice
+for zero-due carts. Acceptance records delivery details and timestamps, with no PaymentSlip or
+slip deadline. Verify the zero/one-cent/race cases in `carts.int.test.ts`, gift/factory effects in
+`gifts.int.test.ts`, and the no-slip/pay-route redirect in `commission-tokens.spec.ts`.

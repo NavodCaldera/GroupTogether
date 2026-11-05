@@ -145,18 +145,20 @@ export async function acceptAction(_p: ActionState, fd: FormData): Promise<Actio
   const user = await requireUser();
   const cartId = str(fd, "cartId");
   // The drop-off is the owner's profile address and phone; they change it on /account.
+  let confirmed = false;
   const res = await attempt(async () => {
     if (!user.address || !user.city || !user.phone)
       throw new CartError("Add your address and mobile number in your profile first");
-    await acceptAndPay(user.id, cartId, {
+    const cart = await acceptAndPay(user.id, cartId, {
       deliveryAddress: user.address,
       deliveryCity: user.city,
       deliveryPhone: user.phone,
     });
+    confirmed = cart.status === "CONFIRMED";
   });
   if (res.error) return res;
-  await flash("Cart accepted. Now upload your bank slip.");
-  redirect(`/c/${await cartCode(cartId)}/pay`);
+  await flash(confirmed ? "Group order confirmed" : "Cart accepted. Now upload your bank slip.");
+  redirect(`/c/${await cartCode(cartId)}${confirmed ? "" : "/pay"}`);
 }
 
 export async function cancelAction(fd: FormData) {

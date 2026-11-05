@@ -43,7 +43,8 @@ Added on 2026-10-26: `StockOffer` stores gift photo key/type, contents, pack siz
 | Create a cart                   | → `OPEN`                               | None                                                          |
 | Add or increase an item         | `OPEN` / `READY`, then recompute total | Move the additional quantity from available to reserved       |
 | Cross the cart's saved minimum  | `OPEN` ↔ `READY`                       | No extra movement; notify on becoming ready                   |
-| Owner accepts                   | `READY` → `AWAITING_SLIP`              | Keep reservations; freeze edits and snapshot delivery details |
+| Owner accepts with positive due                   | `READY` → `AWAITING_SLIP`              | Keep reservations; freeze edits and snapshot delivery details |
+| Owner accepts with zero due | `READY` -> `CONFIRMED` | Spend tokens, sell reservations, activate gifts; no slip/deadline |
 | Owner uploads evidence          | `AWAITING_SLIP` → `SLIP_REVIEW`        | Keep reservations; payment timer no longer closes the cart    |
 | Admin rejects evidence          | `SLIP_REVIEW` → `AWAITING_SLIP`        | Keep reservations; assign a fresh payment deadline            |
 | Admin approves evidence         | `SLIP_REVIEW` → `CONFIRMED`            | Move reserved quantities to sold                              |
@@ -233,3 +234,15 @@ slip recording and dashboard payment prompts. Member settlement prompts subtract
 applied tokens. The cart renders controls only on the viewer's own lines; the action obtains the
 user from the session and the service checks ownership again under locks. Customer account
 history uses a principal-scoped cursor and 50-entry pages; no public credit/mint action exists.
+
+### Fully token-covered acceptance (DEC-013, 2026-11-05)
+
+`acceptAndPay` calculates the transfer amount inside `withCartTransaction`, after `lockCart`.
+Exactly zero skips payment evidence and calls `confirmPaidCart(tx, cartId, actorId, now)` in
+`src/server/carts/confirmation.ts`. The same function handles approved slips. It atomically
+confirms, spends token holds without a second debit, sells reserved stock, activates gifts and
+records their brand events. `notifyCartConfirmed(cart)` sends the existing member/factory (or
+warehouse packing) notices and flushes brand notices after commit. Delivery snapshots and
+accepted/confirmed timestamps are stored together; zero-due carts have no PaymentSlip or
+slipDueAt. Positive amounts keep the configured upload window. The acceptance action opens the
+confirmed cart directly; the pay page's existing non-payable redirect also returns there.

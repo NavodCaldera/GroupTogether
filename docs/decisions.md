@@ -105,9 +105,16 @@ Factories get one login per person with fixed roles (packing, planner, sales, ow
 
 ### DEC-013 - Factory partnership: checks, agreement, quality, tokens and returns
 
-**Status:** Approved by the owner on **2026-11-05**; Part 1 joining/checks/agreement implemented, Parts 2-4 remain planned (see implementation status). **Spec:** [factory partnership](../specs/001-factory-partnership/spec.md). **Brief:** [brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md).
+**Status:** Approved by the owner on **2026-11-05**; Parts 1-2 implemented, Parts 3-4 remain planned (see implementation status). **Spec:** [factory partnership](../specs/001-factory-partnership/spec.md). **Brief:** [brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md).
 
 Factories join by public application or admin invite and must pass checks (BR number and certificate, owner NIC and photo, address and photos, bank account matching business or owner; visit optional). Rejected businesses cannot reapply. Only the owner or manager is onboarded; they add staff after accepting the in-app agreement (versioned, 12-month term, reminder 30 days before, listings hidden on expiry). Existing factories get 30 days to comply. Private documents: Factories admins and core admin only. Buyer price is factory price plus commission (LKR 100 default, core admin only, new listings only) — this replaces the "sale minus LKR 100" model in `DEC-012`. Ratings are per product (1–2 stars need a report, photo for visible defects); old factory ratings count equally. Flags never act automatically. Hiding a product cancels only that item in undelivered paid orders; removing a factory (without notice) cancels all its undelivered paid orders; buyers are told the reason. Cancellations and accepted returns give **tokens** (1 token = LKR 1, full price paid, never expire, spendable only on the holder's own items in any cart, returned if a cart is not paid); no cash refunds (`PAY-003` kept). Returns: apply within 2 days of delivery; factory answers within 2 days or it goes to an admin; buyer may escalate; admin final. Factory fault: factory pays PickMe pickup; buyer fault: buyer pays, item unused with tags. The agreement may allow withholding earned money after a quality removal, subject to lawyer review.
+
+**Zero-due owner rule approved on 2026-11-05:** when tokens cover the whole cart and
+`amountDue` is exactly LKR 0.00, the owner's acceptance confirms it immediately. There is no
+bank slip, payment deadline or admin review. Acceptance spends token holds, moves reserved
+stock to sold, activates gifts with their brand events, and sends the usual confirmation and
+fulfilment notices after commit. Delivery details and acceptance/confirmation timestamps are
+captured together. Any positive amount, including LKR 0.01, retains the bank-slip flow.
 
 ## Legacy rule references
 

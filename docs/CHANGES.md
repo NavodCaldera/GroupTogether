@@ -6,6 +6,14 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-05 - Token-covered carts confirm on owner acceptance
+
+- Approved DEC-013: exactly zero transfer due skips the bank-slip step. Acceptance atomically
+  confirms and spends tokens, sells reserved stock, activates gifts and records brand events;
+  the shared confirmation notifier runs after commit. Positive remainders keep the slip flow.
+- Extracted `confirmPaidCart` and `notifyCartConfirmed` for both routes. Added zero/one-cent,
+  concurrent-accept, gift/factory-notice and 360px no-slip regressions.
+
 ## 2026-11-05 - Factory partnership Part 2: commission and tokens
 
 - Task 2.3 wires holds into cart lifecycle releases, excess-only quantity reductions, merge preservation and approval SPEND markers. Owner transfers/slips and dashboard prompts subtract tokens while gross minimums stay unchanged. Own-line controls and customer-only balance/history include a 360px browser journey; lifecycle, retry, concurrency and integer-cent property tests cover the amounts.
