@@ -115,3 +115,13 @@ hidden goods. Preserve stored cart.total; display projections and packing/factor
 CANCELLED lines. Call `flushCancellationNotices` after commit; durable markers/stable IDs make
 retries safe. A fully cancelled dispatched cart retains Delivery and alerts WAREHOUSE admins,
 without calling the provider. See `tests/integration/cancellations.int.test.ts`.
+
+Part 3.3 guards: `src/server/quality.ts` requires FACTORY/CORE principals in mutations and queries;
+flags are read-time only. Metadata commits before per-cart cleanup. OPEN/READY removal shares
+`releaseLines` with setLine(0), including Done reset and stock/token/gift release. Accepted carts
+stay frozen until shared confirmation cancels hidden lines; delivered lines are untouched.
+Paid cancellation keeps stored totals and decrements sold without restocking hidden goods.
+Fully cancelled dispatched carts retain Delivery and alert WAREHOUSE once, never the provider.
+Removal reuses session-ending account locks and sends no factory-user notice. QualityNotice and
+cancel-notified markers persist retries; flush only after commit. Verify `quality.int.test.ts`,
+`cancellations.int.test.ts`, `ratings.int.test.ts` and the 360px `quality.spec.ts` browser journey.

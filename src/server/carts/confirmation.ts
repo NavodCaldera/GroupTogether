@@ -7,6 +7,8 @@ import { db, type Tx } from "../db";
 import { spendCartTokens } from "../tokens";
 import { notify, notifyRole } from "../notify";
 import { appendBrandEvent, flushBrandNotices } from "../brand-communications";
+import { cancelPaidLines, flushCancellationNotices } from "../cancellations";
+import { lockLedgerUsers } from "./locks";
 import { CartError } from "./errors";
 
 /** Caller holds participant advisories and the cart row. Only reviewed payment or fully
@@ -36,8 +38,21 @@ export async function confirmPaidCart(
     where: { id: cart.id },
     data: { status: "CONFIRMED", confirmedAt: now },
   });
+  const productIds = await tx.cartLine.findMany({
+    where: { cartId },
+    select: { variant: { select: { productId: true } } },
+  });
+  for (const id of [...new Set(productIds.map((l) => l.variant.productId))].sort())
+    await tx.$queryRaw`SELECT 1 FROM "Product" WHERE id=${id} FOR SHARE`;
+  const lines = await tx.cartLine.findMany({
+    where: { cartId: cart.id },
+    orderBy: [{ variantId: "asc" }, { id: "asc" }],
+  });
+  await lockLedgerUsers(
+    tx,
+    lines.map((l) => l.userId),
+  );
   await spendCartTokens(tx, cart.id);
-  const lines = await tx.cartLine.findMany({ where: { cartId: cart.id } });
   await tx.giftOrder.updateMany({
     where: { cartId: cart.id, status: "RESERVED" },
     data: { status: "READY", paidAt: now },
@@ -62,11 +77,50 @@ export async function confirmPaidCart(
       data: { reserved: { decrement: l.qty }, sold: { increment: l.qty } },
     });
   }
-  return confirmed;
+  const hidden = await tx.cartLine.findMany({
+    where: {
+      cartId,
+      status: "ACTIVE",
+      variant: {
+        product: {
+          OR: [{ hiddenAt: { not: null } }, { seller: { factoryProfile: { status: "REMOVED" } } }],
+        },
+      },
+    },
+    select: {
+      id: true,
+      variant: {
+        select: {
+          product: {
+            select: {
+              hiddenReason: true,
+              seller: {
+                select: { factoryProfile: { select: { status: true, removalReason: true } } },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+  for (const line of hidden) {
+    const p = line.variant.product,
+      profile = p.seller?.factoryProfile;
+    await cancelPaidLines(
+      tx,
+      [line.id],
+      profile?.status === "REMOVED"
+        ? profile.removalReason || "Factory removed"
+        : p.hiddenReason || "Product hidden",
+    );
+  }
+  return hidden.length ? tx.groupCart.findUniqueOrThrow({ where: { id: cartId } }) : confirmed;
 }
 
 /** Called only after a successful confirmation transaction, for either payment route. */
 export async function notifyCartConfirmed(cart: GroupCart): Promise<void> {
+  await flushCancellationNotices();
+  if (cart.status === "CANCELLED") return;
   const members = await db.cartMember.findMany({
     where: { cartId: cart.id },
     select: { userId: true },
@@ -82,7 +136,10 @@ export async function notifyCartConfirmed(cart: GroupCart): Promise<void> {
   if (factoryFulfilment()) {
     const factory = await db.user.findFirst({
       where: {
-        products: { some: { variants: { some: { lines: { some: { cartId: cart.id } } } } } },
+        locked: false,
+        products: {
+          some: { variants: { some: { lines: { some: { cartId: cart.id, status: "ACTIVE" } } } } },
+        },
       },
       select: { id: true },
     });

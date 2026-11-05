@@ -40,6 +40,7 @@ enum Role {
 }
 
 model User {
+  qualityNotices QualityNotice[]
   productRatings ProductRating[]
   id             String          @id @default(cuid())
   role           Role            @default(CUSTOMER)
@@ -897,7 +898,7 @@ model FactoryProfile {
   status           FactoryStatus @default(ACTIVE)
   complianceDueAt  DateTime?
   removedAt        DateTime?
-  removedBy        String?
+  removedById      String?
   removalReason    String?
   earningsHeld     Boolean       @default(false)
   earningsHeldNote String?
@@ -1000,4 +1001,16 @@ model ReportPhoto {
   contentType String
 
   @@index([reportId])
+}
+
+model QualityNotice {
+  id          String    @id
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  title       String
+  body        String
+  href        String
+  deliveredAt DateTime?
+
+  @@index([deliveredAt])
 }

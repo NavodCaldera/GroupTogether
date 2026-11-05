@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { StockTable } from "@/components/stock-table";
-import { Button, Card, Field, Input, PageHeader } from "@/components/ui";
+import { Button, Card, Field, Input, PageHeader, LinkButton } from "@/components/ui";
 import { adjustStockAction, setProductHiddenAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -53,17 +53,20 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
               )
             }
             actions={
-              <form action={setProductHiddenAction}>
-                <input type="hidden" name="productId" value={product.id} />
-                <input
-                  type="hidden"
-                  name="hide"
-                  value={product.status === "ARCHIVED" ? "0" : "1"}
-                />
-                <Button variant="secondary">
-                  {product.status === "ARCHIVED" ? "Show in shop" : "Hide from shop"}
-                </Button>
-              </form>
+              product.status === "ARCHIVED" && !product.hiddenAt ? (
+                <form action={setProductHiddenAction}>
+                  <input type="hidden" name="productId" value={product.id} />
+                  <input type="hidden" name="hide" value="0" />
+                  <Button variant="secondary">Show in shop</Button>
+                </form>
+              ) : (
+                <LinkButton
+                  href={`/admin/factory/quality?product=${product.id}`}
+                  variant="secondary"
+                >
+                  Quality
+                </LinkButton>
+              )
             }
           />
           <Card>

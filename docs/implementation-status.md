@@ -202,10 +202,22 @@ included.
 
 ## Factory partnership Part 3: quality
 
-**Partial, Tasks 3.1-3.2:** line cancellation state, full-price idempotent token credits and cancellation
+**Implemented, Tasks 3.1-3.3:** line cancellation state, full-price idempotent token credits and cancellation
 notice retry markers are implemented in `src/server/cancellations.ts`. Callers hold the cart/user
 locks and flush notices after commit. Cancellation decrements sold without restocking hidden
 items, leaves delivered lines untouched and cancels a cart only when no ACTIVE lines remain.
 Stored payment totals stay unchanged; read projections and operational lists exclude cancelled
 lines. Fully cancelled dispatched carts retain Delivery and alert warehouse admins once. Product
-ratings/reports are implemented with per-order/product uniqueness, delivered ACTIVE/RETURNED line ownership, low-star/report/photo validation, and a private `/api/report-photos/[id]` route. Product scores and factory scores combine new ratings with legacy history one-for-one. Factory-wide writes are retired. Hide/remove orchestration remains pending in Task 3.3; Part 4 is excluded.
+ratings/reports are implemented with per-order/product uniqueness, delivered ACTIVE/RETURNED line ownership, low-star/report/photo validation, and a private `/api/report-photos/[id]` route. Product scores and factory scores combine new ratings with legacy history one-for-one. Factory-wide writes are retired. Manual-only flags and FACTORY/CORE hide/removal orchestration now exist in `src/server/quality.ts` and `/admin/factory/quality`. Metadata commits before separate locked cart cleanups. Unpaid removal reuses the normal release path and resets Done, with durable notices surviving deleted lines. Accepted carts are unchanged until shared confirmation cancels hidden lines atomically; delivered carts are untouched. Removal reuses session-ending account locks, fences listing/staff races, records earnings holds and sends no factory notices. Part 4 remains excluded.
+
+Part 3 verification (2026-11-05): tests were added before implementation, including cancellation,
+receiver/report/photo access, quality flags, frozen confirmation and cleanup races. `npm run check`
+passed 124 unit/property tests and 8 tooling tests plus monetary, documentation, type and lint
+checks. `npm run test:int` passed 187 tests in 29 files. Production and E2E builds passed;
+`npx prisma migrate status` reported all 37 migrations applied. The full `CI=1 npm run e2e`
+suite passed 23 tests, including the 360px quality journey, private-photo refusals, Done reset,
+factory staff sign-out and axe checks. Phone screenshots were visually reviewed. The restricted
+reader was denied access to ProductRating, QualityReport, ReportPhoto and QualityNotice.
+Conservation tests include finalized paid token usage alongside balances and unpaid holds,
+because the existing zero-delta SPEND entry retains the original HOLD debit. Zero-price
+cancellations mint no tokens. Part 4 and production deployment remain outside this work.

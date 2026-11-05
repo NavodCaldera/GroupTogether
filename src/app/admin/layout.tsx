@@ -23,6 +23,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     FACTORY: [
       ["/admin/factory", "Factories", 0],
       ["/admin/factory/applications", "Applications", 0],
+      ["/admin/factory/quality", "Quality", 0],
       ["/admin", "Stock", 0],
       ["/admin/lots", "Lots", 0],
       ["/admin/products", "Products", badges.lowStock, "muted"],
@@ -39,13 +40,17 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     CORE: [
       ["/admin/users", "Admins", 0],
       ["/admin/settings", "Settings", 0],
+      ["/admin/factory/quality", "Quality", 0],
     ],
   };
   const visible = tabs[admin.adminArea];
   return (
     <div className="flex flex-col gap-6">
       {/* One swipeable row on phones instead of wrapping onto several lines. */}
-      <nav className="-mx-4 flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-4 pb-2 text-sm whitespace-nowrap sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-3">
+      <nav
+        aria-label="Admin workspace"
+        className="-mx-4 flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none] [&::-webkit-scrollbar]:hidden px-4 pb-2 text-sm whitespace-nowrap sm:mx-0 sm:flex-wrap sm:px-0 sm:pb-3"
+      >
         {visible.map(([href, label, n, tone = "alert"]) => (
           <NavLink
             key={href}

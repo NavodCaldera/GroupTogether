@@ -17,7 +17,7 @@ export async function cancelPaidLines(tx: Tx, lineIds: string[], reason: string)
       cart: { status: { in: ["CONFIRMED", "DISPATCHED"] } },
     },
     include: { cart: { select: { status: true } } },
-    orderBy: [{ userId: "asc" }, { id: "asc" }],
+    orderBy: [{ variantId: "asc" }, { id: "asc" }],
   });
   if (new Set(lines.map((l) => l.cartId)).size > 1)
     throw new CartError("Cancel one cart per transaction");
@@ -26,14 +26,10 @@ export async function cancelPaidLines(tx: Tx, lineIds: string[], reason: string)
     lines.map((l) => l.userId),
   );
   for (const line of lines) {
-    await credit(
-      tx,
-      line.userId,
-      toD(line.unitPrice).times(line.qty),
-      "CANCELLATION",
-      { cartLineId: line.id },
-      reason,
-    );
+    const value = toD(line.unitPrice).times(line.qty);
+    // Zero-price lines still cancel, but cannot mint a positive ledger credit.
+    if (value.gt(0))
+      await credit(tx, line.userId, value, "CANCELLATION", { cartLineId: line.id }, reason);
     // Hidden goods leave sold stock; never put them back into saleable availability.
     await tx.variant.update({
       where: { id: line.variantId },

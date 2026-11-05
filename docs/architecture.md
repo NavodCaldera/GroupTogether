@@ -288,3 +288,29 @@ The report-photo route rechecks the actor from DB and returns 404 except for the
 FACTORY/CORE admins. Product/factory scores are computed on reads; each legacy FactoryRating
 counts once alongside product ratings. Legacy write actions are retired, not migrated into
 multiple product ratings. The restricted reader has no access to the three new tables.
+
+### Quality orchestration and CART-006 (Part 3.3)
+
+`hideProduct` persists hidden metadata before any cart cleanup. `removeFactory` records REMOVED
+and hidden metadata in a short owner-advisory transaction with sorted product-row locks, then
+uses existing `setUserLocked` to lock the owner/staff and end their sessions. Listing/staff
+creation shares the owner fence, and removed factories cannot unlock staff. Earnings holds can
+be added after removal and are not cleared by retries. No factory-user notice is sent.
+
+Cleanup processes one cart per `withCartTransaction` and `lockCart`, never all carts in one
+transaction. OPEN/READY removal and ordinary setLine(0) share `releaseLines`; that path resets
+Done and releases stock, token holds and gifts before recomputing readiness. Deleted lines queue
+`QualityNotice` outbox records in the same transaction; stable IDs deduplicate post-commit delivery.
+Expired prepayment carts follow normal sweep release. AWAITING_SLIP/SLIP_REVIEW remain frozen.
+
+`confirmPaidCart` fences products with sorted share locks, locks all affected ledger users in
+order, finalizes payment, then calls `cancelPaidLines` on hidden/removed-factory lines in that
+same transaction. Both bank-slip and token-only paths use it. A fully cancelled order emits its
+cancellation notices without a factory fulfilment notice. Stored payment totals remain intact.
+The cancellation helper accepts only one cart per transaction and never calls delivery providers.
+
+`qualityOverview` rechecks FACTORY/CORE authorization and computes flags on reads. Private report
+photos remain restricted to raters and those admin areas. The reader is denied the new private
+outbox/table data. Race conservation tests include finalized paid HOLD debits: balance + unpaid
+active holds + finalized paid token usage = business credits. SPEND is zero-delta, so omitting
+paid usage would incorrectly treat valid spending as lost tokens.

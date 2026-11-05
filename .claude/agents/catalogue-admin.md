@@ -15,7 +15,7 @@ guidance, not business policy. Verify code pointers before editing.
 
 ## Current model (2026-11-03)
 
-Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/seller/(workspace)/products/`) and see `src/server/factory-dashboard.ts`; admins hide listings with `ARCHIVED`, which `IN_SHOP` excludes. Ratings live in `src/server/ratings.ts` (`RATE-001`). Settings belong to the CORE admin (`ADMIN-002`).
+Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/seller/(workspace)/products/`) and see `src/server/factory-dashboard.ts`; quality hiding uses `hiddenAt` and a reason through `quality.ts`; `ARCHIVED` remains a legacy catalogue state. `IN_SHOP` excludes both. Ratings live in `src/server/ratings.ts` (`RATE-001`). Settings belong to the CORE admin (`ADMIN-002`).
 
 ## Ownership and code
 
@@ -98,3 +98,13 @@ once per user/cart/product, and preserves legacy factory ratings for score reads
 report photos use `/api/report-photos/[id]`, restricted to the rater and FACTORY/CORE admins.
 Verify `quality-rules.test.ts` and `ratings.int.test.ts`; public score queries never expose notes,
 photos or buyer identities. Delivered cart forms replace the former factory-wide write action.
+
+Part 3.3 guards: `src/server/quality.ts` requires FACTORY/CORE principals in mutations and queries;
+flags are read-time only. Metadata commits before per-cart cleanup. OPEN/READY removal shares
+`releaseLines` with setLine(0), including Done reset and stock/token/gift release. Accepted carts
+stay frozen until shared confirmation cancels hidden lines; delivered lines are untouched.
+Paid cancellation keeps stored totals and decrements sold without restocking hidden goods.
+Fully cancelled dispatched carts retain Delivery and alert WAREHOUSE once, never the provider.
+Removal reuses session-ending account locks and sends no factory-user notice. QualityNotice and
+cancel-notified markers persist retries; flush only after commit. Verify `quality.int.test.ts`,
+`cancellations.int.test.ts`, `ratings.int.test.ts` and the 360px `quality.spec.ts` browser journey.

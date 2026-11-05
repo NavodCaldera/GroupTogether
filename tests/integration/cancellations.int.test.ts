@@ -110,3 +110,32 @@ describe("paid line cancellation", () => {
     ).toBe(1);
   });
 });
+
+it("cancels zero-value paid items without minting tokens", async () => {
+  await db.settings.update({ where: { id: 1 }, data: { minOrderValue: "3000" } });
+  const owner = await makeUser(),
+    member = await makeUser(),
+    admin = await makeUser("ADMIN"),
+    paid = await makeVariant("3000", 3),
+    free = await makeVariant("0", 3),
+    cart = await createCart(owner.id, {});
+  await setLine(owner.id, cart.id, paid.id, 1);
+  await setLine(member.id, cart.id, free.id, 1);
+  await markDone(member.id, cart.id);
+  await acceptAndPay(owner.id, cart.id, {
+    deliveryAddress: "12 Flower Rd",
+    deliveryCity: "Colombo",
+    deliveryPhone: "0771234567",
+  });
+  await uploadSlip(owner.id, cart.id, slipFile());
+  const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: cart.id } });
+  await approveSlip(admin.id, slip.id);
+  const line = await db.cartLine.findFirstOrThrow({
+    where: { cartId: cart.id, userId: member.id },
+  });
+  await cancel(cart.id, [line.id]);
+  expect((await db.cartLine.findUniqueOrThrow({ where: { id: line.id } })).status).toBe(
+    "CANCELLED",
+  );
+  expect((await tokenBalance(member.id)).isZero()).toBe(true);
+});

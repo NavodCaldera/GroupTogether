@@ -202,17 +202,25 @@ export async function setLine(
     const qty = add ? (line?.qty ?? 0) + amount : amount;
     if (qty > 99) throw new CartError("You can have at most 99 of one item");
     const delta = qty - (line?.qty ?? 0);
+    if (qty === 0 && line) {
+      await releaseLines(tx, cartId, { lineIds: [line.id] });
+      const after = await recompute(tx, cart, now);
+      return { cart, ...after, members: after.becameReady ? await memberIds(tx, cartId) : [] };
+    }
 
     if (delta > 0) {
       const premium = await tx.variant.count({
         where: { id: variantId, product: { seller: { isBrand: true } } },
       });
       if (premium) throw new CartError("Premium brand products are complimentary gifts only");
+      // Fence metadata-first hiding: a hide waits for earlier adds to commit, then sees their carts.
+      await tx.$queryRaw`SELECT 1 FROM "Product" p JOIN "Variant" v ON v."productId"=p.id WHERE v.id=${variantId} FOR SHARE OF p`;
       const product = await tx.variant.findUnique({
         where: { id: variantId },
-        select: { product: { select: { sellerId: true, status: true } } },
+        select: { product: { select: { sellerId: true, status: true, hiddenAt: true } } },
       });
-      if (product?.product.status === "ARCHIVED") throw new CartError("This product is hidden");
+      if (product?.product.hiddenAt || product?.product.status === "ARCHIVED")
+        throw new CartError("This product is hidden");
       if (product?.product.sellerId && !(await canSellIn(tx, product.product.sellerId, now)))
         throw new CartError("This factory's agreement does not allow new sales");
       if (!line) await assertSameFactory(tx, cartId, [variantId]);
@@ -290,22 +298,28 @@ async function assertSameFactory(tx: Tx, cartId: string, variantIds: string[]) {
 async function releaseLines(
   tx: Tx,
   cartId: string,
-  { userId, keep = false }: { userId?: string; keep?: boolean } = {},
+  { userId, keep = false, lineIds }: { userId?: string; keep?: boolean; lineIds?: string[] } = {},
 ) {
-  await releaseGiftReservations(tx, cartId, userId);
-  const lines = await tx.cartLine.findMany({ where: { cartId, userId } });
+  const where = { cartId, userId, ...(lineIds ? { id: { in: lineIds } } : {}) };
+  const lines = await tx.cartLine.findMany({
+    where,
+    orderBy: [{ variantId: "asc" }, { id: "asc" }],
+  });
+  for (const id of [...new Set(lines.map((l) => l.userId))].sort())
+    await releaseGiftReservations(tx, cartId, id);
   await lockLedgerUsers(
     tx,
     lines.map((l) => l.userId),
   );
   for (const l of lines) {
+    await resetMemberDone(tx, cartId, l.userId);
     await releaseLineTokens(tx, l.id);
     await tx.variant.update({
       where: { id: l.variantId },
       data: { available: { increment: l.qty }, reserved: { decrement: l.qty } },
     });
   }
-  if (!keep) await tx.cartLine.deleteMany({ where: { cartId, userId } });
+  if (!keep) await tx.cartLine.deleteMany({ where });
 }
 
 export async function leaveCart(userId: string, cartId: string, now = new Date()) {
@@ -741,4 +755,22 @@ export async function removeMember(
     body: "",
     href: `/c/${cart.code}`,
   });
+}
+
+/** Trusted admin cleanup; caller owns participant advisories/cart lock and queues notices in this tx. */
+export async function removeHiddenProductLines(
+  tx: Tx,
+  cartId: string,
+  productIds: string[],
+  now = new Date(),
+) {
+  const cart = await lockCart(tx, cartId);
+  assertEditable(cart, now);
+  const lines = await tx.cartLine.findMany({
+    where: { cartId, status: "ACTIVE", variant: { productId: { in: productIds } } },
+    select: { id: true, userId: true },
+  });
+  await releaseLines(tx, cartId, { lineIds: lines.map((l) => l.id) });
+  await recompute(tx, cart, now);
+  return lines;
 }

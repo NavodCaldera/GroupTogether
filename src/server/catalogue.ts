@@ -1,3 +1,4 @@
+import { lockUserAdvisory } from "./carts/locks";
 import { cancelledValue } from "./carts/visible-totals";
 import "server-only";
 import { z } from "zod";
@@ -8,7 +9,7 @@ import { formatLKR } from "@/lib/format";
 import { linkOnSite } from "@/lib/brand-rules";
 import { lotPrice } from "@/lib/stock-rules";
 import { db } from "./db";
-import { canSell, sellingFactoryWhere } from "./agreements";
+import { canSell, canSellIn, sellingFactoryWhere } from "./agreements";
 import { buyerPrice } from "@/lib/price-rules";
 import { getSettings } from "./settings";
 import { logPrices } from "./prices";
@@ -44,6 +45,7 @@ const listSelect = {
  * an admin hasn't hidden it (ARCHIVED, 2026-11-03). New, emptied and sold-out products are hidden.
  */
 export const IN_SHOP = {
+  hiddenAt: null,
   variants: { some: { available: { gt: 0 } } },
   // Admins can hide any listing, including one a factory published itself (2026-11-03).
   status: { not: "ARCHIVED" },
@@ -130,7 +132,12 @@ export async function shopFacets(now = new Date()) {
 /** One product with its sizes. Opens even when sold out, so links from carts keep working. */
 export async function getProduct(id: string, now = new Date()) {
   return db.product.findFirst({
-    where: { id, AND: [...IN_SHOP.AND, await shopEligibility(now)] },
+    where: {
+      id,
+      hiddenAt: null,
+      status: { not: "ARCHIVED" },
+      AND: [...IN_SHOP.AND, await shopEligibility(now)],
+    },
     include: {
       variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
       seller: { select: { name: true, company: true } },
@@ -230,6 +237,12 @@ export async function saveProduct(
   const factoryListing = !!ownerId && !lotData.lotId;
   if (factoryListing && !id) await getSettings();
   const saved = await db.$transaction(async (tx) => {
+    // A new listing cannot slip past removal's metadata-first owner fence.
+    if (ownerId) {
+      await lockUserAdvisory(tx, ownerId);
+      if (!(await canSellIn(tx, ownerId, new Date())))
+        throw new CatalogueError("This factory can no longer list products");
+    }
     if (id) await tx.$queryRaw`SELECT 1 FROM "Product" WHERE id = ${id} FOR UPDATE`;
     const fresh = id
       ? await tx.product.findUniqueOrThrow({
@@ -354,9 +367,11 @@ export async function salesSnapshot() {
 export async function setProductHidden(productId: string, hidden: boolean) {
   const product = await db.product.findUnique({
     where: { id: productId },
-    select: { sellerId: true },
+    select: { sellerId: true, hiddenAt: true },
   });
   if (!product) throw new CatalogueError("Product not found");
+  if (!hidden && product.hiddenAt)
+    throw new CatalogueError("Quality-hidden products cannot be republished");
   if (!hidden && product.sellerId && !(await canSell(product.sellerId)))
     throw new CatalogueError("The factory must accept the current agreement before publishing");
   return db.product.update({

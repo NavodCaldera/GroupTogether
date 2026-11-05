@@ -8,6 +8,13 @@ Newest first.
 
 ## 2026-11-05 - Factory partnership Part 3: quality and cancellations
 
+- Task 3.3 computes manual-only product/factory flags, exposes FACTORY/CORE quality review and
+  hide/removal controls, and removes unpaid lines through the normal release path including
+  CART-006 resets. Accepted carts remain frozen; shared confirmation cancels hidden lines.
+  Removal ends owner/staff sessions, fences in-flight listing/staff writes and records optional
+  earnings holds without notifying factories. Metadata-first per-cart cleanup and a durable
+  unpaid-notice outbox support safe retry. Zero-value lines cancel without minting tokens.
+
 - Task 3.2 adds per-product delivered-receiver ratings, required low-star reports and private
   report photos. Product scores and combined legacy/new factory scores are displayed. The old
   factory-rating write action is retired; history is preserved. Photo access is limited to the

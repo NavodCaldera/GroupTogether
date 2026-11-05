@@ -253,7 +253,10 @@ async function cartOutcomes(now: Date) {
     }),
     db.cartLine.aggregate({
       _sum: { qty: true },
-      where: { cart: { status: { in: ["EXPIRED", "CANCELLED"] }, updatedAt: { gte: from } } },
+      where: {
+        status: "ACTIVE",
+        cart: { status: { in: ["EXPIRED", "CANCELLED"] }, updatedAt: { gte: from } },
+      },
     }),
     db.groupCart.findMany({
       where: { status: "EXPIRED", updatedAt: { gte: from } },

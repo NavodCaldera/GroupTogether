@@ -5,7 +5,8 @@ import { FACTORY_ROLES } from "@/lib/factory-roles";
 import { hashPassword } from "./auth/password";
 import { phoneSchema } from "./auth/service";
 import { db } from "./db";
-import { canSell } from "./agreements";
+import { canSellIn } from "./agreements";
+import { lockUserAdvisory } from "./carts/locks";
 
 /**
  * Factory staff (product owner, 2026-11-04): an owner adds each person with their own login and a
@@ -60,21 +61,25 @@ export async function addStaff(factoryId: string, raw: unknown) {
     select: { company: true, city: true },
   });
   if (!factory) throw new TeamError("Factory not found");
-  if (!(await canSell(factoryId)))
-    throw new TeamError("Accept the current factory agreement before adding staff");
-  return db.user.create({
-    data: {
-      role: "SELLER",
-      factoryId,
-      factoryRole: input.role,
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      company: factory.company,
-      city: factory.city,
-      passwordHash: await hashPassword(input.password),
-    },
-    select: { id: true },
+  const passwordHash = await hashPassword(input.password);
+  return db.$transaction(async (tx) => {
+    await lockUserAdvisory(tx, factoryId);
+    if (!(await canSellIn(tx, factoryId, new Date())))
+      throw new TeamError("Accept the current factory agreement before adding staff");
+    return tx.user.create({
+      data: {
+        role: "SELLER",
+        factoryId,
+        factoryRole: input.role,
+        name: input.name,
+        email: input.email,
+        phone: input.phone,
+        company: factory.company,
+        city: factory.city,
+        passwordHash,
+      },
+      select: { id: true },
+    });
   });
 }
 
@@ -98,8 +103,14 @@ export async function setStaffLocked(
 ) {
   if (staffId === byId) throw new TeamError("You can't lock your own login");
   await ownStaff(factoryId, staffId);
-  await db.$transaction([
-    db.user.update({ where: { id: staffId }, data: { locked } }),
-    ...(locked ? [db.session.deleteMany({ where: { userId: staffId } })] : []),
-  ]);
+  await db.$transaction(async (tx) => {
+    await lockUserAdvisory(tx, factoryId);
+    if (
+      !locked &&
+      (await tx.factoryProfile.count({ where: { factoryUserId: factoryId, status: "REMOVED" } }))
+    )
+      throw new TeamError("Removed factories cannot unlock staff");
+    await tx.user.update({ where: { id: staffId }, data: { locked } });
+    if (locked) await tx.session.deleteMany({ where: { userId: staffId } });
+  });
 }

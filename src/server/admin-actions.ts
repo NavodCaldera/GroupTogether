@@ -153,9 +153,14 @@ export async function saveProductAction(_p: AdminState, fd: FormData): Promise<A
 
 /** Hides a listing from the shop (any factory's), or shows it again. */
 export async function setProductHiddenAction(fd: FormData) {
-  await requireAdmin("FACTORY");
+  const admin = await requireAdmin("FACTORY");
   const hide = str(fd, "hide") === "1";
-  const result = await attempt(() => setProductHidden(str(fd, "productId"), hide));
+  const result = await attempt(async () => {
+    if (hide) {
+      const { hideProduct } = await import("./quality");
+      await hideProduct(admin.id, str(fd, "productId"), str(fd, "reason"));
+    } else await setProductHidden(str(fd, "productId"), false);
+  });
   if (result.error) {
     await flash(result.error);
     return;
