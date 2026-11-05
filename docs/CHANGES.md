@@ -14,6 +14,8 @@ Newest first.
 
 - Finding 2: the factory admin browser test now expects Applications immediately after Factories, retaining the exact tab list/order and existing badge-count matching.
 
+- Finding 3: public catalogue queries append eligibility to `IN_SHOP.AND` instead of replacing the base brand exclusion. Lists, suggestions, both facets, retail-saving aggregation and direct details preserve that independent boundary; sold-out ordinary product links still open. `tests/integration/catalogue-eligibility.int.test.ts` broadens the eligibility guard deliberately and verifies premium products remain excluded.
+
 ## 2026-11-05 - Production hardening 4: security headers
 
 - Added config-only security headers in `next.config.ts`: production-only two-year HSTS without preload, frame denial, MIME sniffing protection, strict-origin referrers and a site CSP allowing the existing Leaflet, OpenStreetMap, Photon and Sentry origins. Inline bootstrap/style support remains; eval and WebSockets are development-only, and insecure requests are upgraded only in production. The Sentry wrapper remains intact.

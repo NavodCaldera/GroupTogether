@@ -63,7 +63,7 @@ export async function listProducts(
   return db.product.findMany({
     where: {
       ...IN_SHOP,
-      AND: [await shopEligibility(now)],
+      AND: [...IN_SHOP.AND, await shopEligibility(now)],
       audience: f.audience,
       kind: f.kind,
       stockType: f.stockType,
@@ -90,7 +90,7 @@ export async function suggestProducts(q: string, take = 6, now = new Date()) {
   const rows = await db.product.findMany({
     where: {
       ...IN_SHOP,
-      AND: [await shopEligibility(now)],
+      AND: [...IN_SHOP.AND, await shopEligibility(now)],
       OR: [
         { title: { contains: term, mode: "insensitive" } },
         { brand: { contains: term, mode: "insensitive" } },
@@ -109,13 +109,13 @@ export async function shopFacets(now = new Date()) {
   const eligibility = await shopEligibility(now);
   const [brands, sizes] = await Promise.all([
     db.product.findMany({
-      where: { ...IN_SHOP, AND: [eligibility] },
+      where: { ...IN_SHOP, AND: [...IN_SHOP.AND, eligibility] },
       distinct: ["brand"],
       select: { brand: true },
       orderBy: { brand: "asc" },
     }),
     db.variant.findMany({
-      where: { available: { gt: 0 }, product: { ...IN_SHOP, AND: [eligibility] } },
+      where: { available: { gt: 0 }, product: { ...IN_SHOP, AND: [...IN_SHOP.AND, eligibility] } },
       distinct: ["size"],
       select: { size: true },
       orderBy: { size: "asc" },
@@ -127,7 +127,7 @@ export async function shopFacets(now = new Date()) {
 /** One product with its sizes. Opens even when sold out, so links from carts keep working. */
 export async function getProduct(id: string, now = new Date()) {
   return db.product.findFirst({
-    where: { id, AND: [await shopEligibility(now)] },
+    where: { id, AND: [...IN_SHOP.AND, await shopEligibility(now)] },
     include: {
       variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
       seller: { select: { name: true, company: true } },
@@ -277,7 +277,11 @@ export async function adjustStock(
  */
 export async function retailSaving(now = new Date()) {
   const rows = await db.product.findMany({
-    where: { ...IN_SHOP, AND: [await shopEligibility(now)], retailPrice: { not: null } },
+    where: {
+      ...IN_SHOP,
+      AND: [...IN_SHOP.AND, await shopEligibility(now)],
+      retailPrice: { not: null },
+    },
     select: { price: true, retailPrice: true },
   });
   let retail = new D(0);
