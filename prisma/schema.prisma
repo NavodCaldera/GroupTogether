@@ -40,6 +40,7 @@ enum Role {
 }
 
 model User {
+  returnMessages ReturnMessage[]
   qualityNotices QualityNotice[]
   productRatings ProductRating[]
   id             String          @id @default(cuid())
@@ -1034,18 +1035,20 @@ enum ReturnFault {
 }
 
 model ReturnRequest {
-  id                 String         @id @default(cuid())
+  factoryNote        String?
+  messages           ReturnMessage[]
+  id                 String          @id @default(cuid())
   cartLineId         String
-  cartLine           CartLine       @relation(fields: [cartLineId], references: [id], onDelete: Restrict)
+  cartLine           CartLine        @relation(fields: [cartLineId], references: [id], onDelete: Restrict)
   buyerId            String
   factoryId          String
   qty                Int
   reason             ReportReason
   fault              ReturnFault
   note               String
-  status             ReturnStatus   @default(WAITING_FACTORY)
-  createdAt          DateTime       @default(now())
-  updatedAt          DateTime       @updatedAt
+  status             ReturnStatus    @default(WAITING_FACTORY)
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
   factoryDueAt       DateTime
   factoryDecidedAt   DateTime?
   factoryDecidedById String?
@@ -1091,4 +1094,17 @@ model ReturnNotice {
   deliveredAt DateTime?
 
   @@index([deliveredAt])
+}
+
+model ReturnMessage {
+  id        String        @id @default(cuid())
+  returnId  String
+  request   ReturnRequest @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body      String        @db.VarChar(1000)
+  createdAt DateTime      @default(now())
+
+  @@index([returnId, createdAt])
+  @@index([authorId, createdAt])
 }

@@ -9,15 +9,29 @@ own factory owner/SALES and FACTORY/CORE admins, returning 404 otherwise. `Retur
 is a durable after-commit outbox with stable notification keys. No buyer names, addresses,
 phones or monetary figures are selected for the factory returns list.
 
-The pure move table is `src/lib/return-rules.ts`. WAITING_FACTORY → ACCEPTED/REJECTED or
-WITH_ADMIN after more than 48 hours; REJECTED → WITH_ADMIN for a single buyer appeal;
-WITH_ADMIN → ACCEPTED/REJECTED for the final admin decision. ACCEPTED → PICKED_UP
-optionally, then ACCEPTED/PICKED_UP → RECEIVED → COMPLETED atomically with the token
-credit. Buyer-fault receipt can instead reject with a condition note; final admin acceptance
-of that already received item completes it immediately. Removal moves unresolved requests
-(including accepted/picked-up requests) to WITH_ADMIN; a prior final acceptance is retained,
-and only an admin may resume its pickup/receipt. An appealable rejection reserves the line
-against another open request; a final rejection releases that eligibility.
+The pure move table is `src/lib/return-rules.ts`. WAITING_FACTORY → ACCEPTED or WITH_ADMIN;
+factory refusal requires a 1–1000 character reason and sends the case to admins immediately.
+No answer after 48 hours also moves it to WITH_ADMIN. WITH_ADMIN → ACCEPTED/REJECTED
+is the admin decision; REJECTED is terminal and there is no buyer escalation path.
+ACCEPTED → PICKED_UP optionally, then ACCEPTED/PICKED_UP → RECEIVED → COMPLETED
+atomically with the token credit. A used/untagged buyer-fault receipt records receivedAt and
+its condition, moves ACCEPTED/PICKED_UP → WITH_ADMIN and gives no tokens. This also applies
+after an earlier admin acceptance: resetting the pending decision allows one final receipt
+review, and receivedAt prevents another receipt. Final acceptance of an already received item
+completes it immediately. Removal hands unresolved requests to admins; a prior acceptance
+is retained for admin resumption. Only accepted returns may be sent, booked or received.
+
+`ReturnMessage` holds the private admin–factory discussion, exposed through
+`postReturnMessage`/`listReturnMessages` and session-derived actions. FACTORY/CORE and
+the own factory owner/SALES can read; buyers, Warehouse/Premium admins and other jobs or
+factories are denied. Posting requires WITH_ADMIN; reading remains available after decisions.
+Body length is 1–1000, with ten messages per minute per author across return threads, serialized
+by the author advisory. Messages persist their ReturnNotice outbox entries within the return
+transaction. After commit, delivery locks the return row and emits at most one unread message
+notice per recipient/thread; opening it marks the notice and pending deliveries read under
+the same lock. Admin detail is `/admin/factory/returns/[id]`; the factory opens a selected
+item at `/seller/returns?return=id`. Buyer queries never select messages. The `return_messages`
+migration routes legacy appealable refusals to WITH_ADMIN and queues buyer/admin notices.
 
 Every service mutation takes sorted participant/factory user advisories, the cart row,
 then the return row FOR UPDATE; credit subsequently takes the ledger user lock. Filing
@@ -34,7 +48,7 @@ updatedAt for existing delivered records. Missing timestamps prevent filing.
 Accepted factory-fault returns notify WAREHOUSE admins. An admin records the external
 PickMe reference, driver, booked-by/time and paidBy=FACTORY on ReturnRequest. No provider
 is called and no second Delivery is created. Buyer-fault delivery is arranged and paid by
-the buyer. See DEC-013 for the unconfirmed buyer-fault receipt handling.
+the buyer. DEC-013 records the owner-approved automatic review and receipt handling.
 
 Brand partnership communication (2026-10-26) uses `BrandConversation`, `BrandMessage`, `BrandConversationRead` and `BrandOfferRevision`. `brand-communications.ts` validates each subject and actor, locks conversations for read/notification consistency and deduplicates sends by request key. Business services append events within their transaction; notice delivery runs after commit and retries on workspace visits or the sweep endpoint. `brand-reviews.ts` activates explicit approved revisions without changing prior gift price snapshots. The admin brand workspace is separate from factory Offers, and partnership messages are separate from shopper chat.
 

@@ -105,9 +105,9 @@ Factories get one login per person with fixed roles (packing, planner, sales, ow
 
 ### DEC-013 - Factory partnership: checks, agreement, quality, tokens and returns
 
-**Status:** Approved by the owner on **2026-11-05**; Parts 1-2 implemented, Parts 3-4 remain planned (see implementation status). **Spec:** [factory partnership](../specs/001-factory-partnership/spec.md). **Brief:** [brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md).
+**Status:** Approved by the owner on **2026-11-05**; Parts 1–4 implemented (see implementation status). **Spec:** [factory partnership](../specs/001-factory-partnership/spec.md). **Brief:** [brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md).
 
-Factories join by public application or admin invite and must pass checks (BR number and certificate, owner NIC and photo, address and photos, bank account matching business or owner; visit optional). Rejected businesses cannot reapply. Only the owner or manager is onboarded; they add staff after accepting the in-app agreement (versioned, 12-month term, reminder 30 days before, listings hidden on expiry). Existing factories get 30 days to comply. Private documents: Factories admins and core admin only. Buyer price is factory price plus commission (LKR 100 default, core admin only, new listings only) — this replaces the "sale minus LKR 100" model in `DEC-012`. Ratings are per product (1–2 stars need a report, photo for visible defects); old factory ratings count equally. Flags never act automatically. Hiding a product cancels only that item in undelivered paid orders; removing a factory (without notice) cancels all its undelivered paid orders; buyers are told the reason. Cancellations and accepted returns give **tokens** (1 token = LKR 1, full price paid, never expire, spendable only on the holder's own items in any cart, returned if a cart is not paid); no cash refunds (`PAY-003` kept). Returns: apply within 2 days of delivery; factory answers within 2 days or it goes to an admin; buyer may escalate; admin final. Factory fault: factory pays PickMe pickup; buyer fault: buyer pays, item unused with tags. The agreement may allow withholding earned money after a quality removal, subject to lawyer review.
+Factories join by public application or admin invite and must pass checks (BR number and certificate, owner NIC and photo, address and photos, bank account matching business or owner; visit optional). Rejected businesses cannot reapply. Only the owner or manager is onboarded; they add staff after accepting the in-app agreement (versioned, 12-month term, reminder 30 days before, listings hidden on expiry). Existing factories get 30 days to comply. Private documents: Factories admins and core admin only. Buyer price is factory price plus commission (LKR 100 default, core admin only, new listings only) — this replaces the "sale minus LKR 100" model in `DEC-012`. Ratings are per product (1–2 stars need a report, photo for visible defects); old factory ratings count equally. Flags never act automatically. Hiding a product cancels only that item in undelivered paid orders; removing a factory (without notice) cancels all its undelivered paid orders; buyers are told the reason. Cancellations and accepted returns give **tokens** (1 token = LKR 1, full price paid, never expire, spendable only on the holder's own items in any cart, returned if a cart is not paid); no cash refunds (`PAY-003` kept). Returns: apply within 2 days of delivery; factory answers within 2 days or it goes to an admin; every factory refusal goes automatically to admin review; admin final (updated 2026-11-06). Factory fault: factory pays PickMe pickup; buyer fault: buyer pays, item unused with tags. The agreement may allow withholding earned money after a quality removal, subject to lawyer review.
 
 **Zero-due owner rule approved on 2026-11-05:** when tokens cover the whole cart and
 `amountDue` is exactly LKR 0.00, the owner's acceptance confirms it immediately. There is no
@@ -127,10 +127,25 @@ that loses all active lines keeps its Delivery unchanged and alerts warehouse ad
 call is made. Hide/remove flags are persisted before separate per-cart cleanup transactions so
 partial failures can be retried safely.
 
-**Claude's call, awaiting owner confirmation (Part 4, 2026-11-06):** when a buyer-fault
-return arrives used or without tags, the factory records its condition note and rejects it
-at receipt, without credit. The buyer may appeal once; a final admin acceptance credits the
-already received item. This is implemented for the requested workflow, not approved policy.
+**Return follow-ups approved by the owner on 2026-11-06:** every factory refusal goes
+automatically to WITH_ADMIN, including a buyer-fault item received used or without tags.
+The factory owner/SALES must give a reason of 1–1000 characters; receipt records its condition
+and receivedAt without tokens. There is no buyer escalation action or appeal deadline.
+FACTORY/CORE admins discuss the case privately with factory owner/SALES in the return thread;
+buyers and other factories/jobs/admin areas cannot read it. Posting is permitted only while
+WITH_ADMIN, limited to 1000 characters and ten messages per minute per user. The thread stays
+readable to authorized participants after the decision, and messages notify the other side.
+
+The admin accepts or rejects with a required note. Acceptance after receipt completes the
+return with one full-price RETURN credit; acceptance before receipt follows normal fulfilment.
+Rejection is final. If a pre-approved buyer-fault item subsequently arrives used or without
+tags, that newly recorded receipt automatically reopens WITH_ADMIN for one final admin
+decision, with no credit until acceptance. Repeated receipts and decisions are refused.
+
+**No sending before approval, approved 2026-11-06:** the buyer keeps the item until a factory
+or admin accepts. Pickup booking and receipt require acceptance; waiting status shows
+"Waiting for approval" and offers no sending/pickup step. Buyer-fault delivery is arranged
+and paid by the buyer; factory-fault PickMe pickup remains externally booked and factory-paid.
 
 ### DEC-014 - Member done before cart finish
 

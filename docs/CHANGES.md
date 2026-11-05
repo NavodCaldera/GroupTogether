@@ -420,3 +420,19 @@ appeal reserves its line until resolved, preventing overlapping appeal credits. 
 an existing final acceptance while putting fulfilment with admins. RECEIVED and COMPLETED occur
 in one transaction with the credit. Tests include the Lanka Shirts browser journey on desktop
 and at 360px, private-photo HTTP denial checks and receipt/decision races.
+
+# 2026-11-06 — Return follow-ups: automatic review and private messages
+
+Owner-approved factory refusals now go directly to WITH_ADMIN with a required 1–1000
+character reason. Used/untagged buyer-fault receipts record their condition and receipt time,
+then go to admin review without credit, including after pre-arrival admin acceptance. One
+final admin decision completes an already received return with one credit, or rejects finally.
+Removed the buyer escalation service, action and button; the superseded one-day appeal rule
+was not implemented. Buyers see Waiting for approval, with sending/pickup only after acceptance.
+
+Added ReturnMessage and migration return_messages, including handoff/notices for historical
+appealable factory refusals. Threads permit only own factory owner/SALES and FACTORY/CORE
+admins, post only WITH_ADMIN, remain readable after decision, and enforce 1000-character
+messages and ten per minute per author. After-commit delivery deduplicates unread thread
+notices under the return lock. Added admin return detail and selected factory-item threads,
+with desktop/360px browser coverage. The private reader gets no new table grants.

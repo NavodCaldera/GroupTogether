@@ -7,7 +7,7 @@ import { UploadError } from "./storage";
 import {
   fileReturn,
   factoryDecide,
-  escalate,
+  postReturnMessage,
   adminDecide,
   markReceived,
   bookReturnPickup,
@@ -29,8 +29,9 @@ export async function returnAction(_previous: ReturnState, fd: FormData): Promis
         note: text("note"),
         photos: fd.getAll("photos").filter((p): p is File => p instanceof File && p.size > 0),
       });
-    else if (op === "factory") await factoryDecide(user.id, id, text("decision") === "accept");
-    else if (op === "escalate") await escalate(user.id, id);
+    else if (op === "factory")
+      await factoryDecide(user.id, id, text("decision") === "accept", undefined, text("note"));
+    else if (op === "message") await postReturnMessage(user.id, id, text("body"));
     else if (op === "admin")
       await adminDecide(user.id, id, text("decision") === "accept", text("note"));
     else if (op === "received")
@@ -46,6 +47,7 @@ export async function returnAction(_previous: ReturnState, fd: FormData): Promis
     for (const path of ["/seller/returns", "/admin/factory/returns", "/account", "/notifications"])
       revalidatePath(path);
     revalidatePath("/c/[code]", "page");
+    revalidatePath("/admin/factory/returns/[id]", "page");
     return {};
   } catch (error) {
     if (error instanceof CartError || error instanceof UploadError) return { error: error.message };

@@ -10,12 +10,14 @@ export function ReturnForm({
   buyerFault = false,
 }: {
   id: string;
-  op: "file" | "factory" | "admin" | "received" | "pickup" | "escalate" | "picked-up";
+  op: "file" | "factory" | "admin" | "received" | "pickup" | "message" | "picked-up";
   maxQty?: number;
   buyerFault?: boolean;
 }) {
   const [state, action, pending] = useActionState(returnAction, {});
   const [fault, setFault] = useState("FACTORY");
+  const [decision, setDecision] = useState("accept");
+  const [unused, setUnused] = useState("yes");
   const uid = useId();
   return (
     <form action={action} className="flex min-w-0 flex-col gap-2">
@@ -63,23 +65,35 @@ export function ReturnForm({
           />
         </>
       )}
-      {(op === "file" || op === "admin" || op === "received") && (
+      {(op === "file" ||
+        op === "admin" ||
+        op === "received" ||
+        (op === "factory" && decision === "reject")) && (
         <>
           <label htmlFor={`${uid}-note`}>
-            {op === "received" ? "Condition note" : "Return note"}
+            {op === "received"
+              ? "Condition note"
+              : op === "factory"
+                ? "Refusal reason"
+                : "Return note"}
           </label>
           <Textarea
             id={`${uid}-note`}
             name="note"
-            maxLength={2000}
-            required={op !== "received" || buyerFault}
+            maxLength={op === "factory" || (op === "received" && unused === "no") ? 1000 : 2000}
+            required={op !== "received" || (buyerFault && unused === "no")}
           />
         </>
       )}
       {(op === "factory" || op === "admin") && (
         <>
           <label htmlFor={`${uid}-decision`}>Decision</label>
-          <Select id={`${uid}-decision`} name="decision">
+          <Select
+            id={`${uid}-decision`}
+            name="decision"
+            value={decision}
+            onChange={(e) => setDecision(e.target.value)}
+          >
             <option value="accept">Accept</option>
             <option value="reject">Reject</option>
           </Select>
@@ -88,13 +102,24 @@ export function ReturnForm({
       {op === "received" && buyerFault && (
         <>
           <label htmlFor={`${uid}-unused`}>Unused with tags</label>
-          <Select id={`${uid}-unused`} name="unused">
+          <Select
+            id={`${uid}-unused`}
+            name="unused"
+            value={unused}
+            onChange={(e) => setUnused(e.target.value)}
+          >
             <option value="yes">Yes</option>
             <option value="no">No</option>
           </Select>
         </>
       )}
       {op === "received" && !buyerFault && <input type="hidden" name="unused" value="yes" />}
+      {op === "message" && (
+        <>
+          <label htmlFor={`${uid}-body`}>Message</label>
+          <Textarea id={`${uid}-body`} name="body" required maxLength={1000} />
+        </>
+      )}
       {op === "pickup" && (
         <>
           <label htmlFor={`${uid}-ref`}>PickMe reference</label>
@@ -103,7 +128,7 @@ export function ReturnForm({
           <Input id={`${uid}-driver`} name="driver" maxLength={200} />
         </>
       )}
-      <Button disabled={pending}>
+      <Button disabled={pending} className="hover:opacity-100!">
         {
           {
             file: "Request return",
@@ -111,7 +136,7 @@ export function ReturnForm({
             admin: "Save final decision",
             received: "Mark received",
             pickup: "Save pickup",
-            escalate: "Ask an admin",
+            message: "Send message",
             "picked-up": "Mark picked up",
           }[op]
         }

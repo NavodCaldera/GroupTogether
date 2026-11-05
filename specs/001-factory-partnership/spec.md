@@ -8,7 +8,7 @@
 
 **Input**: Approved product brief `_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md`, first-version items 1–8.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - A factory joins through checks and an agreement (Priority: P1)
 
@@ -172,9 +172,10 @@ full item value before tokens.
 
 ### User Story 7 - Returns (Priority: P2)
 
-A buyer can apply to return an item within 2 days of delivery. The factory decides first; the buyer
-can ask an admin if they disagree, and the admin's decision is final. The buyer keeps the item until
-there is a decision. If the factory is at fault (defect, wrong size or wrong item sent), the factory
+A buyer can apply to return an item within 2 days of delivery. The factory decides first; its
+refusal automatically goes to an admin, whose decision is final after private discussion with
+the factory. The buyer keeps the item until the return is accepted. If the factory is at fault
+(defect, wrong size or wrong item sent), the factory
 pays the PickMe pickup. If the buyer is at fault (for example chose the wrong size), the buyer pays
 delivery and the item must come back unused with its tags. For any accepted return the buyer
 receives tokens for the full item price and the factory is not paid for that item.
@@ -182,7 +183,8 @@ receives tokens for the full item price and the factory is not paid for that ite
 **Why this priority**: Gives buyers protection against bad items without cash refunds.
 
 **Independent Test**: Deliver an item, apply for a defect return on day 1, have the factory reject,
-escalate, have the admin accept, and check the buyer receives tokens and the factory's earning for
+exchange private admin–factory messages, have the admin accept, receive the item, and check
+the buyer receives tokens and the factory's earning for
 that item is removed.
 
 **Acceptance Scenarios**:
@@ -195,12 +197,25 @@ that item is removed.
    factory's cost, and when the item reaches the factory the buyer receives tokens.
 4. **Given** the factory accepts a buyer-fault return, **Then** the buyer arranges and pays for
    delivery, and tokens are given only after the factory confirms the item is unused with tags.
-5. **Given** the factory rejects, **When** the buyer escalates, **Then** an admin decides and that
-   decision is final.
+5. **Given** the factory refuses with a reason, **Then** the return moves automatically to
+   WITH_ADMIN; an admin discusses it privately with owner/SALES and decides with a note.
+   Rejection is final; acceptance gives tokens only after receipt.
 
 ---
 
 ### Edge Cases
+
+- **Approved owner rule, 2026-11-06:** a buyer-fault item received used or without tags goes
+  automatically to WITH_ADMIN with a required 1–1000 character condition reason and no tokens.
+  This applies even after an admin accepted before arrival. Receipt is recorded once; one
+  final admin decision accepts (one full-price credit, COMPLETED) or rejects (REJECTED, no
+  credit and no further action). The buyer never requests escalation.
+- **Approved owner rule, 2026-11-06:** the buyer keeps the item until acceptance. Pickup and
+  receipt before approval are refused. Waiting UI shows only the approval status, with a
+  send/pickup step after acceptance.
+- The private return thread permits only own factory owner/SALES and FACTORY/CORE admins.
+  Messages are 1–1000 characters, ten per minute per author, posted only WITH_ADMIN, and
+  readable after decision. Buyers, another factory, other staff and other admin areas are denied.
 
 - Hiding/removing products after owner acceptance leaves AWAITING_SLIP/SLIP_REVIEW lines,
   totals and transfer amount frozen. Confirmation (including token-only acceptance) cancels hidden
@@ -228,7 +243,7 @@ that item is removed.
 - A factory does not answer a return application within 2 days: the return goes to an admin
   automatically.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -317,8 +332,10 @@ that item is removed.
 - **FR-029**: The application MUST state a reason and who is at fault; factory-fault reasons need a
   photo.
 - **FR-030**: The factory decides first, within 2 days of the application; if it does not answer
-  in time, the return goes to an admin automatically. The buyer MAY escalate a rejection to an
-  admin, whose decision is final.
+  in time, or refuses with a required reason, the return goes to an admin automatically.
+  FACTORY/CORE admins discuss it privately with the factory owner/SALES and decide finally.
+  A newly recorded used/untagged buyer-fault receipt reopens one final receipt review even
+  after pre-arrival approval. Buyers have no escalation action.
 - **FR-031**: For an accepted factory-fault return, a PickMe pickup is booked at the factory's cost.
   For an accepted buyer-fault return, the buyer pays delivery and the item must be unused with tags.
 - **FR-032**: When an accepted return reaches the factory, the buyer MUST receive tokens for the
@@ -341,7 +358,7 @@ that item is removed.
 - **Return application**: item, buyer, reason, fault side, photos, factory decision, escalation,
   admin decision, pickup, token entry.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 

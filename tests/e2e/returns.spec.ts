@@ -65,7 +65,9 @@ async function fits(page: Page) {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 }
 for (const width of [1280, 360])
-  test(`Lanka Shirts return, appeal, manual pickup and tokens at ${width}px`, async ({ page }) => {
+  test(`Lanka Shirts return, private review, manual pickup and tokens at ${width}px`, async ({
+    page,
+  }) => {
     test.setTimeout(240000);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await seed();
@@ -89,23 +91,57 @@ for (const width of [1280, 360])
     await page.keyboard.press("Tab");
     await expect(page.getByRole("button", { name: "Request return", exact: true })).toBeFocused();
     await page.keyboard.press("Enter");
-    await expect(page.getByText("waiting factory", { exact: true })).toBeVisible();
+    await expect(page.getByText("Waiting for approval", { exact: true })).toBeVisible();
+    await expect(page.getByText("Send return", { exact: true })).toHaveCount(0);
     const photo = page.getByRole("link", { name: "Return photo 1" });
     expect((await page.request.get((await photo.getAttribute("href"))!)).status()).toBe(200);
     await signIn(page, "sales@example.com");
     await page.goto("/seller/returns");
     await page.getByLabel("Decision", { exact: true }).selectOption("reject");
+    await page.getByLabel("Refusal reason", { exact: true }).fill("Please review the torn seam");
     await page.getByRole("button", { name: "Save decision", exact: true }).click();
-    await expect(page.getByText("rejected", { exact: true })).toBeVisible();
+    await expect(page.getByText("with admin", { exact: true })).toBeVisible();
     await signIn(page, "buyer3@example.com");
     await page.goto("/c/RET222AA");
-    await page.getByRole("button", { name: "Ask an admin", exact: true }).click();
-    await expect(page.getByText("with admin", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Ask an admin", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Messages", exact: true })).toHaveCount(0);
+    await expect(page.getByText("Waiting for approval", { exact: true })).toBeVisible();
     await signIn(page, "factory@groupbasket.lk");
     await page.goto("/admin/factory/returns");
+    await page.getByRole("link", { name: "Messages", exact: true }).click();
+    const thread = page.getByRole("region", { name: "Return messages" });
+    await thread.getByLabel("Message", { exact: true }).fill("Can you confirm the seam defect?");
+    await thread.getByRole("button", { name: "Send message", exact: true }).click();
+    await expect(
+      thread.getByText("Can you confirm the seam defect?", { exact: true }),
+    ).toBeVisible();
+    const detail = page.url();
+    await signIn(page, "sales@example.com");
+    await page.goto("/seller/returns");
+    await page.getByRole("link", { name: "Messages", exact: true }).click();
+    const factoryThread = page.getByRole("region", { name: "Return messages" });
+    await expect(
+      factoryThread.getByText("Can you confirm the seam defect?", { exact: true }),
+    ).toBeVisible();
+    await factoryThread
+      .getByLabel("Message", { exact: true })
+      .fill("Confirmed: the sleeve seam is torn.");
+    await factoryThread.getByRole("button", { name: "Send message", exact: true }).click();
+    await expect(
+      factoryThread.getByText("Confirmed: the sleeve seam is torn.", { exact: true }),
+    ).toBeVisible();
+    await fits(page);
+    expect((await new AxeBuilder({ page }).analyze()).violations).toEqual([]);
+    await page.screenshot({ path: `test-results/return-thread-${width}.png`, fullPage: true });
+    await signIn(page, "factory@groupbasket.lk");
+    await page.goto(detail);
+    await expect(
+      page.getByText("Confirmed: the sleeve seam is torn.", { exact: true }),
+    ).toBeVisible();
     await page.getByLabel("Return note", { exact: true }).fill("Defect confirmed");
     await page.getByRole("button", { name: "Save final decision", exact: true }).click();
     await expect(page.getByText("accepted", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Send message", exact: true })).toHaveCount(0);
     await page.getByLabel("PickMe reference", { exact: true }).fill("PICKME-RETURN-123");
     await page.getByLabel("Driver", { exact: true }).fill("Nimal");
     await page.getByRole("button", { name: "Save pickup", exact: true }).click();

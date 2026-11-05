@@ -17,11 +17,11 @@ export function factoryOverdue(createdAt: Date, now: Date): boolean {
   return now.getTime() - createdAt.getTime() > WINDOW;
 }
 const MOVES: Record<ReturnStatus, readonly ReturnStatus[]> = {
-  WAITING_FACTORY: ["ACCEPTED", "REJECTED", "WITH_ADMIN"],
+  WAITING_FACTORY: ["ACCEPTED", "WITH_ADMIN"],
   WITH_ADMIN: ["ACCEPTED", "REJECTED"],
-  ACCEPTED: ["PICKED_UP", "RECEIVED", "REJECTED", "WITH_ADMIN"],
-  REJECTED: ["WITH_ADMIN"],
-  PICKED_UP: ["RECEIVED", "REJECTED", "WITH_ADMIN"],
+  ACCEPTED: ["PICKED_UP", "RECEIVED", "WITH_ADMIN"],
+  REJECTED: [],
+  PICKED_UP: ["RECEIVED", "WITH_ADMIN"],
   RECEIVED: ["COMPLETED"],
   COMPLETED: [],
 };

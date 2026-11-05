@@ -51,6 +51,7 @@ Owner picked the build order; Claude chose approach 1 (owner left the technical 
 All new money columns are `Decimal(14,2)`.
 
 **Part 1 — joining**
+
 - `FactoryApplication`: business name, BR number, owner name, owner NIC, phone, email, address,
   city, bank name/branch/account name/account number, `status` (`WAITING`, `APPROVED`,
   `REJECTED`), reviewer, reviewedAt, reviewNote, visit date and notes (optional), `inviteId?`,
@@ -66,6 +67,7 @@ All new money columns are `Decimal(14,2)`.
   `earningsHeld` boolean + note (FR-022).
 
 **Part 2 — commission and tokens**
+
 - `Settings.commissionPerPiece` (default 100).
 - `Product.factoryPrice` and `Product.commission` (snapshot at creation). `Product.price` stays the
   buyer price = factoryPrice + commission, so every existing price path is untouched. Existing
@@ -81,6 +83,7 @@ All new money columns are `Decimal(14,2)`.
   full total (FR-025).
 
 **Part 3 — quality**
+
 - `CartLine.status` (`ACTIVE`, `CANCELLED`, `RETURNED`), cancelledAt, cancelReason, `notEarned`
   boolean (read later by payouts).
 - `ProductRating`: productId, cartId, userId, stars 1–5, createdAt; unique (cartId, userId,
@@ -93,6 +96,7 @@ All new money columns are `Decimal(14,2)`.
   reports (FR-018). Old `FactoryRating` rows join the factory score one-for-one.
 
 **Part 4 — returns**
+
 - `Delivery.deliveredAt` (set when the drop is marked delivered) starts the 2-day window.
 - `ReturnRequest`: cartLineId, buyerId, qty, reason, `fault` (`FACTORY`, `BUYER`), photos,
   `status` (`WAITING_FACTORY`, `WITH_ADMIN`, `ACCEPTED`, `REJECTED`, `PICKED_UP`, `RECEIVED`,
@@ -133,11 +137,16 @@ of a paid cart is cancelled the cart becomes `CANCELLED`. No message to the fact
 
 **Part 4 — returns.** On a delivered line, within 2 days of `Delivery` marked delivered, the buyer
 files a return (photo required for factory-fault reasons). Factory owner/sales sees it and accepts
-or rejects; sweep moves it to `WITH_ADMIN` after 2 days. Buyer may escalate a rejection; admin's
-decision is final. Accepted factory fault: pickup booked through the delivery provider, factory
-pays. Accepted buyer fault: buyer arranges delivery. When the factory marks it received (buyer
-fault: confirms unused with tags), line becomes `RETURNED` + `notEarned`, and a `RETURN` token
-entry equal to the line price is written.
+or gives a required refusal reason, which automatically moves it to `WITH_ADMIN`; sweep also
+moves unanswered requests there after 2 days. Admins discuss privately with factory owner/SALES
+through ReturnMessage, and decide finally with a note. Buyers have no escalation action and
+keep the item until acceptance. Accepted factory fault: manual external PickMe pickup recorded
+on the return, factory pays. Accepted buyer fault: buyer arranges delivery. Used/untagged
+buyer-fault receipts record the condition and go straight to WITH_ADMIN without credit,
+including after pre-arrival approval; one final admin acceptance then credits the already
+received quantity, or rejection is terminal. Normal receipt credits unitPrice × returned qty
+once; the line becomes RETURNED/notEarned only when all pieces are returned. Messages allow
+1000 characters, ten per minute per author, posting only WITH_ADMIN and reading after decision.
 
 ## Access
 

@@ -21,12 +21,8 @@ export const OPEN_RETURN_STATUSES: ReturnStatus[] = [
   "PICKED_UP",
   "RECEIVED",
 ];
-// A factory rejection can still be appealed, so its quantity stays reserved until a final decision.
 const unresolved = {
-  OR: [
-    { status: { in: OPEN_RETURN_STATUSES } },
-    { status: "REJECTED" as const, adminDecision: null },
-  ],
+  status: { in: OPEN_RETURN_STATUSES },
 };
 
 async function activeUser(tx: Tx, id: string) {
@@ -116,7 +112,7 @@ async function queue(
       ? `/c/${cart!.cart.code}`
       : side === "factory"
         ? "/seller/returns"
-        : "/admin/factory/returns";
+        : `/admin/factory/returns/${request.id}`;
   for (const user of users)
     await tx.returnNotice.upsert({
       where: { id: `${request.id}:${event}:${user.id}` },
@@ -146,6 +142,42 @@ export async function flushReturnNotices() {
       (await db.factoryProfile.count({
         where: { factoryUserId: user.factoryId ?? user.id, status: "REMOVED" },
       }));
+    if (item.title === "New return message") {
+      // Serialize unread-notice delivery with thread reads and other deliveries.
+      await db.$transaction(async (tx) => {
+        const entry = await tx.returnNotice.findUniqueOrThrow({
+          where: { id: item.id },
+          select: { returnId: true },
+        });
+        await tx.$queryRaw`SELECT 1 FROM "ReturnRequest" WHERE id=${entry.returnId} FOR UPDATE`;
+        const pending = await tx.returnNotice.findUniqueOrThrow({
+          where: { id: item.id },
+          select: { deliveredAt: true },
+        });
+        if (pending.deliveredAt) return;
+        if (
+          user &&
+          !removed &&
+          !(await tx.notification.count({
+            where: { userId: item.userId, href: item.href, title: item.title, readAt: null },
+          }))
+        )
+          await tx.notification.createMany({
+            data: [
+              {
+                id: `return:${item.id}:${item.userId}`,
+                userId: item.userId,
+                title: item.title,
+                body: "",
+                href: item.href,
+              },
+            ],
+            skipDuplicates: true,
+          });
+        await tx.returnNotice.update({ where: { id: item.id }, data: { deliveredAt: new Date() } });
+      });
+      continue;
+    }
     if (user && !removed)
       await notify(
         [item.userId],
@@ -277,34 +309,28 @@ export async function factoryDecide(
   returnId: string,
   accept: boolean,
   now = new Date(),
+  note = "",
 ) {
+  if (!accept && (!note.trim() || note.trim().length > 1000))
+    throw new ReturnError("Give a refusal reason from 1 to 1000 characters");
   return locked(staffUserId, returnId, async (tx, r) => {
     await factoryActor(tx, staffUserId, r.factoryId);
     if (r.status !== "WAITING_FACTORY" || factoryOverdue(r.createdAt, now)) throw decided();
-    const after = await move(tx, r, accept ? "ACCEPTED" : "REJECTED", {
+    const after = await move(tx, r, accept ? "ACCEPTED" : "WITH_ADMIN", {
       factoryDecidedAt: now,
       factoryDecidedById: staffUserId,
+      ...(!accept ? { factoryNote: note.trim(), escalatedAt: now } : {}),
     });
     await queue(
       tx,
       after,
       "factory-decision",
-      accept ? "Return accepted" : "Return rejected",
+      accept ? "Return accepted" : "Return sent to admin",
       "buyer",
     );
+    if (!accept) await queue(tx, after, "factory-refused", "Return needs review", "admin");
     if (accept && r.fault === "FACTORY")
       await queue(tx, after, "pickup-needed", "Return pickup needed", "warehouse");
-    return after;
-  });
-}
-export async function escalate(buyerId: string, returnId: string) {
-  return locked(buyerId, returnId, async (tx, r) => {
-    const user = await activeUser(tx, buyerId);
-    if (user.role !== "CUSTOMER" || r.buyerId !== buyerId)
-      throw new ReturnError("Return access denied");
-    if (r.status !== "REJECTED" || r.adminDecision !== null || r.escalatedAt) throw decided();
-    const after = await move(tx, r, "WITH_ADMIN", { escalatedAt: new Date() });
-    await queue(tx, after, "buyer-escalated", "Return needs review", "admin");
     return after;
   });
 }
@@ -346,11 +372,17 @@ export async function adminDecide(
     await queue(
       tx,
       after,
-      "admin-decision",
+      r.receivedAt ? "admin-receipt-decision" : "admin-decision",
       accept ? "Admin accepted return" : "Admin rejected return",
       "buyer",
     );
-    await queue(tx, after, "admin-decision", "Admin decided return", "factory");
+    await queue(
+      tx,
+      after,
+      r.receivedAt ? "admin-receipt-decision" : "admin-decision",
+      "Admin decided return",
+      "factory",
+    );
     if (accept && r.receivedAt) {
       after = await move(tx, after, "RECEIVED");
       return complete(tx, after);
@@ -381,13 +413,15 @@ export async function markReceived(
       receivedCondition: note.trim(),
     };
     if (r.fault === "BUYER" && !unusedWithTags) {
-      if (!note.trim()) throw new ReturnError("Give the received condition");
-      if (r.adminDecision === true)
-        throw new ReturnError(
-          "The admin decision is final; an admin must review the receipt condition",
-        );
-      const after = await move(tx, r, "REJECTED", data);
-      await queue(tx, after, "receipt-rejected", "Return rejected at receipt", "buyer");
+      if (!note.trim() || note.trim().length > 1000)
+        throw new ReturnError("Give a condition reason from 1 to 1000 characters");
+      const after = await move(tx, r, "WITH_ADMIN", {
+        ...data,
+        adminDecision: null,
+        escalatedAt: new Date(),
+      });
+      await queue(tx, after, "receipt-review", "Return receipt needs review", "admin");
+      await queue(tx, after, "receipt-review", "Return sent to admin", "buyer");
       return after;
     }
     const after = await move(tx, r, "RECEIVED", data);
@@ -514,6 +548,88 @@ export async function factoryReturns(userId: string) {
     orderBy: { createdAt: "desc" },
   });
 }
+async function messageActor(tx: Tx, userId: string, r: ReturnRequest) {
+  const user = await activeUser(tx, userId);
+  if (user.role === "ADMIN") {
+    await qualityActor(tx, userId);
+    return "admin" as const;
+  }
+  await factoryActor(tx, userId, r.factoryId);
+  return "factory" as const;
+}
+function messageHref(returnId: string, side: "admin" | "factory") {
+  return side === "admin"
+    ? `/admin/factory/returns/${returnId}`
+    : `/seller/returns?return=${returnId}`;
+}
+/** The author advisory serializes the global per-user rate limit; return lock fences decisions/read state. */
+export async function postReturnMessage(userId: string, returnId: string, body: string) {
+  const text = body.trim();
+  if (!text || text.length > 1000)
+    throw new ReturnError("Write a message from 1 to 1000 characters");
+  return locked(userId, returnId, async (tx, r) => {
+    const side = await messageActor(tx, userId, r);
+    if (r.status !== "WITH_ADMIN") throw decided();
+    const now = new Date();
+    if (
+      (await tx.returnMessage.count({
+        where: { authorId: userId, createdAt: { gt: new Date(now.getTime() - 60000) } },
+      })) >= 10
+    )
+      throw new ReturnError("You're sending messages too fast. Wait a moment.");
+    const message = await tx.returnMessage.create({
+      data: { returnId, authorId: userId, body: text, createdAt: now },
+    });
+    await queue(
+      tx,
+      r,
+      `message:${message.id}`,
+      "New return message",
+      side === "admin" ? "factory" : "admin",
+    );
+    if (side === "admin")
+      await tx.returnNotice.updateMany({
+        where: {
+          returnId,
+          title: "New return message",
+          id: { startsWith: `${r.id}:message:${message.id}:` },
+        },
+        data: { href: messageHref(returnId, "factory") },
+      });
+    return message;
+  });
+}
+/** Opening a thread reads its unread notice under the same return lock as posting and delivery. */
+export async function listReturnMessages(userId: string, returnId: string) {
+  return locked(userId, returnId, async (tx, r) => {
+    const side = await messageActor(tx, userId, r);
+    const now = new Date();
+    await tx.notification.updateMany({
+      where: {
+        userId,
+        href: messageHref(returnId, side),
+        title: "New return message",
+        readAt: null,
+      },
+      data: { readAt: now },
+    });
+    await tx.returnNotice.updateMany({
+      where: { returnId, userId, title: "New return message", deliveredAt: null },
+      data: { deliveredAt: now },
+    });
+    const rows = await tx.returnMessage.findMany({
+      where: { returnId },
+      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+      take: 200,
+      select: { id: true, body: true, createdAt: true, author: { select: { name: true } } },
+    });
+    return rows.reverse();
+  });
+}
+export async function adminReturn(adminId: string, id: string) {
+  await assertQualityAdmin(adminId);
+  return db.returnRequest.findUnique({ where: { id }, select: returnSelect });
+}
 export async function adminReturns(adminId: string) {
   const user = await activeUser(db, adminId);
   const warehouse = user.role === "ADMIN" && user.adminArea === "WAREHOUSE";
@@ -546,6 +662,8 @@ const returnSelect = {
   adminNote: true,
   escalatedAt: true,
   receivedCondition: true,
+  receivedAt: true,
+  factoryNote: true,
   pickupRef: true,
   pickupDriver: true,
   paidBy: true,

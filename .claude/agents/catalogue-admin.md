@@ -14,7 +14,8 @@ advisory metadata transaction so every unresolved return moves to WITH_ADMIN imm
 final acceptance survives and only admins fulfil it. Preserve the factory advisory before
 cart/return/ledger locks in ordinary mutations. No factory payouts; full return completion
 sets line RETURNED/notEarned, partial completion records returnedQty. See DEC-013 for
-Claude's unconfirmed used/untagged buyer-fault handling.
+the owner-approved automatic used/untagged buyer-fault review. Admin–factory discussion is
+private to FACTORY/CORE and own owner/SALES, with no buyer escalation action.
 
 ## Read first
 

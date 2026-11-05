@@ -13,21 +13,19 @@ describe("return rules", () => {
   });
   it.each([
     ["WAITING_FACTORY", "ACCEPTED"],
-    ["WAITING_FACTORY", "REJECTED"],
     ["WAITING_FACTORY", "WITH_ADMIN"],
-    ["REJECTED", "WITH_ADMIN"],
     ["WITH_ADMIN", "ACCEPTED"],
     ["WITH_ADMIN", "REJECTED"],
     ["ACCEPTED", "PICKED_UP"],
     ["ACCEPTED", "RECEIVED"],
     ["PICKED_UP", "RECEIVED"],
-    ["ACCEPTED", "REJECTED"],
-    ["PICKED_UP", "REJECTED"],
     ["RECEIVED", "COMPLETED"],
     ["ACCEPTED", "WITH_ADMIN"],
     ["PICKED_UP", "WITH_ADMIN"],
   ] as const)("allows %s -> %s", (from, to) => expect(canMoveReturn(from, to)).toBe(true));
   it("refuses invalid and terminal moves", () => {
+    expect(canMoveReturn("REJECTED", "WITH_ADMIN")).toBe(false);
+    expect(canMoveReturn("WAITING_FACTORY", "REJECTED")).toBe(false);
     expect(canMoveReturn("COMPLETED", "WITH_ADMIN")).toBe(false);
     expect(canMoveReturn("WAITING_FACTORY", "COMPLETED")).toBe(false);
     expect(canMoveReturn("ACCEPTED", "ACCEPTED")).toBe(false);

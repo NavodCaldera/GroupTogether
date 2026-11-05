@@ -14,6 +14,17 @@ notifies FACTORY/CORE, and accepted factory-fault returns notify WAREHOUSE to bo
 externally. Removal suppresses queued factory notices and sends only buyer/admin handoff
 notices. Return notices link to the buyer cart, `/seller/returns` or `/admin/factory/returns`.
 
+Automatic factory refusal/used-receipt review notifies FACTORY/CORE and the buyer after
+commit. `ReturnMessage` is private to own owner/SALES and FACTORY/CORE. Each message
+queues the opposite side in ReturnNotice. Delivery and thread reads serialize on the return
+row, giving each recipient at most one unread "New return message" notice per thread.
+Opening the thread marks both existing notices and pending message deliveries read. Posting
+uses the same sorted user-advisory/cart/return locks as decisions; the author advisory also
+serializes the ten-per-minute limit across threads. Messages link to the admin detail or
+`/seller/returns?return=id`; buyer notices remain on the buyer cart. No private body is put in
+the notification preview. A receipt re-review has a separate decision event key so its final
+result is delivered even if the earlier acceptance notice was already sent.
+
 ## Read first
 
 Follow [repository instructions](../../AGENTS.md), then the

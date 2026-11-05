@@ -16,6 +16,14 @@ capture Delivery.deliveredAt; repeated completion preserves the original instant
 migration backfills existing DELIVERED deliveries from updatedAt. Missing delivery time
 refuses returns. See return integration tests and `tests/e2e/returns.spec.ts`.
 
+Owner-approved follow-ups (2026-11-06): no sending/pickup/receipt before acceptance. Every
+factory refusal, including a used/untagged buyer-fault receipt with its required 1–1000
+character reason, goes straight to WITH_ADMIN without credit. A prior admin acceptance does
+not block recording a new receipt condition: the recorded receipt reopens one final admin
+review. Accept after receipt completes with one RETURN credit; reject is final. The private
+admin–factory message thread is on the admin detail and selected factory return item;
+posting stops after the decision. Buyers never see it. There is no buyer escalation action.
+
 ## Read first
 
 Follow [repository instructions](../../AGENTS.md), then the

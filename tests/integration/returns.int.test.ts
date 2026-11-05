@@ -6,12 +6,13 @@ import { db } from "@/server/db";
 import {
   fileReturn,
   factoryDecide,
-  escalate,
   adminDecide,
   markReceived,
   escalateOverdue,
   bookReturnPickup,
   returnPhotoFor,
+  postReturnMessage,
+  listReturnMessages,
 } from "@/server/returns";
 import { removeFactory } from "@/server/quality";
 import { makeUser, makeVariant, resetDb, giftPhotoFile } from "./helpers";
@@ -74,6 +75,171 @@ async function fixture(qty = 1) {
 const row = (id: string) => db.returnRequest.findUniqueOrThrow({ where: { id } });
 const credits = (id: string) => db.tokenEntry.findMany({ where: { returnId: id, kind: "RETURN" } });
 describe("returns", () => {
+  it("requires a factory refusal reason and automatically notifies admins", async () => {
+    const f = await fixture(),
+      r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    await expect(factoryDecide(f.sales.id, r.id, false, now)).rejects.toThrow(/reason/i);
+    await expect(factoryDecide(f.sales.id, r.id, false, now, "x".repeat(1001))).rejects.toThrow(
+      /reason/i,
+    );
+    await factoryDecide(f.sales.id, r.id, false, now, "Please review the seam");
+    expect(await row(r.id)).toMatchObject({
+      status: "WITH_ADMIN",
+      factoryNote: "Please review the seam",
+    });
+    expect(
+      await db.notification.count({ where: { userId: f.admin.id, title: "Return needs review" } }),
+    ).toBe(1);
+    expect(await credits(r.id)).toHaveLength(0);
+  });
+  it.each([true, false])(
+    "automatically reviews a used buyer-fault receipt; admin accepts=%s",
+    async (accept) => {
+      const f = await fixture(2),
+        r = await fileReturn(f.buyer.id, f.line.id, input(2, "BUYER"), now);
+      await factoryDecide(f.factory.id, r.id, true, now);
+      await markReceived(f.sales.id, r.id, false, "Tags removed");
+      expect(await row(r.id)).toMatchObject({
+        status: "WITH_ADMIN",
+        receivedCondition: "Tags removed",
+        adminDecision: null,
+      });
+      expect(await credits(r.id)).toHaveLength(0);
+      await adminDecide(f.admin.id, r.id, accept, "Condition reviewed");
+      expect((await row(r.id)).status).toBe(accept ? "COMPLETED" : "REJECTED");
+      expect((await credits(r.id)).map((e) => e.amount.toFixed(2))).toEqual(
+        accept ? ["3000.00"] : [],
+      );
+      await expect(adminDecide(f.admin.id, r.id, true, "Again")).rejects.toThrow(/already/);
+      await expect(markReceived(f.factory.id, r.id, true)).rejects.toThrow();
+    },
+  );
+  async function adminAcceptedBuyerReturn() {
+    const f = await fixture(2),
+      r = await fileReturn(f.buyer.id, f.line.id, input(2, "BUYER"), now);
+    await factoryDecide(f.factory.id, r.id, false, now, "Review needed");
+    await adminDecide(f.admin.id, r.id, true, "Send it back");
+    return { ...f, r };
+  }
+  it.each([true, false])(
+    "reopens a pre-approved used receipt for one final decision; accepts=%s",
+    async (accept) => {
+      const f = await adminAcceptedBuyerReturn();
+      await expect(markReceived(f.sales.id, f.r.id, false, "")).rejects.toThrow();
+      const results = await Promise.allSettled([
+        markReceived(f.sales.id, f.r.id, false, "Used, no tags"),
+        markReceived(f.factory.id, f.r.id, false, "Used"),
+      ]);
+      expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect(await row(f.r.id)).toMatchObject({
+        status: "WITH_ADMIN",
+        adminDecision: null,
+        unusedWithTags: false,
+      });
+      expect((await row(f.r.id)).receivedAt).not.toBeNull();
+      expect(await credits(f.r.id)).toHaveLength(0);
+      expect(
+        await db.notification.count({
+          where: { userId: f.admin.id, title: "Return receipt needs review" },
+        }),
+      ).toBe(1);
+      const race = await Promise.allSettled([
+        adminDecide(f.admin.id, f.r.id, accept, "Final receipt review"),
+        markReceived(f.sales.id, f.r.id, true),
+      ]);
+      expect(race.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+      expect((await row(f.r.id)).status).toBe(accept ? "COMPLETED" : "REJECTED");
+      expect((await credits(f.r.id)).map((e) => e.amount.toFixed(2))).toEqual(
+        accept ? ["3000.00"] : [],
+      );
+    },
+  );
+  it("requires approval before pickup or receipt for staff and admins", async () => {
+    const f = await fixture(),
+      r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    for (const status of ["WAITING_FACTORY", "WITH_ADMIN"] as const) {
+      if (status === "WITH_ADMIN")
+        await factoryDecide(f.factory.id, r.id, false, now, "Review needed");
+      for (const id of [f.factory.id, f.sales.id, f.admin.id]) {
+        await expect(markReceived(id, r.id, true)).rejects.toThrow();
+        await expect(bookReturnPickup(id, r.id, { externalRef: "early" })).rejects.toThrow();
+      }
+    }
+    expect(await credits(r.id)).toHaveLength(0);
+  });
+  it("keeps admin-factory messages private, readable after decision, and deduplicates unread notices", async () => {
+    const f = await fixture(),
+      r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    await expect(postReturnMessage(f.sales.id, r.id, "Early")).rejects.toThrow();
+    await factoryDecide(f.factory.id, r.id, false, now, "Review seam");
+    await Promise.all([
+      postReturnMessage(f.sales.id, r.id, "Please inspect"),
+      postReturnMessage(f.sales.id, r.id, "Sleeve seam"),
+    ]);
+    expect(
+      await db.notification.count({
+        where: { userId: f.admin.id, title: "New return message", readAt: null },
+      }),
+    ).toBe(1);
+    expect((await listReturnMessages(f.admin.id, r.id)).map((m) => m.body)).toEqual([
+      "Please inspect",
+      "Sleeve seam",
+    ]);
+    expect(
+      await db.notification.count({
+        where: { userId: f.admin.id, title: "New return message", readAt: null },
+      }),
+    ).toBe(0);
+    await postReturnMessage(f.sales.id, r.id, "Another detail");
+    expect(
+      await db.notification.count({
+        where: { userId: f.admin.id, title: "New return message", readAt: null },
+      }),
+    ).toBe(1);
+    await postReturnMessage(f.admin.id, r.id, "I will review");
+    expect(
+      (await listReturnMessages(f.sales.id, r.id)).some((m) => m.body === "I will review"),
+    ).toBe(true);
+    const otherFactory = await db.user.create({
+      data: { role: "SELLER", name: "Other", email: "return-other@test.lk", passwordHash: "x" },
+    });
+    const packing = await db.user.create({
+      data: {
+        role: "SELLER",
+        name: "Packing",
+        email: "return-packing@test.lk",
+        passwordHash: "x",
+        factoryId: f.factory.id,
+        factoryRole: "PACKING",
+      },
+    });
+    for (const actor of [
+      f.buyer,
+      f.other,
+      otherFactory,
+      packing,
+      await makeUser("ADMIN", "PREMIUM"),
+      await makeUser("ADMIN"),
+    ]) {
+      await expect(listReturnMessages(actor.id, r.id)).rejects.toThrow();
+      await expect(postReturnMessage(actor.id, r.id, "Secret")).rejects.toThrow();
+    }
+    await adminDecide(f.admin.id, r.id, false, "Not eligible");
+    expect(await listReturnMessages(f.sales.id, r.id)).toHaveLength(4);
+    await expect(postReturnMessage(f.admin.id, r.id, "Late")).rejects.toThrow();
+  });
+  it("validates message length and serializes the per-user rate limit", async () => {
+    const f = await fixture(),
+      r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    await factoryDecide(f.factory.id, r.id, false, now, "Review");
+    for (const text of [" ", "x".repeat(1001)])
+      await expect(postReturnMessage(f.sales.id, r.id, text)).rejects.toThrow();
+    const results = await Promise.allSettled(
+      Array.from({ length: 11 }, (_, i) => postReturnMessage(f.sales.id, r.id, `Message ${i}`)),
+    );
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(10);
+    expect(await listReturnMessages(f.admin.id, r.id)).toHaveLength(10);
+  });
   it.each(["owner", "admin"])(
     "captures delivery time through the %s path and preserves it on retry",
     async (path) => {
@@ -126,7 +292,8 @@ describe("returns", () => {
     const f = await fixture(),
       warehouse = await makeUser("ADMIN");
     const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
-    await factoryDecide(f.factory.id, r.id, true, now);
+    await factoryDecide(f.factory.id, r.id, false, now, "Please review");
+    await adminDecide(f.admin.id, r.id, true, "Defect confirmed");
     expect(await credits(r.id)).toHaveLength(0);
     expect(
       await db.notification.count({
@@ -218,9 +385,8 @@ describe("returns", () => {
   it("rejects, escalates, serializes final admin decisions; no early credit", async () => {
     const f = await fixture(),
       r = await fileReturn(f.buyer.id, f.line.id, input(), now);
-    await factoryDecide(f.factory.id, r.id, false, now);
+    await factoryDecide(f.factory.id, r.id, false, now, "Review needed");
     expect(await credits(r.id)).toHaveLength(0);
-    await escalate(f.buyer.id, r.id);
     const results = await Promise.allSettled([
       adminDecide(f.admin.id, r.id, true, "Defect confirmed"),
       adminDecide(f.admin.id, r.id, false, "Rejected"),
@@ -231,7 +397,7 @@ describe("returns", () => {
       "This return has already been decided",
     );
     expect(await credits(r.id)).toHaveLength(0);
-    await expect(escalate(f.buyer.id, r.id)).rejects.toThrow();
+    await expect(adminDecide(f.admin.id, r.id, true, "Again")).rejects.toThrow();
   });
   it("rejects buyer-fault used item at receipt; final admin acceptance credits it", async () => {
     const f = await fixture(),
@@ -239,14 +405,13 @@ describe("returns", () => {
     await factoryDecide(f.factory.id, r.id, true, now);
     await markReceived(f.factory.id, r.id, false, "Tags removed");
     expect(await row(r.id)).toMatchObject({
-      status: "REJECTED",
+      status: "WITH_ADMIN",
       receivedCondition: "Tags removed",
     });
     expect(await credits(r.id)).toHaveLength(0);
-    await escalate(f.buyer.id, r.id);
     await adminDecide(f.admin.id, r.id, true, "Approve after review");
     expect((await credits(r.id)).map((e) => e.amount.toFixed(2))).toEqual(["1500.00"]);
-    await expect(escalate(f.buyer.id, r.id)).rejects.toThrow();
+    await expect(adminDecide(f.admin.id, r.id, true, "Again")).rejects.toThrow();
   });
   it("moves open returns to admin on removal and denies factory access", async () => {
     const f = await fixture(),
@@ -260,8 +425,7 @@ describe("returns", () => {
   it("hands final accepted returns to admins on removal without overturning acceptance", async () => {
     const f = await fixture(),
       r = await fileReturn(f.buyer.id, f.line.id, input(), now);
-    await factoryDecide(f.factory.id, r.id, false, now);
-    await escalate(f.buyer.id, r.id);
+    await factoryDecide(f.factory.id, r.id, false, now, "Review needed");
     await adminDecide(f.admin.id, r.id, true, "Defect confirmed");
     await removeFactory(f.admin.id, f.factory.id, "Repeated defects", false);
     expect(await row(r.id)).toMatchObject({ status: "WITH_ADMIN", adminDecision: true });
@@ -291,8 +455,7 @@ describe("returns", () => {
       ),
     ).rejects.toThrow();
     const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
-    await factoryDecide(f.factory.id, r.id, false, now);
-    await escalate(f.buyer.id, r.id);
+    await factoryDecide(f.factory.id, r.id, false, now, "Review needed");
     for (const actor of [
       f.buyer,
       f.factory,

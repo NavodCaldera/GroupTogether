@@ -18,6 +18,7 @@ export default async function ReturnsPage() {
           key={r.id}
           request={r}
           viewer={user.adminArea === "WAREHOUSE" ? "warehouse" : "admin"}
+          threadHref={user.adminArea === "WAREHOUSE" ? undefined : `/admin/factory/returns/${r.id}`}
         />
       ))}
     </div>

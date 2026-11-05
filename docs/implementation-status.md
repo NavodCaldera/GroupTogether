@@ -6,8 +6,17 @@ partial quantities, private photos, factory decisions, escalation, final admin d
 removal handoff and once-only full-price tokens at receipt. Buyer controls live on delivered
 carts, with `/seller/returns` for owner/SALES and `/admin/factory/returns` for decisions and
 pickup operations. External PickMe return booking is **manual**; no provider call or second
-cart Delivery is created. Buyer-fault used/untagged receipt handling remains Claude's call
-awaiting owner confirmation under DEC-013. Factory payouts remain outside scope.
+cart Delivery is created. Buyer-fault used/untagged receipt handling is owner-approved under
+DEC-013. Factory payouts remain outside scope.
+
+Updated **2026-11-06 (return follow-ups)**: factory refusals and used/untagged buyer-fault
+receipts go automatically to WITH_ADMIN, with a required reason and no tokens. A newly
+recorded used receipt can reopen a prior acceptance for one final admin decision. Buyer
+escalation was removed. Private ReturnMessage threads on admin detail and selected factory
+items permit only FACTORY/CORE and own owner/SALES, posting only WITH_ADMIN, with
+1000-character and ten-per-minute limits and one unread message notice per thread/recipient.
+Buyer status gives no sending/pickup step until acceptance. Migration return_messages also
+hands legacy appealable factory refusals to admins. See DEC-013 for approved policy.
 
 Local Part 4 verification: `npm run check` passed (141 unit tests and eight tooling tests),
 `npm run test:int` passed all 206 integration tests, both normal and E2E production builds
