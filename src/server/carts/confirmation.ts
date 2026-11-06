@@ -7,7 +7,7 @@ import { db, type Tx } from "../db";
 import { spendCartTokens } from "../tokens";
 import { notify, notifyRole } from "../notify";
 import { appendBrandEvent, flushBrandNotices } from "../brand-communications";
-import { cancelPaidLines, flushCancellationNotices } from "../cancellations";
+import { flushCancellationNotices } from "../cancellations";
 import { lockLedgerUsers } from "./locks";
 import { CartError } from "./errors";
 
@@ -77,44 +77,7 @@ export async function confirmPaidCart(
       data: { reserved: { decrement: l.qty }, sold: { increment: l.qty } },
     });
   }
-  const hidden = await tx.cartLine.findMany({
-    where: {
-      cartId,
-      status: "ACTIVE",
-      variant: {
-        product: {
-          OR: [{ hiddenAt: { not: null } }, { seller: { factoryProfile: { status: "REMOVED" } } }],
-        },
-      },
-    },
-    select: {
-      id: true,
-      variant: {
-        select: {
-          product: {
-            select: {
-              hiddenReason: true,
-              seller: {
-                select: { factoryProfile: { select: { status: true, removalReason: true } } },
-              },
-            },
-          },
-        },
-      },
-    },
-  });
-  for (const line of hidden) {
-    const p = line.variant.product,
-      profile = p.seller?.factoryProfile;
-    await cancelPaidLines(
-      tx,
-      [line.id],
-      profile?.status === "REMOVED"
-        ? profile.removalReason || "Factory removed"
-        : p.hiddenReason || "Product hidden",
-    );
-  }
-  return hidden.length ? tx.groupCart.findUniqueOrThrow({ where: { id: cartId } }) : confirmed;
+  return confirmed;
 }
 
 /** Called only after a successful confirmation transaction, for either payment route. */

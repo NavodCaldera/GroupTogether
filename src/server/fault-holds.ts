@@ -67,3 +67,47 @@ export async function recordFault(
       });
   return tx.faultHold.findUniqueOrThrow({ where: { id } });
 }
+
+import { lockUserAdvisory } from "./carts/locks";
+import { cleanFactoryCarts } from "./quality";
+import { flushQualityNotices } from "./quality-notices";
+/** Hold row is a gate across committed metadata and per-cart work. No factory/product/cart
+ * locks survive from one stage into the next. Decisions wait here; crashes leave cleanedAt null. */
+export async function enforceHold(holdId: string): Promise<void> {
+  await db.$transaction(
+    async (gate) => {
+      await gate.$queryRaw`SELECT 1 FROM "FaultHold" WHERE id=${holdId} FOR NO KEY UPDATE`;
+      const hold = await gate.faultHold.findUnique({ where: { id: holdId } });
+      if (!hold || hold.decidedAt || hold.cleanedAt) return;
+      const removed = await db.$transaction(async (tx) => {
+        await lockUserAdvisory(tx, hold.factoryId);
+        const profile = await tx.factoryProfile.findUniqueOrThrow({
+          where: { factoryUserId: hold.factoryId },
+        });
+        if (profile.status === "REMOVED") return true;
+        await tx.$queryRaw`SELECT 1 FROM "Product" WHERE "sellerId"=${hold.factoryId} ORDER BY id FOR UPDATE`;
+        await tx.product.updateMany({
+          where: { sellerId: hold.factoryId, hiddenAt: null },
+          data: {
+            hiddenAt: hold.openedAt,
+            hiddenReason: "Factory fault limit",
+            hiddenByHoldId: hold.id,
+          },
+        });
+        return false;
+      });
+      await cleanFactoryCarts(hold.factoryId, "Factory fault limit", hold.factoryId);
+      await gate.faultHold.update({
+        where: { id: hold.id },
+        data: {
+          cleanedAt: new Date(),
+          ...(removed
+            ? { decision: "REMOVE", decidedAt: new Date(), decisionNote: "Factory removed" }
+            : {}),
+        },
+      });
+    },
+    { maxWait: 10000, timeout: 120000 },
+  );
+  await flushQualityNotices();
+}

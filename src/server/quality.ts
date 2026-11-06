@@ -2,7 +2,7 @@ import "server-only";
 import { db } from "./db";
 import { CartError } from "./carts/errors";
 import { lockCart, lockUserAdvisory, withCartTransaction } from "./carts/locks";
-import { removeHiddenProductLines, sweep } from "./carts/service";
+import { removeHiddenProductLines, sweep, cancelUnpaidCart } from "./carts/service";
 import { cancelPaidLines, flushCancellationNotices } from "./cancellations";
 import { flushQualityNotices } from "./quality-notices";
 import { setUserLocked } from "./auth/service";
@@ -23,10 +23,19 @@ function reasonValue(reason: string) {
   return value;
 }
 /** Metadata commits BEFORE cart locks. One cart per transaction; every step is safe to re-run. */
-async function cleanProducts(productIds: string[], reason: string, actorId: string) {
+async function cleanProducts(
+  productIds: string[],
+  reason: string,
+  actorId: string,
+  wholeFactory = false,
+) {
   const carts = await db.groupCart.findMany({
     where: {
-      status: { in: ["OPEN", "READY", "CONFIRMED", "DISPATCHED"] },
+      status: {
+        in: wholeFactory
+          ? ["OPEN", "READY", "AWAITING_SLIP", "SLIP_REVIEW", "CONFIRMED"]
+          : ["OPEN", "READY"],
+      },
       lines: { some: { status: "ACTIVE", variant: { productId: { in: productIds } } } },
     },
     select: { id: true },
@@ -50,7 +59,25 @@ async function cleanProducts(productIds: string[], reason: string, actorId: stri
             },
             update: {},
           });
-      } else if (["CONFIRMED", "DISPATCHED"].includes(cart.status)) {
+      } else if (wholeFactory && ["AWAITING_SLIP", "SLIP_REVIEW"].includes(cart.status)) {
+        const members = await tx.cartMember.findMany({
+          where: { cartId: id },
+          select: { userId: true },
+        });
+        await cancelUnpaidCart(tx, cart, reason);
+        for (const member of members)
+          await tx.qualityNotice.upsert({
+            where: { id: `factory-cancel:${id}:${member.userId}` },
+            create: {
+              id: `factory-cancel:${id}:${member.userId}`,
+              userId: member.userId,
+              title: "A group cart was cancelled",
+              body: reason,
+              href: `/c/${cart.code}`,
+            },
+            update: {},
+          });
+      } else if (wholeFactory && cart.status === "CONFIRMED") {
         const lines = await tx.cartLine.findMany({
           where: { cartId: id, status: "ACTIVE", variant: { productId: { in: productIds } } },
           select: { id: true },
@@ -68,6 +95,22 @@ async function cleanProducts(productIds: string[], reason: string, actorId: stri
   await flushQualityNotices();
   await flushCancellationNotices();
 }
+export async function cleanFactoryCarts(
+  factoryId: string,
+  reason: string,
+  actorId: string,
+): Promise<void> {
+  const products = await db.product.findMany({
+    where: { sellerId: factoryId },
+    select: { id: true },
+  });
+  await cleanProducts(
+    products.map((p) => p.id),
+    reason,
+    actorId,
+    true,
+  );
+}
 export async function hideProduct(
   adminId: string,
   productId: string,
@@ -81,8 +124,8 @@ export async function hideProduct(
   });
   if (!product) throw new QualityError("Product not found");
   await db.product.updateMany({
-    where: { id: productId, hiddenAt: null },
-    data: { hiddenAt: new Date(), hiddenById: adminId, hiddenReason: why },
+    where: { id: productId, OR: [{ hiddenAt: null }, { hiddenByHoldId: { not: null } }] },
+    data: { hiddenAt: new Date(), hiddenById: adminId, hiddenReason: why, hiddenByHoldId: null },
   });
   const saved = await db.product.findUniqueOrThrow({
     where: { id: productId },
@@ -145,16 +188,8 @@ export async function removeFactory(
     orderBy: { id: "asc" },
   });
   for (const user of users) await setUserLocked(user.id, true);
-  const products = await db.product.findMany({
-    where: { sellerId: factoryUserId },
-    select: { id: true },
-  });
   const profile = await db.factoryProfile.findUniqueOrThrow({ where: { factoryUserId } });
-  await cleanProducts(
-    products.map((p) => p.id),
-    profile.removalReason || why,
-    adminId,
-  );
+  await cleanFactoryCarts(factoryUserId, profile.removalReason || why, adminId);
 }
 export async function qualityOverview(adminId: string, now = new Date()) {
   await assertQualityAdmin(adminId);

@@ -1,3 +1,4 @@
+import { enforceHold } from "../fault-holds";
 import "server-only";
 import { assertAdminArea } from "../auth/service";
 import { randomBytes } from "node:crypto";
@@ -442,6 +443,13 @@ async function close(tx: Tx, cart: GroupCart, status: CartStatus, reason: string
   await tx.groupCart.update({ where: { id: cart.id }, data: { status, closedReason: reason } });
 }
 
+/** Caller owns participant advisories/cart row; release only unpaid reservations. */
+export async function cancelUnpaidCart(tx: Tx, cart: GroupCart, reason: string) {
+  if (!["AWAITING_SLIP", "SLIP_REVIEW"].includes(cart.status))
+    throw new CartError("This cart is not unpaid");
+  await close(tx, cart, "CANCELLED", reason);
+}
+
 export async function cancelCart(actor: { id: string; role: Role }, cartId: string, reason = "") {
   if (actor.role === "ADMIN") await assertAdminArea(actor.id, "WAREHOUSE");
   const { cart, members } = await withCartTransaction([cartId], [actor.id], async (tx) => {
@@ -477,7 +485,14 @@ export async function cancelCart(actor: { id: string; role: Role }, cartId: stri
  * the reduced price (`reduceDueLots`).
  */
 export async function sweep(now = new Date(), cartId?: string) {
-  if (!cartId) await escalateOverdue(now);
+  if (!cartId) {
+    await escalateOverdue(now);
+    const holds = await db.faultHold.findMany({
+      where: { decidedAt: null, cleanedAt: null },
+      select: { id: true },
+    });
+    for (const hold of holds) await enforceHold(hold.id);
+  }
   if (!cartId) await remindAgreements(now);
   // No lot price drop while factories ship directly (product owner, 2026-11-03).
   if (!cartId && !factoryFulfilment()) await reduceDueLots(now);

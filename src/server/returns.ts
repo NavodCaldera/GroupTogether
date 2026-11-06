@@ -10,7 +10,7 @@ import { withCartTransaction } from "./carts/locks";
 import { checkUpload, IMAGE_TYPES, saveUpload } from "./storage";
 import { credit } from "./tokens";
 import { assertQualityAdmin } from "./quality";
-import { recordFault } from "./fault-holds";
+import { recordFault, enforceHold } from "./fault-holds";
 import { flushQualityNotices } from "./quality-notices";
 import { notify } from "./notify";
 
@@ -218,6 +218,11 @@ async function locked<T>(
       return work(tx, r);
     },
   );
+  const holds = await db.faultHold.findMany({
+    where: { factoryId: first.factoryId, decidedAt: null, cleanedAt: null },
+    select: { id: true },
+  });
+  for (const hold of holds) await enforceHold(hold.id);
   await flushReturnNotices();
   await flushQualityNotices();
   return result;

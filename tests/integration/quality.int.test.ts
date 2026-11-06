@@ -6,8 +6,7 @@ import { D, toD } from "@/lib/decimal";
 import { db } from "@/server/db";
 import { hideProduct, removeFactory, qualityOverview } from "@/server/quality";
 import { createCart, setLine, markDone, acceptAndPay, sweep } from "@/server/carts/service";
-import { withCartTransaction } from "@/server/carts/locks";
-import { cancelPaidLines, flushCancellationNotices } from "@/server/cancellations";
+import { flushCancellationNotices } from "@/server/cancellations";
 import { uploadSlip, approveSlip, rejectSlip } from "@/server/carts/slips";
 import { credit, applyTokens, tokenBalance } from "@/server/tokens";
 import { getProduct, listProducts, suggestProducts, shopFacets } from "@/server/catalogue";
@@ -144,7 +143,7 @@ describe("quality hide/remove", () => {
       await conservation();
     },
   );
-  it("freezes accepted lines and amounts, then cancels hidden lines atomically on approval", async () => {
+  it("keeps accepted hidden lines and amounts unchanged through approval", async () => {
     const f = await fixture("AWAITING_SLIP");
     const before = await db.groupCart.findUniqueOrThrow({ where: { id: f.cart.id } });
     const balance = await tokenBalance(f.member.id);
@@ -164,19 +163,19 @@ describe("quality hide/remove", () => {
     expect(slip.amount.toFixed(2)).toBe("2500.00");
     await approveSlip(f.warehouse.id, slip.id);
     expect((await db.cartLine.findUniqueOrThrow({ where: { id: f.line.id } })).status).toBe(
-      "CANCELLED",
+      "ACTIVE",
     );
     expect((await db.groupCart.findUniqueOrThrow({ where: { id: f.cart.id } })).status).toBe(
       "CONFIRMED",
     );
-    expect((await tokenBalance(f.member.id)).eq(balance.plus("1500"))).toBe(true);
+    expect((await tokenBalance(f.member.id)).eq(balance)).toBe(true);
     await hideProduct(f.admin.id, f.a.productId, "Retry");
     expect(
       await db.tokenEntry.count({ where: { eventKey: `credit:CANCELLATION:${f.line.id}` } }),
-    ).toBe(1);
+    ).toBe(0);
     await conservation();
   });
-  it("confirms token-only carts and cancels a product flagged before its cleanup transaction", async () => {
+  it("confirms token-only carts with a product hidden before its cleanup transaction", async () => {
     const f = await fixture();
     await fund(f.member.id, "1000", "extra");
     await applyTokens(f.member.id, f.line.id, "1000");
@@ -200,11 +199,11 @@ describe("quality hide/remove", () => {
       "CONFIRMED",
     );
     expect((await db.cartLine.findUniqueOrThrow({ where: { id: f.line.id } })).status).toBe(
-      "CANCELLED",
+      "ACTIVE",
     );
     expect(
       await db.tokenEntry.count({ where: { eventKey: `credit:CANCELLATION:${f.line.id}` } }),
-    ).toBe(1);
+    ).toBe(0);
     expect(await db.paymentSlip.count()).toBe(0);
     await conservation();
   });
@@ -259,23 +258,20 @@ describe("quality hide/remove", () => {
     expect(await db.cartLine.count({ where: { id: f.line.id } })).toBe(0);
     await conservation();
   });
-  it("serializes hide/cancel with approval, writes one credit and refuses frozen edits", async () => {
+  it("serializes hide with approval without credits and refuses frozen edits", async () => {
     const f = await fixture("SLIP_REVIEW");
     const results = await Promise.allSettled([
       hideProduct(f.admin.id, f.a.productId, "Race quality"),
-      withCartTransaction([f.cart.id], [], (tx) =>
-        cancelPaidLines(tx, [f.line.id], "Manual quality"),
-      ),
       approveSlip(f.warehouse.id, f.slipId),
       setLine(f.member.id, f.cart.id, f.a.id, 2),
       applyTokens(f.member.id, f.line.id, "100"),
     ]);
-    expect(results.slice(0, 3).every((r) => r.status === "fulfilled")).toBe(true);
-    expect(results.slice(3).every((r) => r.status === "rejected")).toBe(true);
+    expect(results.slice(0, 2).every((r) => r.status === "fulfilled")).toBe(true);
+    expect(results.slice(2).every((r) => r.status === "rejected")).toBe(true);
     await flushCancellationNotices();
     expect(
       await db.tokenEntry.count({ where: { eventKey: `credit:CANCELLATION:${f.line.id}` } }),
-    ).toBe(1);
+    ).toBe(0);
     await conservation();
   });
   it("removes factories, ends staff sessions, holds earnings and sends no factory notice", async () => {
@@ -338,7 +334,7 @@ describe("quality hide/remove", () => {
     ).toBe(2);
     await conservation();
   });
-  it("removing a dispatched factory preserves delivery and alerts warehouse once", async () => {
+  it("removing a dispatched factory preserves delivery without cancellation alerts", async () => {
     const f = await fixture("DISPATCHED");
     const delivery = await db.delivery.findUniqueOrThrow({ where: { cartId: f.cart.id } });
     await removeFactory(f.admin.id, f.factory.id, "Pickup quality hold", false);
@@ -353,7 +349,7 @@ describe("quality hide/remove", () => {
       await db.notification.count({
         where: { userId: f.warehouse.id, title: `Cancelled dispatched cart ${f.cart.code}` },
       }),
-    ).toBe(1);
+    ).toBe(0);
   });
 });
 

@@ -27,6 +27,8 @@ export async function canSellIn(client: Tx, factoryUserId: string, now: Date): P
       select: { versionId: true, endsAt: true },
     }),
   ]);
+  if (await client.faultHold.count({ where: { factoryId: factoryUserId, decidedAt: null } }))
+    return false;
   const profile = owner?.factoryProfile;
   if (
     !profile ||
@@ -50,6 +52,7 @@ export async function sellingFactoryWhere(
     select: { id: true },
   });
   return {
+    faultHolds: { none: { decidedAt: null } },
     role: "SELLER",
     factoryId: null,
     isBrand: false,
