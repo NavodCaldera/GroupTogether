@@ -2,9 +2,10 @@
 
 ## 2026-11-07 - Factory dashboards planning, preorders paused
 
-- Preorders are **not completed**. The owner paused them with no approved policy or code. Decisions
-  so far and open questions are in `DEC-015` and its parked notes. Many baskets and the 3-day
-  basket lifetime are paused with them, so `CART-002` and `CART-003` stay as written.
+- Preorders are **not completed**. The owner paused only that part, with no approved policy or code.
+  Decisions so far and open questions are in `DEC-015` and its parked notes.
+- Approved, not built yet: a buyer can be in many baskets (`CART-003`), baskets last 3 days
+  (`CART-002`), and factories can test designs with a price and collect likes.
 - Packing contents and layout approved, not built yet: its own Home, saved checklist, Report a
   problem, required photo, optional packing slip, driver details, Given to driver and Parcel is back.
   Admin keeps PickMe booking, correcting `DEC-012`.

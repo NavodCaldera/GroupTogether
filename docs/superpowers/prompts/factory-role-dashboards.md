@@ -66,6 +66,12 @@ Interview the owner on what's still open, in this order:
    see?
 8. **Packing loose ends:** who clears a reported problem (factory Owner or FACTORY admin is assumed,
    unconfirmed)? How do staff close an order when an item can't be replaced?
+9. **Design tests and likes (under Planner):** a factory tests a design with a price, buyers like it,
+   and the factory decides to sew. Settle how this fits `DEC-012` drafts (stars, comments, votes,
+   sizes), who can see and like a test, and how a design becomes a normal listing.
+10. **Many baskets:** a limit per buyer, given that one buyer could reserve a lot of stock for 3
+    days; moving items and join requests (`CART-005`); what merging does to an owned basket; gifts
+    across baskets.
 
 The 2026-11-04 layouts in `docs/factory-dashboard-spec.md` are earlier input, not approved for this
 rebuild. Test each against the rule below. Some rely on paused or unbuilt features.
@@ -103,11 +109,19 @@ next thing that person can act on, never a figure or chart.
 - `FUL-003` gains Given to driver and Parcel is back.
 - `Delivery` gains a vehicle number, and the PickMe reference becomes required on admin booking.
 
-**Do not build preorders.** `DEC-015` is **not completed and not approved policy**. Leave out design
-drafts and likes, sew decisions, preorder campaigns, deposits, the Preorder basket, many baskets,
-the 3-day basket lifetime, preorder factory payments and debts. `CART-002`, `CART-003` and `PAY-003`
-stay as written. Don't add placeholder tabs or empty sections for them. Bring anything that seems to
-need them to the owner.
+**In this rebuild, approved 2026-11-07:**
+- **Many baskets (`CART-003`) and a 3-day lifetime (`CART-002`):** assumed for all baskets, so confirm
+  that with the owner. These change buyer screens and cart services, so include them in the plan as
+  their own tasks and use `.agents/skills/groupbasket-cart-concurrency`. Today's one-cart checks,
+  `mergeSource`, and single-basket buyer and admin screens all assume one basket; find every case.
+  Existing baskets keep their expiry dates. The `cartLifetimeHours` default and the stored setting
+  both need to reach 72 hours.
+- **Design tests and likes:** likes are interest only, never an order or payment.
+
+**Do not build preorders.** `DEC-015` is **not completed and not approved policy**. Leave out placing
+preorders, preorder campaigns and targets, deposits, the Preorder basket, and preorder factory
+payments and debts. `PAY-001`, `PAY-003` and `SUP-001` stay as written unless the owner decides
+payouts on ordinary orders. Don't add placeholder tabs or empty sections for preorders.
 
 **Keep as they are:**
 - `/seller/returns` and `/admin/factory/quality` behaviour, `RETURN-001`, `FAULT-001` and `QUAL-001`.

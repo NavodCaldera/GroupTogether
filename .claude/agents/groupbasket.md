@@ -31,7 +31,9 @@ The intended value is affordable clothing for buyers, bulk sales for suppliers, 
 
 GroupBasket buys a small batch of a factory's test pieces and sells them. The factory can inspect demand, paid purchases, sizes and prices before deciding whether to produce a bulk. A later bulk of the same design belongs to the same product and sales history. Cart interest is distinct from paid demand; it is not a purchase commitment or a guarantee of future sales.
 
-**Preorders are not completed:** the owner paused them on 2026-11-07. They are not approved policy and must not be built (`DEC-015`).
+**Design tests and likes, approved 2026-11-07, not built yet:** a factory can test a design with a price and buyers can like it, so the factory can decide whether to sew. Likes are interest only, not an order or payment.
+
+**Preorders are not completed:** the owner paused only the preorder part on 2026-11-07. It is not approved policy and must not be built (`DEC-015`).
 
 ### Premium-brand rewards with direct fulfilment
 
@@ -100,8 +102,8 @@ These are summaries. Rule IDs below define behavior; the [architecture reference
 ### Carts and communication
 
 - **CART-001 — Minimum:** initial default LKR 50,000, configurable by admin. Each cart snapshots its minimum. While editable (`OPEN`/`READY`), sum all members' lines: at or above minimum it becomes `READY`, otherwise `OPEN`. Do not reclassify frozen or paid carts from this total. Notify every member in-app on each crossing to `READY`.
-- **CART-002 — Lifetime:** default filling window is 24 hours from creation, taken from Settings. Unaccepted overdue carts expire and release stock. Acceptance starts the separate payment window.
-- **CART-003 — One active cart:** a buyer can own or belong to only one active cart: unexpired `OPEN`/`READY`, `AWAITING_SLIP` within its deadline, or `SLIP_REVIEW`. It must be confirmed, expired, cancelled or left before another can be used.
+- **CART-002 — Lifetime:** default filling window is 3 days (72 hours) from creation, approved by the owner on 2026-11-07 and not built yet (the code default is still 24 hours), taken from Settings. Unaccepted overdue carts expire and release stock. Acceptance starts the separate payment window.
+- **CART-003 — Many baskets:** approved by the owner on 2026-11-07, not built yet: a buyer can own or belong to many active carts. Any limit, and the changes to `CART-005`, are still to be settled. Until this is built, the code keeps the old rule of one active cart: unexpired `OPEN`/`READY`, `AWAITING_SLIP` within its deadline, or `SLIP_REVIEW`.
 - **CART-004 — Discovery/sharing:** public carts appear in discovery; private carts are reached by link. Name carts after the owner. Use `/c/<code>` and the dashboard copy-link action; do not restore removed cart-page invite/share controls. Search by cart/code/owner name. Sort nearest-first when the buyer has a pin (unknown distances last), otherwise newest-first.
 - **CART-005 — Moving items:** a buyer can request to join another cart; both source and target must be `OPEN`/`READY` and unexpired. The target owner accepts/declines; the requester may cancel. One pending request per buyer. Acceptance moves the buyer's items with reservations intact. An owned source cart must contain nobody else and is deleted; otherwise the buyer leaves the source cart.
 - **CART-006 — Member done before finish:** approved on **2026-11-05** (`DEC-014`). Every other member with clothing lines must mark their own items Done before the owner accepts. The owner needs no separate Done step; members without lines do not block. Members may Undo while editable and unexpired. Changes to their lines, token holds/releases or gift reservations reset Done atomically; joins and incoming merges start not done. The owner may remove only a not-done non-owner, releasing their stock, tokens and gifts and recomputing the minimum. Removed members may rejoin. Notify a removed member and notify the owner once per transition to all required members done, including removal, leaving or emptying the last waiting member. Do not send this completion notice when no non-owner member has items. Finished carts remain immutable.

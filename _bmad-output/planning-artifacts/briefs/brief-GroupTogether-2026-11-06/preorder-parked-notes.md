@@ -10,6 +10,10 @@ created: 2026-11-07
 any of it, and do not change an approved rule because of it. The record is `DEC-015` in
 [decisions](../../../../docs/decisions.md). The dated history is in [.memlog.md](.memlog.md).
 
+**Not parked:** many baskets, the 3-day basket lifetime, and design tests with likes are in the
+factory dashboards rebuild (owner, 2026-11-07). They are listed below because preorders rely on
+them, and their technical findings still apply.
+
 ## What the owner has said so far
 
 1. A factory tests a design with a price, buyers like it, and the factory decides to sew. It takes
@@ -90,10 +94,8 @@ These came from read-only agents on 2026-11-07, without running code. Recheck th
 
 ## Suggested order when this resumes
 
-1. Designs and likes.
-2. Many baskets and the 3-day lifetime.
-3. Deposits and tokens, after legal review.
-4. Preorder campaigns.
-5. Factory money, repayment and debts, after legal review and a new factory agreement.
+1. Deposits and tokens, after legal review.
+2. Preorder campaigns.
+3. Factory money, repayment and debts, after legal review and a new factory agreement.
 
 Before giving this priority, check how many real factories have reached LKR 10,000,000.

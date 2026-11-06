@@ -7,8 +7,8 @@ decided here are also in [decisions](decisions.md) (`DEC-012`).
 **Being rebuilt, 2026-11-07:** the Packing content below is replaced by the
 [approved brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/brief.md).
 Admin books PickMe, and there is no parcel size choice or expected arrival time. Other sections and
-layouts are earlier input until their interview ends. Design drafts are paused with preorders
-(`DEC-015`). The payout sum is factory price plus commission (`DEC-013`), not "sale minus LKR 100".
+layouts are earlier input until their interview ends. Design drafts and likes are in this rebuild;
+preorders are paused (`DEC-015`). The payout sum is factory price plus commission (`DEC-013`), not "sale minus LKR 100".
 
 ## Accounts and roles
 

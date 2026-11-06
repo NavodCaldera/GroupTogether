@@ -77,7 +77,8 @@ The full list is on the Orders tab, where staff can pick any order.
 
 ### Planner
 
-Not yet interviewed. Design drafts, likes and sew decisions are paused with preorders (`DEC-015`).
+Not yet interviewed. Includes testing a design with a price, buyers' likes and the decision to sew.
+A design that goes ahead becomes a normal listing. Preorders are paused (`DEC-015`).
 
 ### Sales
 
@@ -88,7 +89,7 @@ Not yet interviewed.
 | Part | Status |
 |---|---|
 | Checklists | In, agreed under Packing |
-| Design drafts | Paused with preorders (`DEC-015`) |
+| Design drafts and likes | In; details agreed in the Planner interview |
 | Factory payouts | Not decided |
 | Inbox and chat | Not decided |
 
@@ -100,14 +101,26 @@ account is protected, and nobody can lock their own login.
 ## Kept as they are
 
 - `/seller/returns` and `/admin/factory/quality` keep their behaviour.
-- All approved rules stay unchanged, except the Packing corrections above.
+- All approved rules stay unchanged, except the Packing corrections above and the two basket
+  changes below.
 - Luxury brands keep their own dashboard at `/seller`.
+
+## Basket changes in this rebuild
+
+Approved by the owner on 2026-11-07, for all baskets (assumed):
+
+- **Many baskets:** a buyer can own or belong to many baskets (`CART-003`).
+- **3-day lifetime:** baskets last 3 days instead of 24 hours (`CART-002`).
+
+Still to settle: any limit on baskets per buyer, since one buyer could reserve a lot of stock for 3
+days; how moving items and join requests work (`CART-005`); and gifts across baskets. These change
+buyer screens as well as factory ones.
 
 ## Not in this rebuild
 
-Preorders are **not completed** and are paused until the owner resumes them. That includes deposits,
-the Preorder basket, many baskets, the 3-day basket lifetime and preorder factory payments. See
-`DEC-015` and [parked notes](preorder-parked-notes.md).
+Only preorders are paused. They are **not completed** until the owner resumes them. That includes
+deposits, the Preorder basket, placing preorders, campaigns and targets, and preorder factory
+payments and debts. See `DEC-015` and [parked notes](preorder-parked-notes.md).
 
 ## Open questions
 

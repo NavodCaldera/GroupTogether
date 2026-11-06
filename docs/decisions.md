@@ -103,7 +103,7 @@ Four admins: luxury brands, factories, buyers, and a core admin who handles only
 
 Factories get one login per person with fixed roles (packing, planner, sales, owner; several owners allowed; only owners see money). GroupBasket keeps a commission of **LKR 100 per piece** and pays each order to the factory **after delivery by bank transfer**, recorded with the bank reference. Packing staff book PickMe from the factory (API, with a manual fallback); the cart owner still pays the driver. Design drafts collect interest, stars, comments and votes before publishing. Public comments, questions and replies post at once and are hidden by an admin when reported; factories never contact buyers directly. Open: refunds or chargebacks after a payout, and what happens to interest when a draft is dropped.
 
-**Packing correction approved on 2026-11-06, not built yet:** admin books PickMe (`FUL-001`), so Packing booking and the parcel size choice are dropped. Admin enters the PickMe reference, driver name, phone and vehicle number. Packing or Owner records Given to driver after booking, and Packing records Parcel is back after a failed drop. Checklists are in the factory dashboards rebuild. Design drafts are paused with preorders (`DEC-015`). Payouts, inbox and chat are still to be decided. [Brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/brief.md).
+**Packing correction approved on 2026-11-06, not built yet:** admin books PickMe (`FUL-001`), so Packing booking and the parcel size choice are dropped. Admin enters the PickMe reference, driver name, phone and vehicle number. Packing or Owner records Given to driver after booking, and Packing records Parcel is back after a failed drop. Checklists, design drafts and likes are in the factory dashboards rebuild; preorders are paused (`DEC-015`). Payouts, inbox and chat are still to be decided. [Brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/brief.md).
 
 ### DEC-013 - Factory partnership: checks, agreement, quality, tokens and returns
 
@@ -181,13 +181,14 @@ notice. Existing post-accept immutability, payment and token rules continue unch
 Do not build it or change an approved rule because of it. **Notes:**
 [parked notes](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/preorder-parked-notes.md).
 
-The owner has described a flow: a factory tests a design, buyers like it, and the factory takes
-preorders before sewing. Buyers pay with tokens from a deposit of at least LKR 20,000, keep items in
-a personal Preorder basket, and later move ready items into a normal basket. The factory is paid
-when its target is reached. The owner also asked for many baskets per buyer and a 3-day basket
-lifetime as part of this work. `CART-002`, `CART-003`, `PAY-001`, `PAY-003` and `SUP-001` stay as
-written until the owner resumes this. Open questions, including Question 25 and legal review, are
-in the notes.
+Only the preorder part is paused: the factory takes preorders before sewing, buyers pay with tokens
+from a deposit of at least LKR 20,000, keep items in a personal Preorder basket, and later move
+ready items into a normal basket, and the factory is paid when its target is reached. `PAY-001`,
+`PAY-003` and `SUP-001` stay as written until the owner resumes this. Open questions, including
+Question 25 and legal review, are in the notes.
+
+**Not paused, approved on 2026-11-07 and not built yet:** many baskets per buyer (`CART-003`), a
+3-day basket lifetime (`CART-002`), and design tests with likes.
 
 ## Legacy rule references
 
