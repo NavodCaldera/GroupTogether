@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-06 - Final handover
+
+- Added the [owner and developer handover](handover/2026-11-06-handover.md) for the November 5–6 work, with commit mappings, recorded verification limits and remaining owner setup. Reconciled stale status wording and CART-006 completion notices in the operating brief. Documentation only.
+
 ## 2026-11-05 - Factory partnership Part 3: quality and cancellations
 
 - Task 3.3 computes manual-only product/factory flags, exposes FACTORY/CORE quality review and
