@@ -1,5 +1,13 @@
 # Product-owner change log
 
+## 2026-11-06 - Fault hold review fixes
+
+- Full sweep retries failed removals after committed Remove decisions and isolates failures.
+- Hold enforcement commits product hiding before per-cart cleanup, allows Continue and messages
+  between carts, stops on a decision, and marks completion in a final short transaction.
+- Added recovery, failure-isolation, mid-cleanup discussion/Continue and partial-retry regressions.
+  [Review-fixes prompt](superpowers/prompts/fault-hold-review-fixes.md).
+
 ## 2026-11-06 - Returns rebuild and factory fault limit
 
 - New factory return deadlines are 24 hours; admins are notified and can view at filing.

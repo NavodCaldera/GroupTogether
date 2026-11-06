@@ -1,3 +1,4 @@
+import { removeFactory } from "../quality";
 import { enforceHold } from "../fault-holds";
 import "server-only";
 import { assertAdminArea } from "../auth/service";
@@ -491,7 +492,30 @@ export async function sweep(now = new Date(), cartId?: string) {
       where: { decidedAt: null, cleanedAt: null },
       select: { id: true },
     });
-    for (const hold of holds) await enforceHold(hold.id);
+    for (const hold of holds) {
+      try {
+        await enforceHold(hold.id);
+      } catch {
+        console.error("Fault hold cleanup will retry", hold.id);
+      }
+    }
+    const removals = await db.faultHold.findMany({
+      where: {
+        decision: "REMOVE",
+        factory: { factoryProfile: { is: { status: { not: "REMOVED" } } } },
+      },
+      select: { id: true, factoryId: true, decidedById: true, decisionNote: true },
+      orderBy: { id: "asc" },
+    });
+    for (const hold of removals) {
+      try {
+        if (!hold.decidedById || !hold.decisionNote)
+          throw new CartError("Removal decision is incomplete");
+        await removeFactory(hold.decidedById, hold.factoryId, hold.decisionNote, false);
+      } catch {
+        console.error("Fault hold removal will retry", hold.id);
+      }
+    }
   }
   if (!cartId) await remindAgreements(now);
   // No lot price drop while factories ship directly (product owner, 2026-11-03).

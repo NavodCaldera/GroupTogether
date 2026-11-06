@@ -13,11 +13,24 @@ payment figures to factories; selected hold routes return 404 for outsiders.
 `recordFault` runs inside the existing return transaction: sorted participant/factory advisories,
 cart row, return row, then ledger users if needed. It records once, counts the calendar window,
 opens a hold with conflict-do-nothing semantics and queues durable QualityNotice entries. It never
-locks another cart. After commit `enforceHold` takes a hold-row FOR NO KEY UPDATE gate (compatible
-with product foreign-key checks), then a separate metadata transaction takes the factory advisory
-and sorted product rows. Those locks release before `cleanFactoryCarts` takes one normal
-participant/cart/ledger transaction at a time. The gate stays locked until cleanedAt commits;
-decisions wait. Sweep retries open uncleaned holds. Selling queries and mutations reject open holds.
+locks another cart. After commit `enforceHold` uses one short metadata transaction: the hold
+row FOR NO KEY UPDATE, skip decided/cleaned holds, factory advisory, then product rows in id order.
+It commits before cart cleanup. There is no surrounding transaction or connection held across
+carts, so Continue and hold messages can proceed between them.
+
+`cleanFactoryCarts` accepts an optional open-hold check. Enforcement re-reads the hold before
+each cart and again after acquiring the cart's participant/cart locks, using that transaction's
+client. A decided or already-cleaned hold stops the pass. Completed cart cancellations stay
+committed; remaining carts are not processed after Continue, and a decided hold is never re-hidden.
+Removal omits this check and keeps its existing cleanup behavior. After a complete pass, a final
+short hold-row transaction sets cleanedAt only while the hold remains open. Interrupted passes
+leave cleanedAt null; sweep retries idempotently with one credit per line. A removed factory's
+open hold still closes as REMOVE. Notice flushing follows cart work without a hold gate.
+
+Full sweep also retries committed REMOVE decisions whose factory profile is not REMOVED, using
+the recorded admin and note. Each failed removal or pending-hold cleanup is isolated, leaving
+other holds and normal cart expiry able to run. Per-cart sweeps do not run hold recovery.
+Selling queries and mutations reject open holds.
 
 Shared cleanup removes OPEN/READY lines, wraps close/release in `cancelUnpaidCart` for unpaid
 finished carts, and uses `cancelPaidLines` for CONFIRMED carts. DISPATCHED/DELIVERED are excluded

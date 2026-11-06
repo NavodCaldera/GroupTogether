@@ -1,9 +1,13 @@
-﻿import { afterAll, beforeEach, describe, it, expect } from "vitest";
-import { db } from "@/server/db";
+﻿import { afterAll, afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import * as quality from "@/server/quality";
+import * as cartLocks from "@/server/carts/locks";
+import { sweep } from "@/server/carts/service";
+import { db, type Tx } from "@/server/db";
 import { factoryDecide, adminDecide, fileReturn } from "@/server/returns";
 import { recordFault, countedFaultUnits } from "@/server/fault-holds";
 import { makeUser, makeVariant, resetDb, giftPhotoFile } from "./helpers";
 beforeEach(resetDb);
+afterEach(() => vi.restoreAllMocks());
 afterAll(() => db.$disconnect());
 const now = new Date("2026-11-06T10:00:00Z");
 async function fixture() {
@@ -495,36 +499,30 @@ describe("hold decisions and private discussion", () => {
       (await db.faultHold.findUniqueOrThrow({ where: { id: f.hold.id } })).decidedAt,
     ).not.toBeNull();
   });
-  it("continue waits for unfinished cleanup and never re-hides products", async () => {
+  it("continue during cleanup stops further cancellations and never re-hides products", async () => {
     const f = await fixture(),
-      c = await statusCart(f, "CONFIRMED"),
-      hold = await db.faultHold.create({ data: { factoryId: f.factory.id } });
-    let release!: () => void, ready!: () => void;
-    const started = new Promise<void>((r) => (ready = r)),
-      block = new Promise<void>((r) => (release = r));
-    const blocker = withCartTransaction([c.cart.id], [], async () => {
-      ready();
-      await block;
-    });
-    await started;
-    const enforcing = enforceHold(hold.id);
-    for (let i = 0; i < 100; i++) {
-      if ((await db.product.findUniqueOrThrow({ where: { id: f.v.productId } })).hiddenByHoldId)
-        break;
-      await new Promise((r) => setTimeout(r, 10));
+      paused = await pauseBetweenCarts(f);
+    const enforcing = enforceHold(paused.hold.id);
+    await paused.started;
+    const deciding = decideHold(f.admin.id, paused.hold.id, "CONTINUE", "Reviewed between carts");
+    try {
+      await promptly(deciding);
+    } finally {
+      paused.release();
+      await Promise.allSettled([enforcing, deciding]);
     }
+    expect((await cartRow(paused.first.cart.id)).status).toBe("CANCELLED");
+    expect(await cancellationCredits(paused.first.cart.id)).toHaveLength(2);
+    expect((await cartRow(paused.second.cart.id)).status).toBe("CONFIRMED");
+    expect(await cancellationCredits(paused.second.cart.id)).toHaveLength(0);
     expect(
-      (await db.product.findUniqueOrThrow({ where: { id: f.v.productId } })).hiddenByHoldId,
-    ).toBe(hold.id);
-    const deciding = decideHold(f.admin.id, hold.id, "CONTINUE", "Reviewed");
-    release();
-    await blocker;
-    await Promise.all([enforcing, deciding]);
-    await enforceHold(hold.id);
+      (await db.faultHold.findUniqueOrThrow({ where: { id: paused.hold.id } })).cleanedAt,
+    ).toBeNull();
+    await enforceHold(paused.hold.id);
     expect(
       (await db.product.findUniqueOrThrow({ where: { id: f.v.productId } })).hiddenAt,
     ).toBeNull();
-    expect((await cartRow(c.cart.id)).status).toBe("CANCELLED");
+    expect((await cartRow(paused.second.cart.id)).status).toBe("CONFIRMED");
   });
   it("cancelling a fault needs a note, keeps history and stops counting without closing hold", async () => {
     const f = await held(),
@@ -631,4 +629,173 @@ it("enforcement flushes a pending hold message only after releasing its gate", a
       where: { userId: f.admin.id, title: "New hold message", readAt: null },
     }),
   ).toBe(1);
+});
+
+async function promptly<T>(work: Promise<T>): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      work,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("Blocked by cleanup transaction")), 1500);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+async function pauseBetweenCarts(f: Awaited<ReturnType<typeof fixture>>) {
+  const first = await statusCart(f, "CONFIRMED"),
+    second = await statusCart(f, "CONFIRMED"),
+    hold = await db.faultHold.create({ data: { factoryId: f.factory.id } });
+  let release!: () => void,
+    ready!: () => void,
+    paused = false;
+  const started = new Promise<void>((r) => (ready = r)),
+    block = new Promise<void>((r) => (release = r));
+  const original = cartLocks.withCartTransaction;
+  async function transaction<T>(
+    ids: string[],
+    users: string[],
+    work: (tx: Tx) => Promise<T>,
+  ): Promise<T> {
+    const result = await original(ids, users, work);
+    if (ids[0] === first.cart.id && !paused) {
+      paused = true;
+      ready();
+      await block;
+    }
+    return result;
+  }
+  vi.spyOn(cartLocks, "withCartTransaction").mockImplementation(transaction);
+  return { first, second, hold, started, release };
+}
+describe("review recovery regressions", () => {
+  it("sweep recovers a committed Remove decision after removal fails, once", async () => {
+    const f = await held();
+    const staff = await db.user.update({
+      where: { id: (await makeUser()).id },
+      data: { role: "SELLER", factoryId: f.factory.id, factoryRole: "PACKING" },
+    });
+    const remove = vi
+      .spyOn(quality, "removeFactory")
+      .mockRejectedValueOnce(new Error("Simulated removal failure"));
+    await expect(decideHold(f.admin.id, f.hold.id, "REMOVE", "Repeated faults")).rejects.toThrow(
+      "Simulated removal failure",
+    );
+    const decision = await db.faultHold.findUniqueOrThrow({ where: { id: f.hold.id } });
+    expect(decision).toMatchObject({
+      decision: "REMOVE",
+      decidedById: f.admin.id,
+      decisionNote: "Repeated faults",
+    });
+    expect(decision.decidedAt).not.toBeNull();
+    expect(
+      (await db.factoryProfile.findUniqueOrThrow({ where: { factoryUserId: f.factory.id } }))
+        .status,
+    ).toBe("ACTIVE");
+    await sweep();
+    expect(
+      (await db.factoryProfile.findUniqueOrThrow({ where: { factoryUserId: f.factory.id } }))
+        .status,
+    ).toBe("REMOVED");
+    expect((await db.user.findUniqueOrThrow({ where: { id: staff.id } })).locked).toBe(true);
+    const profile = await db.factoryProfile.findUniqueOrThrow({
+      where: { factoryUserId: f.factory.id },
+    });
+    await sweep();
+    expect(remove).toHaveBeenCalledTimes(2);
+    expect(
+      await db.factoryProfile.findUniqueOrThrow({ where: { factoryUserId: f.factory.id } }),
+    ).toEqual(profile);
+    expect(await db.faultHold.findUniqueOrThrow({ where: { id: f.hold.id } })).toEqual(decision);
+  });
+  it("one failed removal does not block other holds or normal expiry", async () => {
+    const bad = await fixture(),
+      good = await fixture();
+    for (const f of [bad, good])
+      await db.faultHold.create({
+        data: {
+          factoryId: f.factory.id,
+          decision: "REMOVE",
+          decidedAt: new Date(),
+          decidedById: f.admin.id,
+          decisionNote: "Repeated faults",
+        },
+      });
+    const c = await statusCart(bad, "OPEN");
+    await db.groupCart.update({ where: { id: c.cart.id }, data: { expiresAt: new Date(0) } });
+    const original = quality.removeFactory;
+    vi.spyOn(quality, "removeFactory").mockImplementation(
+      (adminId, factoryId, reason, hold, note) =>
+        factoryId === bad.factory.id
+          ? Promise.reject(new Error("Still failing"))
+          : original(adminId, factoryId, reason, hold, note),
+    );
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    await expect(sweep()).resolves.toMatchObject({ closed: 1 });
+    expect(
+      (await db.factoryProfile.findUniqueOrThrow({ where: { factoryUserId: good.factory.id } }))
+        .status,
+    ).toBe("REMOVED");
+    expect(
+      (await db.factoryProfile.findUniqueOrThrow({ where: { factoryUserId: bad.factory.id } }))
+        .status,
+    ).toBe("ACTIVE");
+    expect((await cartRow(c.cart.id)).status).toBe("EXPIRED");
+  });
+  it("hold posting and reading work while cleanup is paused between carts", async () => {
+    const f = await fixture(),
+      paused = await pauseBetweenCarts(f),
+      enforcing = enforceHold(paused.hold.id);
+    await paused.started;
+    const posting = postHoldMessage(f.factory.id, paused.hold.id, "Inspection while cleaning");
+    try {
+      await promptly(posting);
+      expect(
+        (await promptly(listHoldMessages(f.admin.id, paused.hold.id))).map((m) => m.body),
+      ).toEqual(["Inspection while cleaning"]);
+    } finally {
+      paused.release();
+      await Promise.allSettled([enforcing, posting]);
+    }
+    expect(
+      (await db.faultHold.findUniqueOrThrow({ where: { id: paused.hold.id } })).cleanedAt,
+    ).not.toBeNull();
+  });
+  it("partial cleanup failure stays retryable with one credit per line", async () => {
+    const f = await fixture(),
+      first = await statusCart(f, "CONFIRMED"),
+      second = await statusCart(f, "CONFIRMED"),
+      hold = await db.faultHold.create({ data: { factoryId: f.factory.id } });
+    const original = cartLocks.withCartTransaction;
+    let failed = false;
+    async function transaction<T>(
+      ids: string[],
+      users: string[],
+      work: (tx: Tx) => Promise<T>,
+    ): Promise<T> {
+      if (ids[0] === second.cart.id && !failed) {
+        failed = true;
+        throw new Error("Interrupted between carts");
+      }
+      return original(ids, users, work);
+    }
+    vi.spyOn(cartLocks, "withCartTransaction").mockImplementation(transaction);
+    await expect(enforceHold(hold.id)).rejects.toThrow("Interrupted between carts");
+    expect((await db.faultHold.findUniqueOrThrow({ where: { id: hold.id } })).cleanedAt).toBeNull();
+    expect((await cartRow(first.cart.id)).status).toBe("CANCELLED");
+    expect((await cartRow(second.cart.id)).status).toBe("CONFIRMED");
+    await sweep();
+    await sweep();
+    expect(
+      (await db.faultHold.findUniqueOrThrow({ where: { id: hold.id } })).cleanedAt,
+    ).not.toBeNull();
+    for (const c of [first, second]) {
+      expect((await cartRow(c.cart.id)).status).toBe("CANCELLED");
+      expect((await cancellationCredits(c.cart.id)).map((e) => e.amount.toFixed(2)).sort()).toEqual(
+        ["1500.00", "3000.00"],
+      );
+    }
+  });
 });

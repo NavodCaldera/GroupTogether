@@ -1,6 +1,6 @@
 import { closeRemovedHolds } from "./fault-holds";
 import "server-only";
-import { db } from "./db";
+import { db, type Tx } from "./db";
 import { CartError } from "./carts/errors";
 import { lockCart, lockUserAdvisory, withCartTransaction } from "./carts/locks";
 import { removeHiddenProductLines, sweep, cancelUnpaidCart } from "./carts/service";
@@ -29,6 +29,7 @@ async function cleanProducts(
   reason: string,
   actorId: string,
   wholeFactory = false,
+  stillOpen?: (client: Tx) => Promise<boolean>,
 ) {
   const carts = await db.groupCart.findMany({
     where: {
@@ -43,9 +44,12 @@ async function cleanProducts(
     orderBy: { id: "asc" },
   });
   for (const { id } of carts) {
+    if (stillOpen && !(await stillOpen(db))) return false;
     await sweep(new Date(), id);
-    await withCartTransaction([id], [actorId], async (tx) => {
+    const processed = await withCartTransaction([id], [actorId], async (tx) => {
       const cart = await lockCart(tx, id);
+      // A decision may have committed while this cart waited for its participant locks.
+      if (stillOpen && !(await stillOpen(tx))) return false;
       if (["OPEN", "READY"].includes(cart.status)) {
         const removed = await removeHiddenProductLines(tx, id, productIds);
         for (const line of removed)
@@ -89,23 +93,28 @@ async function cleanProducts(
           reason,
         );
       }
+      return true;
     });
+    if (!processed) return false;
   }
+  return true;
 }
 export async function cleanFactoryCarts(
   factoryId: string,
   reason: string,
   actorId: string,
-): Promise<void> {
+  stillOpen?: (client: Tx) => Promise<boolean>,
+): Promise<boolean> {
   const products = await db.product.findMany({
     where: { sellerId: factoryId },
     select: { id: true },
   });
-  await cleanProducts(
+  return cleanProducts(
     products.map((p) => p.id),
     reason,
     actorId,
     true,
+    stillOpen,
   );
 }
 export async function hideProduct(
