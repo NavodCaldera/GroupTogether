@@ -151,9 +151,9 @@ factories.
 - **A 2nd-fault hide and a factory removal do change finished carts.** Every cart holds items from
   one factory only, so the whole cart is affected:
   - open carts: the factory's items are removed, as in a normal hide;
-  - finished carts **not yet handed to PickMe**: cancelled. If paid, each member gets tokens for
+  - finished carts **not yet booked with PickMe**: cancelled. If paid, each member gets tokens for
     their own items. If not paid yet, no new tokens; tokens members had applied are given back;
-  - carts **already handed to PickMe** or delivered: not cancelled; they go ahead.
+  - carts **already booked with PickMe** or delivered: not cancelled; they go ahead.
     If the admin later lets the factory continue, cancelled carts stay cancelled.
 - **Then an admin and the factory talk** and the admin decides: continue (listings shown again) or
   remove the factory. If the factory continues, its old faults still count until they are 12 months

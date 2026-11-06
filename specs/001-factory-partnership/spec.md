@@ -138,8 +138,8 @@ longer see it; remove a factory and check its listings vanish and unpaid cart it
 3. **Given** an admin removes a factory, **Then** all its listings vanish, its items are removed
    from open carts, its staff can no longer sign in, and no message is sent to the factory.
 4. **Given** a removed factory, or a factory hidden by its 2nd fault, with finished carts not yet
-   handed to PickMe, **Then** those whole carts are cancelled and each member is told the reason.
-   Carts already handed to PickMe or delivered go ahead (owner, 2026-11-06).
+   booked with PickMe, **Then** those whole carts are cancelled and each member is told the reason.
+   Carts already booked with PickMe or delivered go ahead (owner, 2026-11-06).
 5. **Given** such a cancelled cart was paid, **Then** each member receives tokens equal to the
    price of their own items. **Given** it was not paid yet, **Then** no new tokens are given and
    tokens members had applied are returned.
@@ -341,9 +341,9 @@ tokens, admins alerted; let it continue; confirm a third fault and check it is h
 - **FR-020**: Removing a factory MUST hide its listings, remove its items from open carts, end its
   staff access, and send no message to the factory.
 - **FR-021**: Removing a factory, or a fault-limit hide (FR-036), MUST cancel its finished carts
-  not yet handed to PickMe and tell each member the reason. Paid carts: each member gets tokens for
+  not yet booked with PickMe and tell each member the reason. Paid carts: each member gets tokens for
   their own items. Unpaid carts: no new tokens; applied token holds are released. Carts already
-  handed to PickMe or delivered MUST NOT be cancelled (owner, 2026-11-06).
+  booked with PickMe or delivered MUST NOT be cancelled (owner, 2026-11-06).
 - **FR-022**: System MUST let an admin mark a removed factory's earned money as held, with a note;
   the release decision is manual.
 
@@ -469,7 +469,7 @@ tokens, admins alerted; let it continue; confirm a third fault and check it is h
   an admin discusses with it, then continues or removes it. Old faults keep counting after
   "continue".
 - Q: Does hiding change finished carts? → A: A normal product hide never does. A fault-limit hide
-  or a removal cancels finished carts not yet handed to PickMe (tokens if paid; applied tokens
+  or a removal cancels finished carts not yet booked with PickMe, i.e. not yet DISPATCHED (tokens if paid; applied tokens
   back if unpaid). (Replaces "only that item is cancelled" above and the removal answer above for
   dispatched carts.)
 
