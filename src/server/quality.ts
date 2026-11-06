@@ -1,3 +1,4 @@
+import { closeRemovedHolds } from "./fault-holds";
 import "server-only";
 import { db } from "./db";
 import { CartError } from "./carts/errors";
@@ -18,8 +19,8 @@ export async function assertQualityAdmin(adminId: string) {
 }
 function reasonValue(reason: string) {
   const value = reason.trim();
-  if (value.length < 3 || value.length > 2000)
-    throw new QualityError("Give a reason from 3 to 2000 characters");
+  if (value.length < 1 || value.length > 2000)
+    throw new QualityError("Give a reason from 1 to 2000 characters");
   return value;
 }
 /** Metadata commits BEFORE cart locks. One cart per transaction; every step is safe to re-run. */
@@ -181,6 +182,7 @@ export async function removeFactory(
       },
     });
   });
+  await closeRemovedHolds(factoryUserId, adminId, why);
   await flushReturnNotices();
   const users = await db.user.findMany({
     where: { role: "SELLER", OR: [{ id: factoryUserId }, { factoryId: factoryUserId }] },

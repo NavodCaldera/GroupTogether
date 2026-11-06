@@ -1,3 +1,9 @@
+import {
+  messageText,
+  checkMessageRate,
+  deliverUnreadThreadNotice,
+  readThreadNotice,
+} from "./private-thread";
 import "server-only";
 import type { ReturnRequest, ReturnStatus } from "@/generated/prisma/client";
 import { canMoveReturn, withinWindow, factoryOverdue } from "@/lib/return-rules";
@@ -157,25 +163,8 @@ export async function flushReturnNotices() {
           select: { deliveredAt: true },
         });
         if (pending.deliveredAt) return;
-        if (
-          user &&
-          !removed &&
-          !(await tx.notification.count({
-            where: { userId: item.userId, href: item.href, title: item.title, readAt: null },
-          }))
-        )
-          await tx.notification.createMany({
-            data: [
-              {
-                id: `return:${item.id}:${item.userId}`,
-                userId: item.userId,
-                title: item.title,
-                body: "",
-                href: item.href,
-              },
-            ],
-            skipDuplicates: true,
-          });
+        if (user && !removed)
+          await deliverUnreadThreadNotice(tx, { ...item, id: `return:${item.id}:${item.userId}` });
         await tx.returnNotice.update({ where: { id: item.id }, data: { deliveredAt: new Date() } });
       });
       continue;
@@ -575,19 +564,12 @@ function messageHref(returnId: string, side: "admin" | "factory") {
 }
 /** The author advisory serializes the global per-user rate limit; return lock fences decisions/read state. */
 export async function postReturnMessage(userId: string, returnId: string, body: string) {
-  const text = body.trim();
-  if (!text || text.length > 1000)
-    throw new ReturnError("Write a message from 1 to 1000 characters");
+  const text = messageText(body);
   return locked(userId, returnId, async (tx, r) => {
     const side = await messageActor(tx, userId, r);
     if (r.status !== "WITH_ADMIN") throw decided();
     const now = new Date();
-    if (
-      (await tx.returnMessage.count({
-        where: { authorId: userId, createdAt: { gt: new Date(now.getTime() - 60000) } },
-      })) >= 10
-    )
-      throw new ReturnError("You're sending messages too fast. Wait a moment.");
+    await checkMessageRate(tx, userId, now);
     const message = await tx.returnMessage.create({
       data: { returnId, authorId: userId, body: text, createdAt: now },
     });
@@ -615,15 +597,7 @@ export async function listReturnMessages(userId: string, returnId: string) {
   return locked(userId, returnId, async (tx, r) => {
     const side = await messageActor(tx, userId, r);
     const now = new Date();
-    await tx.notification.updateMany({
-      where: {
-        userId,
-        href: messageHref(returnId, side),
-        title: "New return message",
-        readAt: null,
-      },
-      data: { readAt: now },
-    });
+    await readThreadNotice(tx, userId, messageHref(returnId, side), "New return message", now);
     await tx.returnNotice.updateMany({
       where: { returnId, userId, title: "New return message", deliveredAt: null },
       data: { deliveredAt: now },
