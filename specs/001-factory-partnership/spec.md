@@ -118,7 +118,8 @@ factory's score is built from its products' ratings plus its old whole-factory r
 
 The system flags a product under 3.0 stars over 10 or more ratings, or with 3 reports in 30 days.
 It flags a factory under 3.0 stars over 20 or more ratings, or with 3 or more flagged products.
-A Factories admin may hide a flagged product or remove a factory. Nothing is removed automatically.
+A Factories admin may hide a flagged product or remove a factory. Nothing is removed automatically;
+the only automatic action is the fault-limit hide in User Story 8.
 Removal does not notify the factory.
 
 **Why this priority**: The safety net that protects buyers from bad products.
@@ -130,16 +131,18 @@ longer see it; remove a factory and check its listings vanish and unpaid cart it
 
 1. **Given** a product reaches a flag condition, **Then** it appears in the admin's flag list and
    stays visible to buyers until an admin hides it.
-2. **Given** an admin hides a product for a quality issue, **Then** only that product is removed:
-   buyers can no longer see or add it, it is removed from unpaid carts, and in paid orders not yet
-   delivered that item is cancelled and each buyer gets tokens for it and is told the reason. The
-   factory's other products are unaffected.
+2. **Given** an admin hides a product for a quality issue, **Then** only that product is affected:
+   buyers can no longer see or add it and it is removed from OPEN/READY carts. Finished carts
+   (the owner pressed Finish), paid or not, are unchanged and no tokens are given (owner,
+   2026-11-06). The factory's other products are unaffected.
 3. **Given** an admin removes a factory, **Then** all its listings vanish, its items are removed
-   from unpaid carts, its staff can no longer sign in, and no message is sent to the factory.
-4. **Given** a removed factory with paid orders not yet delivered, **Then** all those orders are
-   cancelled at once and each buyer is told the reason.
-5. **Given** a paid order is cancelled by a removal, **Then** each member receives tokens equal to
-   the price of their own cancelled items.
+   from open carts, its staff can no longer sign in, and no message is sent to the factory.
+4. **Given** a removed factory, or a factory hidden by its 2nd fault, with finished carts not yet
+   handed to PickMe, **Then** those whole carts are cancelled and each member is told the reason.
+   Carts already handed to PickMe or delivered go ahead (owner, 2026-11-06).
+5. **Given** such a cancelled cart was paid, **Then** each member receives tokens equal to the
+   price of their own items. **Given** it was not paid yet, **Then** no new tokens are given and
+   tokens members had applied are returned.
 
 ---
 
@@ -172,7 +175,8 @@ full item value before tokens.
 
 ### User Story 7 - Returns (Priority: P2)
 
-A buyer can apply to return an item within 2 days of delivery. The factory decides first; its
+A buyer can apply to return an item within 2 days of delivery. The factory and FACTORY/CORE
+admins are both notified at filing. The factory decides first, within 24 hours; its
 refusal automatically goes to an admin, whose decision is final after private discussion with
 the factory. The buyer keeps the item until the return is accepted. If the factory is at fault
 (defect, wrong size or wrong item sent), the factory
@@ -200,6 +204,37 @@ that item is removed.
 5. **Given** the factory refuses with a reason, **Then** the return moves automatically to
    WITH_ADMIN; an admin discusses it privately with owner/SALES and decides with a note.
    Rejection is final; acceptance gives tokens only after receipt.
+6. **Given** a new return, **Then** the factory owner/SALES and FACTORY/CORE admins are notified;
+   admins can read it and its photos but cannot decide until the factory refuses or 24 hours pass.
+7. **Given** the factory has not answered 24 hours after filing, **Then** the return moves to
+   WITH_ADMIN; the missed deadline is not a fault.
+
+---
+
+### User Story 8 - Factory fault limit (Priority: P1)
+
+GroupBasket is strict with factories. Each item confirmed as the factory's fault is one fault. A
+factory may have at most 1 fault in any 12 months; the 2nd hides the whole factory at once, and an
+admin talks with the factory and decides whether it continues or is removed.
+
+**Why this priority**: Protects buyers and the brand from repeat bad factories, fast.
+
+**Independent Test**: Confirm one factory-fault item (allowed), then a second within 12 months;
+check the factory's listings are hidden, its unhanded finished carts cancelled with the right
+tokens, admins alerted; let it continue; confirm a third fault and check it is hidden again.
+
+**Acceptance Scenarios**:
+
+1. **Given** a factory-fault return the factory accepts, or an admin accepts as factory fault,
+   **Then** each item in it counts as one fault (a return of 3 shirts is 3 faults).
+2. **Given** a buyer-fault return, or a missed factory deadline, **Then** no fault is counted.
+3. **Given** a factory reaches 2 faults within the last 12 months (rolling, day by day), **Then**
+   all its listings are hidden at once, carts follow FR-021, and FACTORY/CORE admins are alerted.
+4. **Given** a fault-hidden factory, **When** an admin decides "continue" with a note, **Then** its
+   listings are shown again and cancelled carts stay cancelled; **When** the admin decides
+   "remove", **Then** the normal removal applies.
+5. **Given** a continued factory, **Then** its old faults keep counting until 12 months old, so
+   the next confirmed fault hides it again.
 
 ---
 
@@ -217,7 +252,7 @@ that item is removed.
   Messages are 1–1000 characters, ten per minute per author, posted only WITH_ADMIN, and
   readable after decision. Buyers, another factory, other staff and other admin areas are denied.
 
-- Hiding/removing products after owner acceptance leaves AWAITING_SLIP/SLIP_REVIEW lines,
+- **Superseded on 2026-11-06 by FR-019a/FR-021** (kept for history): hiding/removing products after owner acceptance leaves AWAITING_SLIP/SLIP_REVIEW lines,
   totals and transfer amount frozen. Confirmation (including token-only acceptance) cancels hidden
   lines atomically with full-price token credits and reasons. A rejected slip that later times out
   releases normal reservations without cancellation credit. OPEN/READY removal resets member
@@ -231,8 +266,8 @@ that item is removed.
 
 - An owner's agreement expires while their staff are mid-packing: paid orders continue; only
   listing and new sales stop.
-- A product is hidden while it sits in a paid cart: that item is cancelled and its buyer gets
-  tokens; the rest of the cart continues.
+- A product is hidden while it sits in a finished cart (paid or not): nothing changes in that
+  cart (owner, 2026-11-06; replaces the earlier cancel-for-tokens rule).
 - A factory is removed while a return for its item is open: the admin decides the return.
 - A member with tokens leaves a cart before payment: their tokens are returned to them unspent.
 - A cart that used tokens is cancelled by a factory removal: the member gets back both the tokens
@@ -300,12 +335,15 @@ that item is removed.
   days; and flag a factory under 3.0 over 20+ ratings, or with 3 or more flagged products.
 - **FR-019**: Factories admins MUST be able to hide a product and remove a factory; System MUST NOT
   do either automatically.
-- **FR-019a**: Hiding a product MUST affect only that product: remove it from unpaid carts and
-  cancel it in paid orders not yet delivered, giving each buyer tokens and the reason.
-- **FR-020**: Removing a factory MUST hide its listings, remove its items from unpaid carts, end its
+- **FR-019a**: Hiding a product MUST affect only that product and only OPEN/READY carts. Finished
+  carts (accepted, awaiting or under slip review, confirmed, dispatched), paid or not, MUST NOT
+  change, and no cancellation tokens are given (owner, 2026-11-06).
+- **FR-020**: Removing a factory MUST hide its listings, remove its items from open carts, end its
   staff access, and send no message to the factory.
-- **FR-021**: Removing a factory MUST cancel all its paid orders not yet delivered, tell each
-  affected buyer the reason, and give each member tokens for their own items.
+- **FR-021**: Removing a factory, or a fault-limit hide (FR-036), MUST cancel its finished carts
+  not yet handed to PickMe and tell each member the reason. Paid carts: each member gets tokens for
+  their own items. Unpaid carts: no new tokens; applied token holds are released. Carts already
+  handed to PickMe or delivered MUST NOT be cancelled (owner, 2026-11-06).
 - **FR-022**: System MUST let an admin mark a removed factory's earned money as held, with a note;
   the release decision is manual.
 
@@ -331,7 +369,8 @@ that item is removed.
 - **FR-028**: A buyer MAY apply to return an item only within 2 days of its delivery.
 - **FR-029**: The application MUST state a reason and who is at fault; factory-fault reasons need a
   photo.
-- **FR-030**: The factory decides first, within 2 days of the application; if it does not answer
+- **FR-030**: The factory decides first, within 24 hours of the application (owner, 2026-11-06;
+  was 2 days); if it does not answer
   in time, or refuses with a required reason, the return goes to an admin automatically.
   FACTORY/CORE admins discuss it privately with the factory owner/SALES and decide finally.
   A newly recorded used/untagged buyer-fault receipt reopens one final receipt review even
@@ -341,6 +380,30 @@ that item is removed.
 - **FR-032**: When an accepted return reaches the factory, the buyer MUST receive tokens for the
   full item price and the factory's earning for that item MUST be removed.
 - **FR-033**: No cash or bank refund of any kind is offered (`PAY-003`).
+- **FR-034**: At filing, System MUST notify the factory owner/SALES and FACTORY/CORE admins.
+  Admins MAY view every return and its photos at once, but MUST NOT decide before WITH_ADMIN.
+
+**Factory fault limit (owner, 2026-11-06)**
+
+- **FR-035**: A fault is recorded per item (unit) at the moment a FACTORY-fault return is accepted
+  by the factory or an admin (not at receipt); its 12 months start then. Buyer-fault returns, rejected returns and missed deadlines record none.
+- **FR-035a**: A FACTORY/CORE admin MAY cancel a mistaken fault with a required note; it stays in
+  history marked cancelled and no longer counts. Cancelling does not by itself un-hide a factory;
+  the admin's FR-037 decision does.
+- **FR-036**: When a factory has 2 or more faults within the last 12 months, System MUST at once
+  hide all its listings, apply FR-021 to its carts, and alert FACTORY/CORE admins.
+- **FR-036a**: The factory owner MUST see its counted faults and their dates on its Returns page,
+  and MUST get an in-app notice when it is fault-hidden (unlike removal, which sends nothing).
+- **FR-036b**: While fault-hidden, the factory's staff MAY sign in, answer returns and post in
+  return threads, but MUST NOT publish, edit into view or show any listing until FR-037.
+- **FR-037**: An admin MUST decide a fault-hidden factory: continue (listings shown again) or
+  remove (normal removal), with a required note. Cancelled carts stay cancelled.
+- **FR-037a**: Each fault hold MUST have a private thread between FACTORY/CORE admins and the
+  factory owner(s): posting only while the factory is fault-hidden, readable afterwards by the
+  same people, same limits as return threads (1–1000 characters, 10 per minute). Buyers, staff
+  of other jobs, other factories and other admin areas are denied.
+- **FR-038**: Faults stay counted for 12 months from when they were recorded, including after a
+  "continue"; every new fault while 2+ are within 12 months hides the factory again.
 
 ### Key Entities
 
@@ -357,6 +420,8 @@ that item is removed.
   the cart, order or return.
 - **Return application**: item, buyer, reason, fault side, photos, factory decision, escalation,
   admin decision, pickup, token entry.
+- **Factory fault**: factory, return, item count, recorded time, who confirmed (factory/admin).
+- **Fault hold**: factory, hidden time, admin decision (continue/remove), note, decided time.
 
 ## Success Criteria _(mandatory)_
 
@@ -392,6 +457,29 @@ that item is removed.
   paid, including commission.
 - Q: What happens to paid orders when one product is hidden? → A: Only that item is cancelled;
   buyers get tokens for it.
+
+### Session 2026-11-06 (returns rebuild, owner)
+
+- Q: How long does the factory have to answer? → A: 24 hours; then an admin. (Replaces 2 days.)
+- Q: Who hears about a new return? → A: The factory and FACTORY/CORE admins; admins watch but
+  decide only after a refusal or timeout.
+- Q: What is a fault? → A: Each item confirmed as factory fault by the factory or an admin.
+  Buyer-fault returns and missed deadlines never count.
+- Q: How many faults are allowed? → A: 1 in any rolling 12 months; the 2nd hides the factory and
+  an admin discusses with it, then continues or removes it. Old faults keep counting after
+  "continue".
+- Q: Does hiding change finished carts? → A: A normal product hide never does. A fault-limit hide
+  or a removal cancels finished carts not yet handed to PickMe (tokens if paid; applied tokens
+  back if unpaid). (Replaces "only that item is cancelled" above and the removal answer above for
+  dispatched carts.)
+
+- Q: When is a fault counted? → A: When the return is accepted as factory fault, not at receipt.
+- Q: Can a mistaken fault be undone? → A: Yes, a FACTORY/CORE admin cancels it with a note; it
+  stays in history and stops counting.
+- Q: Is the factory told? → A: The owner sees its faults and dates, and gets a notice when hidden.
+- Q: What can a hidden factory do? → A: Sign in, answer returns and threads; no listings shown.
+- Q: Where is the continue/remove discussion? → A: A private factory thread (admins and owner),
+  open while hidden, readable after.
 
 ## Assumptions
 

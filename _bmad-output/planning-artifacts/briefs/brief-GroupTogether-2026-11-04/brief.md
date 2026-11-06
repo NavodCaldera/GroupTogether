@@ -2,7 +2,7 @@
 title: Factory partnership — trust from the first day
 status: approved
 created: 2026-11-04
-updated: 2026-11-05
+updated: 2026-11-06
 ---
 
 # Product Brief: Factory partnership
@@ -82,15 +82,18 @@ another cart.
 5. Product and factory flags, hide a product, remove a factory.
 6. Tokens for orders cancelled by a removal.
 7. Commission added on top of the factory price, admin-configurable, new listings only.
-8. Return applications within 2 days of delivery: the factory decides, the buyer can ask an admin,
-   and an accepted return is paid back as tokens.
+8. Return applications within 2 days of delivery: the factory answers within 24 hours, admins see
+   every return, every refusal goes to an admin, and an accepted return is paid back as tokens.
+9. Factory fault limit: the 2nd confirmed faulty item in 12 months hides the factory at once, and an
+   admin decides with the factory whether it continues (see "Decided on 6 Nov 2026").
 
 ## Not in this version
 
 - Factory payouts (LKR 100/piece statements) and the rest of the 3–4 Nov dashboard plan
   (checklists, design drafts, inbox, chat) — still agreed, later release.
 - Cash or bank refunds of any kind (`PAY-003` kept).
-- Automatic removal of products or factories.
+- Automatic removal of products or factories. (The fault limit hides a factory automatically;
+  removal is still an admin decision.)
 - Writing the legal text of the agreement — GroupBasket supplies it.
 
 ## Constraints
@@ -125,6 +128,46 @@ another cart.
   item price, and the factory is not paid for that item.
 - Tokens can be spent in a cart from any factory, and they can cover the whole price of an item.
 - A rejected factory cannot apply again.
+
+## Decided on 6 Nov 2026 (returns rebuild)
+
+These replace any earlier return rule that conflicts with them. GroupBasket is strict with
+factories.
+
+- **Everyone sees every return.** When a buyer files a return, both the factory and the
+  Factories/Core admins are notified. Admins can read it and its photos at once, but they decide only
+  after the factory says no or misses its deadline.
+- **The factory answers within 24 hours** (it was 48). No answer means the return goes to an admin.
+  A missed deadline is not a fault by itself.
+- **A fault** is each item that is confirmed as the factory's fault, either because the factory
+  admits it or because an admin decides it. Buyer-fault returns (for example, the wrong size) never
+  count. One return of 3 faulty shirts counts as 3 faults.
+- **The limit is 1 fault in any 12 months**, counted day by day. The 2nd fault hides all the
+  factory's listings at once.
+- **A normal hide never changes a finished cart.** When an admin hides a product, items are removed
+  only from carts that are still open. Once the cart owner presses Finish, nothing is removed,
+  whether the cart is paid or not, and no cancellation tokens are given. (This replaces the 5 Nov
+  rule that cancelled hidden items in accepted and paid carts.)
+- **A 2nd-fault hide and a factory removal do change finished carts.** Every cart holds items from
+  one factory only, so the whole cart is affected:
+  - open carts: the factory's items are removed, as in a normal hide;
+  - finished carts **not yet handed to PickMe**: cancelled. If paid, each member gets tokens for
+    their own items. If not paid yet, no new tokens; tokens members had applied are given back;
+  - carts **already handed to PickMe** or delivered: not cancelled; they go ahead.
+    If the admin later lets the factory continue, cancelled carts stay cancelled.
+- **Then an admin and the factory talk** and the admin decides: continue (listings shown again) or
+  remove the factory. If the factory continues, its old faults still count until they are 12 months
+  old, so the next fault hides it again.
+- **Unchanged:** the buyer's 2-day window, a photo for factory-fault returns, the buyer keeps the
+  item until a return is accepted, tokens and never cash, and every refusal goes to an admin, who
+  discusses it with the factory in the private thread and makes the final decision.
+
+### Example
+
+Lanka Shirts admits a torn shirt on 10 March (1 fault, allowed). On 5 June an admin decides a
+badly stitched shirt is its fault (2 faults): its listings are hidden at once. On 8 June the admin
+talks with the factory and lets it continue. On 20 July another shirt is confirmed faulty: March
+and June still count, so Lanka Shirts is hidden again.
 
 ## Open questions
 
