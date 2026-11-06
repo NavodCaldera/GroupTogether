@@ -1,5 +1,12 @@
 # Implementation status
 
+Updated **2026-11-06 (returns rebuild)**: [fault holds](../src/server/fault-holds.ts) implement
+accepted fault units, the 12-calendar-month limit, owner/admin notices, private threads,
+Continue/Remove and fault cancellation. New factory deadlines are 24 hours; admins see returns
+at filing. [Shared cleanup](../src/server/quality.ts) cancels only pre-booking carts; ordinary
+hides preserve finished carts. DISPATCHED/DELIVERED are untouched. See FAULT-001 and the
+[approved design](superpowers/specs/2026-11-06-returns-fault-limit-design.md).
+
 Updated **2026-11-06 (Part 4)**: factory partnership Parts 1–4 are implemented. The
 [returns service](../src/server/returns.ts) supports the inclusive 48-hour delivery window,
 partial quantities, private photos, factory decisions, automatic admin review, final admin decisions,
@@ -235,8 +242,9 @@ notice retry markers are implemented in `src/server/cancellations.ts`. Callers h
 locks and flush notices after commit. Cancellation decrements sold without restocking hidden
 items, leaves delivered lines untouched and cancels a cart only when no ACTIVE lines remain.
 Stored payment totals stay unchanged; read projections and operational lists exclude cancelled
-lines. Fully cancelled dispatched carts retain Delivery and alert warehouse admins once. Product
-ratings/reports are implemented with per-order/product uniqueness, delivered ACTIVE/RETURNED line ownership, low-star/report/photo validation, and a private `/api/report-photos/[id]` route. Product scores and factory scores combine new ratings with legacy history one-for-one. Factory-wide writes are retired. Manual-only flags and FACTORY/CORE hide/removal orchestration now exist in `src/server/quality.ts` and `/admin/factory/quality`. Metadata commits before separate locked cart cleanups. Unpaid removal reuses the normal release path and resets Done, with durable notices surviving deleted lines. Accepted carts are unchanged until shared confirmation cancels hidden lines atomically; delivered carts are untouched. Removal reuses session-ending account locks, fences listing/staff races, records earnings holds and sends no factory notices. Part 4 returns are implemented in the 2026-11-06 update above.
+lines. The generic cancellation helper retains historical dispatched support, while hide/hold/removal
+callers never touch booked/delivered carts. Product
+ratings/reports are implemented with per-order/product uniqueness, delivered ACTIVE/RETURNED line ownership, low-star/report/photo validation, and a private `/api/report-photos/[id]` route. Product scores and factory scores combine new ratings with legacy history one-for-one. Factory-wide writes are retired. Manual-only flags and FACTORY/CORE hide/removal orchestration now exist in `src/server/quality.ts` and `/admin/factory/quality`. Metadata commits before separate locked cart cleanups. Unpaid removal reuses the normal release path and resets Done, with durable notices surviving deleted lines. Ordinary hides preserve all finished carts, including confirmation. Fault holds/removal cancel only pre-booking carts, releasing unpaid reservations or giving full-price paid tokens. Removal reuses session-ending account locks, fences listing/staff races, records earnings holds and sends no factory notices. Part 4 returns are implemented in the 2026-11-06 update above.
 
 Part 3 verification (2026-11-05): tests were added before implementation, including cancellation,
 receiver/report/photo access, quality flags, frozen confirmation and cleanup races. `npm run check`

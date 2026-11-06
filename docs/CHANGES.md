@@ -1,5 +1,15 @@
 # Product-owner change log
 
+## 2026-11-06 - Returns rebuild and factory fault limit
+
+- New factory return deadlines are 24 hours; admins are notified and can view at filing.
+- Accepted factory-fault units count over 12 calendar months; two open a selling hold with
+  owner/admin notices, private discussion, Continue/Remove and audited fault cancellation.
+- Holds/removal share pre-booking cleanup: unpaid reservations released, paid full-price tokens;
+  booked/delivered carts stay untouched. Ordinary hides affect only OPEN/READY.
+- Added a migration without reader grants, service/race/access tests and desktop/360px browser
+  checks. [Task prompt](superpowers/prompts/returns-fault-limit.md).
+
 Every requested change is recorded here and reflected in its canonical documentation and
 affected specialist guidance in the same work. Business rules live in
 [the main agent brief](../.claude/agents/groupbasket.md); `CLAUDE.md` is an entry point.

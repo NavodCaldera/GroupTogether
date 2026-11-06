@@ -1,5 +1,37 @@
 # Architecture reference
 
+## Factory fault holds (2026-11-06)
+
+`FactoryFault` uniquely references a return and records units, confirmation actor/time and
+cancellation audit. `FaultHold` stores cleanup and decision markers; a partial unique index
+allows one open hold per factory. `FaultHoldMessage` stores private owner/admin discussion.
+`Product.hiddenByHoldId` tracks which listings Continue can restore. The migration grants no
+reader access. Owners use `/seller/returns?hold=id`; FACTORY/CORE use `/admin/factory/quality?hold=id`.
+SALES keeps return access but has no fault/hold access. Queries expose no buyer identities or
+payment figures to factories; selected hold routes return 404 for outsiders.
+
+`recordFault` runs inside the existing return transaction: sorted participant/factory advisories,
+cart row, return row, then ledger users if needed. It records once, counts the calendar window,
+opens a hold with conflict-do-nothing semantics and queues durable QualityNotice entries. It never
+locks another cart. After commit `enforceHold` takes a hold-row FOR NO KEY UPDATE gate (compatible
+with product foreign-key checks), then a separate metadata transaction takes the factory advisory
+and sorted product rows. Those locks release before `cleanFactoryCarts` takes one normal
+participant/cart/ledger transaction at a time. The gate stays locked until cleanedAt commits;
+decisions wait. Sweep retries open uncleaned holds. Selling queries and mutations reject open holds.
+
+Shared cleanup removes OPEN/READY lines, wraps close/release in `cancelUnpaidCart` for unpaid
+finished carts, and uses `cancelPaidLines` for CONFIRMED carts. DISPATCHED/DELIVERED are excluded
+and rechecked under the cart lock. Ordinary hides affect only OPEN/READY; confirmation preserves
+hidden lines. Slip approval and cleanup serialize on the same cart lock.
+
+`decideHold` locks the hold first. Continue clears only this hold's product markers; Remove commits
+its decision before calling removal. Removal releases its factory advisory before closing open
+holds, avoiding an inverted gate lock. Hold posting takes the hold gate then author advisory,
+with no cart locks. Shared `private-thread.ts` helpers validate text, serialize per-author limits
+across return/hold threads and deduplicate unread notices. QualityNotice persists hold message
+delivery; reading and delivery share the hold gate. Cancelling a fault retains audit and does not
+itself decide a hold.
+
 ## Returns (factory partnership Part 4, 2026-11-06)
 
 `ReturnRequest` belongs to a captured CartLine and stores buyer/factory, quantity, reason,
@@ -11,7 +43,7 @@ phones or monetary figures are selected for the factory returns list.
 
 The pure move table is `src/lib/return-rules.ts`. WAITING_FACTORY → ACCEPTED or WITH_ADMIN;
 factory refusal requires a 1–1000 character reason and sends the case to admins immediately.
-No answer after 48 hours also moves it to WITH_ADMIN. WITH_ADMIN → ACCEPTED/REJECTED
+No answer after the stored factoryDueAt (24 hours for new returns) also moves it to WITH_ADMIN. WITH_ADMIN → ACCEPTED/REJECTED
 is the admin decision; REJECTED is terminal and there is no buyer escalation path.
 ACCEPTED → PICKED_UP optionally, then ACCEPTED/PICKED_UP → RECEIVED → COMPLETED
 atomically with the token credit. A used/untagged buyer-fault receipt records receivedAt and
@@ -323,8 +355,8 @@ review for a fully cancelled dispatched cart; Delivery is never changed by cance
 
 `visibleTotals` subtracts cancelled line snapshots for display, leaving GroupCart.total as the
 original payment record. Packing, delivery contents and factory operational views select ACTIVE
-lines. Delivered lines are ineligible for quality cancellation. Accepted, unpaid carts remain
-frozen until confirmation; hide/remove cleanup is implemented separately in Part 3.3.
+lines. Delivered lines are ineligible for quality cancellation. Ordinary hides preserve finished carts;
+holds/removal use the pre-booking cleanup described above.
 
 ### Product ratings and private quality reports (Part 3.2)
 
@@ -350,13 +382,14 @@ Cleanup processes one cart per `withCartTransaction` and `lockCart`, never all c
 transaction. OPEN/READY removal and ordinary setLine(0) share `releaseLines`; that path resets
 Done and releases stock, token holds and gifts before recomputing readiness. Deleted lines queue
 `QualityNotice` outbox records in the same transaction; stable IDs deduplicate post-commit delivery.
-Expired prepayment carts follow normal sweep release. AWAITING_SLIP/SLIP_REVIEW remain frozen.
+Expired prepayment carts follow normal sweep release. Ordinary hides leave finished carts alone;
+holds/removal cancel unpaid finished carts through close/release.
 
-`confirmPaidCart` fences products with sorted share locks, locks all affected ledger users in
-order, finalizes payment, then calls `cancelPaidLines` on hidden/removed-factory lines in that
-same transaction. Both bank-slip and token-only paths use it. A fully cancelled order emits its
-cancellation notices without a factory fulfilment notice. Stored payment totals remain intact.
-The cancellation helper accepts only one cart per transaction and never calls delivery providers.
+`confirmPaidCart` takes sorted product share locks and ledger-user locks, finalizes token/payment,
+stock and gift effects, and preserves hidden-product lines. Both bank-slip and token-only paths
+use it. Holds/removal subsequently cancel CONFIRMED carts through shared locked cleanup with
+full-price tokens. Payment totals remain captured; booked/delivered carts are never cleaned.
+The cancellation helper accepts one cart per transaction and never calls delivery providers.
 
 `qualityOverview` rechecks FACTORY/CORE authorization and computes flags on reads. Private report
 photos remain restricted to raters and those admin areas. The reader is denied the new private

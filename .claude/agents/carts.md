@@ -128,15 +128,29 @@ row, then sorted ledger users. Only ACTIVE lines in CONFIRMED/DISPATCHED carts c
 lines are untouched. Credit the full captured line price once, decrement sold, never restock
 hidden goods. Preserve stored cart.total; display projections and packing/factory lists exclude
 CANCELLED lines. Call `flushCancellationNotices` after commit; durable markers/stable IDs make
-retries safe. A fully cancelled dispatched cart retains Delivery and alerts WAREHOUSE admins,
-without calling the provider. See `tests/integration/cancellations.int.test.ts`.
+retries safe. The generic cancellation helper retains historical dispatched support, but hide/hold/removal
+callers never cancel DISPATCHED/DELIVERED carts. See `tests/integration/cancellations.int.test.ts`.
 
 Part 3.3 guards: `src/server/quality.ts` requires FACTORY/CORE principals in mutations and queries;
 flags are read-time only. Metadata commits before per-cart cleanup. OPEN/READY removal shares
-`releaseLines` with setLine(0), including Done reset and stock/token/gift release. Accepted carts
-stay frozen until shared confirmation cancels hidden lines; delivered lines are untouched.
+`releaseLines` with setLine(0), including Done reset and stock/token/gift release. Ordinary hides preserve finished carts, including confirmation. Holds/removal share
+pre-booking cleanup for finished carts.
 Paid cancellation keeps stored totals and decrements sold without restocking hidden goods.
-Fully cancelled dispatched carts retain Delivery and alert WAREHOUSE once, never the provider.
+DISPATCHED/DELIVERED carts are never changed by hide, hold or removal.
 Removal reuses session-ending account locks and sends no factory-user notice. QualityNotice and
 cancel-notified markers persist retries; flush only after commit. Verify `quality.int.test.ts`,
 `cancellations.int.test.ts`, `ratings.int.test.ts` and the 360px `quality.spec.ts` browser journey.
+
+## Returns rebuild and fault holds (2026-11-06)
+
+Follow RETURN-001, QUAL-001 and FAULT-001. New factory deadlines are 24 hours; use stored
+factoryDueAt. FACTORY/CORE admins see filing notices and view WAITING_FACTORY without deciding.
+Accepted factory-fault quantities record once and may open a hold. `fault-holds.ts` enforces
+after commit; sweep retries. Hold gates serialize decisions/enforcement; factory/product locks
+release before participant/cart/ledger cleanup. Ordinary hides affect only OPEN/READY.
+Shared cleanup cancels unpaid finished carts with reservation release and no new credit,
+and CONFIRMED carts with full-price tokens. Booked/delivered carts stay untouched.
+Continue restores only hiddenByHoldId products. Fault corrections retain audit without
+closing holds. Own owners and FACTORY/CORE alone access hold threads; SALES keeps return
+threads only. `private-thread.ts` shares limits and unread helpers. Verify fault-holds,
+returns and quality integration tests plus the 1280/360px fault-hold browser journey.

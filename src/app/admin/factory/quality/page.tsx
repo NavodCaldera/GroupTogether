@@ -1,3 +1,6 @@
+import { adminHolds, adminFaults, listHoldMessages } from "@/server/fault-holds";
+import { HoldThread, FaultList } from "@/components/fault-bits";
+import { FaultForm } from "@/components/fault-form";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PageHeader, Card, Badge, LinkButton, EmptyState } from "@/components/ui";
@@ -10,6 +13,10 @@ export default async function QualityPage({ searchParams }: PageProps<"/admin/fa
   const user = await requireUser(["ADMIN"], "/admin/factory/quality");
   if (!["FACTORY", "CORE"].includes(user.adminArea ?? "")) notFound();
   const [data, sp] = await Promise.all([qualityOverview(user.id), searchParams]);
+  const [holds, faults] = await Promise.all([adminHolds(user.id), adminFaults(user.id)]);
+  const hold = typeof sp.hold === "string" ? holds.find((h) => h.id === sp.hold) : null;
+  if (sp.hold && !hold) notFound();
+  const messages = hold ? await listHoldMessages(user.id, hold.id) : [];
   const products = data.products.filter(
     (p) =>
       (typeof sp.product !== "string" || p.id === sp.product) && (sp.flagged !== "1" || p.flagged),
@@ -26,6 +33,36 @@ export default async function QualityPage({ searchParams }: PageProps<"/admin/fa
           Flagged
         </LinkButton>
       </div>
+      <section className="flex min-w-0 flex-col gap-3">
+        <h2 className="text-lg font-semibold">Fault holds</h2>
+        {holds.map((h) => (
+          <Card key={h.id} className="flex min-w-0 flex-col gap-3">
+            <h3 className="font-semibold">{h.factory.company || h.factory.name}</h3>
+            <Badge>{h.decision ?? "On hold"}</Badge>
+            <time>{formatDateTime(h.openedAt)}</time>
+            {h.decisionNote && <p>{h.decisionNote}</p>}
+            <LinkButton href={`/admin/factory/quality?hold=${h.id}`} variant="secondary">
+              Hold messages
+            </LinkButton>
+            {hold?.id === h.id && (
+              <HoldThread id={h.id} messages={messages} canPost={!h.decidedAt} />
+            )}{" "}
+            {!h.decidedAt && <FaultForm id={h.id} op="decide" />}
+          </Card>
+        ))}
+      </section>
+      <section>
+        <h2 className="mb-3 text-lg font-semibold">Faults</h2>
+        {data.factories.map((f) => {
+          const own = faults.filter((x) => x.factoryId === f.id);
+          return own.length ? (
+            <Card key={f.id} className="mb-3">
+              <h3 className="font-semibold">{f.company || f.name}</h3>
+              <FaultList faults={own} admin />
+            </Card>
+          ) : null;
+        })}
+      </section>
       <section>
         <h2 className="mb-3 text-lg font-semibold">Products</h2>
         {!products.length && <EmptyState title="No products" />}

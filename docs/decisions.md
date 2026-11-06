@@ -107,7 +107,7 @@ Factories get one login per person with fixed roles (packing, planner, sales, ow
 
 **Status:** Approved by the owner on **2026-11-05**; Parts 1–4 implemented (see implementation status). **Spec:** [factory partnership](../specs/001-factory-partnership/spec.md). **Brief:** [brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md).
 
-Factories join by public application or admin invite and must pass checks (BR number and certificate, owner NIC and photo, address and photos, bank account matching business or owner; visit optional). Rejected businesses cannot reapply. Only the owner or manager is onboarded; they add staff after accepting the in-app agreement (versioned, 12-month term, reminder 30 days before, listings hidden on expiry). Existing factories get 30 days to comply. Private documents: Factories admins and core admin only. Buyer price is factory price plus commission (LKR 100 default, core admin only, new listings only) — this replaces the "sale minus LKR 100" model in `DEC-012`. Ratings are per product (1–2 stars need a report, photo for visible defects); old factory ratings count equally. Flags never act automatically. Hiding a product cancels only that item in undelivered paid orders; removing a factory (without notice) cancels all its undelivered paid orders; buyers are told the reason. Cancellations and accepted returns give **tokens** (1 token = LKR 1, full price paid, never expire, spendable only on the holder's own items in any cart, returned if a cart is not paid); no cash refunds (`PAY-003` kept). Returns: apply within 2 days of delivery; factory answers within 2 days or it goes to an admin; every factory refusal goes automatically to admin review; admin final (updated 2026-11-06). Factory fault: factory pays PickMe pickup; buyer fault: buyer pays, item unused with tags. The agreement may allow withholding earned money after a quality removal, subject to lawyer review.
+Factories join by public application or admin invite and must pass checks (BR number and certificate, owner NIC and photo, address and photos, bank account matching business or owner; visit optional). Rejected businesses cannot reapply. Only the owner or manager is onboarded; they add staff after accepting the in-app agreement (versioned, 12-month term, reminder 30 days before, listings hidden on expiry). Existing factories get 30 days to comply. Private documents: Factories admins and core admin only. Buyer price is factory price plus commission (LKR 100 default, core admin only, new listings only) — this replaces the "sale minus LKR 100" model in `DEC-012`. Ratings are per product (1–2 stars need a report, photo for visible defects); old factory ratings count equally. Rating flags never act automatically. Ordinary hides affect only OPEN/READY carts; holds/removal use the pre-booking cleanup below. Cancellations and accepted returns give **tokens** (1 token = LKR 1, full price paid, never expire, spendable only on the holder's own items in any cart, returned if a cart is not paid); no cash refunds (`PAY-003` kept). Returns: apply within 2 days of delivery; factory answers within 24 hours for new returns or it goes to an admin; every factory refusal goes automatically to admin review; admin final (updated 2026-11-06). Factory fault: factory pays PickMe pickup; buyer fault: buyer pays, item unused with tags. The agreement may allow withholding earned money after a quality removal, subject to lawyer review.
 
 **Zero-due owner rule approved on 2026-11-05:** when tokens cover the whole cart and
 `amountDue` is exactly LKR 0.00, the owner's acceptance confirms it immediately. There is no
@@ -116,16 +116,29 @@ stock to sold, activates gifts with their brand events, and sends the usual conf
 fulfilment notices after commit. Delivery details and acceptance/confirmation timestamps are
 captured together. Any positive amount, including LKR 0.01, retains the bank-slip flow.
 
-**Accepted-cart quality rule approved on 2026-11-05:** once the owner accepts, AWAITING_SLIP
-and SLIP_REVIEW cart lines and their payment amount are frozen. Hiding/removal leaves them
-unchanged. On confirmation, hidden-product lines are cancelled atomically with full-price token
-credits and reasons; token-only confirmation follows the same path. Rejection followed by a
-missed payment deadline uses normal reservation release, with no cancellation credit. OPEN/READY
-removals use existing line-removal/reset paths (including CART-006). Delivered carts are untouched.
-Paid cancellation decrements sold without restocking available hidden goods. A dispatched cart
-that loses all active lines keeps its Delivery unchanged and alerts warehouse admins; no provider
-call is made. Hide/remove flags are persisted before separate per-cart cleanup transactions so
-partial failures can be retried safely.
+**Returns rebuild and fault limit approved on 2026-11-06:** factory owner/SALES and FACTORY/CORE
+admins are notified at filing. Admins can view immediately but decide only WITH_ADMIN after
+refusal/timeout. New returns have a 24-hour deadline; existing returns retain factoryDueAt.
+Timeout alone is never a fault. Each unit of an accepted FACTORY-fault return counts at acceptance
+by the factory or admin, including an admin acceptance after receipt. Uncancelled faults strictly
+newer than 12 calendar months back count. The 2nd unit opens a hold and blocks selling, while
+sign-in, returns and return threads stay available.
+
+An ordinary product hide changes only OPEN/READY carts through normal stock/token/gift release
+and Done reset. Finished carts stay unchanged, including at confirmation. Holds/removal remove
+OPEN/READY lines, cancel AWAITING_SLIP/SLIP_REVIEW carts unpaid (applied tokens returned, no new
+credit), and cancel CONFIRMED carts with full captured-price tokens per owner. DISPATCHED means
+PickMe booked: BOOKED, PICKED_UP, FAILED and DELIVERED carts remain untouched. Paid cancellation
+preserves payment totals and reduces sold without restocking availability.
+
+Owners see faults and get hold notices; FACTORY/CORE admins are alerted. Their private hold
+thread allows 1-1000 characters and ten messages per minute per author, posting while open and
+readable afterwards. SALES and other outsiders cannot access it. Admins decide Continue or
+Remove with a 1-2000 character note. Continue restores only products this hold hid; cancelled
+carts stay cancelled and old faults keep counting, so the next fault can reopen a hold.
+Remove uses normal removal, closes outstanding holds and locks staff without a removal notice.
+Removed factories cannot open holds. An admin may cancel a mistaken fault with a required note;
+it stays in history and stops counting, without automatically closing the hold.
 
 **Return follow-ups approved by the owner on 2026-11-06:** every factory refusal goes
 automatically to WITH_ADMIN, including a buyer-fault item received used or without tags.

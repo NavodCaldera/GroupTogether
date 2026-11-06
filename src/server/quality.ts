@@ -90,11 +90,7 @@ async function cleanProducts(
         );
       }
     });
-    await flushQualityNotices();
-    await flushCancellationNotices();
   }
-  await flushQualityNotices();
-  await flushCancellationNotices();
 }
 export async function cleanFactoryCarts(
   factoryId: string,
@@ -133,6 +129,8 @@ export async function hideProduct(
     select: { hiddenReason: true },
   });
   await cleanProducts([productId], saved.hiddenReason || why, adminId);
+  await flushQualityNotices();
+  await flushCancellationNotices();
 }
 export async function removeFactory(
   adminId: string,
@@ -192,6 +190,8 @@ export async function removeFactory(
   for (const user of users) await setUserLocked(user.id, true);
   const profile = await db.factoryProfile.findUniqueOrThrow({ where: { factoryUserId } });
   await cleanFactoryCarts(factoryUserId, profile.removalReason || why, adminId);
+  await flushQualityNotices();
+  await flushCancellationNotices();
 }
 export async function qualityOverview(adminId: string, now = new Date()) {
   await assertQualityAdmin(adminId);

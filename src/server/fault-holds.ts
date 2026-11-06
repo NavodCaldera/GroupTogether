@@ -70,6 +70,7 @@ export async function recordFault(
 
 import { lockUserAdvisory } from "./carts/locks";
 import { cleanFactoryCarts } from "./quality";
+import { flushCancellationNotices } from "./cancellations";
 import { flushQualityNotices } from "./quality-notices";
 /** Hold row is a gate across committed metadata and per-cart work. No factory/product/cart
  * locks survive from one stage into the next. Decisions wait here; crashes leave cleanedAt null. */
@@ -110,6 +111,7 @@ export async function enforceHold(holdId: string): Promise<void> {
     { maxWait: 10000, timeout: 120000 },
   );
   await flushQualityNotices();
+  await flushCancellationNotices();
 }
 
 import type { FactoryFault } from "@/generated/prisma/client";

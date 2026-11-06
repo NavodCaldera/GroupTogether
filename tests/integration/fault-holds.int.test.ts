@@ -57,7 +57,7 @@ describe("factory faults", () => {
       r = await request(f, 3);
     await factoryDecide(f.factory.id, r.id, true, now);
     expect(await db.factoryFault.findMany()).toMatchObject([
-      { units: 3, confirmedBy: "FACTORY", confirmedById: f.factory.id },
+      { units: 3, confirmedBy: "FACTORY", confirmedById: f.factory.id, recordedAt: now },
     ]);
     expect(await db.faultHold.count({ where: { decidedAt: null } })).toBe(1);
   });
@@ -607,4 +607,28 @@ describe("hold decisions and private discussion", () => {
     );
     expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(10);
   });
+});
+
+it("enforcement flushes a pending hold message only after releasing its gate", async () => {
+  const f = await fixture(),
+    c = await statusCart(f, "CONFIRMED");
+  const hold = await db.faultHold.create({ data: { factoryId: f.factory.id } });
+  const id = `hold-message:${hold.id}:interrupted:${f.admin.id}`;
+  await db.qualityNotice.create({
+    data: {
+      id,
+      userId: f.admin.id,
+      title: "New hold message",
+      body: "",
+      href: `/admin/factory/quality?hold=${hold.id}`,
+    },
+  });
+  await enforceHold(hold.id);
+  expect((await cartRow(c.cart.id)).status).toBe("CANCELLED");
+  expect((await db.qualityNotice.findUniqueOrThrow({ where: { id } })).deliveredAt).not.toBeNull();
+  expect(
+    await db.notification.count({
+      where: { userId: f.admin.id, title: "New hold message", readAt: null },
+    }),
+  ).toBe(1);
 });
