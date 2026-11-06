@@ -1,8 +1,7 @@
 # Returns rebuild and factory fault limit: implementation plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
-> (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
-> checkbox (`- [ ]`) syntax for tracking. In this repo the builder is Codex, working from
+> **For the builder (Codex):** no sub-skill is required. Work through Tasks 1 to 5 directly, in
+> order, following the steps. Steps use checkbox (`- [ ]`) syntax for tracking. The prompt is
 > `docs/superpowers/prompts/returns-fault-limit.md`. Claude Code reviews.
 
 **Goal:** Give factories a 24-hour return deadline and let admins see every return. Count
