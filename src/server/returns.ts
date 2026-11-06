@@ -292,13 +292,14 @@ export async function fileReturn(
         fault: input.fault,
         note: input.note.trim(),
         createdAt: now,
-        factoryDueAt: new Date(now.getTime() + 48 * 3600000),
+        factoryDueAt: new Date(now.getTime() + 24 * 3600000),
         status: removed ? "WITH_ADMIN" : "WAITING_FACTORY",
         escalatedAt: removed ? now : null,
         photos: { create: photos },
       },
     });
     await queue(tx, r, "filed", "Return requested", removed ? "admin" : "factory");
+    await queue(tx, r, "filed", "Return requested", "admin");
     return r;
   });
   await flushReturnNotices();
@@ -315,7 +316,7 @@ export async function factoryDecide(
     throw new ReturnError("Give a refusal reason from 1 to 1000 characters");
   return locked(staffUserId, returnId, async (tx, r) => {
     await factoryActor(tx, staffUserId, r.factoryId);
-    if (r.status !== "WAITING_FACTORY" || factoryOverdue(r.createdAt, now)) throw decided();
+    if (r.status !== "WAITING_FACTORY" || factoryOverdue(r.factoryDueAt, now)) throw decided();
     const after = await move(tx, r, accept ? "ACCEPTED" : "WITH_ADMIN", {
       factoryDecidedAt: now,
       factoryDecidedById: staffUserId,
@@ -481,7 +482,7 @@ export async function escalateOverdue(now = new Date()) {
   let count = 0;
   for (const r of rows)
     await locked(null, r.id, async (tx, r) => {
-      if (r.status !== "WAITING_FACTORY" || !factoryOverdue(r.createdAt, now)) return;
+      if (r.status !== "WAITING_FACTORY" || !factoryOverdue(r.factoryDueAt, now)) return;
       const after = await move(tx, r, "WITH_ADMIN", { escalatedAt: now });
       count++;
       await queue(tx, after, "overdue", "Return needs review", "admin");
@@ -658,6 +659,7 @@ const returnSelect = {
   note: true,
   status: true,
   createdAt: true,
+  factoryDueAt: true,
   adminDecision: true,
   adminNote: true,
   escalatedAt: true,

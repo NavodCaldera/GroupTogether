@@ -7,9 +7,9 @@ describe("return rules", () => {
     expect(withinWindow(delivered, new Date("2026-11-03T10:01:00Z"))).toBe(false);
     expect(withinWindow(delivered, new Date("2026-11-01T09:59:00Z"))).toBe(false);
   });
-  it("requires more than 48 hours for factory timeout", () => {
-    expect(factoryOverdue(delivered, new Date("2026-11-03T10:00:00Z"))).toBe(false);
-    expect(factoryOverdue(delivered, new Date("2026-11-03T10:01:00Z"))).toBe(true);
+  it("uses the stored due instant for factory timeout", () => {
+    expect(factoryOverdue(delivered, delivered)).toBe(false);
+    expect(factoryOverdue(delivered, new Date(delivered.getTime() + 1))).toBe(true);
   });
   it.each([
     ["WAITING_FACTORY", "ACCEPTED"],

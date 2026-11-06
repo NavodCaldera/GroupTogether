@@ -1,6 +1,7 @@
 import { Badge, Card, LinkButton } from "./ui";
 import type { ReactNode } from "react";
 import { ReturnForm } from "./return-form";
+import { formatDateTime } from "@/lib/format";
 import type { buyerReturns } from "@/server/returns";
 export function ReturnCard({
   request: r,
@@ -26,6 +27,9 @@ export function ReturnCard({
           ? "Waiting for approval"
           : r.status.replaceAll("_", " ").toLowerCase()}
       </Badge>
+      {viewer === "admin" && r.status === "WAITING_FACTORY" && (
+        <p>Factory due: {formatDateTime(r.factoryDueAt)}</p>
+      )}
       {viewer === "buyer" && r.status === "ACCEPTED" && (
         <Badge>
           {r.fault === "BUYER" ? "Send return" : r.pickupRef ? "Pickup booked" : "Pickup pending"}

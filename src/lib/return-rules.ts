@@ -13,8 +13,8 @@ export function withinWindow(deliveredAt: Date, now: Date): boolean {
   const elapsed = now.getTime() - deliveredAt.getTime();
   return elapsed >= 0 && elapsed <= WINDOW;
 }
-export function factoryOverdue(createdAt: Date, now: Date): boolean {
-  return now.getTime() - createdAt.getTime() > WINDOW;
+export function factoryOverdue(dueAt: Date, now: Date): boolean {
+  return now > dueAt;
 }
 const MOVES: Record<ReturnStatus, readonly ReturnStatus[]> = {
   WAITING_FACTORY: ["ACCEPTED", "WITH_ADMIN"],

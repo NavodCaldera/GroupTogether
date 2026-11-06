@@ -13,6 +13,8 @@ import {
   returnPhotoFor,
   postReturnMessage,
   listReturnMessages,
+  adminReturn,
+  adminReturns,
 } from "@/server/returns";
 import { removeFactory } from "@/server/quality";
 import { makeUser, makeVariant, resetDb, giftPhotoFile } from "./helpers";
@@ -75,6 +77,58 @@ async function fixture(qty = 1) {
 const row = (id: string) => db.returnRequest.findUniqueOrThrow({ where: { id } });
 const credits = (id: string) => db.tokenEntry.findMany({ where: { returnId: id, kind: "RETURN" } });
 describe("returns", () => {
+  it("files with a 24h factory deadline", async () => {
+    const f = await fixture();
+    const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    expect(r.factoryDueAt.getTime() - r.createdAt.getTime()).toBe(24 * 3600000);
+  });
+  it("escalates 24h plus 1 minute but not 23h59m", async () => {
+    const f = await fixture();
+    const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    expect(await escalateOverdue(new Date(now.getTime() + 24 * 3600000 - 60000))).toBe(0);
+    expect((await row(r.id)).status).toBe("WAITING_FACTORY");
+    expect(await escalateOverdue(new Date(now.getTime() + 24 * 3600000 + 60000))).toBe(1);
+    expect((await row(r.id)).status).toBe("WITH_ADMIN");
+  });
+  it("keeps a stored 48h due time", async () => {
+    const f = await fixture();
+    const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    await db.returnRequest.update({
+      where: { id: r.id },
+      data: { factoryDueAt: new Date(now.getTime() + 48 * 3600000) },
+    });
+    expect(await escalateOverdue(new Date(now.getTime() + 25 * 3600000))).toBe(0);
+    expect((await row(r.id)).status).toBe("WAITING_FACTORY");
+  });
+  it("factoryDecide is refused after the stored due time", async () => {
+    const f = await fixture();
+    const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    await db.returnRequest.update({ where: { id: r.id }, data: { factoryDueAt: now } });
+    await expect(
+      factoryDecide(f.factory.id, r.id, true, new Date(now.getTime() + 1)),
+    ).rejects.toThrow("This return has already been decided");
+  });
+  it("notifies FACTORY and CORE admins at filing and permits view-only admin access", async () => {
+    const f = await fixture();
+    const core = await makeUser("ADMIN", "CORE"),
+      premium = await makeUser("ADMIN", "PREMIUM"),
+      warehouse = await makeUser("ADMIN");
+    const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    for (const id of [f.admin.id, core.id]) {
+      expect(
+        await db.notification.count({ where: { userId: id, title: "Return requested" } }),
+      ).toBe(1);
+      expect(await adminReturn(id, r.id)).toMatchObject({ id: r.id, status: "WAITING_FACTORY" });
+      expect((await adminReturns(id)).map((x) => x.id)).toContain(r.id);
+      await expect(adminDecide(id, r.id, true, "Review")).rejects.toThrow(
+        "This return has already been decided",
+      );
+    }
+    for (const id of [premium.id, warehouse.id])
+      expect(
+        await db.notification.count({ where: { userId: id, title: "Return requested" } }),
+      ).toBe(0);
+  });
   it("requires a factory refusal reason and automatically notifies admins", async () => {
     const f = await fixture(),
       r = await fileReturn(f.buyer.id, f.line.id, input(), now);
@@ -466,13 +520,13 @@ describe("returns", () => {
     await adminDecide(f.admin.id, r.id, false, "Not eligible");
     expect(await credits(r.id)).toHaveLength(0);
   });
-  it("allows the factory exactly at its 48-hour boundary and refuses it one minute later", async () => {
+  it("allows the factory exactly at its 24-hour boundary and refuses it one minute later", async () => {
     const f = await fixture(),
       r = await fileReturn(f.buyer.id, f.line.id, input(), now);
     await expect(
-      factoryDecide(f.factory.id, r.id, true, new Date(now.getTime() + 48 * 3600000 + 60000)),
+      factoryDecide(f.factory.id, r.id, true, new Date(now.getTime() + 24 * 3600000 + 60000)),
     ).rejects.toThrow(/already been decided/);
-    await factoryDecide(f.factory.id, r.id, true, new Date(now.getTime() + 48 * 3600000));
+    await factoryDecide(f.factory.id, r.id, true, new Date(now.getTime() + 24 * 3600000));
     expect((await row(r.id)).status).toBe("ACCEPTED");
   });
   it("scopes private photos to buyer, own owner/SALES and FACTORY/CORE admins", async () => {
