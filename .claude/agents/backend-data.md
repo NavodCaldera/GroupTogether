@@ -37,7 +37,7 @@ guidance, not business policy. Verify code pointers before editing.
 - Generated client output is `src/generated/prisma`; do not edit it. The development client cache detects a regenerated Prisma client class.
 - Local Postgres uses ports 5546 (`groupbasket`) and 5547 (`groupbasket_test`), with data in `.data/pg`. Test and development database URLs must differ.
 - The main seed clears tables. Treat fixture accounts, cart totals and packing stages as test dependencies; inspect the seed and browser setup before changing them.
-- Legacy footwear fixtures/schema values do not expand clothing-only scope. Consult implementation status rather than copying historical fixture inventories.
+- Demo products and test fixtures use clothing; the legacy SHOES schema enum remains for stored rows. Consult implementation status rather than copying historical fixture inventories.
 - The separate brand demo script has its own local-development guard and fixture behavior; inspect it rather than assuming it behaves like the destructive main seed.
 
 ## Verification and coordination

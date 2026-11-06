@@ -23,7 +23,7 @@ async function seller() {
   });
 }
 
-const offer = { name: "Leather loafers", description: "600 pairs, sizes 6-11", amount: "250,000" };
+const offer = { name: "Cotton shirts", description: "600 shirts, sizes S-XXL", amount: "250,000" };
 
 describe("factory seller stock offers", () => {
   it("send → admins told → accept with a note → seller told", async () => {
@@ -31,7 +31,7 @@ describe("factory seller stock offers", () => {
     expect(homeFor(s.role)).toBe("/seller");
 
     const o = await createOffer(s.id, offer);
-    expect(o).toMatchObject({ status: "IN_REVIEW", name: "Leather loafers", sellerId: s.id });
+    expect(o).toMatchObject({ status: "IN_REVIEW", name: "Cotton shirts", sellerId: s.id });
     expect(o.amount.toString()).toBe("250000");
     expect(
       await db.notification.count({ where: { userId: admin.id, title: "Stock offer to review" } }),

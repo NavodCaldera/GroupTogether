@@ -18,7 +18,7 @@ const seller = () =>
     phone: "0761234567",
     password: "password123",
   });
-const offer = { name: "Leather loafers", description: "600 pairs", amount: "250000" };
+const offer = { name: "Cotton shirts", description: "600 shirts", amount: "250000" };
 
 describe("receiving sellers' stock", () => {
   it("an accepted offer waits under To receive until a packer presses Received", async () => {
@@ -35,7 +35,7 @@ describe("receiving sellers' stock", () => {
     await decideOffer(waiting.id, true, "");
     await decideOffer(declined.id, false, "");
     const list = await stockToReceive();
-    expect(list.map((o) => o.name)).toEqual(["Leather loafers"]);
+    expect(list.map((o) => o.name)).toEqual(["Cotton shirts"]);
     expect(list[0]).not.toHaveProperty("amount");
 
     await receiveStock(packer.id, waiting.id);

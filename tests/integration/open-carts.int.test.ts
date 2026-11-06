@@ -32,14 +32,14 @@ describe("open carts panel", () => {
   });
 
   it("falls back to newest first without a location, and searches by name", async () => {
-    await ownerAt(kandy, "Office sneaker run");
-    await ownerAt(galle, "Family school shoes");
+    await ownerAt(kandy, "Office clothing run");
+    await ownerAt(galle, "Family school shirts");
     const buyer = await makeUser();
     expect((await recentCarts(10, new Date(), buyer.id)).map((c) => c.name)).toEqual([
-      "Family school shoes",
-      "Office sneaker run",
+      "Family school shirts",
+      "Office clothing run",
     ]);
-    const found = await recentCarts(10, new Date(), buyer.id, { q: "SNEAKER", near: colombo });
-    expect(found.map((c) => c.name)).toEqual(["Office sneaker run"]);
+    const found = await recentCarts(10, new Date(), buyer.id, { q: "CLOTHING", near: colombo });
+    expect(found.map((c) => c.name)).toEqual(["Office clothing run"]);
   });
 });

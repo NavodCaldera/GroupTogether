@@ -6,6 +6,12 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-06 - Clothing-first wording and footwear cleanup
+
+- Updated home, metadata, footer and README to lead with clothing from partner factories and shared carts under DEC-010. Removed footwear kinds and sizes, replaced footwear demo products/offers and test fixtures with clothing, and added desktop/360px home copy, overflow and accessibility checks.
+- Retained the legacy SHOES enum and image fallback for stored rows, all stock types/defaults and the open DEC-005 policy. No schema, migration or existing database data changes.
+- Recorded the request in [the cleanup prompt](superpowers/prompts/cleanup-old-wording.md).
+
 ## 2026-11-06 - Final handover
 
 - Added the [owner and developer handover](handover/2026-11-06-handover.md) for the November 5–6 work, with commit mappings, recorded verification limits and remaining owner setup. Reconciled stale status wording and CART-006 completion notices in the operating brief. Documentation only.

@@ -124,6 +124,7 @@ export function ProductImage({
       className={`flex aspect-square w-full items-center justify-center rounded-lg bg-muted text-4xl ${className}`}
       aria-hidden="true"
     >
+      {/* Legacy stored categories retain their placeholder; new kinds are clothing-only. */}
       {category === "SHOES" ? "👟" : "👕"}
     </div>
   );

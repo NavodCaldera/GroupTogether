@@ -31,14 +31,14 @@ const db = new PrismaClient({
 
 /** Audience and category id for each demo product (see src/lib/taxonomy.ts). */
 const KIND_OF: Record<string, ["MEN" | "WOMEN" | "BOY", string]> = {
-  "Court Classic leather sneaker": ["MEN", "men-sneakers"],
-  "Runner Air mesh trainer": ["MEN", "men-sneakers"],
-  "Canvas low-top": ["WOMEN", "women-sneakers"],
-  "Office derby shoe": ["MEN", "men-formal"],
-  "Trail hiker mid": ["MEN", "men-sneakers"],
-  "Slide sandal": ["WOMEN", "women-sandals"],
-  "School black shoe": ["BOY", "boy-shoes"],
-  "Basketball high-top": ["MEN", "men-sneakers"],
+  "Cotton overshirt": ["MEN", "men-jackets"],
+  "Zip-front track jacket": ["MEN", "men-jackets"],
+  "Cotton blouse": ["WOMEN", "women-tops"],
+  "Office formal shirt": ["MEN", "men-shirts"],
+  "Outdoor fleece jacket": ["MEN", "men-jackets"],
+  "Sleeveless cotton top": ["WOMEN", "women-tops"],
+  "School uniform shirt": ["BOY", "boy-tshirts"],
+  "Basketball jersey": ["MEN", "men-tshirts"],
   "Crew-neck cotton tee (3-pack)": ["MEN", "men-tshirts"],
   "Oxford button-down shirt": ["MEN", "men-shirts"],
   "Slim chino": ["MEN", "men-trousers"],
@@ -53,7 +53,7 @@ const KIND_OF: Record<string, ["MEN" | "WOMEN" | "BOY", string]> = {
 type Seed = {
   title: string;
   brand: string;
-  category: "SHOES" | "APPAREL";
+  category: "APPAREL";
   stockType: "FACTORY_SURPLUS" | "B_GRADE";
   price: number;
   retail: number;
@@ -62,94 +62,94 @@ type Seed = {
 
 const PRODUCTS: Seed[] = [
   {
-    title: "Court Classic leather sneaker",
+    title: "Cotton overshirt",
     brand: "Stride",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "FACTORY_SURPLUS",
     price: 6900,
     retail: 14500,
-    description: "Full-grain leather upper, rubber cupsole. End-of-run export order.",
+    description: "Cotton overshirt, button front. End-of-run export order.",
   },
   {
-    title: "Runner Air mesh trainer",
+    title: "Zip-front track jacket",
     brand: "Velo",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "FACTORY_SURPLUS",
     price: 7500,
     retail: 16900,
-    description: "Breathable mesh, EVA midsole. Surplus from a European order.",
+    description: "Zip-front track jacket. Surplus from a European order.",
   },
   {
-    title: "Runner Air mesh trainer",
+    title: "Zip-front track jacket",
     brand: "Velo",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "B_GRADE",
     price: 4200,
     retail: 16900,
-    description: "Same shoe as the surplus pair, cosmetic seconds.",
+    description: "Same track jacket as the surplus range, cosmetic seconds.",
   },
   {
-    title: "Canvas low-top",
+    title: "Cotton blouse",
     brand: "Harbour",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "FACTORY_SURPLUS",
     price: 3200,
     retail: 6500,
-    description: "Cotton canvas, vulcanised sole.",
+    description: "Cotton blouse, relaxed fit.",
   },
   {
-    title: "Canvas low-top",
+    title: "Cotton blouse",
     brand: "Harbour",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "B_GRADE",
     price: 1900,
     retail: 6500,
     description: "Cosmetic seconds.",
   },
   {
-    title: "Office derby shoe",
+    title: "Office formal shirt",
     brand: "Mayfair",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "FACTORY_SURPLUS",
     price: 8900,
     retail: 18500,
-    description: "Leather derby with a leather-lined insole.",
+    description: "Long-sleeved formal shirt.",
   },
   {
-    title: "Trail hiker mid",
+    title: "Outdoor fleece jacket",
     brand: "Ridge",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "B_GRADE",
     price: 9500,
     retail: 24000,
-    description: "Waterproof membrane, lugged outsole.",
+    description: "Fleece jacket, zip pockets.",
   },
   {
-    title: "Slide sandal",
+    title: "Sleeveless cotton top",
     brand: "Shore",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "FACTORY_SURPLUS",
     price: 1500,
     retail: 3500,
-    description: "Moulded EVA, one-piece.",
+    description: "Sleeveless cotton top.",
   },
   {
-    title: "School black shoe",
+    title: "School uniform shirt",
     brand: "Mayfair",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "FACTORY_SURPLUS",
     price: 3900,
     retail: 7200,
-    description: "Durable synthetic upper, non-marking sole.",
+    description: "White school uniform shirt.",
   },
   {
-    title: "Basketball high-top",
+    title: "Basketball jersey",
     brand: "Stride",
-    category: "SHOES",
+    category: "APPAREL",
     stockType: "B_GRADE",
     price: 7800,
     retail: 21000,
-    description: "Padded collar, herringbone outsole.",
+    description: "Sleeveless basketball jersey.",
   },
   {
     title: "Crew-neck cotton tee (3-pack)",
@@ -333,8 +333,8 @@ async function main() {
   const variants: (Variant & { price: number })[] = [];
   for (const p of PRODUCTS) {
     const [audience, kind] = KIND_OF[p.title] ?? ["MEN", "men-tshirts"];
-    // Same number of sizes as before, so the carts below keep pointing at the same variants.
-    const sizes = findKind(kind)!.sizes.slice(0, p.category === "SHOES" ? 6 : 4);
+    // Four clothing sizes per product; fixed cart indices below preserve the original prices.
+    const sizes = findKind(kind)!.sizes.slice(0, 4);
     const product = await db.product.create({
       data: {
         title: p.title,
@@ -411,19 +411,19 @@ async function main() {
   // has reached it (she can accept & pay). Tharindu is in no active cart, free to join one.
   const [DILAN, SACHINI, THARINDU] = [0, 1, 2];
   const buyer = users[DILAN];
-  await cart(DILAN, "Office sneaker run", [
+  await cart(DILAN, "Office clothing run", [
     [DILAN, 2, 2],
-    [DILAN, 8, 1],
-    [DILAN, 40, 3],
+    [DILAN, 6, 1],
+    [DILAN, 26, 3],
   ]);
   const privateCart = await cart(
     SACHINI,
     "Sachini's friends only",
     [
       [SACHINI, 0, 3],
-      [SACHINI, 30, 2],
-      [SACHINI, 76, 3],
-      [SACHINI, 90, 2],
+      [SACHINI, 20, 2],
+      [SACHINI, 56, 3],
+      [SACHINI, 70, 2],
     ],
     {},
     "PRIVATE",
@@ -627,8 +627,8 @@ async function main() {
   });
   const sellerProducts = [
     {
-      title: "Factory leather loafer",
-      kind: "men-formal",
+      title: "Factory cotton shirt",
+      kind: "men-shirts",
       audience: "MEN",
       status: "LIVE",
       price: 6200,
@@ -661,16 +661,16 @@ async function main() {
   // Stock offers (product owner, 2026-10-19): one waiting for review, one accepted, one declined.
   const offers = [
     {
-      name: "Ladies block-heel sandals",
-      description: "420 pairs, sizes 5 to 9, black and tan. B-grade: small glue marks.",
+      name: "Ladies cotton skirts",
+      description: "420 skirts, sizes S to XL, black and tan. B-grade: small stitching marks.",
       amount: 840000,
       status: "IN_REVIEW",
       note: null,
       ago: 3,
     },
     {
-      name: "Kids school sneakers",
-      description: "300 pairs, white, UK 10 to UK 3. Overrun from an export order.",
+      name: "Kids school shirts",
+      description: "300 shirts, white, sizes 6-7Y to 12-13Y. Overrun from an export order.",
       amount: 540000,
       status: "ACCEPTED",
       note: null,

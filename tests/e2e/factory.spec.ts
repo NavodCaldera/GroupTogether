@@ -44,7 +44,10 @@ test("factory: home on a phone → orders → mark packed → stock edit", async
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     .toBe(true);
   await page.screenshot({ path: "test-results/factory-products-mobile.png", fullPage: true });
-  const size = page.getByRole("listitem", { name: "Size S", exact: true });
+  const product = page.locator("li[id^='p-']").filter({
+    has: page.getByRole("link", { name: "Linen short-sleeve shirt", exact: true }),
+  });
+  const size = product.getByRole("listitem", { name: "Size S", exact: true });
   const left = async () =>
     Number((await size.getByText(/^(\d+ left|Sold out)$/).textContent())?.match(/\d+/)?.[0] ?? 0);
   const before = await left();

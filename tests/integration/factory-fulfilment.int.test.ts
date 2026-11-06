@@ -169,7 +169,7 @@ describe("factory-direct fulfilment", () => {
     expect(home.months.reduce((n, m) => n + m.pieces, 0)).toBe(2);
     expect(home.toPack).toBe(0);
     const [product] = await factoryProducts(factory.id);
-    expect(product).toMatchObject({ pieces: 2, bestSize: "UK 9" });
+    expect(product).toMatchObject({ pieces: 2, bestSize: "M" });
     expect(product.value.toString()).toBe("50000");
     expect(product.variants[0]).toMatchObject({ available: 5, reserved: 3, soldPaid: 2 });
     expect((await factoryOrderBoard(factory.id)).counts).toMatchObject({ delivered: 1, toPack: 0 });

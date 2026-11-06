@@ -3,7 +3,7 @@
 Business model and current rules: [main agent brief](.claude/agents/groupbasket.md).
 For code coverage and planned features, see [implementation status](docs/implementation-status.md).
 
-Group buying for clothing and apparel. Targets the main clothing business with factory-surplus and B-grade clothes as a sub-part (shoes/footwear are not targeted). Shoppers share carts to reach the
+Group buying for clothing and apparel from partner factories. Factory surplus and B-grade clothing are secondary; shoes and footwear are excluded. Shoppers share carts to reach the
 LKR 50,000 minimum order. The cart owner pays the whole cart by bank transfer, and the order
 arrives in one PickMe drop.
 

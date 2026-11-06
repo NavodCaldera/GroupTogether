@@ -29,7 +29,7 @@ export default async function HomePage() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-xl font-semibold">How it works</h2>
+        <h1 className="mb-4 text-xl font-semibold">Buy clothing from partner factories together</h1>
         <ol className="grid gap-4 sm:grid-cols-4">
           {[
             "Start or join a cart",
@@ -46,7 +46,7 @@ export default async function HomePage() {
       </section>
 
       <section>
-        <h2 className="mb-4 text-xl font-semibold">How we solve the problem</h2>
+        <h2 className="mb-4 text-xl font-semibold">Clothing from partner factories</h2>
         <WhyCheap saving={saving} />
       </section>
 
@@ -96,9 +96,9 @@ function WhyCheap({ saving }: { saving: number | null }) {
             <path d="M7 17h2M11 17h2M15 17h2" />
           </svg>
           <div>
-            <p className="font-semibold">Bulk buying from factory surplus</p>
+            <p className="font-semibold">Direct from partner factories</p>
             <p className="mt-1 text-sm text-subtle">
-              We buy surplus and B-grade stock in bulk, straight from the factories.
+              Clothing comes directly from our partner factories.
             </p>
           </div>
         </div>
@@ -128,7 +128,7 @@ function WhyCheap({ saving }: { saving: number | null }) {
           <div>
             <p className="font-semibold">Consumer group buying</p>
             <p className="mt-1 text-sm text-subtle">
-              Shoppers fill one cart together, so we send one order instead of many.
+              Share a cart to reach the minimum. The owner pays once.
             </p>
           </div>
         </div>

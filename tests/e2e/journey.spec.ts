@@ -22,10 +22,10 @@ test("join from the panel â†’ reach 50,000 â†’ owner pays â†’ adm
   await page.getByRole("button", { name: "Join this cart" }).click();
   await page.waitForURL(/\/shop\?cart=/);
   await page
-    .getByRole("link", { name: /Slide sandal/ })
+    .getByRole("link", { name: /Sleeveless cotton top/ })
     .first()
     .click();
-  await page.getByText("UK 8", { exact: true }).click();
+  await page.getByText("M", { exact: true }).click();
   await page.getByRole("button", { name: "Add to group cart" }).click();
   // Adding stays on the product page; "View cart" in the confirmation opens the cart.
   await expect(page.getByText("Added to your cart")).toBeVisible();

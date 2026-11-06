@@ -39,13 +39,13 @@ export async function makeUser(
 export async function makeVariant(price: string, available: number) {
   const p = await db.product.create({
     data: {
-      title: `Shoe ${++n}`,
+      title: `Shirt ${++n}`,
       brand: "Test",
-      category: "SHOES",
+      category: "APPAREL",
       stockType: "FACTORY_SURPLUS",
       price,
       status: "LIVE",
-      variants: { create: { size: "UK 9", available } },
+      variants: { create: { size: "M", available } },
     },
     include: { variants: true },
   });

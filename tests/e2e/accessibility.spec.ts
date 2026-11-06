@@ -13,6 +13,31 @@ async function inspect(page: Page) {
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
 }
 
+test("home leads with clothing without excluded wording, overflow or Axe violations", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await expect(
+    page.getByRole("heading", {
+      level: 1,
+      name: "Buy clothing from partner factories together",
+      exact: true,
+    }),
+  ).toBeVisible();
+  await expect(page.locator("body")).not.toContainText(/B-grade|shoes|footwear/i);
+  await expect
+    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
+    .toBe(true);
+  const scan = await new AxeBuilder({ page }).analyze();
+  expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
+  await page.getByRole("link", { name: /Shop all/ }).focus();
+  await expect(page.getByRole("link", { name: /Shop all/ })).toBeFocused();
+  await page.screenshot({
+    path: "test-results/home-" + test.info().project.name + ".png",
+    fullPage: true,
+  });
+});
+
 test("public catalogue and sign-in are accessible without horizontal overflow", async ({
   page,
 }) => {
