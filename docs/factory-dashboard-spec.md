@@ -4,6 +4,12 @@ Interview with the product owner, 2026-11-03/04. This records **what** each fact
 contains. Priority and layout are agreed next, role by role, before any code. Business rules
 decided here are also in [decisions](decisions.md) (`DEC-012`).
 
+**Being rebuilt, 2026-11-07:** the Packing content below is replaced by the
+[approved brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/brief.md).
+Admin books PickMe, and there is no parcel size choice or expected arrival time. Other sections and
+layouts are earlier input until their interview ends. Design drafts are paused with preorders
+(`DEC-015`). The payout sum is factory price plus commission (`DEC-013`), not "sale minus LKR 100".
+
 ## Accounts and roles
 
 - Each person at a factory has their own login. The factory owner adds and removes staff and

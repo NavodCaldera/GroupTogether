@@ -1,5 +1,17 @@
 # Product-owner change log
 
+## 2026-11-07 - Factory dashboards planning, preorders paused
+
+- Preorders are **not completed**. The owner paused them with no approved policy or code. Decisions
+  so far and open questions are in `DEC-015` and its parked notes. Many baskets and the 3-day
+  basket lifetime are paused with them, so `CART-002` and `CART-003` stay as written.
+- Packing contents and layout approved, not built yet: its own Home, saved checklist, Report a
+  problem, required photo, optional packing slip, driver details, Given to driver and Parcel is back.
+  Admin keeps PickMe booking, correcting `DEC-012`.
+- Planner, Sales, Owner and Factory admin still need their interview.
+  [Draft brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/brief.md),
+  [Codex prompt](superpowers/prompts/factory-role-dashboards.md).
+
 ## 2026-11-06 - Fault hold review fixes
 
 - Full sweep retries failed removals after committed Remove decisions and isolates failures.
