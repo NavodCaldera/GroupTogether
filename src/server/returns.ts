@@ -10,6 +10,8 @@ import { withCartTransaction } from "./carts/locks";
 import { checkUpload, IMAGE_TYPES, saveUpload } from "./storage";
 import { credit } from "./tokens";
 import { assertQualityAdmin } from "./quality";
+import { recordFault } from "./fault-holds";
+import { flushQualityNotices } from "./quality-notices";
 import { notify } from "./notify";
 
 export class ReturnError extends CartError {}
@@ -217,6 +219,7 @@ async function locked<T>(
     },
   );
   await flushReturnNotices();
+  await flushQualityNotices();
   return result;
 }
 export async function fileReturn(
@@ -330,6 +333,7 @@ export async function factoryDecide(
       "buyer",
     );
     if (!accept) await queue(tx, after, "factory-refused", "Return needs review", "admin");
+    if (accept && r.fault === "FACTORY") await recordFault(tx, after, "FACTORY", staffUserId, now);
     if (accept && r.fault === "FACTORY")
       await queue(tx, after, "pickup-needed", "Return pickup needed", "warehouse");
     return after;
@@ -384,6 +388,7 @@ export async function adminDecide(
       "Admin decided return",
       "factory",
     );
+    if (accept && r.fault === "FACTORY") await recordFault(tx, after, "ADMIN", adminId, new Date());
     if (accept && r.receivedAt) {
       after = await move(tx, after, "RECEIVED");
       return complete(tx, after);

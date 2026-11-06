@@ -40,15 +40,18 @@ enum Role {
 }
 
 model User {
+  holdMessages   FaultHoldMessage[]
+  factoryFaults  FactoryFault[]
+  faultHolds     FaultHold[]
   returnMessages ReturnMessage[]
   qualityNotices QualityNotice[]
   productRatings ProductRating[]
-  id             String          @id @default(cuid())
-  role           Role            @default(CUSTOMER)
+  id             String             @id @default(cuid())
+  role           Role               @default(CUSTOMER)
   adminArea      AdminArea? // admins only
   name           String
-  email          String          @unique
-  phone          String?         @unique
+  email          String             @unique
+  phone          String?            @unique
   passwordHash   String
   /// Default drop-off for carts this user owns
   address        String?
@@ -60,15 +63,15 @@ model User {
   company        String?
   /// Premium brand partner: offers gift products and fulfils paid basket gifts directly.
   /// `website` verifies retail references on the brand's own site.
-  isBrand        Boolean         @default(false)
+  isBrand        Boolean            @default(false)
   website        String?
-  locked         Boolean         @default(false)
+  locked         Boolean            @default(false)
   /// Factory staff: the factory account they work for, and their job. The factory account itself
   /// has neither and is always an owner.
   factoryId      String?
-  factory        User?           @relation("FactoryStaff", fields: [factoryId], references: [id], onDelete: Cascade)
+  factory        User?              @relation("FactoryStaff", fields: [factoryId], references: [id], onDelete: Cascade)
   factoryRole    FactoryRole?
-  createdAt      DateTime        @default(now())
+  createdAt      DateTime           @default(now())
 
   staff                User[]                @relation("FactoryStaff")
   factoryProfile       FactoryProfile?
@@ -157,6 +160,8 @@ model Product {
   hiddenAt       DateTime?
   hiddenById     String?
   hiddenReason   String?
+  hiddenByHoldId String?
+  hiddenByHold   FaultHold?      @relation(fields: [hiddenByHoldId], references: [id], onDelete: Restrict)
   id             String          @id @default(cuid())
   title          String
   brand          String
@@ -1035,6 +1040,7 @@ enum ReturnFault {
 }
 
 model ReturnRequest {
+  factoryFault       FactoryFault?
   factoryNote        String?
   messages           ReturnMessage[]
   id                 String          @id @default(cuid())
@@ -1106,5 +1112,61 @@ model ReturnMessage {
   createdAt DateTime      @default(now())
 
   @@index([returnId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+enum FaultConfirmedBy {
+  FACTORY
+  ADMIN
+}
+
+enum HoldDecision {
+  CONTINUE
+  REMOVE
+}
+
+model FactoryFault {
+  id            String           @id @default(cuid())
+  factoryId     String
+  factory       User             @relation(fields: [factoryId], references: [id], onDelete: Restrict)
+  returnId      String           @unique
+  request       ReturnRequest    @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  units         Int
+  recordedAt    DateTime         @default(now())
+  confirmedBy   FaultConfirmedBy
+  confirmedById String
+  cancelledAt   DateTime?
+  cancelledById String?
+  cancelNote    String?          @db.VarChar(2000)
+
+  @@index([factoryId, recordedAt])
+}
+
+model FaultHold {
+  id           String             @id @default(cuid())
+  factoryId    String
+  factory      User               @relation(fields: [factoryId], references: [id], onDelete: Restrict)
+  openedAt     DateTime           @default(now())
+  cleanedAt    DateTime?
+  decision     HoldDecision?
+  decisionNote String?            @db.VarChar(2000)
+  decidedAt    DateTime?
+  decidedById  String?
+  products     Product[]
+  messages     FaultHoldMessage[]
+
+  @@index([factoryId, openedAt])
+}
+
+model FaultHoldMessage {
+  id        String    @id @default(cuid())
+  holdId    String
+  hold      FaultHold @relation(fields: [holdId], references: [id], onDelete: Restrict)
+  authorId  String
+  author    User      @relation(fields: [authorId], references: [id], onDelete: Restrict)
+  body      String    @db.VarChar(1000)
+  createdAt DateTime  @default(now())
+
+  @@index([holdId, createdAt])
   @@index([authorId, createdAt])
 }
