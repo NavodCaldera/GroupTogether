@@ -81,4 +81,18 @@ describe("pickup by code", () => {
     await expect(handOver(s.agentUser.id, s.code, s.lineIds)).rejects.toBeInstanceOf(CartError);
     expect(await db.orderLine.count({ where: { collectedAt: null } })).toBe(1);
   });
+
+  it("holds the throttle under 20 parallel wrong lookups", async () => {
+    const s = await setup();
+    const results = await Promise.allSettled(
+      Array.from({ length: 20 }, (_, i) => lookupCode(s.agentUser.id, String(900000 + i))),
+    );
+    const nulls = results.filter((r) => r.status === "fulfilled" && r.value === null).length;
+    const blocked = results.filter(
+      (r) => r.status === "rejected" && r.reason instanceof PickupBlocked,
+    ).length;
+    expect(nulls).toBe(5);
+    expect(blocked).toBe(15);
+    expect(await db.pickupAttempt.count({ where: { agentId: s.agent.id, ok: false } })).toBe(5);
+  });
 });

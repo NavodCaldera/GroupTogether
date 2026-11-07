@@ -2,7 +2,7 @@ import "server-only";
 import { isPickupCode } from "@/lib/agent-rules";
 import { db, type Tx } from "../db";
 import { CartError } from "../carts/errors";
-import { withOrderTransaction } from "./locks";
+import { lockPickupAgent, withOrderTransaction } from "./locks";
 
 export class PickupBlocked extends CartError {}
 
@@ -21,9 +21,9 @@ async function requireAgent(agentUserId: string) {
 }
 
 /** The buyer behind a code at this agent, or null. */
-async function buyerOfCode(agentId: string, code: string) {
+async function buyerOfCode(client: Tx | typeof db, agentId: string, code: string) {
   if (typeof code !== "string" || !isPickupCode(code)) return null;
-  const row = await db.pickupCode.findUnique({
+  const row = await client.pickupCode.findUnique({
     where: { agentId_code: { agentId, code } },
     select: { buyerId: true, buyer: { select: { name: true } } },
   });
@@ -66,16 +66,22 @@ export async function lookupCode(
   now: Date = new Date(),
 ): Promise<{ buyerName: string; lines: PickupLine[] } | null> {
   const agent = await requireAgent(agentUserId);
-  const fails = await db.pickupAttempt.count({
-    where: { agentId: agent.id, ok: false, at: { gt: new Date(now.getTime() - WINDOW_MS) } },
-  });
-  if (fails >= MAX_FAILS) throw new PickupBlocked("Too many wrong codes. Try again later.");
-
-  const buyer = await buyerOfCode(agent.id, code);
-  const lines = buyer ? await eligibleLines(db, agent.id, buyer.buyerId) : [];
-  const ok = !!buyer && lines.length > 0;
-  await db.pickupAttempt.create({ data: { agentId: agent.id, ok, at: now } });
-  return ok ? { buyerName: buyer.buyerName, lines } : null;
+  // One lookup at a time per agent, so parallel wrong codes cannot slip past the throttle.
+  return db.$transaction(
+    async (tx) => {
+      await lockPickupAgent(tx, agent.id);
+      const fails = await tx.pickupAttempt.count({
+        where: { agentId: agent.id, ok: false, at: { gt: new Date(now.getTime() - WINDOW_MS) } },
+      });
+      if (fails >= MAX_FAILS) throw new PickupBlocked("Too many wrong codes. Try again later.");
+      const buyer = await buyerOfCode(tx, agent.id, code);
+      const lines = buyer ? await eligibleLines(tx, agent.id, buyer.buyerId) : [];
+      const ok = !!buyer && lines.length > 0;
+      await tx.pickupAttempt.create({ data: { agentId: agent.id, ok, at: now } });
+      return ok ? { buyerName: buyer.buyerName, lines } : null;
+    },
+    { maxWait: 10000, timeout: 30000 },
+  );
 }
 
 /** Marks the given lines collected. All must be in the code's current eligible lines, otherwise
@@ -88,27 +94,33 @@ export async function handOver(
   now: Date = new Date(),
 ): Promise<number> {
   const agent = await requireAgent(agentUserId);
-  const buyer = await buyerOfCode(agent.id, code);
-  if (!buyer) throw new CartError("Code not found");
   const ids = [...new Set(lineIds ?? [])];
   if (ids.length === 0) throw new CartError("Choose the items to hand over");
 
-  const orders = await db.order.findMany({
-    where: { agentId: agent.id, buyerId: buyer.buyerId, status: "RECEIVED" },
-    select: { id: true },
+  const first = await buyerOfCode(db, agent.id, code);
+  if (!first) throw new CartError("Code not found");
+  const ordersOf = (client: Tx | typeof db, buyerId: string) =>
+    client.order.findMany({
+      where: { agentId: agent.id, buyerId, status: "RECEIVED" },
+      select: { id: true },
+      orderBy: { id: "asc" },
+    });
+  const locked = (await ordersOf(db, first.buyerId)).map((o) => o.id);
+  return withOrderTransaction([], locked, async (tx) => {
+    // Re-resolve under the Order locks; anything that moved since is refused.
+    const buyer = await buyerOfCode(tx, agent.id, code);
+    if (!buyer || buyer.buyerId !== first.buyerId) throw new CartError("Code not found");
+    const current = (await ordersOf(tx, buyer.buyerId)).map((o) => o.id);
+    if (current.length !== locked.length || current.some((id, i) => id !== locked[i]))
+      throw new CartError("Busy, try again.");
+    const eligible = new Set((await eligibleLines(tx, agent.id, buyer.buyerId)).map((l) => l.id));
+    if (ids.some((id) => !eligible.has(id)))
+      throw new CartError("Those items cannot be handed over");
+    const done = await tx.orderLine.updateMany({
+      where: { id: { in: ids }, collectedAt: null },
+      data: { collectedAt: now },
+    });
+    if (done.count !== ids.length) throw new CartError("Those items cannot be handed over");
+    return done.count;
   });
-  return withOrderTransaction(
-    [],
-    orders.map((o) => o.id),
-    async (tx) => {
-      const eligible = new Set((await eligibleLines(tx, agent.id, buyer.buyerId)).map((l) => l.id));
-      if (ids.some((id) => !eligible.has(id)))
-        throw new CartError("Those items cannot be handed over");
-      const done = await tx.orderLine.updateMany({
-        where: { id: { in: ids }, collectedAt: null },
-        data: { collectedAt: now },
-      });
-      return done.count;
-    },
-  );
 }

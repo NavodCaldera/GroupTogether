@@ -13,6 +13,12 @@ export async function lockUserAdvisory(tx: Tx, userId: string) {
   await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${userId}))) AS l`;
 }
 
+/** Serializes pickup-code lookups for one agent. A user-level advisory: it goes first. */
+export async function lockPickupAgent(tx: Tx, agentId: string) {
+  const key = `pickup:${agentId}`;
+  await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${key}))) AS l`;
+}
+
 export async function lockLedgerUsers(tx: Tx, userIds: string[]) {
   for (const id of [...new Set(userIds)].sort())
     await tx.$queryRaw`SELECT 1 FROM "User" WHERE id = ${id} FOR UPDATE`;
