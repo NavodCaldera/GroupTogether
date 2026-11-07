@@ -63,7 +63,11 @@ export async function post(tx: Tx, e: TokenPost): Promise<"created" | "exists"> 
   await lockLedgerUsers(tx, [e.userId]);
   const existing = await tx.tokenEntry.findUnique({ where: { eventKey: e.eventKey } });
   if (existing) {
-    if (existing.userId !== e.userId || !toD(existing.amount).eq(amount))
+    if (
+      existing.userId !== e.userId ||
+      existing.kind !== e.kind ||
+      !toD(existing.amount).eq(amount)
+    )
       throw new TokenError("Token event does not match its recorded value");
     return "exists";
   }
@@ -111,8 +115,8 @@ export async function transferTokens(
   });
   if (!to) throw new TokenError("No account with that phone or email");
   if (to.id === fromId) throw new TokenError("You cannot send tokens to yourself");
-  const outKey = `xfer:${requestKey}:out`,
-    inKey = `xfer:${requestKey}:in`;
+  const outKey = `xfer:${fromId}:${requestKey}:out`,
+    inKey = `xfer:${fromId}:${requestKey}:in`;
   await withOrderTransaction([fromId, to.id], [], async (tx) => {
     await lockLedgerUsers(tx, [fromId, to.id]);
     const previous = await tx.tokenEntry.findMany({ where: { eventKey: { in: [outKey, inKey] } } });
@@ -124,7 +128,8 @@ export async function transferTokens(
         !into ||
         out.userId !== fromId ||
         into.userId !== to.id ||
-        !toD(out.amount).eq(value.neg())
+        !toD(out.amount).eq(value.neg()) ||
+        !toD(into.amount).eq(value)
       )
         throw new TokenError("Token request has already been used with another transfer");
       return;

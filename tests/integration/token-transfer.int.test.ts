@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
-import { TokenError, tokenBalance, transferTokens } from "@/server/tokens";
+import { D } from "@/lib/decimal";
+import { post, TokenError, tokenBalance, transferTokens } from "@/server/tokens";
 import { fundTokens, makeAgent, makeFactory, makeUser, resetDb } from "./helpers";
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
@@ -21,8 +22,8 @@ describe("token transfers", () => {
       orderBy: { eventKey: "asc" },
     });
     expect(rows.map((r) => [r.eventKey, r.kind, r.amount.toFixed(2), r.counterpartyId])).toEqual([
-      ["xfer:req-1:in", "TRANSFER_IN", "200.00", a.id],
-      ["xfer:req-1:out", "TRANSFER_OUT", "-200.00", b.id],
+      [`xfer:${a.id}:req-1:in`, "TRANSFER_IN", "200.00", a.id],
+      [`xfer:${a.id}:req-1:out`, "TRANSFER_OUT", "-200.00", b.id],
     ]);
   });
 
@@ -74,6 +75,27 @@ describe("token transfers", () => {
     );
     expect(await entries()).toBe(before);
     expect(await balance(a.id)).toBe("500.00");
+  });
+
+  it("treats an event key reused with another kind as a conflict", async () => {
+    const a = await makeUser();
+    const e = { userId: a.id, amount: new D("5"), eventKey: "k1", note: "Test" };
+    expect(await db.$transaction((tx) => post(tx, { ...e, kind: "AGENT_FEE" }))).toBe("created");
+    expect(await db.$transaction((tx) => post(tx, { ...e, kind: "AGENT_FEE" }))).toBe("exists");
+    await expect(
+      db.$transaction((tx) => post(tx, { ...e, kind: "ORDER_CANCEL" })),
+    ).rejects.toBeInstanceOf(TokenError);
+  });
+
+  it("lets two senders use the same request key", async () => {
+    const a = await makeUser(),
+      b = await makeUser(),
+      c = await makeUser();
+    await fundTokens(a.id, "100");
+    await fundTokens(b.id, "100");
+    await transferTokens(a.id, c.phone!, "10", "shared");
+    await transferTokens(b.id, c.phone!, "15", "shared");
+    expect(await balance(c.id)).toBe("25.00");
   });
 
   it("lets only one of two racing transfers spend the balance", async () => {

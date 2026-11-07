@@ -1,5 +1,6 @@
 import "server-only";
 import { db, type Tx } from "../db";
+import { CartError } from "../carts/errors";
 
 /** Lock order everywhere: user advisories (sorted) -> Order rows (sorted) -> basket advisory
  * basket:<agentId>:<factoryId> -> Basket rows -> ledger User rows (sorted).
@@ -26,7 +27,6 @@ export async function withOrderTransaction<T>(
 ): Promise<T> {
   const users = [...new Set(userIds)].sort();
   const orders = [...new Set(orderIds)].sort();
-  let lastError: unknown;
   for (let attempt = 0; attempt < 8; attempt++) {
     try {
       return await db.$transaction(
@@ -40,8 +40,7 @@ export async function withOrderTransaction<T>(
       );
     } catch (error) {
       if ((error as { code?: string }).code !== "P2034") throw error;
-      lastError = error;
     }
   }
-  throw lastError;
+  throw new CartError("Busy, try again.");
 }
