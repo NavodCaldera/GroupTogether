@@ -31,8 +31,9 @@ export async function lockBasket(
 }
 
 /** Caller holds the buyer advisories and the Order rows. Lock order from here:
- * basket advisories (sorted) -> Variant rows (variantId order) -> Basket rows -> ledger User
- * rows (SPEND entries last).
+ * Agent rows (FOR SHARE, sorted) -> basket advisories (sorted) -> Variant rows (variantId order)
+ * -> Basket rows -> ledger User rows (SPEND entries last). A basket for an agent that is no
+ * longer LIVE (suspended or leaving while the buyer paid) locks at once.
  * Returns the ids of baskets this call locked.
  */
 export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Promise<string[]> {
@@ -48,6 +49,19 @@ export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Pro
       throw new BasketError("This order is no longer waiting for payment");
   const settings = await getSettings(tx);
   const lockAt = toD(settings.basketLockAmount);
+
+  // Suspension and leave update the Agent row before locking OPEN baskets: holding it FOR SHARE
+  // means they either see the basket this call makes, or this call sees their status.
+  const agentIds = [...new Set(orders.map((o) => o.agentId))].sort();
+  for (const id of agentIds) await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${id} FOR SHARE`;
+  const live = new Set(
+    (
+      await tx.agent.findMany({
+        where: { id: { in: agentIds }, status: "LIVE" },
+        select: { id: true },
+      })
+    ).map((a) => a.id),
+  );
 
   const slots = [...new Set(orders.map((o) => `${o.agentId}:${o.factoryId}`))].sort();
   for (const slot of slots) {
@@ -86,8 +100,8 @@ export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Pro
       where: { id: o.id },
       data: { status: "PAID", paidAt: now, basketId: basket.id },
     });
-    if (total.gte(lockAt)) {
-      await lockBasket(tx, basket.id, "AMOUNT", now);
+    if (total.gte(lockAt) || !live.has(o.agentId)) {
+      await lockBasket(tx, basket.id, total.gte(lockAt) ? "AMOUNT" : "SUSPENDED", now);
       locked.push(basket.id);
     }
   }

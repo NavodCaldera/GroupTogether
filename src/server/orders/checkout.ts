@@ -122,7 +122,11 @@ function parseTokens(tokens: string): D {
   return new D(tokens.trim());
 }
 
+/** Holds the Agent row FOR SHARE (before any basket advisory) so a suspension or leave cannot
+ * commit between this check and the order being placed. */
 async function assertAgentLive(tx: Tx, agentId: string) {
+  if (typeof agentId !== "string") throw new CheckoutError("This agent is not taking orders");
+  await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${agentId} FOR SHARE`;
   const agent = await tx.agent.findUnique({ where: { id: agentId }, select: { status: true } });
   if (!agent || agent.status !== "LIVE") throw new CheckoutError("This agent is not taking orders");
 }
@@ -170,7 +174,8 @@ type Outcome = {
   pay: { amount: string; buyer: { id: string; name: string; email: string | null } } | null;
 };
 
-/** Lock order: buyer advisory -> basket advisories (sorted, only when tokens pay everything) ->
+/** Lock order: buyer advisory -> Agent row (FOR SHARE) -> basket advisories (sorted, only when
+ * tokens pay everything) ->
  * Variant rows (variantId order) -> new Order rows -> ledger User row -> Basket rows under their
  * advisories. The gateway is called after commit.
  */

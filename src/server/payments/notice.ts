@@ -4,6 +4,7 @@ import { db, type Tx } from "../db";
 import { post } from "../tokens";
 import { markOrdersPaid, releasePendingOrders } from "../orders/baskets";
 import { withOrderTransaction } from "../orders/locks";
+import { agentDepositPaid } from "../agents/deposit";
 import { getGateway, type VerifiedNotice } from "./gateway";
 
 type Outcome =
@@ -15,11 +16,6 @@ type Outcome =
   | "NOTED"
   | "IGNORED"
   | "UNKNOWN_ATTEMPT";
-
-/** Task 11 replaces this with the agent deposit service. */
-async function agentDepositPaid(_tx: Tx, _attemptId: string): Promise<void> {
-  throw new Error("Deposit payments are not built yet");
-}
 
 const validAmount = (given: string) => /^\d{1,12}(\.\d{1,2})?$/.test(given);
 
@@ -159,13 +155,17 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
       const onTime =
         attempt.status === "PENDING" && attempt.orders.every((o) => o.status === "PENDING");
       if (onTime) {
-        if (attempt.purpose === "DEPOSIT") await agentDepositPaid(tx, attempt.id);
+        // A deposit for an agent that is no longer APPROVED takes the late path below.
+        let applied = true;
+        if (attempt.purpose === "DEPOSIT") applied = await agentDepositPaid(tx, attempt.id);
         else await markOrdersPaid(tx, orderIds, now);
-        await tx.paymentAttempt.update({
-          where: { id: attempt.id },
-          data: { status: "SUCCEEDED" },
-        });
-        return "PAID";
+        if (applied) {
+          await tx.paymentAttempt.update({
+            where: { id: attempt.id },
+            data: { status: "SUCCEEDED" },
+          });
+          return "PAID";
+        }
       }
       if (attempt.status !== "SUCCEEDED")
         await tx.paymentAttempt.update({
@@ -177,7 +177,10 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
         amount: toD(attempt.amount),
         kind: "LATE_PAYMENT",
         eventKey: lateKey,
-        note: "Payment arrived after the order closed",
+        note:
+          attempt.purpose === "DEPOSIT"
+            ? "Deposit payment arrived when it was no longer due"
+            : "Payment arrived after the order closed",
       });
       return "LATE_PAID";
     }

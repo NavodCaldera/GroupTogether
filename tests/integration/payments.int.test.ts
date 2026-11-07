@@ -209,7 +209,7 @@ describe("payment notices", () => {
     expect(money(await tokenBalance(buyer.id))).toBe(money(attempt.amount.times(2)));
   });
 
-  it("deposit notices are not built yet and record nothing", async () => {
+  it("a deposit notice makes an APPROVED agent LIVE and records the event", async () => {
     const { user, agent } = await makeAgent({ status: "APPROVED" });
     const attempt = await db.paymentAttempt.create({
       data: {
@@ -220,10 +220,9 @@ describe("payment notices", () => {
         expiresAt: new Date(Date.now() + 900_000),
       },
     });
-    await expect(send(noticeBody(attempt.id, { amount: "206825.23" }))).rejects.toThrow(
-      /not built/,
-    );
-    expect(await db.paymentEvent.count()).toBe(0);
+    expect(await send(noticeBody(attempt.id, { amount: "206825.23" }))).toEqual({ status: 200 });
+    expect((await db.agent.findUniqueOrThrow({ where: { id: agent.id } })).status).toBe("LIVE");
+    expect(await db.paymentEvent.count({ where: { outcome: { equals: "PAID" } } })).toBe(1);
     expect(money(await tokenBalance(user.id))).toBe("0.00");
   });
 });

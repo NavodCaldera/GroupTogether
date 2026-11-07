@@ -1258,6 +1258,8 @@ model Agent {
   lossAmount       Decimal     @default(0) @db.Decimal(14, 2)
   lossNote         String?
   suspendedAt      DateTime?
+  /// Admin's note on the latest decision: rejection or suspension reason
+  statusNote       String?
   createdAt        DateTime    @default(now())
   updatedAt        DateTime    @updatedAt
 
