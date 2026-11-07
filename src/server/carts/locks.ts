@@ -1,11 +1,10 @@
 import "server-only";
 import type { GroupCart } from "@/generated/prisma/client";
 import { db, type Tx } from "../db";
+import { lockUserAdvisory } from "../orders/locks";
 import { CartError } from "./errors";
+export { lockLedgerUsers, lockUserAdvisory } from "../orders/locks";
 class ChangedParticipants extends Error {}
-export async function lockUserAdvisory(tx: Tx, userId: string) {
-  await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${userId}))) AS l`;
-}
 export async function lockCart(tx: Tx, cartId: string): Promise<GroupCart> {
   await tx.$queryRaw`SELECT 1 FROM "GroupCart" WHERE id = ${cartId} FOR UPDATE`;
   const cart = await tx.groupCart.findUnique({ where: { id: cartId } });
@@ -62,8 +61,4 @@ export async function withCartTransaction<T>(
     }
   }
   throw new CartError("The cart changed. Try again.");
-}
-export async function lockLedgerUsers(tx: Tx, userIds: string[]) {
-  for (const id of [...new Set(userIds)].sort())
-    await tx.$queryRaw`SELECT 1 FROM "User" WHERE id = ${id} FOR UPDATE`;
 }
