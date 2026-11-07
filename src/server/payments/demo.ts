@@ -1,5 +1,6 @@
 import "server-only";
 import { createHash, timingSafeEqual } from "node:crypto";
+import { appUrl } from "@/lib/app-url";
 import type { Gateway, NoticeStatus, VerifiedNotice } from "./gateway";
 
 const md5 = (s: string) => createHash("md5").update(s).digest("hex").toUpperCase();
@@ -16,7 +17,12 @@ export type NoticeFields = {
 /** PayHere's checksum: UPPER(md5(merchant_id + order_id + amount + currency + status + UPPER(md5(secret)))). */
 export function signNotice(f: NoticeFields, secret: string): string {
   return md5(
-    f.merchant_id + f.order_id + f.payhere_amount + f.payhere_currency + f.status_code + md5(secret),
+    f.merchant_id +
+      f.order_id +
+      f.payhere_amount +
+      f.payhere_currency +
+      f.status_code +
+      md5(secret),
   );
 }
 
@@ -59,12 +65,11 @@ export function verifyNotice(raw: string, _headers?: unknown): VerifiedNotice | 
 
 export const demoGateway: Gateway = {
   async createCheckout(a) {
-    // Lazy: keeps the pure helpers above importable without the database.
-    const { appUrl } = await import("../notify/index");
     return { redirectUrl: appUrl(`/demo-pay/${a.attemptId}`) };
   },
   verifyNotice,
   async fetchStatus(attemptId) {
+    // Lazy: keeps the pure helpers above importable without a database (unit tests).
     const { db } = await import("../db");
     const row = await db.paymentAttempt.findUnique({
       where: { id: attemptId },

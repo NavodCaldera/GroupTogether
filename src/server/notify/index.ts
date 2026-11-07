@@ -4,9 +4,7 @@ import { db } from "../db";
 
 export type Notice = { title: string; body: string; href?: string };
 
-export function appUrl(path = "") {
-  return `${(process.env.APP_URL || "http://localhost:3002").replace(/\/$/, "")}${path}`;
-}
+export { appUrl } from "@/lib/app-url";
 
 /** In-app notification for each user. Call after the transaction that caused it commits. */
 export async function notify(userIds: string[], notice: Notice, deduplicationKey?: string) {
