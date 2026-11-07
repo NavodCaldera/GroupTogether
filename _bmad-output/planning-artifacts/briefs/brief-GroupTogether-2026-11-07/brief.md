@@ -17,12 +17,12 @@ for their area and hand them to buyers.
 
 ## People
 
-| Who | Role |
-|---|---|
-| Buyer | Shops across factories, pays upfront, collects from an agent |
-| Agent | Holds one open basket per factory, receives deliveries, hands over parcels, collects returns |
-| Factory | Lists products, packs locked baskets, decides returns, receives cash every Sunday |
-| Admin | Approves agents and factories, books couriers, decides escalated returns, runs payouts |
+| Who     | Role                                                                                         |
+| ------- | -------------------------------------------------------------------------------------------- |
+| Buyer   | Shops across factories, pays upfront, collects from an agent                                 |
+| Agent   | Holds one open basket per factory, receives deliveries, hands over parcels, collects returns |
+| Factory | Lists products, packs locked baskets, decides returns, receives cash every Sunday            |
+| Admin   | Approves agents and factories, books couriers, decides escalated returns, runs payouts       |
 
 ## Buying
 
@@ -79,6 +79,7 @@ for their area and hand them to buyers.
 - **Late or duplicate PayHere payments** become the buyer's tokens.
 - **Tokens** can be transferred by any user to any other user. Cash exchanged for tokens happens
   outside the platform at the users' own risk. Admins take no action on such disputes.
+
 ## Agents
 
 - Agents apply online with their NIC, their own photo, address and pin, and photos of the storage
