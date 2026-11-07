@@ -10,6 +10,23 @@
 [brief-GroupTogether-2026-11-07](../../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-07/brief.md)
 and its `.memlog.md`; later overrides win.
 
+## Clarifications
+
+### Session 2026-11-07
+
+- Q: Can a buyer cancel a paid order while the basket is still open? → A: Yes, until the basket
+  locks; the full amount paid, including courier charge, agent fee and PayHere fee, comes back as
+  tokens, and the stock is released.
+- Q: How long is stock held while a buyer is paying? → A: 15 minutes, set in Settings; a payment
+  arriving later becomes tokens.
+- Q: How are buyers told their parcel has arrived? → A: In-app notice only for the first release;
+  no SMS or email.
+- Q: Should agents set opening hours that buyers can see? → A: Yes; each agent sets weekly days
+  with open and close times, shown at checkout and on the pickup card.
+- Q: One pickup code per buyer or per order? → A: One code per buyer per agent. Each time the
+  agent marks a delivery received, every buyer with items in it gets a notice with that code, and
+  the code then also lists the newly arrived items.
+
 ## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - Buyer pays and joins an agent's basket (Priority: P1)
@@ -64,7 +81,8 @@ Given to driver and Received.
 4. **Given** admin enters the courier fee and driver details, **When** Packing taps Given to driver,
    **Then** the agent sees it in Arriving today with the fee to pay.
 5. **Given** the agent taps Mark received, **Then** the agent is credited the booked courier fee in
-   tokens, each buyer is notified with a pickup code, and each buyer's 48 hours start.
+   tokens, each buyer with items in that delivery is notified with their pickup code for that
+   agent, and the 48 hours start for those items.
 
 ---
 
@@ -193,7 +211,8 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 - **FR-005**: Tokens MUST apply before the gateway. A fully token-paid order MUST NOT use the
   gateway.
 - **FR-006**: Stock MUST be reserved when payment is started and sold only when payment is
-  confirmed. An abandoned payment MUST release it.
+  confirmed. The hold MUST end 15 minutes after payment starts (Settings) if no confirmed payment
+  has arrived, releasing the stock. A payment confirmed after that becomes tokens.
 - **FR-007**: Only a verified gateway notice MUST confirm a payment, once, with the amount and
   currency checked. A browser return MUST NOT confirm it.
 - **FR-008**: The first release MUST use a demo gateway that copies the PayHere flow: a hosted page
@@ -201,6 +220,13 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
   MUST NOT change any other part of the system.
 - **FR-009**: Late or duplicate payments MUST become the buyer's tokens. No cash is ever returned
   to buyers.
+
+- **FR-009a**: A buyer MUST be able to cancel a paid order until its basket locks. The full
+  amount paid, including courier charge, agent fee and PayHere fee, MUST come back as tokens, and
+  the stock MUST be released. After locking, an order cannot be cancelled.
+
+- **FR-009b**: All notices to buyers, agents, factories and admins MUST be in-app only in the
+  first release. There MUST be no SMS or email.
 
 **Baskets and delivery**
 
@@ -219,8 +245,10 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 
 **Collection and returns**
 
-- **FR-016**: Each order MUST have a 6-digit pickup code shown to the buyer. Typing it MUST show the
-  agent the items to hand over.
+- **FR-016**: Each buyer MUST have one 6-digit pickup code per agent, shown to the buyer. When the
+  agent marks a delivery received, every buyer with items in it MUST get an in-app notice with that
+  code. Typing the code MUST show every item from that buyer that has arrived and is not yet
+  collected, across all factories.
 - **FR-017**: Buyers MUST have 48 hours from receipt to file a return. Uncollected parcels MUST
   stay with the agent with no time limit.
 - **FR-018**: A return MUST be decided by the factory's Sales or Owner within 24 hours, then by a
@@ -252,6 +280,8 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
   before going live. The deposit stays locked while they are active.
 - **FR-029**: Admin MUST be able to suspend an agent, and to record a leaving agent's losses with
   photos and a reason. Core admin reviews disputes. The deposit minus losses is returned as tokens.
+- **FR-029a**: Each agent MUST set weekly opening hours (days, with open and close times). They are
+  shown to buyers at checkout and on the pickup card.
 
 **Screens**
 
@@ -263,7 +293,8 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 - **FR-031**: Factories MUST have three roles only: Owner, Sales and Packing. Planner jobs move to
   Sales.
 - **FR-032**: Settings MUST hold the courier charge, agent fee, PayHere fee rate, lock amount,
-  maximum wait, 48 hours, 7 days, radius and gap, deposit and commission.
+  maximum wait, payment hold (15 minutes), 48 hours, 7 days, radius and gap, deposit and
+  commission.
 
 **Removal**
 
@@ -279,11 +310,12 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 ### Key Entities
 
 - **Agent**: a person with a location, service radius, status (applied, approved, live, suspended,
-  left), documents and deposit.
+  left), documents, deposit and weekly opening hours.
 - **Agent basket**: belongs to one agent and one factory; status Open, Locked, Packed, With
   courier, At agent; total, first-order time, lock time.
 - **Order**: a buyer's paid items for one factory in one basket; item, courier, agent fee, token
-  and PayHere fee amounts; pickup code; received, collected.
+  and PayHere fee amounts; status Paid, Cancelled, Received, Collected.
+- **Pickup code**: one 6-digit code per buyer per agent, unique among that agent's active codes.
 - **Payment attempt**: amount, status, gateway reference; at most one success per order.
 - **Courier booking**: basket, fee, driver details, given-to-driver and received times.
 - **Return**: order line, fault type, decision, handover agent, deadline, tokens credited.
@@ -309,8 +341,6 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 ## Assumptions
 
 - The 2-month clock starts at the basket's first paid order.
-- Stock is held from starting payment until the gateway session is abandoned, at which point it is
-  released.
 - Return courier charge equals the per-item courier charge in Settings.
 - Sunday credits and payouts use Sri Lanka time.
 - The real PayHere switch, and PayHere's written approval of this model, come after this release.
