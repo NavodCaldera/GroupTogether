@@ -1411,24 +1411,29 @@ model Order {
 }
 
 model OrderLine {
-  id           String     @id @default(cuid())
-  orderId      String
-  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  variantId    String
-  variant      Variant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
-  qty          Int
+  id                  String     @id @default(cuid())
+  orderId             String
+  order               Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId           String
+  variant             Variant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  qty                 Int
   /// Snapshot: factory price + commission
-  unitPrice    Decimal    @db.Decimal(14, 2)
+  unitPrice           Decimal    @db.Decimal(14, 2)
   /// Snapshot
-  factoryPrice Decimal    @db.Decimal(14, 2)
+  factoryPrice        Decimal    @db.Decimal(14, 2)
   /// Snapshot of the courier charge per piece
-  courierEach  Decimal    @db.Decimal(14, 2)
+  courierEach         Decimal    @db.Decimal(14, 2)
   /// Snapshot of the agent fee per piece
-  agentFeeEach Decimal    @db.Decimal(14, 2)
-  status       LineStatus @default(ACTIVE)
-  returnedQty  Int        @default(0)
-  missingQty   Int        @default(0)
-  collectedAt  DateTime?
+  agentFeeEach        Decimal    @db.Decimal(14, 2)
+  status              LineStatus @default(ACTIVE)
+  returnedQty         Int        @default(0)
+  missingQty          Int        @default(0)
+  /// Pending factory report of units it cannot supply; an admin removes them
+  missingReportedQty  Int        @default(0)
+  missingNote         String?
+  missingReportedAt   DateTime?
+  missingReportedById String?
+  collectedAt         DateTime?
 
   returns     ReturnRequest[]
   payoutItems PayoutItem[]

@@ -1,0 +1,303 @@
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import { db } from "@/server/db";
+import { tokenBalance } from "@/server/tokens";
+import { setCartItem } from "@/server/orders/cart";
+import { startCheckout } from "@/server/orders/checkout";
+import {
+  bookCourier,
+  DeliveryError,
+  givenToDriver,
+  markBasketReceived,
+  markPacked,
+  removeMissingLine,
+  reportMissing,
+} from "@/server/orders/delivery";
+import { fundTokens, makeAgent, makeBuyer, makeFactory, makeUser, resetDb } from "./helpers";
+
+beforeEach(async () => {
+  await resetDb();
+  // One 1100 order locks the basket.
+  await db.settings.update({ where: { id: 1 }, data: { basketLockAmount: "1000" } });
+});
+afterAll(() => db.$disconnect());
+
+const money = (v: { toFixed(n: number): string }) => v.toFixed(2);
+const COURIER = {
+  fee: "850",
+  driverName: " Sunil ",
+  driverPhone: "0771234567",
+  vehicleNo: "LB-1234",
+};
+
+type Factory = Awaited<ReturnType<typeof makeFactory>>;
+
+/** The buyer pays one item fully with tokens (1100 + 40 + 20); the basket locks. */
+async function lockedOrder(agentId: string, f: Factory, buyerId?: string) {
+  const buyer = buyerId ?? (await makeBuyer()).id;
+  await fundTokens(buyer, "1160");
+  await setCartItem(buyer, f.variant.id, 1);
+  const r = await startCheckout(buyer, { agentId, tokens: "1160", requestKey: `k${Date.now()}` });
+  const order = await db.order.findUniqueOrThrow({
+    where: { id: r.orderIds[0] },
+    include: { lines: true },
+  });
+  expect(order.status).toBe("PAID");
+  const basket = await db.basket.findUniqueOrThrow({ where: { id: order.basketId! } });
+  expect(basket.status).toBe("LOCKED");
+  return { buyerId: buyer, order, basket };
+}
+
+async function staff(factoryId: string, factoryRole: "OWNER" | "PACKING" | "SALES" | "PLANNER") {
+  const u = await makeUser();
+  return db.user.update({ where: { id: u.id }, data: { role: "SELLER", factoryId, factoryRole } });
+}
+
+async function shipToAgent(basketId: string, packerId: string, adminId: string) {
+  await markPacked(packerId, basketId);
+  await bookCourier(adminId, basketId, COURIER);
+  await givenToDriver(packerId, basketId);
+}
+
+describe("packing, courier and receipt", () => {
+  it("full path: credits the courier fee once and gives one stable pickup code", async () => {
+    const { user: agentUser, agent } = await makeAgent();
+    const f = await makeFactory();
+    const packer = await staff(f.factory.id, "PACKING");
+    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const first = await lockedOrder(agent.id, f);
+
+    await markPacked(packer.id, first.basket.id);
+    expect((await db.basket.findUniqueOrThrow({ where: { id: first.basket.id } })).status).toBe(
+      "PACKED",
+    );
+    await bookCourier(admin.id, first.basket.id, { ...COURIER, fee: "800" });
+    await bookCourier(admin.id, first.basket.id, COURIER); // re-booking while PACKED updates it
+    const booking = await db.courierBooking.findUniqueOrThrow({
+      where: { basketId: first.basket.id },
+    });
+    expect([money(booking.fee), booking.driverName, booking.bookedById]).toEqual([
+      "850.00",
+      "Sunil",
+      admin.id,
+    ]);
+    await givenToDriver(packer.id, first.basket.id);
+    const sent = await db.basket.findUniqueOrThrow({
+      where: { id: first.basket.id },
+      include: { courier: true },
+    });
+    expect(sent.status).toBe("WITH_COURIER");
+    expect(sent.courier!.givenToDriverAt).not.toBeNull();
+
+    await markBasketReceived(agentUser.id, first.basket.id, []);
+    await markBasketReceived(agentUser.id, first.basket.id, []);
+
+    const basket = await db.basket.findUniqueOrThrow({
+      where: { id: first.basket.id },
+      include: { courier: true },
+    });
+    expect(basket.status).toBe("AT_AGENT");
+    expect(basket.courier!.receivedAt).not.toBeNull();
+    const order = await db.order.findUniqueOrThrow({ where: { id: first.order.id } });
+    expect(order.status).toBe("RECEIVED");
+    expect(order.receivedAt).not.toBeNull();
+    expect(money(await tokenBalance(agentUser.id))).toBe("850.00");
+    expect(await db.tokenEntry.count({ where: { kind: "COURIER_REPAY" } })).toBe(1);
+    expect(await db.tokenEntry.count({ where: { kind: "AGENT_FEE" } })).toBe(0);
+
+    const code = await db.pickupCode.findUniqueOrThrow({
+      where: { buyerId_agentId: { buyerId: first.buyerId, agentId: agent.id } },
+    });
+    expect(code.code).toMatch(/^\d{6}$/);
+    const notices = await db.notification.findMany({ where: { userId: first.buyerId } });
+    expect(notices.filter((n) => n.title === "Ready to collect")).toHaveLength(1);
+    const notice = notices.find((n) => n.title === "Ready to collect")!;
+    expect(notice.body).toContain(code.code);
+    expect(notice.body).toContain(agentUser.name);
+    expect(notice.href).toBe("/");
+
+    // A later order for the same buyer and agent keeps the same code.
+    const second = await lockedOrder(agent.id, f, first.buyerId);
+    expect(second.basket.id).not.toBe(first.basket.id);
+    await shipToAgent(second.basket.id, packer.id, admin.id);
+    await markBasketReceived(agentUser.id, second.basket.id, []);
+    expect(await db.pickupCode.count()).toBe(1);
+    const ready = await db.notification.findMany({
+      where: { userId: first.buyerId, title: "Ready to collect" },
+    });
+    expect(ready).toHaveLength(2);
+    for (const n of ready) expect(n.body).toContain(code.code);
+    expect(money(await tokenBalance(agentUser.id))).toBe("1700.00");
+  });
+
+  it("a factory that does not own the basket cannot pack it", async () => {
+    const { agent } = await makeAgent();
+    const f = await makeFactory();
+    const other = await makeFactory();
+    const otherPacker = await staff(other.factory.id, "PACKING");
+    const { basket } = await lockedOrder(agent.id, f);
+    await expect(markPacked(other.factory.id, basket.id)).rejects.toThrow(DeliveryError);
+    await expect(markPacked(otherPacker.id, basket.id)).rejects.toThrow(DeliveryError);
+    expect((await db.basket.findUniqueOrThrow({ where: { id: basket.id } })).status).toBe("LOCKED");
+    await markPacked(f.factory.id, basket.id); // the factory account itself is an owner
+  });
+
+  it("sales and planner staff cannot mark packed", async () => {
+    const { agent } = await makeAgent();
+    const f = await makeFactory();
+    const sales = await staff(f.factory.id, "SALES");
+    const planner = await staff(f.factory.id, "PLANNER");
+    const { basket } = await lockedOrder(agent.id, f);
+    await expect(markPacked(sales.id, basket.id)).rejects.toThrow(DeliveryError);
+    await expect(markPacked(planner.id, basket.id)).rejects.toThrow(DeliveryError);
+    expect((await db.basket.findUniqueOrThrow({ where: { id: basket.id } })).status).toBe("LOCKED");
+  });
+
+  it("a courier cannot be booked before the basket is packed, nor by another admin area", async () => {
+    const { agent } = await makeAgent();
+    const f = await makeFactory();
+    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const factoryAdmin = await makeUser("ADMIN", "FACTORY");
+    const { basket } = await lockedOrder(agent.id, f);
+    await expect(bookCourier(admin.id, basket.id, COURIER)).rejects.toThrow(DeliveryError);
+    await markPacked(f.factory.id, basket.id);
+    await expect(bookCourier(factoryAdmin.id, basket.id, COURIER)).rejects.toThrow(DeliveryError);
+    await expect(bookCourier(admin.id, basket.id, { ...COURIER, fee: "0" })).rejects.toThrow(
+      DeliveryError,
+    );
+    await expect(bookCourier(admin.id, basket.id, { ...COURIER, fee: "10.005" })).rejects.toThrow(
+      DeliveryError,
+    );
+    await expect(
+      bookCourier(admin.id, basket.id, { ...COURIER, driverName: "  " }),
+    ).rejects.toThrow(DeliveryError);
+    await expect(givenToDriver(f.factory.id, basket.id)).rejects.toThrow(DeliveryError);
+    expect(await db.courierBooking.count()).toBe(0);
+  });
+
+  it("another agent cannot mark the basket received", async () => {
+    const { agent } = await makeAgent();
+    const { user: otherUser } = await makeAgent({ lat: 7.2, lng: 80.6 });
+    const f = await makeFactory();
+    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const { basket } = await lockedOrder(agent.id, f);
+    await shipToAgent(basket.id, f.factory.id, admin.id);
+    await expect(markBasketReceived(otherUser.id, basket.id, [])).rejects.toThrow(DeliveryError);
+    expect((await db.basket.findUniqueOrThrow({ where: { id: basket.id } })).status).toBe(
+      "WITH_COURIER",
+    );
+    expect(await db.tokenEntry.count({ where: { kind: "COURIER_REPAY" } })).toBe(0);
+  });
+
+  it("sends back the listed handed-over returns for that factory", async () => {
+    const { user: agentUser, agent } = await makeAgent();
+    const f = await makeFactory();
+    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const { basket, order, buyerId } = await lockedOrder(agent.id, f);
+    const ret = await db.returnRequest.create({
+      data: {
+        orderLineId: order.lines[0].id,
+        buyerId,
+        factoryId: f.factory.id,
+        qty: 1,
+        reason: "DAMAGED",
+        fault: "FACTORY",
+        note: "Torn",
+        status: "HANDED_OVER",
+        handoverAgentId: agent.id,
+        factoryDueAt: new Date(),
+      },
+    });
+    const waiting = await db.returnRequest.create({
+      data: {
+        orderLineId: order.lines[0].id,
+        buyerId,
+        factoryId: f.factory.id,
+        qty: 1,
+        reason: "DAMAGED",
+        fault: "FACTORY",
+        note: "Torn",
+        status: "AWAITING_HANDOVER",
+        handoverAgentId: agent.id,
+        factoryDueAt: new Date(),
+      },
+    });
+    await shipToAgent(basket.id, f.factory.id, admin.id);
+    await expect(markBasketReceived(agentUser.id, basket.id, [waiting.id])).rejects.toThrow(
+      DeliveryError,
+    );
+    await markBasketReceived(agentUser.id, basket.id, [ret.id]);
+    const row = await db.returnRequest.findUniqueOrThrow({ where: { id: ret.id } });
+    expect([row.status, row.sentBackBasketId]).toEqual(["PICKED_UP", basket.id]);
+  });
+});
+
+describe("missing items", () => {
+  it("refunds the buyer 1160 tokens, queues a 160 deduction and lowers the basket total", async () => {
+    const { agent } = await makeAgent();
+    const f = await makeFactory();
+    const packer = await staff(f.factory.id, "PACKING");
+    const factoryAdmin = await makeUser("ADMIN", "FACTORY");
+    const agentsAdmin = await makeUser("ADMIN", "WAREHOUSE");
+    const { basket, order, buyerId } = await lockedOrder(agent.id, f);
+    const line = order.lines[0];
+    expect(money(await tokenBalance(buyerId))).toBe("0.00");
+
+    await expect(removeMissingLine(factoryAdmin.id, line.id)).rejects.toThrow(DeliveryError);
+    await expect(reportMissing(packer.id, line.id, 2, "Out of stock")).rejects.toThrow(
+      DeliveryError,
+    );
+    await expect(reportMissing(packer.id, line.id, 1, "  ")).rejects.toThrow(DeliveryError);
+    await reportMissing(packer.id, line.id, 1, "Out of stock");
+    const reported = await db.orderLine.findUniqueOrThrow({ where: { id: line.id } });
+    expect([
+      reported.missingReportedQty,
+      reported.missingNote,
+      reported.missingReportedById,
+    ]).toEqual([1, "Out of stock", packer.id]);
+
+    await expect(removeMissingLine(agentsAdmin.id, line.id)).rejects.toThrow(DeliveryError);
+    await removeMissingLine(factoryAdmin.id, line.id);
+
+    expect(money(await tokenBalance(buyerId))).toBe("1160.00");
+    const entry = await db.tokenEntry.findUniqueOrThrow({
+      where: { eventKey: `missing:${line.id}:1` },
+    });
+    expect(entry.kind).toBe("MISSING_ITEM");
+    const deduction = await db.payoutDeduction.findUniqueOrThrow({
+      where: { kind_ref: { kind: "MISSING_ITEM", ref: `missing:${line.id}:1` } },
+    });
+    expect([money(deduction.amount), deduction.factoryId, deduction.payoutId]).toEqual([
+      "160.00",
+      f.factory.id,
+      null,
+    ]);
+    expect(money((await db.basket.findUniqueOrThrow({ where: { id: basket.id } })).total)).toBe(
+      "0.00",
+    );
+    const after = await db.orderLine.findUniqueOrThrow({ where: { id: line.id } });
+    expect([after.missingQty, after.missingReportedQty, after.status]).toEqual([1, 0, "CANCELLED"]);
+    const notice = await db.notification.findFirstOrThrow({
+      where: { userId: buyerId, title: "Item removed" },
+    });
+    expect(notice.body).toContain("1160");
+
+    // Nothing left to report or remove.
+    await expect(removeMissingLine(factoryAdmin.id, line.id)).rejects.toThrow(DeliveryError);
+    await expect(reportMissing(packer.id, line.id, 1, "Again")).rejects.toThrow(DeliveryError);
+  });
+
+  it("cannot report once the basket has left the factory", async () => {
+    const { agent } = await makeAgent();
+    const f = await makeFactory();
+    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const sales = await staff(f.factory.id, "SALES");
+    const { basket, order } = await lockedOrder(agent.id, f);
+    await expect(reportMissing(sales.id, order.lines[0].id, 1, "Gone")).rejects.toThrow(
+      DeliveryError,
+    );
+    await shipToAgent(basket.id, f.factory.id, admin.id);
+    await expect(reportMissing(f.factory.id, order.lines[0].id, 1, "Gone")).rejects.toThrow(
+      DeliveryError,
+    );
+  });
+});
