@@ -1395,11 +1395,14 @@ model Order {
   holdUntil        DateTime
   paidAt           DateTime?
   receivedAt       DateTime?
+  /// The buyer's checkout request key; repeats return the first result
+  checkoutKey      String?
   createdAt        DateTime        @default(now())
 
   lines OrderLine[]
 
   @@index([buyerId, createdAt])
+  @@index([buyerId, checkoutKey])
   @@index([basketId])
   @@index([paymentAttemptId])
   @@index([agentId, status])
