@@ -3,7 +3,7 @@ import { D, toD } from "@/lib/decimal";
 import { db, type Tx } from "../db";
 import { notify } from "../notify";
 import { post } from "../tokens";
-import { agentOfUser, AgentError, lockOpenBaskets, withAgent } from "./common";
+import { agentOfUser, AgentError, lockOpenBaskets, requireAgentsAdmin, withAgent } from "./common";
 
 /** The agent stops taking orders; open baskets lock and ship, and buyers keep collecting. */
 export async function requestLeave(agentUserId: string): Promise<void> {
@@ -24,8 +24,11 @@ async function settled(tx: Tx, agentId: string): Promise<boolean> {
     select: { qty: true, missingQty: true },
   });
   if (lines.some((l) => l.qty - l.missingQty > 0)) return false;
-  // Every OPEN basket was locked on leave, so anything not AT_AGENT is still on its way.
-  if (await tx.basket.count({ where: { agentId, status: { not: "AT_AGENT" } } })) return false;
+  // A basket holding PAID orders has not reached the agent yet; an empty OPEN one is ignored.
+  const onTheWay = await tx.basket.count({
+    where: { agentId, status: { not: "AT_AGENT" }, orders: { some: { status: "PAID" } } },
+  });
+  if (onTheWay) return false;
   // Checkout refuses a non-LIVE agent, so no new PENDING order can appear after this.
   if (await tx.order.count({ where: { agentId, status: "PENDING" } })) return false;
   const returns = await tx.returnRequest.count({
@@ -77,4 +80,21 @@ export async function closeLeavingAgents(now: Date): Promise<number> {
     );
   }
   return closed;
+}
+
+/** Agents and orders admin: a leaving (or left) agent's held returns go back on a return-only
+ * courier the admin books. HANDED_OVER -> PICKED_UP; the factory then marks them received.
+ * Returns how many moved.
+ */
+export async function collectHeldReturns(adminId: string, agentId: string): Promise<number> {
+  await requireAgentsAdmin(adminId);
+  return withAgent(agentId, async (tx, agent) => {
+    if (agent.status !== "LEAVING" && agent.status !== "LEFT")
+      throw new AgentError("Only a leaving agent's returns can be collected");
+    const moved = await tx.returnRequest.updateMany({
+      where: { handoverAgentId: agent.id, status: "HANDED_OVER" },
+      data: { status: "PICKED_UP", pickupBookedAt: new Date(), pickupBookedById: adminId },
+    });
+    return moved.count;
+  });
 }

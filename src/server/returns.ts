@@ -323,6 +323,14 @@ async function toHandover(
     where: { id: r.orderLineId! },
     select: { order: { select: { agentId: true } } },
   });
+  // FOR SHARE serializes with closeLeavingAgents (Agent FOR NO KEY UPDATE): an agent is never
+  // closed with a return just assigned to it. A LEAVING agent still takes returns until it closes.
+  await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${line.order.agentId} FOR SHARE`;
+  const agent = await tx.agent.findUniqueOrThrow({
+    where: { id: line.order.agentId },
+    select: { status: true },
+  });
+  if (agent.status === "LEFT") throw new ReturnError("The agent for this order has closed");
   const { returnHandoverDays } = await tx.settings.findUniqueOrThrow({
     where: { id: 1 },
     select: { returnHandoverDays: true },

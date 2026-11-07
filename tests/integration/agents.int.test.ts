@@ -9,10 +9,15 @@ import { signNotice } from "@/server/payments/demo";
 import { applyAsAgent } from "@/server/agents/apply";
 import { decideAgent, liftSuspension, recordLoss, suspendAgent } from "@/server/agents/admin";
 import { agentDepositPaid, startDeposit } from "@/server/agents/deposit";
-import { closeLeavingAgents, requestLeave } from "@/server/agents/leave";
+import { closeLeavingAgents, collectHeldReturns, requestLeave } from "@/server/agents/leave";
+import { cancelOrder } from "@/server/orders/baskets";
+import { lockBasketSlot } from "@/server/orders/locks";
+import { factoryDecide, fileReturn } from "@/server/returns";
+import { CartError } from "@/server/carts/errors";
 import { setHours } from "@/server/agents/hours";
 import { liveAgents } from "@/server/agents/live";
 import {
+  fundTokens,
   giftPhotoFile,
   makeAgent,
   makeBuyer,
@@ -84,6 +89,17 @@ async function paidAgent() {
 }
 
 const agentsAdmin = () => makeUser("ADMIN", "WAREHOUSE");
+
+/** An OPEN basket at the agent holding one PAID order, paid in full with tokens. */
+async function openBasket(agentId: string, f: Awaited<ReturnType<typeof makeFactory>>) {
+  const buyer = await makeBuyer();
+  await fundTokens(buyer.id, "1160");
+  await setCartItem(buyer.id, f.variant.id, 1);
+  await startCheckout(buyer.id, { agentId, tokens: "1160", requestKey: "open" });
+  return db.basket.findFirstOrThrow({
+    where: { agentId, factoryId: f.factory.id, status: "OPEN" },
+  });
+}
 
 describe("applying", () => {
   it("stores the documents and pin as APPLIED; one application per user", async () => {
@@ -249,9 +265,7 @@ describe("suspension", () => {
   it("locks OPEN baskets and refuses checkout; lifting makes the agent LIVE again", async () => {
     const { agent } = await makeAgent();
     const f = await makeFactory();
-    const basket = await db.basket.create({
-      data: { agentId: agent.id, factoryId: f.factory.id, total: "1100", firstOrderAt: new Date() },
-    });
+    const basket = await openBasket(agent.id, f);
     const admin = await agentsAdmin();
     await suspendAgent(admin.id, agent.id, "Complaints");
     const suspended = await db.agent.findUniqueOrThrow({ where: { id: agent.id } });
@@ -290,6 +304,31 @@ describe("suspension", () => {
       "LOCKED",
       "SUSPENDED",
     ]);
+  });
+
+  it("suspend does not deadlock with a pickup code written under the basket advisory", async () => {
+    const { agent } = await makeAgent();
+    const f = await makeFactory();
+    const basket = await openBasket(agent.id, f);
+    const buyer = await makeBuyer();
+    const admin = await agentsAdmin();
+    let suspending: Promise<void> | undefined;
+    // Like markBasketReceived: hold basket:<agent>:<factory>, then insert a row referencing Agent.
+    await db.$transaction(
+      async (tx) => {
+        await lockBasketSlot(tx, agent.id, f.factory.id);
+        suspending = suspendAgent(admin.id, agent.id, "Complaints");
+        await new Promise((r) => setTimeout(r, 500));
+        await tx.pickupCode.create({
+          data: { buyerId: buyer.id, agentId: agent.id, code: "654321" },
+        });
+      },
+      { timeout: 20000 },
+    );
+    await suspending;
+    const row = await db.basket.findUniqueOrThrow({ where: { id: basket.id } });
+    expect(row.status).toBe("LOCKED");
+    expect(await db.pickupCode.count()).toBe(1);
   });
 
   it("only an AGENTS admin can suspend or lift", async () => {
@@ -339,14 +378,7 @@ describe("leaving", () => {
   it("locks OPEN baskets on leave and waits for them to reach the agent", async () => {
     const a = await paidAgent();
     const f = await makeFactory();
-    const basket = await db.basket.create({
-      data: {
-        agentId: a.agent.id,
-        factoryId: f.factory.id,
-        total: "1100",
-        firstOrderAt: new Date(),
-      },
-    });
+    const basket = await openBasket(a.agent.id, f);
     await requestLeave(a.user.id);
     const locked = await db.basket.findUniqueOrThrow({ where: { id: basket.id } });
     expect(locked.status).toBe("LOCKED");
@@ -355,16 +387,68 @@ describe("leaving", () => {
     expect(await closeLeavingAgents(new Date())).toBe(1);
   });
 
-  it("waits for returns the agent still holds", async () => {
+  it("a held return keeps the agent LEAVING until the admin collects it", async () => {
     const a = await paidAgent();
     const r = await makeReceivedOrder({ agent: a });
-    const ret = await db.returnRequest.create({
-      data: returnData(r, a.agent.id),
-    });
+    const ret = await db.returnRequest.create({ data: returnData(r, a.agent.id) });
     await requestLeave(a.user.id);
     expect(await closeLeavingAgents(new Date())).toBe(0);
-    await db.returnRequest.update({ where: { id: ret.id }, data: { status: "PICKED_UP" } });
+    expect((await db.agent.findUniqueOrThrow({ where: { id: a.agent.id } })).status).toBe(
+      "LEAVING",
+    );
+    const admin = await agentsAdmin();
+    await expect(
+      collectHeldReturns((await makeUser("ADMIN", "FACTORY")).id, a.agent.id),
+    ).rejects.toThrow();
+    expect(await collectHeldReturns(admin.id, a.agent.id)).toBe(1);
+    const moved = await db.returnRequest.findUniqueOrThrow({ where: { id: ret.id } });
+    expect([moved.status, moved.pickupBookedById]).toEqual(["PICKED_UP", admin.id]);
+    expect(moved.pickupBookedAt).not.toBeNull();
     expect(await closeLeavingAgents(new Date())).toBe(1);
+    expect(await closeLeavingAgents(new Date())).toBe(0);
+    expect(await collectHeldReturns(admin.id, a.agent.id)).toBe(0);
+    expect(money(await tokenBalance(a.user.id))).toBe("200000.00");
+    expect(await db.tokenEntry.count({ where: { kind: "DEPOSIT_RETURN" } })).toBe(1);
+  });
+
+  it("collectHeldReturns refuses an agent that is not leaving", async () => {
+    const a = await paidAgent();
+    await expect(collectHeldReturns((await agentsAdmin()).id, a.agent.id)).rejects.toThrow();
+  });
+
+  it("an empty OPEN basket (its only order cancelled) does not block closing", async () => {
+    const a = await paidAgent();
+    const f = await makeFactory();
+    const buyer = await makeBuyer();
+    await fundTokens(buyer.id, "1160");
+    await setCartItem(buyer.id, f.variant.id, 1);
+    const r = await startCheckout(buyer.id, {
+      agentId: a.agent.id,
+      tokens: "1160",
+      requestKey: "k",
+    });
+    await cancelOrder(buyer.id, r.orderIds[0]);
+    const basket = await db.basket.findFirstOrThrow({ where: { agentId: a.agent.id } });
+    await requestLeave(a.user.id);
+    expect((await db.basket.findUniqueOrThrow({ where: { id: basket.id } })).status).toBe("OPEN");
+    expect(await closeLeavingAgents(new Date())).toBe(1);
+    expect(money(await tokenBalance(a.user.id))).toBe("200000.00");
+  });
+
+  it("a return cannot be assigned to an agent that has LEFT", async () => {
+    const a = await makeAgent({ status: "LEFT" });
+    const r = await makeReceivedOrder({ agent: a, receivedAt: new Date("2026-11-01T10:00:00Z") });
+    const now = new Date("2026-11-02T10:00:00Z");
+    const ret = await fileReturn(
+      r.buyer.id,
+      r.line.id,
+      { qty: 1, fault: "FACTORY", reason: "DAMAGED", note: "Torn", photos: [giftPhotoFile()] },
+      now,
+    );
+    await expect(factoryDecide(r.factory.id, ret.id, true, now)).rejects.toBeInstanceOf(CartError);
+    expect((await db.returnRequest.findUniqueOrThrow({ where: { id: ret.id } })).status).toBe(
+      "WAITING_FACTORY",
+    );
   });
 
   it("losses above the deposit return nothing; no deposit paid returns nothing", async () => {

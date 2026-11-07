@@ -56,7 +56,7 @@ export async function agentDepositPaid(tx: Tx, attemptId: string): Promise<boole
     select: { purpose: true, agentId: true },
   });
   if (attempt.purpose !== "DEPOSIT" || !attempt.agentId) return false;
-  await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${attempt.agentId} FOR UPDATE`;
+  await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${attempt.agentId} FOR NO KEY UPDATE`;
   const agent = await tx.agent.findUniqueOrThrow({
     where: { id: attempt.agentId },
     select: { id: true, status: true, userId: true },
