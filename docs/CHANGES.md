@@ -30,6 +30,11 @@
   agent locks it, delivery starts, and a new basket for that factory opens. Agents keep a LKR
   200,000 security deposit, earn LKR 20 per item, and each has an exclusive area of about 1 km²
   around their location. Courier delivery from factory to agent stays in the system.
+- Agent model rules agreed in the BMAD brief, not built yet, superseding the same-day group basket
+  decisions: 2-month maximum wait, 48-hour collect/return window, Sunday cash payouts to factories
+  only, tokens for agents (LKR 20/item, courier repayment, deposit return), user-to-user token
+  transfers, returns through agents, buyer pays PayHere fee and a fixed courier charge per item.
+  Premium brands and design likes parked. [Brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-07/brief.md).
 - Owner confirmed holding factory money is not a concern. Buyer-side value is low cost (no
   wholesale/retail markup); factory-side value is time.
 
