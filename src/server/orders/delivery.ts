@@ -109,6 +109,15 @@ export async function givenToDriver(userId: string, basketId: string): Promise<v
     const basket = await lockBasketRow(tx, key);
     requireMove(basket.status, "WITH_COURIER");
     if (!basket.courier) throw new DeliveryError("Book a courier first");
+    // A pending report can only be removed before the basket ships.
+    const pending = await tx.orderLine.count({
+      where: {
+        status: "ACTIVE",
+        missingReportedQty: { gt: 0 },
+        order: { basketId: basket.id, status: "PAID" },
+      },
+    });
+    if (pending > 0) throw new DeliveryError("Resolve the missing items first");
     const now = new Date();
     await tx.courierBooking.update({
       where: { basketId: basket.id },
@@ -296,7 +305,19 @@ export async function markBasketReceived(
 
   const ready = await withOrderTransaction([], orderIds, async (tx) => {
     const basket = await lockBasketRow(tx, key);
-    if (basket.status === "AT_AGENT") return null;
+    if (basket.status === "AT_AGENT") {
+      // Already received: change nothing, but resend the (deduplicated) notices so a crash
+      // between commit and notify is recovered by retrying.
+      const received = await tx.order.findMany({
+        where: { basketId: basket.id, status: "RECEIVED" },
+        select: { buyerId: true },
+      });
+      const codes = await tx.pickupCode.findMany({
+        where: { agentId: agent.id, buyerId: { in: [...new Set(received.map((o) => o.buyerId))] } },
+        select: { buyerId: true, code: true },
+      });
+      return new Map(codes.map((c) => [c.buyerId, c.code]));
+    }
     requireMove(basket.status, "AT_AGENT");
     if (!basket.courier) throw new DeliveryError("No courier is booked");
     const orders = await tx.order.findMany({
@@ -340,7 +361,6 @@ export async function markBasketReceived(
     });
     return codes;
   });
-  if (!ready) return;
   for (const [buyerId, code] of ready)
     await notify(
       [buyerId],
