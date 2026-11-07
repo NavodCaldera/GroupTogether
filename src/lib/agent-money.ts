@@ -82,7 +82,7 @@ export function missingDeduction(
   return roundMoney(unitPrice.minus(factoryPrice).plus(courierEach).plus(agentFeeEach).times(qty));
 }
 
-/** The factory keeps earning for missing units; only returned units are taken off. */
-export function lineEarning(qty: number, returnedQty: number, _missingQty: number, factoryPrice: Money): Money {
-  return roundMoney(factoryPrice.times(Math.max(qty - returnedQty, 0)));
+/** The factory is never paid for returned or missing units. */
+export function lineEarning(qty: number, returnedQty: number, missingQty: number, factoryPrice: Money): Money {
+  return roundMoney(factoryPrice.times(Math.max(qty - returnedQty - missingQty, 0)));
 }

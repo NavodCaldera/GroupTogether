@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { D } from "./decimal";
-import { gatewayFee, orderTotals, splitCheckout } from "./agent-money";
+import { gatewayFee, lineEarning, orderTotals, splitCheckout } from "./agent-money";
 
 const price = fc
   .integer({ min: 100, max: 5_000_000 })
@@ -44,6 +44,23 @@ describe("checkout split invariants", () => {
         },
       ),
       { seed: 20261107, numRuns: 300 },
+    );
+  });
+
+  it("line earning is never negative", () => {
+    fc.assert(
+      fc.property(
+        fc.integer({ min: 0, max: 50 }),
+        fc.integer({ min: 0, max: 60 }),
+        fc.integer({ min: 0, max: 60 }),
+        price,
+        (qty, returned, missing, factoryPrice) => {
+          const e = lineEarning(qty, returned, missing, factoryPrice);
+          expect(e.gte(0)).toBe(true);
+          expect(e.lte(factoryPrice.times(qty))).toBe(true);
+        },
+      ),
+      { seed: 20261107, numRuns: 200 },
     );
   });
 });

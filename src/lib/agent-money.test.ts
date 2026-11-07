@@ -57,5 +57,6 @@ describe("agent money rules", () => {
   it("deducts only GroupBasket's loss and pays the factory per kept line", () => {
     expect(missingDeduction(1, new D("1100"), new D("1000"), new D("40"), new D("20")).toFixed(2)).toBe("160.00");
     expect(lineEarning(3, 1, 0, new D("1000")).toFixed(2)).toBe("2000.00");
+    expect(lineEarning(3, 1, 1, new D("1000")).toFixed(2)).toBe("1000.00");
   });
 });
