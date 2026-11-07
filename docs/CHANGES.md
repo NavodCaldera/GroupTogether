@@ -13,6 +13,13 @@
   team then has 6 hours to pay. Each buyer pays for their own items (replaces owner-pays-all,
   `PAY-001`). Buyers can use tokens on their own items and pay the rest by gateway.
 - No cash back to buyers for any reason: late or duplicate gateway payments become tokens.
+- Owner decision, not built yet: when the 6 hours end, unpaid buyers are removed and their stock
+  released; if the paid total is still at least the minimum the basket goes ahead, otherwise it is
+  cancelled and every paid buyer's money becomes tokens.
+- Owner proposal under review, not approved: a personal cart (mixed factories) separate from group
+  baskets (one factory each); items proceed only by creating an own basket or joining a group basket
+  from that factory. One join request at a time; owners cannot remove buyers and buyers cannot leave
+  after joining; buyers see only group baskets from the same factory.
 - Owner confirmed holding factory money is not a concern. Buyer-side value is low cost (no
   wholesale/retail markup); factory-side value is time.
 
