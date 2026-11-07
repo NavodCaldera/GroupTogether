@@ -37,6 +37,8 @@ enum Role {
   SELLER
   /// Our packing staff: one checks and gathers a paid order, another rechecks and packs it
   PACKER
+  /// An area agent who receives baskets from factories and hands parcels to buyers
+  AGENT
 }
 
 model User {
@@ -112,6 +114,19 @@ model User {
   brandConversations BrandConversation[]     @relation("ConversationBrand")
   brandMessages      BrandMessage[]
   brandReads         BrandConversationRead[]
+
+  agent                Agent?
+  cartItems            CartItem[]
+  buyerOrders          Order[]           @relation("OrderBuyer")
+  factoryOrders        Order[]           @relation("OrderFactory")
+  buyerPaymentAttempts PaymentAttempt[]  @relation("AttemptBuyer")
+  pickupCodes          PickupCode[]
+  factoryBaskets       Basket[]          @relation("BasketFactory")
+  factoryPayouts       FactoryPayout[]   @relation("PayoutFactory")
+  paidPayouts          FactoryPayout[]   @relation("PayoutPaidBy")
+  payoutDeductions     PayoutDeduction[] @relation("DeductionFactory")
+  bookedCouriers       CourierBooking[]  @relation("CourierBookedBy")
+  agentLossDecisions   AgentLoss[]       @relation("AgentLossDecider")
 
   @@index([factoryId])
 }
@@ -261,7 +276,9 @@ model Variant {
   /// Turned into sales when a cart is confirmed
   sold      Int     @default(0)
 
-  lines CartLine[]
+  lines      CartLine[]
+  orderLines OrderLine[]
+  cartItems  CartItem[]
 
   @@unique([productId, size, colour])
 }
@@ -721,6 +738,19 @@ model Settings {
   fullMarginPct      Int     @default(20)
   reducedMarginPct   Int     @default(10)
   fullMarginDays     Int     @default(7)
+
+  // Agent model
+  courierPerItem     Decimal @default(40) @db.Decimal(14, 2)
+  agentFeePerItem    Decimal @default(20) @db.Decimal(14, 2)
+  gatewayFeeRate     Decimal @default(0.033) @db.Decimal(6, 4)
+  basketLockAmount   Decimal @default(50000) @db.Decimal(14, 2)
+  maxWaitDays        Int     @default(60)
+  paymentHoldMinutes Int     @default(15)
+  collectHours       Int     @default(48)
+  returnHandoverDays Int     @default(7)
+  agentRadiusM       Int     @default(1000)
+  agentGapM          Int     @default(2000)
+  agentDeposit       Decimal @default(200000) @db.Decimal(14, 2)
 }
 
 /// A private conversation between a cart's owner and one other user (a member or someone asking
@@ -941,23 +971,37 @@ enum TokenKind {
   HOLD
   RELEASE
   SPEND
+  LATE_PAYMENT
+  ORDER_CANCEL
+  AGENT_FEE
+  COURIER_REPAY
+  MISSING_ITEM
+  DEPOSIT_RETURN
+  TRANSFER_OUT
+  TRANSFER_IN
 }
 
 model TokenEntry {
-  id         String    @id @default(cuid())
-  userId     String
-  user       User      @relation(fields: [userId], references: [id], onDelete: Restrict)
-  amount     Decimal   @db.Decimal(14, 2)
-  kind       TokenKind
+  id             String    @id @default(cuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  amount         Decimal   @db.Decimal(14, 2)
+  kind           TokenKind
   /// Immutable audit references survive line deletion; deliberately not cascading foreign keys.
-  cartLineId String?
-  returnId   String?
-  eventKey   String    @unique
-  note       String
-  createdAt  DateTime  @default(now())
+  cartLineId     String?
+  returnId       String?
+  /// Also audit references without foreign keys
+  orderId        String?
+  orderLineId    String?
+  counterpartyId String?
+  eventKey       String    @unique
+  note           String
+  createdAt      DateTime  @default(now())
 
   @@index([userId, createdAt])
   @@index([cartLineId])
+  @@index([orderId])
+  @@index([orderLineId])
 }
 
 enum LineStatus {
@@ -1032,6 +1076,9 @@ enum ReturnStatus {
   PICKED_UP
   RECEIVED
   COMPLETED
+  AWAITING_HANDOVER
+  HANDED_OVER
+  LAPSED
 }
 
 enum ReturnFault {
@@ -1044,8 +1091,16 @@ model ReturnRequest {
   factoryNote        String?
   messages           ReturnMessage[]
   id                 String          @id @default(cuid())
-  cartLineId         String
-  cartLine           CartLine        @relation(fields: [cartLineId], references: [id], onDelete: Restrict)
+  cartLineId         String?
+  cartLine           CartLine?       @relation(fields: [cartLineId], references: [id], onDelete: Restrict)
+  orderLineId        String?
+  orderLine          OrderLine?      @relation(fields: [orderLineId], references: [id], onDelete: Restrict)
+  handoverAgentId    String?
+  handoverAgent      Agent?          @relation("ReturnHandoverAgent", fields: [handoverAgentId], references: [id], onDelete: Restrict)
+  handoverDueAt      DateTime?
+  handedOverAt       DateTime?
+  sentBackBasketId   String?
+  sentBackBasket     Basket?         @relation("ReturnSentBack", fields: [sentBackBasketId], references: [id], onDelete: Restrict)
   buyerId            String
   factoryId          String
   qty                Int
@@ -1078,6 +1133,8 @@ model ReturnRequest {
   @@index([buyerId, createdAt])
   @@index([status, factoryDueAt])
   @@index([cartLineId])
+  @@index([orderLineId])
+  @@index([handoverAgentId, status])
 }
 
 model ReturnPhoto {
@@ -1169,4 +1226,344 @@ model FaultHoldMessage {
 
   @@index([holdId, createdAt])
   @@index([authorId, createdAt])
+}
+
+// ─── Area agent model ──────────────────────────────────────────────────────
+
+enum AgentStatus {
+  APPLIED
+  APPROVED
+  LIVE
+  SUSPENDED
+  LEAVING
+  LEFT
+  REJECTED
+}
+
+model Agent {
+  id               String      @id @default(cuid())
+  userId           String      @unique
+  user             User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status           AgentStatus @default(APPLIED)
+  lat              Float
+  lng              Float
+  address          String
+  city             String?
+  /// Private storage keys; never public.
+  nicKey           String?
+  photoKey         String?
+  storagePhotoKeys String[]
+  depositPaidAt    DateTime?
+  depositAmount    Decimal     @default(0) @db.Decimal(14, 2)
+  leftAt           DateTime?
+  lossAmount       Decimal     @default(0) @db.Decimal(14, 2)
+  lossNote         String?
+  suspendedAt      DateTime?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+
+  hours           AgentHours[]
+  baskets         Basket[]
+  orders          Order[]
+  pickupCodes     PickupCode[]
+  pickupAttempts  PickupAttempt[]
+  losses          AgentLoss[]
+  paymentAttempts PaymentAttempt[]
+  handoverReturns ReturnRequest[]  @relation("ReturnHandoverAgent")
+
+  @@index([status])
+}
+
+model AgentHours {
+  id       String @id @default(cuid())
+  agentId  String
+  agent    Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  /// 0 = Sunday .. 6 = Saturday
+  weekday  Int
+  /// Minutes after midnight, Asia/Colombo
+  opensAt  Int
+  closesAt Int
+
+  @@unique([agentId, weekday])
+}
+
+model AgentLoss {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  amount      Decimal  @db.Decimal(14, 2)
+  reason      String
+  photoKeys   String[]
+  decidedById String
+  decidedBy   User     @relation("AgentLossDecider", fields: [decidedById], references: [id], onDelete: Restrict)
+  createdAt   DateTime @default(now())
+
+  @@index([agentId])
+}
+
+/// Code entries at an agent's box, so repeated wrong codes can block it.
+model PickupAttempt {
+  id      String   @id @default(cuid())
+  agentId String
+  agent   Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  at      DateTime @default(now())
+  ok      Boolean
+
+  @@index([agentId, at])
+}
+
+/// A buyer's saved wish. Holds no stock.
+model CartItem {
+  id        String   @id @default(cuid())
+  buyerId   String
+  buyer     User     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   Variant  @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  qty       Int
+  createdAt DateTime @default(now())
+
+  @@unique([buyerId, variantId])
+  @@index([variantId])
+}
+
+enum BasketStatus {
+  OPEN
+  LOCKED
+  PACKED
+  WITH_COURIER
+  AT_AGENT
+}
+
+enum BasketLockReason {
+  AMOUNT
+  MAX_WAIT
+  SUSPENDED
+}
+
+/// The partial unique index "Basket_one_open" (one OPEN per agent and factory) is added by hand
+/// in the migration SQL; Prisma cannot express it.
+model Basket {
+  id           String            @id @default(cuid())
+  agentId      String
+  agent        Agent             @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  factoryId    String
+  factory      User              @relation("BasketFactory", fields: [factoryId], references: [id], onDelete: Restrict)
+  status       BasketStatus      @default(OPEN)
+  /// Goods value only (items total)
+  total        Decimal           @default(0) @db.Decimal(14, 2)
+  firstOrderAt DateTime?
+  lockedAt     DateTime?
+  lockReason   BasketLockReason?
+  createdAt    DateTime          @default(now())
+
+  orders          Order[]
+  courier         CourierBooking?
+  sentBackReturns ReturnRequest[] @relation("ReturnSentBack")
+
+  @@index([status])
+  @@index([agentId, status])
+  @@index([factoryId, status])
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  CANCELLED
+  RECEIVED
+}
+
+model Order {
+  id               String          @id @default(cuid())
+  buyerId          String
+  buyer            User            @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  agentId          String
+  agent            Agent           @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  factoryId        String
+  factory          User            @relation("OrderFactory", fields: [factoryId], references: [id], onDelete: Restrict)
+  /// Set when paid
+  basketId         String?
+  basket           Basket?         @relation(fields: [basketId], references: [id], onDelete: Restrict)
+  paymentAttemptId String?
+  paymentAttempt   PaymentAttempt? @relation(fields: [paymentAttemptId], references: [id], onDelete: Restrict)
+  status           OrderStatus     @default(PENDING)
+  itemsTotal       Decimal         @db.Decimal(14, 2)
+  courierTotal     Decimal         @db.Decimal(14, 2)
+  agentFeeTotal    Decimal         @db.Decimal(14, 2)
+  tokensApplied    Decimal         @default(0) @db.Decimal(14, 2)
+  gatewayFee       Decimal         @default(0) @db.Decimal(14, 2)
+  amountDue        Decimal         @db.Decimal(14, 2)
+  holdUntil        DateTime
+  paidAt           DateTime?
+  receivedAt       DateTime?
+  createdAt        DateTime        @default(now())
+
+  lines OrderLine[]
+
+  @@index([buyerId, createdAt])
+  @@index([basketId])
+  @@index([paymentAttemptId])
+  @@index([agentId, status])
+  @@index([factoryId, status])
+  @@index([status, holdUntil])
+}
+
+model OrderLine {
+  id           String     @id @default(cuid())
+  orderId      String
+  order        Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  variantId    String
+  variant      Variant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  qty          Int
+  /// Snapshot: factory price + commission
+  unitPrice    Decimal    @db.Decimal(14, 2)
+  /// Snapshot
+  factoryPrice Decimal    @db.Decimal(14, 2)
+  /// Snapshot of the courier charge per piece
+  courierEach  Decimal    @db.Decimal(14, 2)
+  /// Snapshot of the agent fee per piece
+  agentFeeEach Decimal    @db.Decimal(14, 2)
+  status       LineStatus @default(ACTIVE)
+  returnedQty  Int        @default(0)
+  missingQty   Int        @default(0)
+  collectedAt  DateTime?
+
+  returns     ReturnRequest[]
+  payoutItems PayoutItem[]
+
+  @@index([orderId])
+  @@index([variantId])
+}
+
+enum PaymentPurpose {
+  ORDERS
+  DEPOSIT
+}
+
+enum PaymentAttemptStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  EXPIRED
+  LATE_PAID
+}
+
+model PaymentAttempt {
+  id         String               @id @default(cuid())
+  purpose    PaymentPurpose
+  buyerId    String?
+  buyer      User?                @relation("AttemptBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  /// Deposits only
+  agentId    String?
+  agent      Agent?               @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  amount     Decimal              @db.Decimal(14, 2)
+  currency   String               @default("LKR")
+  status     PaymentAttemptStatus @default(PENDING)
+  gatewayRef String               @unique
+  createdAt  DateTime             @default(now())
+  expiresAt  DateTime
+
+  orders Order[]
+  events PaymentEvent[]
+
+  @@index([buyerId, createdAt])
+  @@index([agentId])
+  @@index([status, expiresAt])
+}
+
+/// Append-only record of verified gateway notices.
+model PaymentEvent {
+  id         String          @id @default(cuid())
+  gateway    String
+  eventId    String
+  attemptId  String?
+  attempt    PaymentAttempt? @relation(fields: [attemptId], references: [id], onDelete: Restrict)
+  outcome    Json
+  verifiedAt DateTime        @default(now())
+
+  @@unique([gateway, eventId])
+  @@index([attemptId])
+}
+
+model PickupCode {
+  id      String @id @default(cuid())
+  buyerId String
+  buyer   User   @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  /// Six digits, unique among the agent's codes
+  code    String
+
+  @@unique([buyerId, agentId])
+  @@unique([agentId, code])
+}
+
+model CourierBooking {
+  id              String    @id @default(cuid())
+  basketId        String    @unique
+  basket          Basket    @relation(fields: [basketId], references: [id], onDelete: Restrict)
+  fee             Decimal   @db.Decimal(14, 2)
+  driverName      String
+  driverPhone     String
+  vehicleNo       String
+  bookedById      String
+  bookedBy        User      @relation("CourierBookedBy", fields: [bookedById], references: [id], onDelete: Restrict)
+  givenToDriverAt DateTime?
+  receivedAt      DateTime?
+  failedAt        DateTime?
+  createdAt       DateTime  @default(now())
+}
+
+model FactoryPayout {
+  id         String    @id @default(cuid())
+  factoryId  String
+  factory    User      @relation("PayoutFactory", fields: [factoryId], references: [id], onDelete: Restrict)
+  /// Saturday 23:59:59 Asia/Colombo
+  weekEnding DateTime
+  gross      Decimal   @db.Decimal(14, 2)
+  deductions Decimal   @default(0) @db.Decimal(14, 2)
+  net        Decimal   @db.Decimal(14, 2)
+  bankRef    String?
+  paidAt     DateTime?
+  paidById   String?
+  paidBy     User?     @relation("PayoutPaidBy", fields: [paidById], references: [id], onDelete: Restrict)
+  createdAt  DateTime  @default(now())
+
+  items         PayoutItem[]
+  deductionRows PayoutDeduction[]
+
+  @@unique([factoryId, weekEnding])
+  @@index([paidAt])
+}
+
+model PayoutItem {
+  id          String        @id @default(cuid())
+  payoutId    String
+  payout      FactoryPayout @relation(fields: [payoutId], references: [id], onDelete: Cascade)
+  orderLineId String
+  orderLine   OrderLine     @relation(fields: [orderLineId], references: [id], onDelete: Restrict)
+  amount      Decimal       @db.Decimal(14, 2)
+
+  @@unique([orderLineId])
+  @@index([payoutId])
+}
+
+enum DeductionKind {
+  RETURN_COURIER
+  MISSING_ITEM
+}
+
+model PayoutDeduction {
+  id        String         @id @default(cuid())
+  factoryId String
+  factory   User           @relation("DeductionFactory", fields: [factoryId], references: [id], onDelete: Restrict)
+  /// Null while the deduction waits for the next payout
+  payoutId  String?
+  payout    FactoryPayout? @relation(fields: [payoutId], references: [id], onDelete: Restrict)
+  kind      DeductionKind
+  amount    Decimal        @db.Decimal(14, 2)
+  ref       String
+  createdAt DateTime       @default(now())
+
+  @@unique([kind, ref])
+  @@index([factoryId, payoutId])
 }

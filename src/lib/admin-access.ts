@@ -45,3 +45,6 @@ export const ADMIN_AREA_LABEL: Record<string, string> = {
   WAREHOUSE: "Buyers and orders",
   CORE: "Core",
 };
+
+/** Stored value of the "Agents and orders" admin area; Task 13 of the agent model flips it to "AGENTS". */
+export const AGENTS_AREA = "WAREHOUSE" as const;

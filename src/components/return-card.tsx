@@ -20,7 +20,7 @@ export function ReturnCard({
   return (
     <Card className="flex min-w-0 flex-col gap-3 break-words">
       <h2 className="font-semibold">
-        {r.cartLine.variant.product.title} · {r.cartLine.variant.size} × {r.qty}
+        {r.cartLine!.variant.product.title} · {r.cartLine!.variant.size} × {r.qty}
       </h2>
       <Badge>
         {viewer === "buyer" && ["WAITING_FACTORY", "WITH_ADMIN"].includes(r.status)

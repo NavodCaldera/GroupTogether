@@ -45,7 +45,7 @@ export function FaultList({
           className="flex min-w-0 flex-col gap-2 border-t border-line pt-3 break-words"
         >
           <p>
-            {f.request.cartLine.variant.product.title} · {f.request.cartLine.variant.size} ×{" "}
+            {f.request.cartLine!.variant.product.title} · {f.request.cartLine!.variant.size} ×{" "}
             {f.units}
           </p>
           <time>{formatDateTime(f.recordedAt)}</time>

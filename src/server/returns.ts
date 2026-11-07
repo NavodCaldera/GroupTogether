@@ -6,6 +6,7 @@ import {
 } from "./private-thread";
 import "server-only";
 import type { ReturnRequest, ReturnStatus } from "@/generated/prisma/client";
+import type { ReturnStatus as RuleStatus } from "@/lib/return-rules";
 import { canMoveReturn, withinWindow, factoryOverdue } from "@/lib/return-rules";
 import { REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
 import { factoryOf } from "@/lib/factory-roles";
@@ -111,7 +112,7 @@ async function queue(
   const cart =
     side === "buyer"
       ? await tx.cartLine.findUniqueOrThrow({
-          where: { id: request.cartLineId },
+          where: { id: request.cartLineId! },
           select: { cart: { select: { code: true } } },
         })
       : null;
@@ -184,7 +185,7 @@ async function move(
   status: ReturnStatus,
   data: import("@/generated/prisma/client").Prisma.ReturnRequestUpdateInput = {},
 ) {
-  if (!canMoveReturn(r.status, status)) throw decided();
+  if (!canMoveReturn(r.status as RuleStatus, status as RuleStatus)) throw decided();
   return tx.returnRequest.update({ where: { id: r.id }, data: { ...data, status } });
 }
 /** Sorted participant/factory advisories -> cart -> return row -> ledger user (credit only). */
@@ -199,7 +200,7 @@ async function locked<T>(
   });
   if (!first) throw new ReturnError("Return not found");
   const result = await withCartTransaction(
-    [first.cartLine.cartId],
+    [first.cartLine!.cartId],
     [first.factoryId, ...(actorId ? [actorId] : [])],
     async (tx) => {
       await tx.$queryRaw`SELECT 1 FROM "ReturnRequest" WHERE id=${id} FOR UPDATE`;
@@ -335,7 +336,7 @@ export async function factoryDecide(
 }
 async function complete(tx: Tx, r: ReturnRequest) {
   if (r.status !== "RECEIVED") throw decided();
-  const line = await tx.cartLine.findUniqueOrThrow({ where: { id: r.cartLineId } });
+  const line = await tx.cartLine.findUniqueOrThrow({ where: { id: r.cartLineId! } });
   const returnedQty = line.returnedQty + r.qty;
   if (returnedQty > line.qty) throw new ReturnError("Return quantity exceeds this line");
   const value = toD(line.unitPrice).times(r.qty);
