@@ -170,9 +170,9 @@ type Outcome = {
   pay: { amount: string; buyer: { id: string; name: string; email: string | null } } | null;
 };
 
-/** Lock order: buyer advisory -> (new Order rows) -> basket advisories (sorted, only when tokens
- * pay everything) -> ledger User row -> Basket rows under their advisories. The gateway is called
- * after commit.
+/** Lock order: buyer advisory -> basket advisories (sorted, only when tokens pay everything) ->
+ * Variant rows (variantId order) -> new Order rows -> ledger User row -> Basket rows under their
+ * advisories. The gateway is called after commit.
  */
 export async function startCheckout(
   buyerId: string,
@@ -207,6 +207,12 @@ export async function startCheckout(
     const now = new Date();
     const holdUntil = new Date(now.getTime() + plan.settings.paymentHoldMinutes * 60_000);
 
+    const totalDue = plan.split.reduce((s, p) => s.plus(p.due), new D(0));
+    // Paying in full now: basket advisories (sorted by factory id, one agent) come before any
+    // Variant row lock, matching markOrdersPaid on the payment-notice path.
+    if (totalDue.isZero())
+      for (const g of plan.groups) await lockBasketSlot(tx, input.agentId, g.factoryId);
+
     const lines = plan.groups
       .flatMap((g) => g.lines)
       .sort((a, b) => a.variantId.localeCompare(b.variantId));
@@ -224,7 +230,6 @@ export async function startCheckout(
       }
     }
 
-    const totalDue = plan.split.reduce((s, p) => s.plus(p.due), new D(0));
     const attempt = totalDue.gt(0)
       ? await tx.paymentAttempt.create({
           data: {
@@ -271,9 +276,8 @@ export async function startCheckout(
       orders.push({ id: order.id, tokens: part.tokens });
     }
 
-    // Paying in full now: take the basket slots before the ledger row (global lock order).
-    if (!attempt) for (const g of plan.groups) await lockBasketSlot(tx, input.agentId, g.factoryId);
-
+    // Paying in full: the basket advisories taken above are held, so locking the ledger row here
+    // before markOrdersPaid writes Basket rows is safe (every Basket writer takes the advisory first).
     for (const o of orders)
       if (o.tokens.gt(0))
         await post(tx, {

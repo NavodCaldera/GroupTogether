@@ -29,7 +29,8 @@ export async function lockBasket(
 }
 
 /** Caller holds the buyer advisories and the Order rows. Lock order from here:
- * basket advisories (sorted) -> Basket rows -> ledger User rows (SPEND entries last).
+ * basket advisories (sorted) -> Variant rows (variantId order) -> Basket rows -> ledger User
+ * rows (SPEND entries last).
  * Returns the ids of baskets this call locked.
  */
 export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Promise<string[]> {
@@ -52,15 +53,22 @@ export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Pro
     await lockBasketSlot(tx, agentId, factoryId);
   }
 
+  // Variant rows after the basket advisories, in variantId order across all orders.
+  const perVariant = new Map<string, number>();
+  for (const o of orders)
+    for (const line of o.lines)
+      perVariant.set(line.variantId, (perVariant.get(line.variantId) ?? 0) + line.qty);
+  for (const variantId of [...perVariant.keys()].sort()) {
+    const qty = perVariant.get(variantId)!;
+    const moved = await tx.variant.updateMany({
+      where: { id: variantId, reserved: { gte: qty } },
+      data: { reserved: { decrement: qty }, sold: { increment: qty } },
+    });
+    if (moved.count !== 1) throw new BasketError("Reserved stock is missing");
+  }
+
   const locked: string[] = [];
   for (const o of orders) {
-    for (const line of o.lines) {
-      const moved = await tx.variant.updateMany({
-        where: { id: line.variantId, reserved: { gte: line.qty } },
-        data: { reserved: { decrement: line.qty }, sold: { increment: line.qty } },
-      });
-      if (moved.count !== 1) throw new BasketError("Reserved stock is missing");
-    }
     let basket = await tx.basket.findFirst({
       where: { agentId: o.agentId, factoryId: o.factoryId, status: "OPEN" },
     });

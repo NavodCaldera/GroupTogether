@@ -4,6 +4,8 @@ import { D, toD } from "@/lib/decimal";
 import { tokenBalance } from "@/server/tokens";
 import { cartView, setCartItem } from "@/server/orders/cart";
 import { CheckoutError, quoteCheckout, startCheckout } from "@/server/orders/checkout";
+import { markOrdersPaid } from "@/server/orders/baskets";
+import { withOrderTransaction } from "@/server/orders/locks";
 import { fundTokens, makeAgent, makeBuyer, makeFactory, resetDb } from "./helpers";
 
 beforeEach(async () => {
@@ -255,6 +257,38 @@ describe("checkout", () => {
     await expect(
       startCheckout(buyer.id, { agentId: agent.id, tokens: "0", requestKey: "k" }),
     ).rejects.toThrow(/No longer available/);
+  });
+
+  it("a token-only checkout and a payment for the same basket and size run together", async () => {
+    const { agent } = await makeAgent();
+    const f = await makeFactory();
+    for (let round = 0; round < 5; round++) {
+      const payer = await makeBuyer(),
+        tokenBuyer = await makeBuyer();
+      await setCartItem(payer.id, f.variant.id, 1);
+      const pending = await startCheckout(payer.id, {
+        agentId: agent.id,
+        tokens: "0",
+        requestKey: `p${round}`,
+      });
+      await fundTokens(tokenBuyer.id, "1160");
+      await setCartItem(tokenBuyer.id, f.variant.id, 1);
+      await Promise.all([
+        startCheckout(tokenBuyer.id, {
+          agentId: agent.id,
+          tokens: "1160",
+          requestKey: `t${round}`,
+        }),
+        withOrderTransaction([payer.id], pending.orderIds, (tx) =>
+          markOrdersPaid(tx, pending.orderIds, new Date()),
+        ),
+      ]);
+    }
+    expect(await db.order.count({ where: { status: "PAID" } })).toBe(10);
+    const v = await variant(f.variant.id);
+    expect([v.available, v.reserved, v.sold]).toEqual([40, 0, 10]);
+    const basket = await db.basket.findFirstOrThrow({ where: { status: "OPEN" } });
+    expect(money(basket.total)).toBe("11000.00");
   });
 
   it("a repeated requestKey makes no second order", async () => {
