@@ -6,7 +6,6 @@ import {
 } from "./private-thread";
 import "server-only";
 import type { ReturnRequest, ReturnStatus } from "@/generated/prisma/client";
-import type { ReturnStatus as RuleStatus } from "@/lib/return-rules";
 import { canMoveReturn, withinWindow, factoryOverdue } from "@/lib/return-rules";
 import { REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
 import { factoryOf } from "@/lib/factory-roles";
@@ -185,7 +184,7 @@ async function move(
   status: ReturnStatus,
   data: import("@/generated/prisma/client").Prisma.ReturnRequestUpdateInput = {},
 ) {
-  if (!canMoveReturn(r.status as RuleStatus, status as RuleStatus)) throw decided();
+  if (!canMoveReturn(r.status, status)) throw decided();
   return tx.returnRequest.update({ where: { id: r.id }, data: { ...data, status } });
 }
 /** Sorted participant/factory advisories -> cart -> return row -> ledger user (credit only). */

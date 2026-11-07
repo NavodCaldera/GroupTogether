@@ -22,6 +22,10 @@ describe("return rules", () => {
     ["RECEIVED", "COMPLETED"],
     ["ACCEPTED", "WITH_ADMIN"],
     ["PICKED_UP", "WITH_ADMIN"],
+    ["ACCEPTED", "AWAITING_HANDOVER"],
+    ["AWAITING_HANDOVER", "HANDED_OVER"],
+    ["AWAITING_HANDOVER", "LAPSED"],
+    ["HANDED_OVER", "PICKED_UP"],
   ] as const)("allows %s -> %s", (from, to) => expect(canMoveReturn(from, to)).toBe(true));
   it("refuses invalid and terminal moves", () => {
     expect(canMoveReturn("REJECTED", "WITH_ADMIN")).toBe(false);
