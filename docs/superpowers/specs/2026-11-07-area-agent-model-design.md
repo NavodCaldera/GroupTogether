@@ -72,8 +72,8 @@ reservation links to carts are dropped. No new gift reservations; the routes are
   `agentFeeTotal = Σ qty × agentFeePerItem`; `gross = items + courier + agentFee`.
 - `tokensApplied ≤ min(balance, gross)`; `remainder = gross − tokensApplied`.
 - `gatewayFee = round2(remainder / (1 − rate) − remainder)`, or 0 when `remainder = 0`.
-  `amountDue = remainder + gatewayFee`. With LKR 1,000 / 40 / 20 at 3.3%, the fee is 36.02 and
-  the total 1,096.02.
+  `amountDue = remainder + gatewayFee`. With LKR 1,000 / 40 / 20 at 3.3%, the fee is 36.17 (1,060 ÷ 0.967 − 1,060) and
+  the total 1,096.17.
 - Basket `total` counts `itemsTotal` only. The LKR 50,000 threshold is goods value, not fees.
   **[Claude's call. Owner to confirm.]**
 - Return tokens: factory fault `qty × unitPrice`; buyer fault `qty × (unitPrice − courierPerItem)`.

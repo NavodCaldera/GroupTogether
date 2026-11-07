@@ -47,7 +47,7 @@ appears in the chosen agent's open basket for that factory.
    active agent.
 2. **Given** a LKR 1,000 item, LKR 40 courier charge, LKR 20 agent fee, no tokens and a 3.3% fee
    rate, **When** checkout shows prices, **Then** it shows Item 1,000.00, Courier 40.00, Agent fee
-   20.00, PayHere fee 36.02 and Total 1,096.02.
+   20.00, PayHere fee 36.17 and Total 1,096.17.
 3. **Given** tokens worth LKR 300, **When** the buyer applies them, **Then** the PayHere fee is
    charged only on the remainder.
 4. **Given** tokens cover the whole total, **When** the buyer confirms, **Then** no gateway payment
