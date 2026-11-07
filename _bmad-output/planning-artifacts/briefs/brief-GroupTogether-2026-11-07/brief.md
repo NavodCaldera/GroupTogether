@@ -61,6 +61,8 @@ for their area and hand them to buyers.
   - factory fault: the full item price;
   - buyer fault: the item price minus the per-item courier charge.
 - Agent fee and PayHere fee are never returned. Returned items are not paid to the factory.
+- GroupBasket absorbs the LKR 100 commission on every return. For a factory-fault return, the
+  return courier is deducted from the factory's payout.
 - If a factory cannot supply a paid item after the basket locks, the factory reports it and
   Factory admin removes that line.
   The buyer gets full tokens, including courier charge and agent fee, and the cost is deducted from
