@@ -22,6 +22,9 @@
   after joining; buyers see only group baskets from the same factory.
 - Owner decision, not built yet: the personal cart does not hold stock; stock is reserved only once
   items are in a basket.
+- Owner idea under review, not approved: area agents. Factories hand sold items to an agent in each
+  area, who stores them and hands them to buyers when they come to collect. Business model to be
+  clarified before any build.
 - Owner confirmed holding factory money is not a concern. Buyer-side value is low cost (no
   wholesale/retail markup); factory-side value is time.
 
