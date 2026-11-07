@@ -28,8 +28,8 @@ for their area and hand them to buyers.
 
 1. The buyer chooses items and an agent. The nearest agent is selected by default, with its
    distance shown, and the buyer can change it.
-2. Checkout shows the item price, a fixed courier charge per item (Settings), applied tokens and a
-   **PayHere fee**. The total is the final amount. The fee is charged only on the part paid
+2. Checkout shows the item price, a fixed courier charge per item (Settings), the agent fee
+   (LKR 20 per item), applied tokens and a **PayHere fee**. The total is the final amount. The fee is charged only on the part paid
    through PayHere, at a rate set in Settings, and is calculated so that GroupBasket receives the
    full amount.
 3. Tokens apply first. If tokens cover everything, no PayHere payment is needed.
@@ -94,8 +94,9 @@ for their area and hand them to buyers.
 
 ## Risks and unknowns
 
-- **Margin:** on a LKR 1,000 item, GroupBasket keeps about LKR 80 after the agent's LKR 20,
-  before any courier shortfall.
+- **Margin:** GroupBasket keeps the full LKR 100 commission per item, because the buyer pays the
+  agent fee, courier charge and PayHere fee. It loses only on courier shortfalls.
+- **Price image:** for a LKR 1,000 item the buyer sees a total of about LKR 1,096.
 - **Outstanding tokens:** every token issued becomes cash paid to a factory when it is spent.
 - **Token scams:** off-platform cash for token transfers can be abused.
 - **Agent storage:** uncollected parcels can fill up an agent's space.
