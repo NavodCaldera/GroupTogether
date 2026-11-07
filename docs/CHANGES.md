@@ -1,5 +1,13 @@
 # Product-owner change log
 
+## 2026-11-07 - Gateway-only payment direction
+
+- Owner decision, not built yet: bank slip upload is being removed; baskets are paid only through a
+  payment gateway. Gateway, who pays and timers are still to be decided. Slips stay live until then.
+- Product promise: buyers get low cost; factories clear stock quickly because items are held in
+  baskets only for a limited time, so groups must pay quickly.
+- Owner reported that recent Codex work on payments is unsatisfactory; specifics not yet given.
+
 ## 2026-11-07 - Factory dashboards planning, preorders paused
 
 - Preorders are **not completed**. The owner paused only that part, with no approved policy or code.

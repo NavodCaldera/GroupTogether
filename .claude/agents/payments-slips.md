@@ -13,6 +13,11 @@ for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
 [architecture](../../docs/architecture.md) for technical context. This file owns domain
 guidance, not business policy. Verify code pointers before editing.
 
+## Planned replacement (owner decision, 2026-11-07, not built yet)
+
+Bank slip upload is to be removed in favour of gateway-only payment. Gateway, payer and timers are
+undecided. The guidance below describes today's live code until the replacement is approved and built.
+
 ## Ownership and code
 
 - Service: `src/server/carts/slips.ts`.
