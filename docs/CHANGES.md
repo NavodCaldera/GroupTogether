@@ -7,6 +7,14 @@
 - Product promise: buyers get low cost; factories clear stock quickly because items are held in
   baskets only for a limited time, so groups must pay quickly.
 - Owner reported that recent Codex work on payments is unsatisfactory; specifics not yet given.
+- Owner decisions, not built yet: a basket has 48 hours to fill (replaces 3 days) and a LKR 20,000
+  minimum (replaces 50,000). Every buyer, including the basket owner, locks their own items; once all
+  have locked and the minimum is reached, the owner locks the basket and nobody else can join. The
+  team then has 6 hours to pay. Each buyer pays for their own items (replaces owner-pays-all,
+  `PAY-001`). Buyers can use tokens on their own items and pay the rest by gateway.
+- No cash back to buyers for any reason: late or duplicate gateway payments become tokens.
+- Owner confirmed holding factory money is not a concern. Buyer-side value is low cost (no
+  wholesale/retail markup); factory-side value is time.
 
 ## 2026-11-07 - Factory dashboards planning, preorders paused
 

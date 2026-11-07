@@ -15,8 +15,10 @@ guidance, not business policy. Verify code pointers before editing.
 
 ## Planned replacement (owner decision, 2026-11-07, not built yet)
 
-Bank slip upload is to be removed in favour of gateway-only payment. Gateway, payer and timers are
-undecided. The guidance below describes today's live code until the replacement is approved and built.
+Bank slip upload is to be removed in favour of gateway-only payment. Each buyer pays their own
+items after the owner locks the basket (48-hour fill, LKR 20,000 minimum, 6-hour payment window);
+tokens cover part or all of a buyer's share. Late or duplicate payments become tokens, never cash.
+Gateway choice and the unpaid-member rule are undecided. The guidance below describes today's live code until the replacement is approved and built.
 
 ## Ownership and code
 
