@@ -26,6 +26,8 @@ describe("return rules", () => {
     ["AWAITING_HANDOVER", "HANDED_OVER"],
     ["AWAITING_HANDOVER", "LAPSED"],
     ["HANDED_OVER", "PICKED_UP"],
+    ["WAITING_FACTORY", "AWAITING_HANDOVER"],
+    ["WITH_ADMIN", "AWAITING_HANDOVER"],
   ] as const)("allows %s -> %s", (from, to) => expect(canMoveReturn(from, to)).toBe(true));
   it("refuses invalid and terminal moves", () => {
     expect(canMoveReturn("REJECTED", "WITH_ADMIN")).toBe(false);
@@ -33,5 +35,7 @@ describe("return rules", () => {
     expect(canMoveReturn("COMPLETED", "WITH_ADMIN")).toBe(false);
     expect(canMoveReturn("WAITING_FACTORY", "COMPLETED")).toBe(false);
     expect(canMoveReturn("ACCEPTED", "ACCEPTED")).toBe(false);
+    expect(canMoveReturn("LAPSED", "HANDED_OVER")).toBe(false);
+    expect(canMoveReturn("HANDED_OVER", "COMPLETED")).toBe(false);
   });
 });

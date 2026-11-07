@@ -10,17 +10,16 @@ export function ReturnCard({
   threadHref,
 }: {
   request: Awaited<ReturnType<typeof buyerReturns>>[number];
-  viewer: "buyer" | "factory" | "admin" | "warehouse";
+  viewer: "buyer" | "factory" | "admin" | "agents";
   children?: ReactNode;
   threadHref?: string;
 }) {
-  const accepted =
-    ["ACCEPTED", "PICKED_UP"].includes(r.status) ||
-    (viewer === "admin" && r.status === "WITH_ADMIN" && r.adminDecision === true && !r.receivedAt);
+  const item = r.orderLine?.variant;
+  const agent = r.handoverAgent;
   return (
     <Card className="flex min-w-0 flex-col gap-3 break-words">
       <h2 className="font-semibold">
-        {r.cartLine!.variant.product.title} · {r.cartLine!.variant.size} × {r.qty}
+        {item ? `${item.product.title} · ${item.size} × ${r.qty}` : `× ${r.qty}`}
       </h2>
       <Badge>
         {viewer === "buyer" && ["WAITING_FACTORY", "WITH_ADMIN"].includes(r.status)
@@ -30,10 +29,11 @@ export function ReturnCard({
       {viewer === "admin" && r.status === "WAITING_FACTORY" && (
         <p>Factory due: {formatDateTime(r.factoryDueAt)}</p>
       )}
-      {viewer === "buyer" && r.status === "ACCEPTED" && (
-        <Badge>
-          {r.fault === "BUYER" ? "Send return" : r.pickupRef ? "Pickup booked" : "Pickup pending"}
-        </Badge>
+      {r.status === "AWAITING_HANDOVER" && agent && (
+        <p>
+          {agent.user.name} · {[agent.address, agent.city].filter(Boolean).join(", ")}
+          {r.handoverDueAt && <> · {formatDateTime(r.handoverDueAt)}</>}
+        </p>
       )}
       <p>
         {r.fault === "FACTORY" ? "Factory fault" : "Buyer fault"} ·{" "}
@@ -43,7 +43,7 @@ export function ReturnCard({
       {r.factoryNote && <p>{r.factoryNote}</p>}
       {r.adminNote && <p>{r.adminNote}</p>}
       {r.receivedCondition && <p>{r.receivedCondition}</p>}
-      {viewer !== "warehouse" && (
+      {viewer !== "agents" && (
         <div className="flex flex-wrap gap-3">
           {r.photos.map((p, i) => (
             <a
@@ -58,27 +58,14 @@ export function ReturnCard({
           ))}
         </div>
       )}
-      {r.pickupRef && (
-        <p>
-          PickMe: {r.pickupRef} · {r.pickupDriver} · Factory pays
-        </p>
-      )}
       {viewer === "factory" && r.status === "WAITING_FACTORY" && (
         <ReturnForm id={r.id} op="factory" />
       )}
       {viewer === "admin" && r.status === "WITH_ADMIN" && r.adminDecision === null && (
         <ReturnForm id={r.id} op="admin" />
       )}
-      {(viewer === "factory" || viewer === "admin") && accepted && (
-        <ReturnForm id={r.id} op="received" buyerFault={r.fault === "BUYER"} />
-      )}
-      {(viewer === "admin" || viewer === "warehouse") &&
-        (r.status === "ACCEPTED" ||
-          (viewer === "admin" && r.status === "WITH_ADMIN" && r.adminDecision === true)) &&
-        r.fault === "FACTORY" &&
-        !r.pickupRef && <ReturnForm id={r.id} op="pickup" />}
-      {viewer === "admin" && r.status === "ACCEPTED" && r.pickupRef && (
-        <ReturnForm id={r.id} op="picked-up" />
+      {(viewer === "factory" || viewer === "admin") && r.status === "PICKED_UP" && (
+        <ReturnForm id={r.id} op="received" />
       )}
       {threadHref && (viewer === "factory" || viewer === "admin") && (
         <LinkButton href={threadHref} variant="secondary">

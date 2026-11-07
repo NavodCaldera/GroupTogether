@@ -1,8 +1,3 @@
-import { ProductRatingForm } from "@/components/product-rating-form";
-import { ReturnForm } from "@/components/return-form";
-import { ReturnCard } from "@/components/return-card";
-import { buyerReturns } from "@/server/returns";
-import { withinWindow } from "@/lib/return-rules";
 import { MemberDoneControl, RemoveMemberControl } from "@/components/member-done-controls";
 import { randomUUID } from "node:crypto";
 import { TokenForm } from "@/components/token-form";
@@ -71,56 +66,11 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
   const isOwner = user?.id === cart.ownerId;
   const isMember = !!user && cart.members.some((m) => m.userId === user.id);
   const editable = isEditable(cart.status);
-  const returns =
-    user?.role === "CUSTOMER" && isMember && cart.status === "DELIVERED"
-      ? await buyerReturns(user.id, cart.id)
-      : [];
-  const returnable =
-    user?.role === "CUSTOMER" &&
-    isMember &&
-    cart.status === "DELIVERED" &&
-    cart.delivery?.deliveredAt &&
-    withinWindow(cart.delivery.deliveredAt, new Date())
-      ? cart.lines.filter(
-          (l) =>
-            l.userId === user.id &&
-            l.status === "ACTIVE" &&
-            l.returnedQty < l.qty &&
-            !returns.some(
-              (r) =>
-                r.cartLineId === l.id &&
-                r.status !== "COMPLETED" &&
-                !(r.status === "REJECTED" && r.adminDecision === false),
-            ),
-        )
-      : [];
   const balance = isMember && user?.role === "CUSTOMER" ? await tokenBalance(user.id) : new D("0");
   const due = amountDue(
     cart.total.toString(),
     cart.lines.map((l) => l.tokensApplied.toString()),
   );
-  // Members rate the factory once the order is delivered (2026-11-03).
-  const productRatings =
-    cart.status === "DELIVERED" && isMember && user
-      ? await db.productRating.findMany({
-          where: { cartId: cart.id, userId: user.id },
-          select: {
-            productId: true,
-            stars: true,
-            report: { select: { photos: { select: { id: true } } } },
-          },
-        })
-      : [];
-  const received =
-    cart.status === "DELIVERED" && user
-      ? [
-          ...new Map(
-            cart.lines
-              .filter((l) => l.userId === user.id && ["ACTIVE", "RETURNED"].includes(l.status))
-              .map((l) => [l.variant.product.id, l.variant.product]),
-          ).values(),
-        ]
-      : [];
   const myGifts =
     isMember && user
       ? await db.giftOrder.findMany({
@@ -250,50 +200,7 @@ export default async function CartPage({ params, searchParams }: PageProps<"/c/[
           defaults={user}
           merge={merge}
         />
-        {received.length > 0 && <h2 className="font-semibold">Product ratings</h2>}
-        {received.map((product) => {
-          const mine = productRatings.find((r) => r.productId === product.id);
-          return mine ? (
-            <div key={product.id}>
-              <p className="text-sm">
-                {product.title}: {mine.stars} / 5
-              </p>
-              {mine.report?.photos.map((photo) => (
-                <a
-                  key={photo.id}
-                  href={`/api/report-photos/${photo.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mr-3 text-sm underline"
-                >
-                  Report photo
-                </a>
-              ))}
-            </div>
-          ) : (
-            <ProductRatingForm
-              key={product.id}
-              cartId={cart.id}
-              productId={product.id}
-              title={product.title}
-            />
-          );
-        })}
       </Card>
-
-      {returnable.map((line) => (
-        <Card key={line.id} className="min-w-0">
-          <details>
-            <summary className="min-h-11 cursor-pointer font-semibold">
-              Return · {line.variant.product.title} · {line.variant.size}
-            </summary>
-            <ReturnForm id={line.id} op="file" maxQty={line.qty - line.returnedQty} />
-          </details>
-        </Card>
-      ))}
-      {returns.map((r) => (
-        <ReturnCard key={r.id} request={r} viewer="buyer" />
-      ))}
 
       {joinRequests.length > 0 && (
         <Card className="flex flex-col gap-3">

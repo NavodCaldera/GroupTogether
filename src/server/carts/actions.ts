@@ -296,7 +296,7 @@ export async function rateProductAction(_p: ActionState, fd: FormData): Promise<
     const photos = fd.getAll("photos").filter((v): v is File => v instanceof File && v.size > 0);
     await rateProduct(
       user.id,
-      str(fd, "cartId"),
+      str(fd, "orderId"),
       str(fd, "productId"),
       Number(str(fd, "stars")),
       reason ? { reason: reason as ReportReason, note: str(fd, "note"), photos } : undefined,

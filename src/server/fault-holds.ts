@@ -2,7 +2,7 @@
 import type { ReturnRequest, FaultHold } from "@/generated/prisma/client";
 import { db, type Tx } from "./db";
 
-/** Caller owns the factory advisory (before cart/return locks). No other carts are locked here. */
+/** Caller owns the factory advisory (before order/return locks). No other rows are locked here. */
 export async function countedFaultUnits(client: Tx, factoryId: string, now: Date): Promise<number> {
   const since = new Date(now);
   since.setUTCMonth(since.getUTCMonth() - 12);
@@ -297,7 +297,7 @@ const faultSelect = {
   cancelNote: true,
   request: {
     select: {
-      cartLine: {
+      orderLine: {
         select: { variant: { select: { size: true, product: { select: { title: true } } } } },
       },
     },

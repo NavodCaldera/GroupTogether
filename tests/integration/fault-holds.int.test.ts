@@ -3,9 +3,16 @@ import * as quality from "@/server/quality";
 import * as cartLocks from "@/server/carts/locks";
 import { sweep } from "@/server/carts/service";
 import { db, type Tx } from "@/server/db";
-import { factoryDecide, adminDecide, fileReturn } from "@/server/returns";
+import { factoryDecide, adminDecide, fileReturn, collectReturn } from "@/server/returns";
 import { recordFault, countedFaultUnits } from "@/server/fault-holds";
-import { makeUser, makeVariant, resetDb, giftPhotoFile } from "./helpers";
+import {
+  makeAgent,
+  makeReceivedOrder,
+  makeUser,
+  makeVariant,
+  resetDb,
+  giftPhotoFile,
+} from "./helpers";
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
 afterAll(() => db.$disconnect());
@@ -22,29 +29,23 @@ async function fixture() {
     buyer = await makeUser();
   const v = await makeVariant("1500", 40);
   await db.product.update({ where: { id: v.productId }, data: { sellerId: factory.id } });
-  return { factory, admin, buyer, v };
+  const agent = await makeAgent();
+  return { factory, admin, buyer, v, agent };
 }
 async function request(
   f: Awaited<ReturnType<typeof fixture>>,
   qty = 1,
   fault: "FACTORY" | "BUYER" = "FACTORY",
 ) {
-  const cart = await db.groupCart.create({
-    data: {
-      code: crypto.randomUUID().slice(0, 8),
-      ownerId: f.buyer.id,
-      status: "DELIVERED",
-      total: "4500",
-      minOrderValue: "1500",
-      expiresAt: now,
-      delivery: { create: { provider: "manual", status: "DELIVERED", deliveredAt: now } },
-      lines: { create: { userId: f.buyer.id, variantId: f.v.id, qty, unitPrice: "1500" } },
-    },
-    include: { lines: true },
+  const o = await makeReceivedOrder({
+    qty,
+    receivedAt: now,
+    factory: { factory: f.factory, variant: f.v },
+    agent: f.agent,
   });
   return fileReturn(
-    f.buyer.id,
-    cart.lines[0].id,
+    o.buyer.id,
+    o.line.id,
     {
       qty,
       fault,
@@ -55,11 +56,18 @@ async function request(
     now,
   );
 }
+/** Faults are recorded when the agent collects an accepted factory-fault return. */
+async function accept(f: Awaited<ReturnType<typeof fixture>>, id: string) {
+  await factoryDecide(f.factory.id, id, true, now);
+  await collectReturn(f.agent.user.id, id, now);
+}
 describe("factory faults", () => {
   it("factory accepts qty 3: one fault with 3 units and a hold", async () => {
     const f = await fixture(),
       r = await request(f, 3);
     await factoryDecide(f.factory.id, r.id, true, now);
+    expect(await db.factoryFault.count()).toBe(0);
+    await collectReturn(f.agent.user.id, r.id, now);
     expect(await db.factoryFault.findMany()).toMatchObject([
       { units: 3, confirmedBy: "FACTORY", confirmedById: f.factory.id, recordedAt: now },
     ]);
@@ -67,25 +75,25 @@ describe("factory faults", () => {
   });
   it("qty 1 then qty 1 opens a hold on the second", async () => {
     const f = await fixture();
-    await factoryDecide(f.factory.id, (await request(f)).id, true, now);
+    await accept(f, (await request(f)).id);
     expect(await db.faultHold.count()).toBe(0);
-    await factoryDecide(f.factory.id, (await request(f)).id, true, now);
+    await accept(f, (await request(f)).id);
     expect(await db.faultHold.count()).toBe(1);
   });
   it("buyer-fault accepts and rejections record no faults", async () => {
     const f = await fixture();
-    await factoryDecide(f.factory.id, (await request(f, 1, "BUYER")).id, true, now);
+    await accept(f, (await request(f, 1, "BUYER")).id);
     const r = await request(f);
     await factoryDecide(f.factory.id, r.id, false, now, "Review");
     await adminDecide(f.admin.id, r.id, false, "No defect");
     expect(await db.factoryFault.count()).toBe(0);
   });
-  it.each([false, true])("admin accepts factory fault, received=%s", async (received) => {
+  it("admin accepts factory fault; collection records it as the admin's", async () => {
     const f = await fixture(),
       r = await request(f);
     await factoryDecide(f.factory.id, r.id, false, now, "Review");
-    if (received) await db.returnRequest.update({ where: { id: r.id }, data: { receivedAt: now } });
     await adminDecide(f.admin.id, r.id, true, "Confirmed");
+    await collectReturn(f.agent.user.id, r.id, now);
     expect(await db.factoryFault.findUnique({ where: { returnId: r.id } })).toMatchObject({
       confirmedBy: "ADMIN",
       units: 1,
@@ -122,13 +130,10 @@ describe("factory faults", () => {
   });
   it("parallel accepts reaching 2 open one hold", async () => {
     const f = await fixture();
-    await factoryDecide(f.factory.id, (await request(f)).id, true, now);
+    await accept(f, (await request(f)).id);
     const a = await request(f),
       b = await request(f);
-    const results = await Promise.allSettled([
-      factoryDecide(f.factory.id, a.id, true, now),
-      factoryDecide(f.factory.id, b.id, true, now),
-    ]);
+    const results = await Promise.allSettled([accept(f, a.id), accept(f, b.id)]);
     expect(results.every((r) => r.status === "fulfilled")).toBe(true);
     expect(await db.faultHold.count({ where: { decidedAt: null } })).toBe(1);
     expect(await db.factoryFault.count()).toBe(3);
@@ -142,6 +147,7 @@ describe("factory faults", () => {
     });
     await db.returnRequest.update({ where: { id: r.id }, data: { status: "WITH_ADMIN" } });
     await adminDecide(f.admin.id, r.id, true, "Confirmed");
+    await collectReturn(f.agent.user.id, r.id, now);
     expect(await db.factoryFault.count()).toBe(1);
     expect(await db.faultHold.count()).toBe(0);
   });
@@ -158,7 +164,7 @@ describe("factory faults", () => {
           data: { role: "SELLER", factoryId: f.factory.id, factoryRole: role },
         }),
       );
-    await factoryDecide(f.factory.id, (await request(f, 2)).id, true, now);
+    await accept(f, (await request(f, 2)).id);
     for (const id of [f.factory.id, staff[0].id])
       expect(
         await db.notification.count({ where: { userId: id, title: "Your shop is on hold" } }),
@@ -432,7 +438,7 @@ import {
 async function held() {
   const f = await fixture(),
     r = await request(f, 2);
-  await factoryDecide(f.factory.id, r.id, true, now);
+  await accept(f, r.id);
   const hold = await db.faultHold.findFirstOrThrow();
   return { ...f, r, hold };
 }
@@ -445,7 +451,7 @@ describe("hold decisions and private discussion", () => {
       where: { id: v.productId },
       data: { sellerId: f.factory.id, hiddenAt: now, hiddenReason: "Admin hide" },
     });
-    await factoryDecide(f.factory.id, (await request(f, 2)).id, true, now);
+    await accept(f, (await request(f, 2)).id);
     const hold = await db.faultHold.findFirstOrThrow();
     await decideHold(f.admin.id, hold.id, "CONTINUE", "Reviewed");
     expect(
@@ -455,7 +461,7 @@ describe("hold decisions and private discussion", () => {
       "Admin hide",
     );
     expect((await cartRow(c.cart.id)).status).toBe("CANCELLED");
-    await factoryDecide(f.factory.id, (await request(f)).id, true, now);
+    await accept(f, (await request(f)).id);
     expect(await db.faultHold.count()).toBe(2);
     expect(await db.faultHold.count({ where: { decidedAt: null } })).toBe(1);
   });

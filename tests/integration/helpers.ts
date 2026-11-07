@@ -138,6 +138,55 @@ export async function makeBuyer({ lat = 6.9271, lng = 79.8612 }: { lat?: number;
   return db.user.update({ where: { id: user.id }, data: { lat, lng } });
 }
 
+/** A RECEIVED order at an agent with one line (1100 = 1000 + 100, courier 40, agent fee 20).
+ * `collectedAt` null leaves the line uncollected. */
+export async function makeReceivedOrder({
+  qty = 1,
+  receivedAt = new Date(),
+  collectedAt = receivedAt as Date | null,
+  factory,
+  agent,
+}: {
+  qty?: number;
+  receivedAt?: Date;
+  collectedAt?: Date | null;
+  factory?: Awaited<ReturnType<typeof makeFactory>>;
+  agent?: Awaited<ReturnType<typeof makeAgent>>;
+} = {}) {
+  const f = factory ?? (await makeFactory());
+  const a = agent ?? (await makeAgent());
+  const buyer = await makeBuyer();
+  const order = await db.order.create({
+    data: {
+      buyerId: buyer.id,
+      agentId: a.agent.id,
+      factoryId: f.factory.id,
+      status: "RECEIVED",
+      itemsTotal: String(1100 * qty),
+      courierTotal: String(40 * qty),
+      agentFeeTotal: String(20 * qty),
+      tokensApplied: String(1160 * qty),
+      amountDue: "0",
+      holdUntil: receivedAt,
+      paidAt: receivedAt,
+      receivedAt,
+      lines: {
+        create: {
+          variantId: f.variant.id,
+          qty,
+          unitPrice: "1100",
+          factoryPrice: "1000",
+          courierEach: "40",
+          agentFeeEach: "20",
+          collectedAt,
+        },
+      },
+    },
+    include: { lines: true },
+  });
+  return { ...f, ...a, agentUser: a.user, buyer, order, line: order.lines[0] };
+}
+
 /** Give a user token balance with one ORDER_CANCEL entry. */
 export async function fundTokens(userId: string, amount: string | number) {
   return db.tokenEntry.create({

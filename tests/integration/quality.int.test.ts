@@ -13,7 +13,7 @@ import { getProduct, listProducts, suggestProducts, shopFacets } from "@/server/
 import { authenticate, startSession, userForToken } from "@/server/auth/service";
 import { hashPassword } from "@/server/auth/password";
 import { bookDelivery } from "@/server/delivery";
-import { makeUser, makeVariant, resetDb, slipFile } from "./helpers";
+import { makeReceivedOrder, makeUser, makeVariant, resetDb, slipFile } from "./helpers";
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
 async function fund(userId: string, amount: string, ref: string) {
@@ -356,19 +356,8 @@ describe("quality hide/remove", () => {
 it("computes report flags on reads without automatic hiding or removal", async () => {
   const f = await fixture();
   for (let i = 0; i < 3; i++) {
-    const cart = await db.groupCart.create({
-      data: {
-        ownerId: f.member.id,
-        code: `RPT0000${i}`,
-        status: "DELIVERED",
-        total: "1500",
-        minOrderValue: "1500",
-        expiresAt: new Date(),
-        members: { create: { userId: f.member.id } },
-        lines: { create: { userId: f.member.id, variantId: f.a.id, qty: 1, unitPrice: "1500" } },
-      },
-    });
-    await rateProduct(f.member.id, cart.id, f.a.productId, 1, {
+    const o = await makeReceivedOrder({ factory: { factory: f.factory, variant: f.a } });
+    await rateProduct(o.buyer.id, o.order.id, f.a.productId, 1, {
       reason: "SIZE",
       note: "Too small",
       photos: [],

@@ -3,10 +3,11 @@ import { requireUser } from "@/server/auth/session";
 import { adminReturns, escalateOverdue } from "@/server/returns";
 import { ReturnCard } from "@/components/return-card";
 import { PageHeader, EmptyState } from "@/components/ui";
+import { AGENTS_AREA } from "@/lib/admin-access";
 export const metadata = { title: "Returns" };
 export default async function ReturnsPage() {
   const user = await requireUser(["ADMIN"]);
-  if (!["FACTORY", "CORE", "WAREHOUSE"].includes(user.adminArea ?? "")) notFound();
+  if (!["FACTORY", "CORE", AGENTS_AREA].includes(user.adminArea ?? "")) notFound();
   await escalateOverdue();
   const rows = await adminReturns(user.id);
   return (
@@ -17,8 +18,8 @@ export default async function ReturnsPage() {
         <ReturnCard
           key={r.id}
           request={r}
-          viewer={user.adminArea === "WAREHOUSE" ? "warehouse" : "admin"}
-          threadHref={user.adminArea === "WAREHOUSE" ? undefined : `/admin/factory/returns/${r.id}`}
+          viewer={user.adminArea === AGENTS_AREA ? "agents" : "admin"}
+          threadHref={user.adminArea === AGENTS_AREA ? undefined : `/admin/factory/returns/${r.id}`}
         />
       ))}
     </div>

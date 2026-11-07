@@ -44,10 +44,12 @@ export function FaultList({
           key={f.id}
           className="flex min-w-0 flex-col gap-2 border-t border-line pt-3 break-words"
         >
-          <p>
-            {f.request.cartLine!.variant.product.title} · {f.request.cartLine!.variant.size} ×{" "}
-            {f.units}
-          </p>
+          {f.request.orderLine && (
+            <p>
+              {f.request.orderLine.variant.product.title} · {f.request.orderLine.variant.size} ×{" "}
+              {f.units}
+            </p>
+          )}
           <time>{formatDateTime(f.recordedAt)}</time>
           {f.cancelledAt && (
             <>

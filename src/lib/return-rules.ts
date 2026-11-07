@@ -20,8 +20,8 @@ export function factoryOverdue(dueAt: Date, now: Date): boolean {
   return now > dueAt;
 }
 const MOVES: Record<ReturnStatus, readonly ReturnStatus[]> = {
-  WAITING_FACTORY: ["ACCEPTED", "WITH_ADMIN"],
-  WITH_ADMIN: ["ACCEPTED", "REJECTED"],
+  WAITING_FACTORY: ["ACCEPTED", "WITH_ADMIN", "AWAITING_HANDOVER"],
+  WITH_ADMIN: ["ACCEPTED", "REJECTED", "AWAITING_HANDOVER"],
   ACCEPTED: ["PICKED_UP", "RECEIVED", "WITH_ADMIN", "AWAITING_HANDOVER"],
   REJECTED: [],
   PICKED_UP: ["RECEIVED", "WITH_ADMIN"],

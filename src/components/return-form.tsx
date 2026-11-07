@@ -7,17 +7,15 @@ export function ReturnForm({
   id,
   op,
   maxQty = 1,
-  buyerFault = false,
 }: {
   id: string;
-  op: "file" | "factory" | "admin" | "received" | "pickup" | "message" | "picked-up";
+  op: "file" | "factory" | "admin" | "received" | "message";
   maxQty?: number;
-  buyerFault?: boolean;
 }) {
   const [state, action, pending] = useActionState(returnAction, {});
   const [fault, setFault] = useState("FACTORY");
   const [decision, setDecision] = useState("accept");
-  const [unused, setUnused] = useState("yes");
+  const [restock, setRestock] = useState("yes");
   const uid = useId();
   return (
     <form action={action} className="flex min-w-0 flex-col gap-2">
@@ -80,8 +78,8 @@ export function ReturnForm({
           <Textarea
             id={`${uid}-note`}
             name="note"
-            maxLength={op === "factory" || (op === "received" && unused === "no") ? 1000 : 2000}
-            required={op !== "received" || (buyerFault && unused === "no")}
+            maxLength={op === "factory" ? 1000 : 2000}
+            required={op !== "received"}
           />
         </>
       )}
@@ -99,33 +97,24 @@ export function ReturnForm({
           </Select>
         </>
       )}
-      {op === "received" && buyerFault && (
+      {op === "received" && (
         <>
-          <label htmlFor={`${uid}-unused`}>Unused with tags</label>
+          <label htmlFor={`${uid}-restock`}>Put back in stock</label>
           <Select
-            id={`${uid}-unused`}
-            name="unused"
-            value={unused}
-            onChange={(e) => setUnused(e.target.value)}
+            id={`${uid}-restock`}
+            name="restock"
+            value={restock}
+            onChange={(e) => setRestock(e.target.value)}
           >
             <option value="yes">Yes</option>
             <option value="no">No</option>
           </Select>
         </>
       )}
-      {op === "received" && !buyerFault && <input type="hidden" name="unused" value="yes" />}
       {op === "message" && (
         <>
           <label htmlFor={`${uid}-body`}>Message</label>
           <Textarea id={`${uid}-body`} name="body" required maxLength={1000} />
-        </>
-      )}
-      {op === "pickup" && (
-        <>
-          <label htmlFor={`${uid}-ref`}>PickMe reference</label>
-          <Input id={`${uid}-ref`} name="reference" maxLength={200} required />
-          <label htmlFor={`${uid}-driver`}>Driver</label>
-          <Input id={`${uid}-driver`} name="driver" maxLength={200} />
         </>
       )}
       <Button disabled={pending} className="hover:opacity-100!">
@@ -135,9 +124,7 @@ export function ReturnForm({
             factory: "Save decision",
             admin: "Save final decision",
             received: "Mark received",
-            pickup: "Save pickup",
             message: "Send message",
-            "picked-up": "Mark picked up",
           }[op]
         }
       </Button>

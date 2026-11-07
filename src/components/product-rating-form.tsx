@@ -4,11 +4,11 @@ import { Alert, Button, Input } from "./ui";
 import { rateProductAction, type ActionState } from "@/server/carts/actions";
 import { photoRequired, REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
 export function ProductRatingForm({
-  cartId,
+  orderId,
   productId,
   title,
 }: {
-  cartId: string;
+  orderId: string;
   productId: string;
   title: string;
 }) {
@@ -19,7 +19,7 @@ export function ProductRatingForm({
   return (
     <form action={action} className="flex min-w-0 flex-col gap-3 border-t border-line pt-3">
       <h3 className="font-semibold">{title}</h3>
-      <input type="hidden" name="cartId" value={cartId} />
+      <input type="hidden" name="orderId" value={orderId} />
       <input type="hidden" name="productId" value={productId} />
       <label htmlFor={`${id}-stars`}>Stars</label>
       <select

@@ -1,6 +1,6 @@
 import "server-only";
 import { CartError } from "./carts/errors";
-import { withCartTransaction } from "./carts/locks";
+import { withOrderTransaction } from "./orders/locks";
 import {
   photoRequired,
   reportRequired,
@@ -52,9 +52,10 @@ export async function ratingSummaries(factoryIds: (string | null)[]) {
 export const myRating = (userId: string, cartId: string) =>
   db.factoryRating.findUnique({ where: { cartId_userId: { cartId, userId } } });
 
+/** A buyer rates each product once per order, after collecting a line of it. */
 export async function rateProduct(
   userId: string,
-  cartId: string,
+  orderId: string,
   productId: string,
   stars: number,
   report?: { reason: ReportReason; note: string; photos: File[] },
@@ -75,29 +76,29 @@ export async function rateProduct(
   const eligible = async (client: import("./db").Tx) => {
     if (
       !(await client.user.count({ where: { id: userId, role: "CUSTOMER", locked: false } })) ||
-      !(await client.cartLine.count({
+      !(await client.orderLine.count({
         where: {
-          cartId,
-          userId,
+          orderId,
+          order: { buyerId: userId, status: "RECEIVED" },
           status: { in: ["ACTIVE", "RETURNED"] },
+          collectedAt: { not: null },
           variant: { productId },
-          cart: { status: "DELIVERED" },
         },
       }))
     )
-      throw new CartError("Rate only products you received in a delivered order");
-    if (await client.productRating.count({ where: { cartId, userId, productId } }))
+      throw new CartError("Rate only products you have collected");
+    if (await client.productRating.count({ where: { orderId, userId, productId } }))
       throw new CartError("You've already rated this product in this order");
   };
   await eligible(db);
-  await withCartTransaction([cartId], [userId], async (tx) => {
+  await withOrderTransaction([userId], [orderId], async (tx) => {
     await eligible(tx);
     const photos = [];
     for (const file of report?.photos ?? [])
       photos.push(await saveUpload(file, "report-photos", IMAGE_TYPES));
     await tx.productRating.create({
       data: {
-        cartId,
+        orderId,
         userId,
         productId,
         stars,

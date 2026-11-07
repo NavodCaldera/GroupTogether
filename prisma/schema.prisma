@@ -307,7 +307,6 @@ enum CartStatus {
 }
 
 model GroupCart {
-  productRatings     ProductRating[]
   cancelPickupReview Boolean         @default(false)
   id                 String          @id @default(cuid())
   /// Share code in /c/<code>
@@ -1022,15 +1021,15 @@ model ProductRating {
   id        String         @id @default(cuid())
   productId String
   product   Product        @relation(fields: [productId], references: [id], onDelete: Restrict)
-  cartId    String
-  cart      GroupCart      @relation(fields: [cartId], references: [id], onDelete: Restrict)
+  orderId   String
+  order     Order          @relation(fields: [orderId], references: [id], onDelete: Restrict)
   userId    String
   user      User           @relation(fields: [userId], references: [id], onDelete: Restrict)
   stars     Int
   createdAt DateTime       @default(now())
   report    QualityReport?
 
-  @@unique([cartId, userId, productId])
+  @@unique([orderId, userId, productId])
   @@index([productId, createdAt])
 }
 
@@ -1399,7 +1398,8 @@ model Order {
   checkoutKey      String?
   createdAt        DateTime        @default(now())
 
-  lines OrderLine[]
+  lines          OrderLine[]
+  productRatings ProductRating[]
 
   @@index([buyerId, createdAt])
   @@index([buyerId, checkoutKey])

@@ -5,33 +5,42 @@ import {
   readThreadNotice,
 } from "./private-thread";
 import "server-only";
-import type { ReturnRequest, ReturnStatus } from "@/generated/prisma/client";
-import { canMoveReturn, withinWindow, factoryOverdue } from "@/lib/return-rules";
+import type { Prisma, ReturnRequest, ReturnStatus } from "@/generated/prisma/client";
+import { canMoveReturn, factoryOverdue } from "@/lib/return-rules";
 import { REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
 import { factoryOf } from "@/lib/factory-roles";
 import { toD } from "@/lib/decimal";
+import { returnRefund } from "@/lib/agent-money";
 import { db, type Tx } from "./db";
 import { CartError } from "./carts/errors";
-import { withCartTransaction } from "./carts/locks";
+import { withOrderTransaction } from "./orders/locks";
 import { checkUpload, IMAGE_TYPES, saveUpload } from "./storage";
 import { credit } from "./tokens";
 import { assertQualityAdmin } from "./quality";
 import { recordFault, enforceHold } from "./fault-holds";
 import { flushQualityNotices } from "./quality-notices";
 import { notify } from "./notify";
+import { AGENTS_AREA } from "@/lib/admin-access";
 
 export class ReturnError extends CartError {}
 const decided = () => new ReturnError("This return has already been decided");
+/** LAPSED, REJECTED and COMPLETED are closed. */
 export const OPEN_RETURN_STATUSES: ReturnStatus[] = [
   "WAITING_FACTORY",
   "WITH_ADMIN",
   "ACCEPTED",
+  "AWAITING_HANDOVER",
+  "HANDED_OVER",
   "PICKED_UP",
   "RECEIVED",
 ];
-const unresolved = {
-  status: { in: OPEN_RETURN_STATUSES },
-};
+/** Open returns whose quantity is not yet in OrderLine.returnedQty. */
+const UNCOLLECTED_RETURN_STATUSES: ReturnStatus[] = [
+  "WAITING_FACTORY",
+  "WITH_ADMIN",
+  "ACCEPTED",
+  "AWAITING_HANDOVER",
+];
 
 async function activeUser(tx: Tx, id: string) {
   const user = await tx.user.findFirst({
@@ -75,7 +84,7 @@ async function queue(
   request: ReturnRequest,
   event: string,
   title: string,
-  side: "buyer" | "factory" | "admin" | "warehouse",
+  side: "buyer" | "factory" | "admin" | "agents",
 ) {
   const users =
     side === "buyer"
@@ -104,20 +113,13 @@ async function queue(
             where: {
               role: "ADMIN",
               locked: false,
-              adminArea: { in: side === "warehouse" ? ["WAREHOUSE"] : ["FACTORY", "CORE"] },
+              adminArea: { in: side === "agents" ? [AGENTS_AREA] : ["FACTORY", "CORE"] },
             },
             select: { id: true },
           });
-  const cart =
-    side === "buyer"
-      ? await tx.cartLine.findUniqueOrThrow({
-          where: { id: request.cartLineId! },
-          select: { cart: { select: { code: true } } },
-        })
-      : null;
   const href =
     side === "buyer"
-      ? `/c/${cart!.cart.code}`
+      ? await buyerHref(tx, request)
       : side === "factory"
         ? "/seller/returns"
         : `/admin/factory/returns/${request.id}`;
@@ -133,6 +135,14 @@ async function queue(
       },
       update: {},
     });
+}
+async function buyerHref(tx: Tx, request: ReturnRequest) {
+  if (!request.orderLineId) return "/notifications";
+  const line = await tx.orderLine.findUniqueOrThrow({
+    where: { id: request.orderLineId },
+    select: { orderId: true },
+  });
+  return `/orders/${line.orderId}`;
 }
 export async function flushReturnNotices() {
   const items = await db.returnNotice.findMany({
@@ -182,12 +192,12 @@ async function move(
   tx: Tx,
   r: ReturnRequest,
   status: ReturnStatus,
-  data: import("@/generated/prisma/client").Prisma.ReturnRequestUpdateInput = {},
+  data: Prisma.ReturnRequestUpdateInput = {},
 ) {
   if (!canMoveReturn(r.status, status)) throw decided();
   return tx.returnRequest.update({ where: { id: r.id }, data: { ...data, status } });
 }
-/** Sorted participant/factory advisories -> cart -> return row -> ledger user (credit only). */
+/** Sorted buyer/factory/actor advisories -> Order row -> return row -> Variant -> ledger user. */
 async function locked<T>(
   actorId: string | null,
   id: string,
@@ -195,12 +205,12 @@ async function locked<T>(
 ) {
   const first = await db.returnRequest.findUnique({
     where: { id },
-    select: { factoryId: true, cartLine: { select: { cartId: true } } },
+    select: { factoryId: true, buyerId: true, orderLine: { select: { orderId: true } } },
   });
-  if (!first) throw new ReturnError("Return not found");
-  const result = await withCartTransaction(
-    [first.cartLine!.cartId],
-    [first.factoryId, ...(actorId ? [actorId] : [])],
+  if (!first?.orderLine) throw new ReturnError("Return not found");
+  const result = await withOrderTransaction(
+    [first.buyerId, first.factoryId, ...(actorId ? [actorId] : [])],
+    [first.orderLine.orderId],
     async (tx) => {
       await tx.$queryRaw`SELECT 1 FROM "ReturnRequest" WHERE id=${id} FOR UPDATE`;
       const r = await tx.returnRequest.findUniqueOrThrow({ where: { id } });
@@ -218,7 +228,7 @@ async function locked<T>(
 }
 export async function fileReturn(
   buyerId: string,
-  cartLineId: string,
+  orderLineId: string,
   input: {
     reason: ReportReason;
     fault: "FACTORY" | "BUYER";
@@ -242,37 +252,37 @@ export async function fileReturn(
   if (input.fault === "FACTORY" && !input.photos.length)
     throw new ReturnError("Add at least one photo");
   for (const file of input.photos) checkUpload(file, IMAGE_TYPES, "return photo");
-  const first = await db.cartLine.findUnique({
-    where: { id: cartLineId },
-    select: {
-      cartId: true,
-      userId: true,
-      variant: { select: { product: { select: { sellerId: true } } } },
-    },
+  const first = await db.orderLine.findUnique({
+    where: { id: orderLineId },
+    select: { order: { select: { id: true, buyerId: true, factoryId: true } } },
   });
-  if (!first || first.userId !== buyerId || !first.variant.product.sellerId)
-    throw new ReturnError("Return only your own delivered item");
-  const factoryId = first.variant.product.sellerId;
-  const r = await withCartTransaction([first.cartId], [buyerId, factoryId], async (tx) => {
+  if (!first || first.order.buyerId !== buyerId)
+    throw new ReturnError("Return only your own collected item");
+  const { factoryId } = first.order;
+  const r = await withOrderTransaction([buyerId, factoryId], [first.order.id], async (tx) => {
     const user = await activeUser(tx, buyerId);
-    const line = await tx.cartLine.findUniqueOrThrow({
-      where: { id: cartLineId },
-      include: { cart: { select: { status: true, delivery: { select: { deliveredAt: true } } } } },
+    const line = await tx.orderLine.findUniqueOrThrow({
+      where: { id: orderLineId },
+      include: { order: { select: { buyerId: true, status: true, receivedAt: true } } },
     });
-    if (
-      user.role !== "CUSTOMER" ||
-      line.userId !== buyerId ||
-      line.status !== "ACTIVE" ||
-      line.cart.status !== "DELIVERED" ||
-      !line.cart.delivery?.deliveredAt ||
-      !withinWindow(line.cart.delivery.deliveredAt, now)
-    )
-      throw new ReturnError("Return only your own item within 48 hours of delivery");
-    if (
-      qty > line.qty - line.returnedQty ||
-      (await tx.returnRequest.count({ where: { cartLineId, ...unresolved } }))
-    )
-      throw new ReturnError("Quantity unavailable or this line already has an open return");
+    const { collectHours } = await tx.settings.findUniqueOrThrow({
+      where: { id: 1 },
+      select: { collectHours: true },
+    });
+    if (user.role !== "CUSTOMER" || line.order.buyerId !== buyerId)
+      throw new ReturnError("Return only your own collected item");
+    if (line.order.status !== "RECEIVED" || !line.order.receivedAt || !line.collectedAt)
+      throw new ReturnError("Return only an item you have collected");
+    const elapsed = now.getTime() - line.order.receivedAt.getTime();
+    if (elapsed < 0 || elapsed > collectHours * 3600000)
+      throw new ReturnError(`Return within ${collectHours} hours of the agent receiving it`);
+    // Collected returns are already in returnedQty; count only those still before collection.
+    const open = await tx.returnRequest.aggregate({
+      where: { orderLineId, status: { in: UNCOLLECTED_RETURN_STATUSES } },
+      _sum: { qty: true },
+    });
+    if (qty > line.qty - line.returnedQty - line.missingQty - (open._sum.qty ?? 0))
+      throw new ReturnError("Quantity unavailable for this item");
     const photos = [];
     for (const file of input.photos)
       photos.push(await saveUpload(file, "return-photos", IMAGE_TYPES));
@@ -281,7 +291,7 @@ export async function fileReturn(
     }));
     const r = await tx.returnRequest.create({
       data: {
-        cartLineId,
+        orderLineId,
         buyerId,
         factoryId,
         qty,
@@ -302,6 +312,58 @@ export async function fileReturn(
   await flushReturnNotices();
   return r;
 }
+/** Acceptance hands the return to the order's agent for the buyer to drop off. */
+async function toHandover(
+  tx: Tx,
+  r: ReturnRequest,
+  now: Date,
+  data: Prisma.ReturnRequestUpdateInput,
+) {
+  const line = await tx.orderLine.findUniqueOrThrow({
+    where: { id: r.orderLineId! },
+    select: { order: { select: { agentId: true } } },
+  });
+  const { returnHandoverDays } = await tx.settings.findUniqueOrThrow({
+    where: { id: 1 },
+    select: { returnHandoverDays: true },
+  });
+  return move(tx, r, "AWAITING_HANDOVER", {
+    ...data,
+    handoverAgent: { connect: { id: line.order.agentId } },
+    handoverDueAt: new Date(now.getTime() + returnHandoverDays * 86400000),
+  });
+}
+/** After commit: the buyer learns which agent takes the item; the agent sees it coming. */
+async function announceHandover(r: ReturnRequest) {
+  if (r.status !== "AWAITING_HANDOVER" || !r.handoverAgentId) return;
+  const agent = await db.agent.findUniqueOrThrow({
+    where: { id: r.handoverAgentId },
+    select: { userId: true, address: true, city: true, user: { select: { name: true } } },
+  });
+  const line = await db.orderLine.findUniqueOrThrow({
+    where: { id: r.orderLineId! },
+    select: { orderId: true },
+  });
+  const place = [agent.address, agent.city].filter(Boolean).join(", ");
+  await notify(
+    [r.buyerId],
+    {
+      title: "Return accepted",
+      body: `${agent.user.name} · ${place}`,
+      href: `/orders/${line.orderId}`,
+    },
+    `return:${r.id}:handover`,
+  );
+  await notify(
+    [agent.userId],
+    {
+      title: "Return to collect",
+      body: `${r.qty} item${r.qty === 1 ? "" : "s"}`,
+      href: "/agent/returns",
+    },
+    `return:${r.id}:collect`,
+  );
+}
 export async function factoryDecide(
   staffUserId: string,
   returnId: string,
@@ -311,46 +373,21 @@ export async function factoryDecide(
 ) {
   if (!accept && (!note.trim() || note.trim().length > 1000))
     throw new ReturnError("Give a refusal reason from 1 to 1000 characters");
-  return locked(staffUserId, returnId, async (tx, r) => {
+  const after = await locked(staffUserId, returnId, async (tx, r) => {
     await factoryActor(tx, staffUserId, r.factoryId);
     if (r.status !== "WAITING_FACTORY" || factoryOverdue(r.factoryDueAt, now)) throw decided();
-    const after = await move(tx, r, accept ? "ACCEPTED" : "WITH_ADMIN", {
-      factoryDecidedAt: now,
-      factoryDecidedById: staffUserId,
-      ...(!accept ? { factoryNote: note.trim(), escalatedAt: now } : {}),
+    const decision = { factoryDecidedAt: now, factoryDecidedById: staffUserId };
+    if (accept) return toHandover(tx, r, now, decision);
+    const after = await move(tx, r, "WITH_ADMIN", {
+      ...decision,
+      factoryNote: note.trim(),
+      escalatedAt: now,
     });
-    await queue(
-      tx,
-      after,
-      "factory-decision",
-      accept ? "Return accepted" : "Return sent to admin",
-      "buyer",
-    );
-    if (!accept) await queue(tx, after, "factory-refused", "Return needs review", "admin");
-    if (accept && r.fault === "FACTORY") await recordFault(tx, after, "FACTORY", staffUserId, now);
-    if (accept && r.fault === "FACTORY")
-      await queue(tx, after, "pickup-needed", "Return pickup needed", "warehouse");
+    await queue(tx, after, "factory-decision", "Return sent to admin", "buyer");
+    await queue(tx, after, "factory-refused", "Return needs review", "admin");
     return after;
   });
-}
-async function complete(tx: Tx, r: ReturnRequest) {
-  if (r.status !== "RECEIVED") throw decided();
-  const line = await tx.cartLine.findUniqueOrThrow({ where: { id: r.cartLineId! } });
-  const returnedQty = line.returnedQty + r.qty;
-  if (returnedQty > line.qty) throw new ReturnError("Return quantity exceeds this line");
-  const value = toD(line.unitPrice).times(r.qty);
-  if (value.gt(0))
-    await credit(tx, r.buyerId, value, "RETURN", { returnId: r.id }, "Returned clothing item");
-  await tx.cartLine.update({
-    where: { id: line.id },
-    data: {
-      returnedQty,
-      ...(returnedQty === line.qty ? { status: "RETURNED", notEarned: true } : {}),
-    },
-  });
-  const after = await move(tx, r, "COMPLETED");
-  await queue(tx, after, "completed", "Return tokens credited", "buyer");
-  await queue(tx, after, "received", "Return received", "factory");
+  await announceHandover(after);
   return after;
 }
 export async function adminDecide(
@@ -360,42 +397,88 @@ export async function adminDecide(
   note: string,
 ) {
   if (!note.trim() || note.length > 2000) throw new ReturnError("Add a decision note");
-  return locked(adminId, returnId, async (tx, r) => {
+  const after = await locked(adminId, returnId, async (tx, r) => {
     await qualityActor(tx, adminId);
     if (r.status !== "WITH_ADMIN" || r.adminDecision !== null) throw decided();
-    let after = await move(tx, r, accept ? "ACCEPTED" : "REJECTED", {
-      adminId,
-      adminDecision: accept,
-      adminNote: note.trim(),
+    const decision = { adminId, adminDecision: accept, adminNote: note.trim() };
+    await queue(tx, r, "admin-decision", "Admin decided return", "factory");
+    if (accept) return toHandover(tx, r, new Date(), decision);
+    const after = await move(tx, r, "REJECTED", decision);
+    await queue(tx, after, "admin-decision", "Admin rejected return", "buyer");
+    return after;
+  });
+  await announceHandover(after);
+  return after;
+}
+/** The handover agent takes the item from the buyer. Tokens are credited now; for a factory
+ * fault the fault is recorded and the return courier waits as a payout deduction. */
+export async function collectReturn(agentUserId: string, returnId: string, now = new Date()) {
+  return locked(agentUserId, returnId, async (tx, r) => {
+    const agent = await tx.agent.findFirst({
+      where: { userId: agentUserId, user: { locked: false } },
+      select: { id: true },
     });
-    await queue(
-      tx,
-      after,
-      r.receivedAt ? "admin-receipt-decision" : "admin-decision",
-      accept ? "Admin accepted return" : "Admin rejected return",
-      "buyer",
-    );
-    await queue(
-      tx,
-      after,
-      r.receivedAt ? "admin-receipt-decision" : "admin-decision",
-      "Admin decided return",
-      "factory",
-    );
-    if (accept && r.fault === "FACTORY") await recordFault(tx, after, "ADMIN", adminId, new Date());
-    if (accept && r.receivedAt) {
-      after = await move(tx, after, "RECEIVED");
-      return complete(tx, after);
+    if (!agent || !r.handoverAgentId || agent.id !== r.handoverAgentId)
+      throw new ReturnError("Only the handover agent can collect this return");
+    if (r.status !== "AWAITING_HANDOVER") throw decided();
+    const line = await tx.orderLine.findUniqueOrThrow({ where: { id: r.orderLineId! } });
+    const returnedQty = line.returnedQty + r.qty;
+    if (returnedQty + line.missingQty > line.qty)
+      throw new ReturnError("Return quantity exceeds this line");
+    await tx.orderLine.update({
+      where: { id: line.id },
+      data: {
+        returnedQty,
+        ...(returnedQty + line.missingQty === line.qty ? { status: "RETURNED" } : {}),
+      },
+    });
+    const after = await move(tx, r, "HANDED_OVER", { handedOverAt: now });
+    if (r.fault === "FACTORY") {
+      const byAdmin = r.adminDecision === true;
+      await recordFault(
+        tx,
+        after,
+        byAdmin ? "ADMIN" : "FACTORY",
+        (byAdmin ? r.adminId : r.factoryDecidedById) ?? r.factoryId,
+        now,
+      );
+      await tx.payoutDeduction.create({
+        data: {
+          factoryId: r.factoryId,
+          kind: "RETURN_COURIER",
+          amount: toD(line.courierEach).times(r.qty).toFixed(2),
+          ref: `retcourier:${r.id}`,
+        },
+      });
     }
-    if (accept && r.fault === "FACTORY")
-      await queue(tx, after, "pickup-needed", "Return pickup needed", "warehouse");
+    const refund = returnRefund(r.qty, toD(line.unitPrice), toD(line.courierEach), r.fault);
+    if (refund.gt(0))
+      await credit(tx, r.buyerId, refund, "RETURN", { returnId: r.id }, "Returned clothing item");
+    await queue(tx, after, "collected", "Return tokens credited", "buyer");
     return after;
   });
 }
+/** Accepted returns the buyer never handed over close without tokens; the line earns again. */
+export async function lapseReturns(now = new Date()) {
+  const rows = await db.returnRequest.findMany({
+    where: { status: "AWAITING_HANDOVER", handoverDueAt: { lte: now } },
+    select: { id: true },
+  });
+  let count = 0;
+  for (const { id } of rows)
+    await locked(null, id, async (tx, r) => {
+      if (r.status !== "AWAITING_HANDOVER" || !r.handoverDueAt || r.handoverDueAt > now) return;
+      const after = await move(tx, r, "LAPSED");
+      count++;
+      await queue(tx, after, "lapsed", "Return cancelled", "buyer");
+    });
+  return count;
+}
+/** The factory (or a quality admin) receives a return that came back with its courier. */
 export async function markReceived(
   staffUserId: string,
   returnId: string,
-  unusedWithTags: boolean,
+  restock: boolean,
   note = "",
 ) {
   if (note.length > 2000) throw new ReturnError("Receipt note is too long");
@@ -403,79 +486,30 @@ export async function markReceived(
     const user = await activeUser(tx, staffUserId);
     if (user.role === "ADMIN") await qualityActor(tx, staffUserId);
     else await factoryActor(tx, staffUserId, r.factoryId);
-    if (user.role === "ADMIN" && r.status === "WITH_ADMIN" && r.adminDecision === true)
-      r = await move(tx, r, "ACCEPTED");
-    if (!["ACCEPTED", "PICKED_UP"].includes(r.status) || r.receivedAt) throw decided();
-    const data = {
+    if (r.status !== "PICKED_UP" || r.receivedAt) throw decided();
+    const received = await move(tx, r, "RECEIVED", {
       receivedAt: new Date(),
       receivedById: staffUserId,
-      unusedWithTags,
       receivedCondition: note.trim(),
-    };
-    if (r.fault === "BUYER" && !unusedWithTags) {
-      if (!note.trim() || note.trim().length > 1000)
-        throw new ReturnError("Give a condition reason from 1 to 1000 characters");
-      const after = await move(tx, r, "WITH_ADMIN", {
-        ...data,
-        adminDecision: null,
-        escalatedAt: new Date(),
-      });
-      await queue(tx, after, "receipt-review", "Return receipt needs review", "admin");
-      await queue(tx, after, "receipt-review", "Return sent to admin", "buyer");
-      return after;
-    }
-    const after = await move(tx, r, "RECEIVED", data);
-    return complete(tx, after);
-  });
-}
-export async function bookReturnPickup(
-  adminId: string,
-  returnId: string,
-  input: { externalRef: string; driverName?: string },
-) {
-  if (
-    !input.externalRef.trim() ||
-    input.externalRef.length > 200 ||
-    (input.driverName?.length ?? 0) > 200
-  )
-    throw new ReturnError("Enter the PickMe booking reference");
-  return locked(adminId, returnId, async (tx, r) => {
-    const user = await activeUser(tx, adminId);
-    if (user.role !== "ADMIN" || !["FACTORY", "CORE", "WAREHOUSE"].includes(user.adminArea ?? ""))
-      throw new ReturnError("Return pickup admin access required");
-    if (r.status === "WITH_ADMIN" && r.adminDecision === true) {
-      await qualityActor(tx, adminId);
-      r = await move(tx, r, "ACCEPTED");
-    }
-    if (r.status !== "ACCEPTED" || r.fault !== "FACTORY" || r.pickupBookedAt) throw decided();
-    const after = await tx.returnRequest.update({
-      where: { id: r.id },
-      data: {
-        pickupRef: input.externalRef.trim(),
-        pickupDriver: input.driverName?.trim() || null,
-        pickupBookedAt: new Date(),
-        pickupBookedById: adminId,
-        paidBy: "FACTORY",
-      },
     });
-    await queue(tx, after, "booked", "Return pickup booked", "buyer");
-    await queue(tx, after, "booked", "Return pickup booked", "factory");
-    return after;
-  });
-}
-export async function markReturnPickedUp(adminId: string, returnId: string) {
-  return locked(adminId, returnId, async (tx, r) => {
-    await qualityActor(tx, adminId);
-    if (!r.pickupBookedAt || r.status !== "ACCEPTED") throw decided();
-    const after = await move(tx, r, "PICKED_UP");
-    await queue(tx, after, "picked-up", "Return picked up", "factory");
-    await queue(tx, after, "picked-up", "Return picked up", "buyer");
+    if (restock) {
+      const line = await tx.orderLine.findUniqueOrThrow({
+        where: { id: r.orderLineId! },
+        select: { variantId: true },
+      });
+      await tx.variant.update({
+        where: { id: line.variantId },
+        data: { available: { increment: r.qty } },
+      });
+    }
+    const after = await move(tx, received, "COMPLETED");
+    await queue(tx, after, "received", "Return received", "factory");
     return after;
   });
 }
 export async function escalateOverdue(now = new Date()) {
   const rows = await db.returnRequest.findMany({
-    where: { status: "WAITING_FACTORY", factoryDueAt: { lt: now } },
+    where: { status: "WAITING_FACTORY", factoryDueAt: { lt: now }, orderLineId: { not: null } },
     select: { id: true },
   });
   let count = 0;
@@ -490,17 +524,18 @@ export async function escalateOverdue(now = new Date()) {
   await flushReturnNotices();
   return count;
 }
-/** Removal already owns the factory advisory, fencing every return mutation. No ledger/cart locks. */
+/** Removal already owns the factory advisory, fencing every return mutation. No ledger/order locks.
+ * Undecided returns go to admin; accepted ones keep moving through the agent. */
 export async function handoffRemovedReturns(tx: Tx, factoryId: string) {
   const rows = await tx.returnRequest.findMany({
-    where: { factoryId, ...unresolved },
+    where: { factoryId, status: { in: ["WAITING_FACTORY", "ACCEPTED"] } },
     orderBy: { id: "asc" },
   });
   for (const r of rows) {
     await tx.$queryRaw`SELECT 1 FROM "ReturnRequest" WHERE id=${r.id} FOR UPDATE`;
-    // A final acceptance survives removal; only an admin can complete its fulfilment.
-    if (r.status === "WITH_ADMIN") continue;
-    const after = await move(tx, r, "WITH_ADMIN", { escalatedAt: new Date() });
+    const fresh = await tx.returnRequest.findUniqueOrThrow({ where: { id: r.id } });
+    if (!["WAITING_FACTORY", "ACCEPTED"].includes(fresh.status)) continue;
+    const after = await move(tx, fresh, "WITH_ADMIN", { escalatedAt: new Date() });
     await queue(tx, after, "removed", "Return needs review", "admin");
     await queue(tx, after, "removed", "Return sent to admin", "buyer");
   }
@@ -543,7 +578,7 @@ export async function factoryReturns(userId: string) {
     factory = factoryOf(user);
   await factoryActor(db, userId, factory.factoryId);
   return db.returnRequest.findMany({
-    where: { factoryId: factory.factoryId },
+    where: { factoryId: factory.factoryId, orderLineId: { not: null } },
     select: returnSelect,
     orderBy: { createdAt: "desc" },
   });
@@ -617,26 +652,29 @@ export async function adminReturn(adminId: string, id: string) {
 }
 export async function adminReturns(adminId: string) {
   const user = await activeUser(db, adminId);
-  const warehouse = user.role === "ADMIN" && user.adminArea === "WAREHOUSE";
-  if (!warehouse) await assertQualityAdmin(adminId);
+  const agents = user.role === "ADMIN" && user.adminArea === AGENTS_AREA;
+  if (!agents) await assertQualityAdmin(adminId);
   return db.returnRequest.findMany({
-    where: warehouse ? { fault: "FACTORY", status: { in: ["ACCEPTED", "PICKED_UP"] } } : {},
+    where: {
+      orderLineId: { not: null },
+      ...(agents ? { status: { in: ["AWAITING_HANDOVER", "HANDED_OVER", "PICKED_UP"] } } : {}),
+    },
     select: returnSelect,
     orderBy: { createdAt: "desc" },
   });
 }
-export async function buyerReturns(buyerId: string, cartId: string) {
+export async function buyerReturns(buyerId: string, orderId: string) {
   const user = await activeUser(db, buyerId);
   if (user.role !== "CUSTOMER") throw new ReturnError("Buyer access required");
   return db.returnRequest.findMany({
-    where: { buyerId, cartLine: { cartId } },
+    where: { buyerId, orderLine: { orderId } },
     select: returnSelect,
     orderBy: { createdAt: "desc" },
   });
 }
 const returnSelect = {
   id: true,
-  cartLineId: true,
+  orderLineId: true,
   qty: true,
   reason: true,
   fault: true,
@@ -650,11 +688,14 @@ const returnSelect = {
   receivedCondition: true,
   receivedAt: true,
   factoryNote: true,
-  pickupRef: true,
-  pickupDriver: true,
-  paidBy: true,
+  handoverDueAt: true,
+  handedOverAt: true,
+  handoverAgent: { select: { address: true, city: true, user: { select: { name: true } } } },
   photos: { select: { id: true } },
-  cartLine: {
-    select: { variant: { select: { size: true, product: { select: { title: true } } } } },
+  orderLine: {
+    select: {
+      orderId: true,
+      variant: { select: { size: true, product: { select: { title: true } } } },
+    },
   },
 } as const;
