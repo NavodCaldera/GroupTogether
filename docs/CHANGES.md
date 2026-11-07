@@ -25,6 +25,11 @@
 - Owner idea under review, not approved: area agents. Factories hand sold items to an agent in each
   area, who stores them and hands them to buyers when they come to collect. Business model to be
   clarified before any build.
+- Owner refined the agent idea, under review, not approved: only agents have baskets, one per
+  factory. Buyers pay by PayHere when adding items to their area agent's basket. Above LKR 50,000 the
+  agent locks it, delivery starts, and a new basket for that factory opens. Agents keep a LKR
+  200,000 security deposit, earn LKR 20 per item, and each has an exclusive area of about 1 km²
+  around their location. Courier delivery from factory to agent stays in the system.
 - Owner confirmed holding factory money is not a concern. Buyer-side value is low cost (no
   wholesale/retail markup); factory-side value is time.
 
