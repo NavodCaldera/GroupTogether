@@ -37,6 +37,11 @@
   Premium brands and design likes parked. [Brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-07/brief.md).
 - Owner confirmed holding factory money is not a concern. Buyer-side value is low cost (no
   wholesale/retail markup); factory-side value is time.
+- Owner decisions from the design builder check, not built yet: a missing item after lock deducts
+  only GroupBasket's loss (commission, courier charge, agent fee) from the factory payout; an agent
+  who leaves is handled like suspension and gets the deposit back as tokens only after every parcel
+  and return is handed over; factory staff accounts hold no tokens.
+  [Design](superpowers/specs/2026-11-07-area-agent-model-design.md).
 
 ## 2026-11-07 - Factory dashboards planning, preorders paused
 
