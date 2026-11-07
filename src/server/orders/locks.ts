@@ -4,6 +4,10 @@ import { CartError } from "../carts/errors";
 
 /** Lock order everywhere: user advisories (sorted) -> Order rows (sorted) -> basket advisory
  * basket:<agentId>:<factoryId> -> Basket rows -> ledger User rows (sorted).
+ * Variant rows are locked after any basket advisory, in variantId order. Basket rows are only
+ * written while their basket advisory is held, so Basket and Variant rows may be taken in either
+ * order relative to each other (markOrdersPaid: Variant then Basket; cancelOrder: Basket then
+ * Variant) without a deadlock.
  */
 export async function lockUserAdvisory(tx: Tx, userId: string) {
   await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${userId}))) AS l`;

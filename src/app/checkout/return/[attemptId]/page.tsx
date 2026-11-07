@@ -8,7 +8,12 @@ import { getGateway } from "@/server/payments/gateway";
 
 export const metadata: Metadata = { title: "Payment" };
 
-const LABEL = { SUCCEEDED: "Paid", FAILED: "Not paid", PENDING: "Checking" } as const;
+const LABEL = {
+  SUCCEEDED: "Paid",
+  LATE_PAID: "Paid as tokens",
+  FAILED: "Not paid",
+  PENDING: "Checking",
+} as const;
 
 export default async function CheckoutReturnPage({
   params,
@@ -23,11 +28,9 @@ export default async function CheckoutReturnPage({
 
   // Only the server notice marks anything paid; the gateway's answer is shown, never stored.
   let state: keyof typeof LABEL =
-    attempt.status === "SUCCEEDED" || attempt.status === "LATE_PAID"
-      ? "SUCCEEDED"
-      : attempt.status === "PENDING"
-        ? "PENDING"
-        : "FAILED";
+    attempt.status === "SUCCEEDED" || attempt.status === "LATE_PAID" || attempt.status === "PENDING"
+      ? attempt.status
+      : "FAILED";
   if (state === "PENDING") {
     try {
       state = await getGateway().fetchStatus(attemptId);

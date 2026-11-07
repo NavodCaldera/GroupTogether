@@ -89,9 +89,15 @@ describe("payment notices", () => {
     expect(order.status).toBe("PENDING");
   });
 
-  it("amount mismatch: the order stays PENDING", async () => {
-    const { f, r, attempt } = await pendingCheckout();
-    expect(await send(noticeBody(attempt.id, { amount: "1.00" }))).toEqual({ status: 200 });
+  it("amount mismatch: the received amount becomes tokens and the order stays PENDING", async () => {
+    const { buyer, f, r, attempt } = await pendingCheckout();
+    const raw = noticeBody(attempt.id, { amount: "1.00" });
+    expect(await send(raw)).toEqual({ status: 200 });
+    expect(await send(raw)).toEqual({ status: 200 });
+    const credit = await db.tokenEntry.findMany({ where: { kind: "LATE_PAYMENT" } });
+    expect(credit.map((c) => [c.userId, money(c.amount), c.eventKey])).toEqual([
+      [buyer.id, "1.00", `late:${attempt.id}:pay_1`],
+    ]);
     const order = await db.order.findUniqueOrThrow({ where: { id: r.orderIds[0] } });
     expect(order.status).toBe("PENDING");
     const event = await db.paymentEvent.findFirstOrThrow();
@@ -103,13 +109,18 @@ describe("payment notices", () => {
     expect(await db.basket.count()).toBe(0);
   });
 
-  it("currency mismatch: the order stays PENDING", async () => {
+  it("currency mismatch: nothing is credited and the order stays PENDING", async () => {
     const { r, attempt, amount } = await pendingCheckout();
     expect(await send(noticeBody(attempt.id, { amount, currency: "USD" }))).toEqual({
       status: 200,
     });
     const order = await db.order.findUniqueOrThrow({ where: { id: r.orderIds[0] } });
     expect(order.status).toBe("PENDING");
+    expect((await db.paymentEvent.findFirstOrThrow()).outcome).toBe("CURRENCY_MISMATCH");
+    expect(await db.tokenEntry.count({ where: { kind: "LATE_PAYMENT" } })).toBe(0);
+    expect((await db.paymentAttempt.findUniqueOrThrow({ where: { id: attempt.id } })).status).toBe(
+      "PENDING",
+    );
   });
 
   it("failed notice: stock and tokens are released", async () => {
@@ -155,7 +166,7 @@ describe("payment notices", () => {
     expect([late[0].userId, money(late[0].amount), late[0].eventKey]).toEqual([
       buyer.id,
       amount,
-      `late:${attempt.id}`,
+      `late:${attempt.id}:pay_1`,
     ]);
     const orders = await db.order.findMany({ where: { id: { in: r.orderIds } } });
     expect(orders.map((o) => o.status)).toEqual(["CANCELLED"]);
@@ -168,14 +179,34 @@ describe("payment notices", () => {
     expect(money(await tokenBalance(buyer.id))).toBe(amount);
   });
 
-  it("a second payment for a paid attempt is credited once", async () => {
+  it("every further charge on a paid attempt is credited once per payment id", async () => {
     const { buyer, attempt, amount } = await pendingCheckout();
     await send(noticeBody(attempt.id, { amount, paymentId: "pay_1" }));
     await send(noticeBody(attempt.id, { amount, paymentId: "pay_2" }));
     await send(noticeBody(attempt.id, { amount, paymentId: "pay_3" }));
+    await send(noticeBody(attempt.id, { amount, paymentId: "pay_3" }));
     expect(await db.order.count({ where: { status: "PAID" } })).toBe(1);
-    expect(money(await tokenBalance(buyer.id))).toBe(amount);
-    expect(await db.tokenEntry.count({ where: { kind: "LATE_PAYMENT" } })).toBe(1);
+    const late = await db.tokenEntry.findMany({
+      where: { kind: "LATE_PAYMENT" },
+      orderBy: { eventKey: "asc" },
+    });
+    expect(late.map((l) => [money(l.amount), l.eventKey])).toEqual([
+      [amount, `late:${attempt.id}:pay_2`],
+      [amount, `late:${attempt.id}:pay_3`],
+    ]);
+    expect(money(await tokenBalance(buyer.id))).toBe(money(attempt.amount.times(2)));
+    expect((await db.paymentAttempt.findUniqueOrThrow({ where: { id: attempt.id } })).status).toBe(
+      "SUCCEEDED",
+    );
+  });
+
+  it("two real charges after expiry are both credited", async () => {
+    const { buyer, attempt, amount } = await pendingCheckout();
+    await expireOrders(new Date(attempt.expiresAt.getTime() + 1000));
+    await send(noticeBody(attempt.id, { amount, paymentId: "pay_1" }));
+    await send(noticeBody(attempt.id, { amount, paymentId: "pay_2" }));
+    expect(await db.tokenEntry.count({ where: { kind: "LATE_PAYMENT" } })).toBe(2);
+    expect(money(await tokenBalance(buyer.id))).toBe(money(attempt.amount.times(2)));
   });
 
   it("deposit notices are not built yet and record nothing", async () => {

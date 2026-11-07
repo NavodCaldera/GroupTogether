@@ -7,19 +7,54 @@ import { withOrderTransaction } from "../orders/locks";
 import { getGateway, type VerifiedNotice } from "./gateway";
 
 type Outcome =
-  "PAID" | "LATE_PAID" | "AMOUNT_MISMATCH" | "FAILED" | "NOTED" | "IGNORED" | "UNKNOWN_ATTEMPT";
+  | "PAID"
+  | "LATE_PAID"
+  | "AMOUNT_MISMATCH"
+  | "CURRENCY_MISMATCH"
+  | "FAILED"
+  | "NOTED"
+  | "IGNORED"
+  | "UNKNOWN_ATTEMPT";
 
 /** Task 11 replaces this with the agent deposit service. */
 async function agentDepositPaid(_tx: Tx, _attemptId: string): Promise<void> {
   throw new Error("Deposit payments are not built yet");
 }
 
+const validAmount = (given: string) => /^\d{1,12}(\.\d{1,2})?$/.test(given);
+
 function sameAmount(given: string, expected: { toString(): string }): boolean {
-  if (!/^\d+(\.\d{1,2})?$/.test(given)) return false;
-  return new D(given).eq(toD(expected));
+  return validAmount(given) && new D(given).eq(toD(expected));
 }
 
-const isUniqueViolation = (error: unknown) => (error as { code?: string }).code === "P2002";
+/** A unique violation on PaymentEvent (gateway, eventId): another delivery of the same event won. */
+function isDuplicateEvent(error: unknown): boolean {
+  const e = error as {
+    code?: string;
+    meta?: {
+      target?: unknown;
+      modelName?: string;
+      driverAdapterError?: {
+        cause?: { constraint?: { index?: string; fields?: string[] }; table?: string };
+      };
+    };
+  };
+  if (e.code !== "P2002") return false;
+  const target = e.meta?.target;
+  if (Array.isArray(target))
+    return target.includes("gateway") && target.includes("eventId") && target.length === 2;
+  if (target === "PaymentEvent_gateway_eventId_key") return true;
+  const constraint = e.meta?.driverAdapterError?.cause?.constraint;
+  if (constraint?.index === "PaymentEvent_gateway_eventId_key") return true;
+  const fields = constraint?.fields;
+  return (
+    e.meta?.modelName === "PaymentEvent" &&
+    Array.isArray(fields) &&
+    fields.length === 2 &&
+    fields.includes("gateway") &&
+    fields.includes("eventId")
+  );
+}
 
 /** Verifies a signed gateway notice and applies it exactly once.
  * Lock order: payer advisory -> the attempt's Order rows -> (markOrdersPaid: basket advisories ->
@@ -72,8 +107,7 @@ export async function handleNotice(raw: string, headers: Headers): Promise<{ sta
       },
     );
   } catch (error) {
-    // Another delivery of the same event committed first.
-    if (isUniqueViolation(error)) return { status: 200 };
+    if (isDuplicateEvent(error)) return { status: 200 };
     throw error;
   }
   return { status: 200 };
@@ -105,8 +139,23 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
       return "FAILED";
     }
     case "SUCCEEDED": {
-      if (!sameAmount(notice.amount, attempt.amount) || notice.currency !== attempt.currency)
+      // Each distinct real charge is credited once; replays of one payment id stop at the event gate.
+      const lateKey = `late:${attempt.id}:${notice.gatewayRef}`;
+      if (notice.currency !== "LKR" || notice.currency !== attempt.currency)
+        return "CURRENCY_MISMATCH";
+      if (!sameAmount(notice.amount, attempt.amount)) {
+        // Money was taken but does not match: credit what was received; the orders expire.
+        const received = validAmount(notice.amount) ? new D(notice.amount) : null;
+        if (received && received.gt(0))
+          await post(tx, {
+            userId: payerId,
+            amount: received,
+            kind: "LATE_PAYMENT",
+            eventKey: lateKey,
+            note: "Payment did not match the order amount",
+          });
         return "AMOUNT_MISMATCH";
+      }
       const onTime =
         attempt.status === "PENDING" && attempt.orders.every((o) => o.status === "PENDING");
       if (onTime) {
@@ -127,7 +176,7 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
         userId: payerId,
         amount: toD(attempt.amount),
         kind: "LATE_PAYMENT",
-        eventKey: `late:${attempt.id}`,
+        eventKey: lateKey,
         note: "Payment arrived after the order closed",
       });
       return "LATE_PAID";
