@@ -1,6 +1,6 @@
 ---
 title: GroupBasket area agent model
-status: draft
+status: approved
 created: 2026-11-07
 updated: 2026-11-07
 ---
