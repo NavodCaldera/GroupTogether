@@ -273,8 +273,8 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 - **FR-034**: Premium brands and design likes MUST be hidden and their data kept.
 - **FR-035**: Keep sign-in, accounts and pins, products and variants, the factory portal,
   onboarding and agreement, tokens, notifications, quality reports, ratings and fault holds.
-- **FR-036**: Existing development data: [NEEDS CLARIFICATION: Is there any real buyer, factory or
-  token data that must be carried over, or can all existing carts, slips and demo data be reset?]
+- **FR-036**: Existing development data: all existing data is demo data. It MUST be reset and
+  re-seeded with demo agents, baskets and orders for every role (owner answer, 2026-11-07).
 
 ### Key Entities
 

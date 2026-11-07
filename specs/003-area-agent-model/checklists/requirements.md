@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,6 +31,6 @@
 
 ## Notes
 
-- One clarification open: FR-036, existing data. PayHere is named as the business's chosen
+- FR-036 resolved: all data is demo data, reset and re-seed. PayHere is named as the business's chosen
   provider, not as an implementation detail.
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
