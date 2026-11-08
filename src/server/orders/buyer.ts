@@ -1,22 +1,13 @@
 import "server-only";
 import { D, toD } from "@/lib/decimal";
 import { openNow } from "@/lib/agent-rules";
-import { isBuyerRole } from "@/lib/roles";
 import { db } from "../db";
 import { getSettings } from "../settings";
 import { tokenBalance } from "../tokens";
-import { CheckoutError } from "./checkout";
+import { assertBuyer } from "./checkout";
 
-/** Buyer screens read only the signed-in buyer's own rows; this refuses anyone else. */
-async function assertBuyerAccount(userId: string) {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: { role: true, locked: true, factoryId: true, lat: true, lng: true },
-  });
-  if (!user || !isBuyerRole(user.role) || user.locked || user.factoryId)
-    throw new CheckoutError("This account cannot buy");
-  return user;
-}
+/** Buyer screens read only the signed-in buyer's own rows; the shared buy gate refuses anyone else. */
+const assertBuyerAccount = (userId: string) => assertBuyer(db, userId);
 
 const agentSelect = {
   id: true,
@@ -200,6 +191,10 @@ export async function tokenHistory(userId: string) {
 
 /** The buyer's saved map pin, or null. */
 export async function buyerPin(buyerId: string) {
-  const user = await assertBuyerAccount(buyerId);
+  await assertBuyerAccount(buyerId);
+  const user = await db.user.findUniqueOrThrow({
+    where: { id: buyerId },
+    select: { lat: true, lng: true },
+  });
   return user.lat != null && user.lng != null ? { lat: user.lat, lng: user.lng } : null;
 }
