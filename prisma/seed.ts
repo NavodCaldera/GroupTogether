@@ -1,254 +1,249 @@
 /**
- * Demo data: 4 admins (core, luxury brands, factories, buyers), 1 factory seller, 2 packing staff, 3 buyers, about 20 products, and carts in several
- * states. Every account's password is "password123". Resets the database first.
+ * Demo data for the area-agent model. Every account's password is "password123"; the logins and
+ * the identifiers browser specs use are in src/lib/demo-accounts.ts. Resets the database first.
  *
- *   core@groupbasket.lk      core admin      → /admin/users (admins and settings)
- *   premium@groupbasket.lk   luxury brand admin → /admin/brands
- *   factory@groupbasket.lk   factory admin   → /admin/factory
- *   buyers@groupbasket.lk    agents and orders admin → /admin/warehouse
- *   seller@example.com      seller      → /seller (Ceylon Apparel Mills owner: a tested linen shirt and its bulk)
- *   packing@example.com     factory staff → /seller (Ruwan, packing: Home and Orders)
- *   sales@example.com       factory staff → /seller (Chamari, sales: Home, Products, Ratings)
- *   brand@example.com       brand       → /seller (Serendib Atelier, a luxury brand)
- *   packer@example.com, packer2@example.com: former packing staff (Kasun, Ishara), now buyer
- *     accounts kept for the old packing records until the seed is rewritten
- *   buyer@example.com       buyer       → /dashboard (public cart at 49,800, delivered order, invite)
- *   buyer2@example.com      buyer       → /dashboard (private cart at the minimum)
- *   buyer3@example.com      buyer       → /dashboard (paid order being packed; no active cart, free to join)
+ * Orders, baskets, pickup codes, tokens and the return are made through the real services
+ * (checkout, a signed demo payment notice, packing, courier, receiving, handover, returns), so
+ * the data passes the same checks the app enforces. Agents apply, are approved and pay their
+ * deposit the same way. Factories, products, admins and the luxury brand are written directly.
+ *
+ *   Admins    one per area: AGENTS, FACTORY, CORE, PREMIUM
+ *   Factories Ceylon Apparel Mills and Lanka Knit Works: Owner, Packing and Sales, 6 products each
+ *   Agents    Kollupitiya, Wellawatte, Kotahena (LIVE, with hours) and an applicant in Rajagiriya
+ *   Baskets   AT_AGENT    Kollupitiya × Ceylon: Dilan's parcel waits (code 246810); Sachini's
+ *                         collected blouse is a return AWAITING_HANDOVER
+ *             WITH_COURIER Kollupitiya × Lanka: Ravindu and Ayesha
+ *             LOCKED      Wellawatte × Ceylon: Tharindu and Nimali, for Packing to pack
+ *             PACKED      Kotahena × Ceylon: Sachini, for the admin to book a courier
+ *             OPEN        Wellawatte × Lanka: Nimali (Tharindu cancelled his order: his tokens)
+ *             OPEN        Kollupitiya × Ceylon: Ravindu
+ *
+ * Runs with prisma/seed-hooks.mjs preloaded (prisma.config.ts) so the server modules load.
  */
 import "dotenv/config";
-import { randomBytes } from "node:crypto";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient, type User, type Variant } from "../src/generated/prisma/client";
-import { hashPassword } from "../src/server/auth/password";
+import { D } from "../src/lib/decimal";
 import { findKind } from "../src/lib/taxonomy";
-import { addHours, newCartCode } from "../src/lib/cart-rules";
+import type { Hours } from "../src/lib/agent-rules";
+import {
+  DEMO_ADMINS,
+  DEMO_AGENTS,
+  DEMO_BUYERS,
+  DEMO_FACTORIES,
+  DEMO_PASSWORD,
+  DEMO_PICKUP_CODE,
+} from "../src/lib/demo-accounts";
+import { db } from "../src/server/db";
+import { hashPassword } from "../src/server/auth/password";
+import { setCartItem } from "../src/server/orders/cart";
+import { startCheckout } from "../src/server/orders/checkout";
+import { cancelOrder } from "../src/server/orders/baskets";
+import {
+  bookCourier,
+  givenToDriver,
+  markBasketReceived,
+  markPacked,
+} from "../src/server/orders/delivery";
+import { handOver } from "../src/server/orders/handover";
+import { applyAsAgent } from "../src/server/agents/apply";
+import { decideAgent } from "../src/server/agents/admin";
+import { startDeposit } from "../src/server/agents/deposit";
+import { setHours } from "../src/server/agents/hours";
+import { factoryDecide, fileReturn } from "../src/server/returns";
+import { handleNotice } from "../src/server/payments/notice";
+import { signNotice } from "../src/server/payments/demo";
 
-const db = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL! }),
-});
+// Payments go through the demo gateway's signed notice, in this process only.
+process.env.PAYMENT_GATEWAY = "demo";
+process.env.DEMO_MERCHANT_ID ||= "seed-merchant";
+process.env.DEMO_MERCHANT_SECRET ||= "seed-secret";
 
-/** Audience and category id for each demo product (see src/lib/taxonomy.ts). */
-const KIND_OF: Record<string, ["MEN" | "WOMEN" | "BOY", string]> = {
-  "Cotton overshirt": ["MEN", "men-jackets"],
-  "Zip-front track jacket": ["MEN", "men-jackets"],
-  "Cotton blouse": ["WOMEN", "women-tops"],
-  "Office formal shirt": ["MEN", "men-shirts"],
-  "Outdoor fleece jacket": ["MEN", "men-jackets"],
-  "Sleeveless cotton top": ["WOMEN", "women-tops"],
-  "School uniform shirt": ["BOY", "boy-tshirts"],
-  "Basketball jersey": ["MEN", "men-tshirts"],
-  "Crew-neck cotton tee (3-pack)": ["MEN", "men-tshirts"],
-  "Oxford button-down shirt": ["MEN", "men-shirts"],
-  "Slim chino": ["MEN", "men-trousers"],
-  "Denim jacket": ["WOMEN", "women-jackets"],
-  "Running shorts": ["MEN", "men-shorts"],
-  "Hooded sweatshirt": ["MEN", "men-jackets"],
-  "Linen summer dress": ["WOMEN", "women-dresses"],
-  "Polo shirt": ["MEN", "men-tshirts"],
-  "Track pants": ["MEN", "men-trousers"],
-};
+const COMMISSION = "100";
+const STOCK_PER_SIZE = 40;
 
-type Seed = {
+type ProductSeed = {
   title: string;
-  brand: string;
-  category: "APPAREL";
+  kind: string;
+  audience: "MEN" | "WOMEN" | "BOY";
   stockType: "FACTORY_SURPLUS" | "B_GRADE";
-  price: number;
-  retail: number;
+  factoryPrice: string;
+  retail: string;
   description: string;
 };
 
-const PRODUCTS: Seed[] = [
-  {
-    title: "Cotton overshirt",
-    brand: "Stride",
-    category: "APPAREL",
-    stockType: "FACTORY_SURPLUS",
-    price: 6900,
-    retail: 14500,
-    description: "Cotton overshirt, button front. End-of-run export order.",
-  },
-  {
-    title: "Zip-front track jacket",
-    brand: "Velo",
-    category: "APPAREL",
-    stockType: "FACTORY_SURPLUS",
-    price: 7500,
-    retail: 16900,
-    description: "Zip-front track jacket. Surplus from a European order.",
-  },
-  {
-    title: "Zip-front track jacket",
-    brand: "Velo",
-    category: "APPAREL",
-    stockType: "B_GRADE",
-    price: 4200,
-    retail: 16900,
-    description: "Same track jacket as the surplus range, cosmetic seconds.",
-  },
-  {
-    title: "Cotton blouse",
-    brand: "Harbour",
-    category: "APPAREL",
-    stockType: "FACTORY_SURPLUS",
-    price: 3200,
-    retail: 6500,
-    description: "Cotton blouse, relaxed fit.",
-  },
-  {
-    title: "Cotton blouse",
-    brand: "Harbour",
-    category: "APPAREL",
-    stockType: "B_GRADE",
-    price: 1900,
-    retail: 6500,
-    description: "Cosmetic seconds.",
-  },
-  {
-    title: "Office formal shirt",
-    brand: "Mayfair",
-    category: "APPAREL",
-    stockType: "FACTORY_SURPLUS",
-    price: 8900,
-    retail: 18500,
-    description: "Long-sleeved formal shirt.",
-  },
-  {
-    title: "Outdoor fleece jacket",
-    brand: "Ridge",
-    category: "APPAREL",
-    stockType: "B_GRADE",
-    price: 9500,
-    retail: 24000,
-    description: "Fleece jacket, zip pockets.",
-  },
-  {
-    title: "Sleeveless cotton top",
-    brand: "Shore",
-    category: "APPAREL",
-    stockType: "FACTORY_SURPLUS",
-    price: 1500,
-    retail: 3500,
-    description: "Sleeveless cotton top.",
-  },
-  {
-    title: "School uniform shirt",
-    brand: "Mayfair",
-    category: "APPAREL",
-    stockType: "FACTORY_SURPLUS",
-    price: 3900,
-    retail: 7200,
-    description: "White school uniform shirt.",
-  },
-  {
-    title: "Basketball jersey",
-    brand: "Stride",
-    category: "APPAREL",
-    stockType: "B_GRADE",
-    price: 7800,
-    retail: 21000,
-    description: "Sleeveless basketball jersey.",
-  },
-  {
-    title: "Crew-neck cotton tee (3-pack)",
-    brand: "Basics Co",
-    category: "APPAREL",
-    stockType: "FACTORY_SURPLUS",
-    price: 2400,
-    retail: 5400,
-    description: "100% cotton, 180 gsm. Overrun from an export order.",
-  },
+const CEYLON_PRODUCTS: ProductSeed[] = [
   {
     title: "Oxford button-down shirt",
-    brand: "Mayfair",
-    category: "APPAREL",
+    kind: "men-shirts",
+    audience: "MEN",
     stockType: "FACTORY_SURPLUS",
-    price: 3500,
-    retail: 7900,
+    factoryPrice: "3500",
+    retail: "7900",
     description: "Cotton oxford, regular fit.",
   },
   {
-    title: "Oxford button-down shirt",
-    brand: "Mayfair",
-    category: "APPAREL",
-    stockType: "B_GRADE",
-    price: 1900,
-    retail: 7900,
-    description: "Cosmetic seconds.",
-  },
-  {
     title: "Slim chino",
-    brand: "Harbour",
-    category: "APPAREL",
+    kind: "men-trousers",
+    audience: "MEN",
     stockType: "FACTORY_SURPLUS",
-    price: 3900,
-    retail: 8500,
+    factoryPrice: "3000",
+    retail: "8500",
     description: "Stretch cotton twill.",
   },
   {
-    title: "Denim jacket",
-    brand: "Ridge",
-    category: "APPAREL",
-    stockType: "B_GRADE",
-    price: 4500,
-    retail: 12500,
-    description: "12 oz denim, classic fit.",
+    title: "Crew-neck cotton tee (3-pack)",
+    kind: "men-tshirts",
+    audience: "MEN",
+    stockType: "FACTORY_SURPLUS",
+    factoryPrice: "2300",
+    retail: "5400",
+    description: "100% cotton, 180 gsm. Overrun from an export order.",
   },
   {
-    title: "Running shorts",
-    brand: "Velo",
-    category: "APPAREL",
+    title: "Linen short-sleeve shirt",
+    kind: "men-shirts",
+    audience: "MEN",
     stockType: "FACTORY_SURPLUS",
-    price: 1600,
-    retail: 3900,
-    description: "Quick-dry, inner brief.",
+    factoryPrice: "2050",
+    retail: "4900",
+    description: "Washed linen, short sleeves.",
   },
   {
-    title: "Hooded sweatshirt",
-    brand: "Basics Co",
-    category: "APPAREL",
+    title: "Cotton blouse",
+    kind: "women-tops",
+    audience: "WOMEN",
     stockType: "FACTORY_SURPLUS",
-    price: 3600,
-    retail: 8200,
-    description: "Brushed fleece, kangaroo pocket.",
+    factoryPrice: "3100",
+    retail: "6500",
+    description: "Cotton blouse, relaxed fit.",
   },
   {
     title: "Linen summer dress",
-    brand: "Shore",
-    category: "APPAREL",
+    kind: "women-dresses",
+    audience: "WOMEN",
     stockType: "FACTORY_SURPLUS",
-    price: 4200,
-    retail: 9800,
+    factoryPrice: "4100",
+    retail: "9800",
     description: "Linen-cotton blend.",
-  },
-  {
-    title: "Polo shirt",
-    brand: "Stride",
-    category: "APPAREL",
-    stockType: "B_GRADE",
-    price: 1700,
-    retail: 4900,
-    description: "Piqué cotton.",
-  },
-  {
-    title: "Track pants",
-    brand: "Velo",
-    category: "APPAREL",
-    stockType: "FACTORY_SURPLUS",
-    price: 2900,
-    retail: 6500,
-    description: "Tapered, zip pockets.",
   },
 ];
 
-async function main() {
+const LANKA_PRODUCTS: ProductSeed[] = [
+  {
+    title: "Hooded sweatshirt",
+    kind: "men-jackets",
+    audience: "MEN",
+    stockType: "FACTORY_SURPLUS",
+    factoryPrice: "3500",
+    retail: "8200",
+    description: "Brushed fleece, kangaroo pocket.",
+  },
+  {
+    title: "Track pants",
+    kind: "men-trousers",
+    audience: "MEN",
+    stockType: "FACTORY_SURPLUS",
+    factoryPrice: "2800",
+    retail: "6500",
+    description: "Tapered, zip pockets.",
+  },
+  {
+    title: "Polo shirt",
+    kind: "men-tshirts",
+    audience: "MEN",
+    stockType: "B_GRADE",
+    factoryPrice: "1600",
+    retail: "4900",
+    description: "Piqué cotton. Cosmetic seconds.",
+  },
+  {
+    title: "Running shorts",
+    kind: "men-shorts",
+    audience: "MEN",
+    stockType: "FACTORY_SURPLUS",
+    factoryPrice: "1500",
+    retail: "3900",
+    description: "Quick-dry, inner brief.",
+  },
+  {
+    title: "Denim jacket",
+    kind: "women-jackets",
+    audience: "WOMEN",
+    stockType: "B_GRADE",
+    factoryPrice: "4400",
+    retail: "12500",
+    description: "12 oz denim, classic fit.",
+  },
+  {
+    title: "School uniform shirt",
+    kind: "boy-tshirts",
+    audience: "BOY",
+    stockType: "FACTORY_SURPLUS",
+    factoryPrice: "3800",
+    retail: "7200",
+    description: "White school uniform shirt.",
+  },
+];
+
+/** A 1×1 PNG for the agents' NIC, own and storage photos (private storage). */
+const PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC1sAAAAASUVORK5CYII=",
+  "base64",
+);
+const png = (name: string) => new File([PNG], name, { type: "image/png" });
+
+const WEEKDAYS = [1, 2, 3, 4, 5];
+const hm = (h: number, m = 0) => h * 60 + m;
+
+async function resetDatabase() {
   const tables = await db.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
   if (tables.length)
     await db.$executeRawUnsafe(
       `TRUNCATE TABLE ${tables.map((t) => `"public"."${t.tablename}"`).join(", ")} CASCADE`,
     );
+}
+
+let paymentNo = 0;
+/** Pays a gateway attempt with a signed SUCCEEDED notice, as the demo payment page does. */
+async function payAttempt(attemptId: string) {
+  const attempt = await db.paymentAttempt.findUniqueOrThrow({ where: { id: attemptId } });
+  const fields = {
+    merchant_id: process.env.DEMO_MERCHANT_ID!,
+    order_id: attempt.id,
+    payment_id: `seed-pay-${++paymentNo}`,
+    payhere_amount: new D(attempt.amount.toString()).toFixed(2),
+    payhere_currency: attempt.currency,
+    status_code: "2",
+  };
+  const raw = new URLSearchParams({
+    ...fields,
+    md5sig: signNotice(fields, process.env.DEMO_MERCHANT_SECRET!),
+  }).toString();
+  const { status } = await handleNotice(raw, new Headers());
+  const after = await db.paymentAttempt.findUniqueOrThrow({ where: { id: attemptId } });
+  if (status !== 200 || after.status !== "SUCCEEDED")
+    throw new Error(`seed: payment ${attemptId} was not applied (${after.status})`);
+}
+
+let checkoutNo = 0;
+/** The buyer fills the cart, checks out at the agent and pays. Returns the new order ids. */
+async function buy(
+  buyerId: string,
+  agentId: string,
+  items: [variantId: string, qty: number][],
+): Promise<string[]> {
+  for (const [variantId, qty] of items) await setCartItem(buyerId, variantId, qty);
+  const out = await startCheckout(buyerId, {
+    agentId,
+    tokens: "0",
+    requestKey: `seed-checkout-${++checkoutNo}`,
+  });
+  if (out.attemptId) await payAttempt(out.attemptId);
+  return out.orderIds;
+}
+
+async function main() {
+  await resetDatabase();
 
   await db.settings.create({
     data: {
@@ -260,15 +255,16 @@ async function main() {
     },
   });
 
-  const passwordHash = await hashPassword("password123");
-  // One admin per area (ADMIN-001/002); there is no unrestricted admin.
+  const passwordHash = await hashPassword(DEMO_PASSWORD);
+
+  // ─── Admins: one per area (ADMIN-001/002); there is no unrestricted admin ──
   await db.user.createMany({
     data: (
       [
-        ["Luxury Brand Admin", "premium@groupbasket.lk", "0700000001", "PREMIUM"],
-        ["Factory Admin", "factory@groupbasket.lk", "0700000002", "FACTORY"],
-        ["Agents Admin", "buyers@groupbasket.lk", "0700000003", "AGENTS"],
-        ["Core Admin", "core@groupbasket.lk", "0700000004", "CORE"],
+        ["Luxury Brand Admin", DEMO_ADMINS.PREMIUM, "0700000001", "PREMIUM"],
+        ["Factory Admin", DEMO_ADMINS.FACTORY, "0700000002", "FACTORY"],
+        ["Agents Admin", DEMO_ADMINS.AGENTS, "0700000003", "AGENTS"],
+        ["Core Admin", DEMO_ADMINS.CORE, "0700000004", "CORE"],
       ] as const
     ).map(([name, email, phone, adminArea]) => ({
       role: "ADMIN" as const,
@@ -279,634 +275,316 @@ async function main() {
       passwordHash,
     })),
   });
-  const core = await db.user.findUniqueOrThrow({ where: { email: "core@groupbasket.lk" } });
+  const core = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.CORE } });
+  const agentsAdmin = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.AGENTS } });
   await db.agreementVersion.create({
     data: { version: 1, text: "Agreement text supplied by GroupBasket", publishedBy: core.id },
   });
-  // Former packing staff: the role is gone, the accounts stay for the old packing records.
-  const [kasun, ishara] = await Promise.all(
-    [
-      ["Kasun Perera", "packer@example.com", "0711111111"],
-      ["Ishara Fernando", "packer2@example.com", "0712222222"],
-    ].map(([name, email, phone]) =>
-      db.user.create({ data: { role: "CUSTOMER", name, email, phone, passwordHash } }),
-    ),
-  );
-  // The only buyers: Dilan, Sachini and Tharindu (all listed on the sign-in page).
-  const people = [
-    [
-      "Dilan Wickramasinghe",
-      "buyer@example.com",
-      "0777777777",
-      "27 Ward Pl",
-      "Colombo 07",
-      6.9147,
-      79.8678,
-    ],
-    [
-      "Sachini Gunawardena",
-      "buyer2@example.com",
-      "0778888888",
-      "14 Hill St",
-      "Kandy",
-      7.2906,
-      80.6337,
-    ],
-    [
-      "Tharindu Senanayake",
-      "buyer3@example.com",
-      "0779999999",
-      "5 Beach Rd",
-      "Galle",
-      6.0535,
-      80.221,
-    ],
-  ] as const;
-  const users: User[] = [];
-  for (const [name, email, phone, address, city, lat, lng] of people) {
-    users.push(
-      await db.user.create({ data: { name, email, phone, address, city, lat, lng, passwordHash } }),
-    );
-  }
 
-  const variants: (Variant & { price: number })[] = [];
-  for (const p of PRODUCTS) {
-    const [audience, kind] = KIND_OF[p.title] ?? ["MEN", "men-tshirts"];
-    // Four clothing sizes per product; fixed cart indices below preserve the original prices.
-    const sizes = findKind(kind)!.sizes.slice(0, 4);
-    const product = await db.product.create({
-      data: {
-        title: p.title,
-        brand: p.brand,
-        category: p.category,
-        audience,
-        kind,
-        stockType: p.stockType,
-        price: p.price,
-        retailPrice: p.retail,
-        description: p.description,
-        status: "LIVE",
-        variants: {
-          create: sizes.map((size, i) => ({
-            size,
-            available: p.stockType === "B_GRADE" ? 3 + i : 10 + i * 2,
-          })),
-        },
-      },
-      include: { variants: true },
-    });
-    variants.push(...product.variants.map((v) => ({ ...v, price: p.price })));
-  }
-
-  const now = new Date();
-  /** Variants already in a demo cart, so later picks don't reuse their (now stale) stock. */
-  const used = new Set<number>();
-  /** A cart whose lines lock stock, as the app does. */
-  async function cart(
-    ownerIdx: number,
-    _label: string,
-    lines: [number, number, number][],
-    extra: object = {},
-    visibility: "PUBLIC" | "PRIVATE" = "PUBLIC",
+  // ─── Factories: the owner account, Packing and Sales staff, 6 live products each ──
+  async function factory(
+    f: { company: string; owner: string; packing: string; sales: string },
+    people: { owner: string; packing: string; sales: string },
+    place: { address: string; city: string; lat: number; lng: number },
+    phones: [string, string, string],
+    products: ProductSeed[],
   ) {
-    const memberIdx = [...new Set([ownerIdx, ...lines.map((l) => l[0])])];
-    for (const [, vi] of lines) used.add(vi);
-    let total = 0;
-    for (const [, vi, qty] of lines) total += variants[vi].price * qty;
-    const c = await db.groupCart.create({
+    const owner = await db.user.create({
       data: {
-        code: newCartCode(randomBytes),
-        name: `${users[ownerIdx].name}'s cart`,
-        ownerId: users[ownerIdx].id,
-        visibility,
-        minOrderValue: 50000,
-        total,
-        status: total >= 50000 ? "READY" : "OPEN",
-        readyAt: total >= 50000 ? now : null,
-        expiresAt: addHours(now, 20),
-        members: { create: memberIdx.map((i) => ({ userId: users[i].id })) },
-        lines: {
-          create: lines.map(([ui, vi, qty]) => ({
-            userId: users[ui].id,
-            variantId: variants[vi].id,
-            qty,
-            unitPrice: variants[vi].price,
-          })),
-        },
-        ...extra,
+        role: "SELLER",
+        name: people.owner,
+        company: f.company,
+        email: f.owner,
+        phone: phones[0],
+        ...place,
+        passwordHash,
       },
     });
-    for (const [, vi, qty] of lines) {
-      await db.variant.update({
-        where: { id: variants[vi].id },
-        data: { available: { decrement: qty }, reserved: { increment: qty } },
-      });
-    }
-    return c;
-  }
-
-  // One cart at a time (CLAUDE.md rule 12): each buyer owns at most one active cart.
-  // Dilan's public cart sits at 49,800, one item short of the minimum. Sachini's private cart
-  // has reached it (she can accept & pay). Tharindu is in no active cart, free to join one.
-  const [DILAN, SACHINI, THARINDU] = [0, 1, 2];
-  const buyer = users[DILAN];
-  await cart(DILAN, "Office clothing run", [
-    [DILAN, 2, 2],
-    [DILAN, 6, 1],
-    [DILAN, 26, 3],
-  ]);
-  const privateCart = await cart(
-    SACHINI,
-    "Sachini's friends only",
-    [
-      [SACHINI, 0, 3],
-      [SACHINI, 20, 2],
-      [SACHINI, 56, 3],
-      [SACHINI, 70, 2],
-    ],
-    {},
-    "PRIVATE",
-  );
-  // Dilan is already in a cart, so this invite lets him try "ask to join" (rule 14).
-  await db.cartInvite.create({
-    data: { cartId: privateCart.id, invitedById: users[SACHINI].id, invitedUserId: buyer.id },
-  });
-
-  /** An unused variant priced 3,000+ with enough free stock for `qty`. */
-  const pick = (qty: number) => {
-    const i = variants.findIndex((v, n) => !used.has(n) && v.price >= 3000 && v.available >= qty);
-    if (i < 0) throw new Error("seed: no variant with enough stock");
-    used.add(i);
-    return i;
-  };
-  // A past order that went all the way: paid, confirmed and delivered by PickMe.
-  const vi = variants.findIndex(
-    (v, n) => !used.has(n) && v.available * v.price >= 45000 && v.price >= 3000,
-  );
-  if (vi < 0) throw new Error("seed: no variant for the delivered order");
-  used.add(vi);
-  const qty = Math.min(variants[vi].available, Math.ceil(45000 / variants[vi].price));
-  const vj = pick(2);
-  const lines: [number, number, number][] = [
-    [DILAN, vi, qty],
-    [THARINDU, vj, 2],
-  ];
-  const total = lines.reduce((n, [, v, q]) => n + variants[v].price * q, 0);
-  const past = addHours(now, -30);
-  const delivered = await db.groupCart.create({
-    data: {
-      code: newCartCode(randomBytes),
-      name: "Dilan's first group order",
-      ownerId: buyer.id,
-      status: "DELIVERED",
-      minOrderValue: 50000,
-      total,
-      expiresAt: addHours(past, 24),
-      readyAt: past,
-      acceptedAt: addHours(past, 1),
-      slipDueAt: addHours(past, 3),
-      confirmedAt: addHours(past, 2),
-      deliveryAddress: buyer.address,
-      deliveryCity: buyer.city,
-      deliveryLat: buyer.lat,
-      deliveryLng: buyer.lng,
-      deliveryPhone: buyer.phone,
-      members: { create: [{ userId: buyer.id }, { userId: users[THARINDU].id }] },
-      lines: {
-        create: lines.map(([ui, v, q]) => ({
-          userId: users[ui].id,
-          variantId: variants[v].id,
-          qty: q,
-          unitPrice: variants[v].price,
-        })),
-      },
-      delivery: {
-        create: {
-          provider: "manual",
-          status: "DELIVERED",
-          externalRef: "PM-DEMO-1",
-          quotedFee: 850,
-        },
-      },
-    },
-  });
-  for (const [, v, q] of lines) {
-    await db.variant.update({
-      where: { id: variants[v].id },
-      data: { available: { decrement: q }, sold: { increment: q } },
-    });
-  }
-  // Kasun checked and gathered it, Ishara rechecked and packed it and handed it to PickMe.
-  await db.packing.create({
-    data: {
-      cartId: delivered.id,
-      gatheredById: kasun.id,
-      gatheredAt: addHours(past, 2.5),
-      packedById: ishara.id,
-      packedAt: addHours(past, 3),
-      handedOverById: ishara.id,
-      handedOverAt: addHours(past, 4),
-    },
-  });
-
-  // Paid orders at each packing stage, so the packing staff's list is never empty: to gather
-  // (Tharindu), to pack (Sachini, gathered by Kasun), for PickMe (Dilan, packed by Ishara and
-  // booked with PickMe). The delivered order above is the "handed over" one.
-  const paidOrder = async (ui: number, hoursAgo: number, stage: "gather" | "pack" | "ready") => {
-    const pi = variants.findIndex(
-      (v, n) => !used.has(n) && v.available * v.price >= 50000 && v.price >= 3000,
-    );
-    if (pi < 0) throw new Error("seed: no variant for the order to pack");
-    used.add(pi);
-    const owner = users[ui];
-    const packQty = Math.ceil(50000 / variants[pi].price);
-    const paidAt = addHours(now, -hoursAgo);
-    const c = await db.groupCart.create({
+    await db.factoryProfile.create({
       data: {
-        code: newCartCode(randomBytes),
-        name: `${owner.name}'s cart`,
-        ownerId: owner.id,
-        status: stage === "ready" ? "DISPATCHED" : "CONFIRMED",
-        minOrderValue: 50000,
-        total: variants[pi].price * packQty,
-        createdAt: addHours(paidAt, -2),
-        expiresAt: addHours(paidAt, 24),
-        readyAt: paidAt,
-        acceptedAt: addHours(paidAt, 1),
-        slipDueAt: addHours(paidAt, 3),
-        confirmedAt: addHours(paidAt, 2),
-        deliveryAddress: owner.address,
-        deliveryCity: owner.city,
-        deliveryLat: owner.lat,
-        deliveryLng: owner.lng,
-        deliveryPhone: owner.phone,
-        members: { create: [{ userId: owner.id }] },
-        lines: {
-          create: [
-            {
-              userId: owner.id,
-              variantId: variants[pi].id,
-              qty: packQty,
-              unitPrice: variants[pi].price,
-            },
-          ],
-        },
-        ...(stage === "ready"
-          ? {
-              delivery: {
-                create: {
-                  provider: "manual",
-                  status: "BOOKED",
-                  externalRef: "PM-DEMO-2",
-                  quotedFee: 850,
-                  driverName: "Nimal",
-                },
-              },
-            }
-          : {}),
+        factoryUserId: owner.id,
+        status: "ACTIVE",
+        complianceDueAt: new Date(Date.now() + 30 * 86_400_000),
       },
     });
-    await db.variant.update({
-      where: { id: variants[pi].id },
-      data: { available: { decrement: packQty }, sold: { increment: packQty } },
-    });
-    if (stage !== "gather") {
-      await db.packing.create({
+    const staff = async (name: string, email: string, phone: string, job: "PACKING" | "SALES") =>
+      db.user.create({
         data: {
-          cartId: c.id,
-          gatheredById: kasun.id,
-          gatheredAt: addHours(paidAt, 2.5),
-          ...(stage === "ready" ? { packedById: ishara.id, packedAt: addHours(paidAt, 3) } : {}),
+          role: "SELLER",
+          factoryId: owner.id,
+          factoryRole: job,
+          name,
+          email,
+          phone,
+          company: f.company,
+          city: place.city,
+          passwordHash,
         },
       });
+    const packing = await staff(people.packing, f.packing, phones[1], "PACKING");
+    const sales = await staff(people.sales, f.sales, phones[2], "SALES");
+    // variants[product][size]
+    const variants: string[][] = [];
+    for (const p of products) {
+      const kind = findKind(p.kind)!;
+      const product = await db.product.create({
+        data: {
+          title: p.title,
+          brand: f.company,
+          category: kind.category,
+          audience: p.audience,
+          kind: p.kind,
+          stockType: p.stockType,
+          factoryPrice: p.factoryPrice,
+          commission: COMMISSION,
+          price: new D(p.factoryPrice).plus(COMMISSION).toFixed(2),
+          retailPrice: p.retail,
+          description: p.description,
+          status: "LIVE",
+          sellerId: owner.id,
+          variants: {
+            create: kind.sizes.slice(0, 4).map((size) => ({ size, available: STOCK_PER_SIZE })),
+          },
+        },
+        include: { variants: { orderBy: { id: "asc" } } },
+      });
+      variants.push(
+        kind.sizes.slice(0, 4).map((size) => product.variants.find((v) => v.size === size)!.id),
+      );
     }
-  };
-  await paidOrder(THARINDU, 3, "gather");
-  await paidOrder(SACHINI, 2, "pack");
-  await paidOrder(DILAN, 1, "ready");
+    return { owner, packing, sales, variants };
+  }
 
-  // ─── Demo factory seller: one product on sale and three stock offers ──
-  const seller = await db.user.create({
-    data: {
-      role: "SELLER",
-      name: "Nuwan Rajapaksha",
-      company: "Ceylon Apparel Mills",
-      email: "seller@example.com",
-      phone: "0776666666",
+  const ceylon = await factory(
+    DEMO_FACTORIES.ceylon,
+    { owner: "Nuwan Rajapaksha", packing: "Ruwan Perera", sales: "Chamari Fernando" },
+    {
       address: "42 Factory Road, Ekala Industrial Estate",
       city: "Ja-Ela",
       lat: 7.0827,
       lng: 79.9021,
-      passwordHash,
     },
-  });
-  await db.factoryProfile.create({
-    data: {
-      factoryUserId: seller.id,
-      status: "ACTIVE",
-      complianceDueAt: addHours(new Date(), 30 * 24),
-    },
-  });
-  // Its staff, one login per job (2026-11-04). Nuwan's own account is the owner.
-  await db.user.createMany({
-    data: [
-      ["Ruwan Perera", "packing@example.com", "PACKING"],
-      ["Chamari Fernando", "sales@example.com", "SALES"],
-    ].map(([name, email, factoryRole]) => ({
-      role: "SELLER" as const,
-      factoryId: seller.id,
-      factoryRole: factoryRole as "PACKING" | "SALES",
-      name,
-      email,
-      company: "Ceylon Apparel Mills",
-      city: "Ja-Ela",
-      passwordHash,
-    })),
-  });
-  const sellerProducts = [
-    {
-      title: "Factory cotton shirt",
-      kind: "men-shirts",
-      audience: "MEN",
-      status: "LIVE",
-      price: 6200,
-      retailPrice: 14500,
-      stockType: "FACTORY_SURPLUS",
-      reviewNote: null,
-    },
-  ] as const;
-  for (const p of sellerProducts) {
-    const k = findKind(p.kind)!;
-    await db.product.create({
-      data: {
-        title: p.title,
-        brand: "Ceylon",
-        category: k.category,
-        audience: p.audience,
-        kind: p.kind,
-        stockType: p.stockType,
-        price: p.price,
-        retailPrice: p.retailPrice,
-        description: "Made in our Ja-Ela factory. Overrun from an export order.",
-        status: p.status,
-        reviewNote: p.reviewNote,
-        sellerId: seller.id,
-        variants: { create: k.sizes.slice(0, 4).map((size, i) => ({ size, available: 6 + i })) },
-      },
+    ["0776666666", "0776666601", "0776666602"],
+    CEYLON_PRODUCTS,
+  );
+  const lanka = await factory(
+    DEMO_FACTORIES.lanka,
+    { owner: "Pradeep Gamage", packing: "Lahiru Dissanayake", sales: "Dinusha Herath" },
+    { address: "7 Zone 2, Biyagama Export Zone", city: "Biyagama", lat: 6.9446, lng: 79.9895 },
+    ["0765555501", "0765555502", "0765555503"],
+    LANKA_PRODUCTS,
+  );
+
+  // ─── Buyers ──
+  const person = (
+    name: string,
+    email: string,
+    phone: string,
+    address: string,
+    city: string,
+    lat: number,
+    lng: number,
+  ) => db.user.create({ data: { name, email, phone, address, city, lat, lng, passwordHash } });
+  const dilan = await person(
+    "Dilan Wickramasinghe",
+    DEMO_BUYERS.dilan,
+    "0777777777",
+    "12 Charles Drive",
+    "Colombo 03",
+    6.908,
+    79.856,
+  );
+  const sachini = await person(
+    "Sachini Gunawardena",
+    DEMO_BUYERS.sachini,
+    "0778888888",
+    "14 Flower Terrace",
+    "Colombo 07",
+    6.9105,
+    79.8637,
+  );
+  const tharindu = await person(
+    "Tharindu Senanayake",
+    DEMO_BUYERS.tharindu,
+    "0779999999",
+    "5 Hampden Lane",
+    "Colombo 06",
+    6.8772,
+    79.8618,
+  );
+  const nimali = await person(
+    "Nimali Jayasuriya",
+    DEMO_BUYERS.nimali,
+    "0771111004",
+    "33 Fussels Lane",
+    "Colombo 06",
+    6.8721,
+    79.8592,
+  );
+  const ravindu = await person(
+    "Ravindu Bandara",
+    DEMO_BUYERS.ravindu,
+    "0771111005",
+    "8 Alfred Place",
+    "Colombo 03",
+    6.9071,
+    79.8531,
+  );
+  const ayesha = await person(
+    "Ayesha Nazeer",
+    DEMO_BUYERS.ayesha,
+    "0771111006",
+    "21 Sea Street",
+    "Colombo 11",
+    6.9389,
+    79.8506,
+  );
+
+  // ─── Agents: apply, approval (the 2 km gap check), deposit through the gateway, hours ──
+  async function agent(
+    name: string,
+    email: string,
+    phone: string,
+    pin: { address: string; city: string; lat: number; lng: number },
+    hours: Hours | null,
+  ) {
+    const user = await db.user.create({ data: { name, email, phone, ...pin, passwordHash } });
+    const fd = new FormData();
+    fd.set("address", pin.address);
+    fd.set("city", pin.city);
+    fd.set("lat", String(pin.lat));
+    fd.set("lng", String(pin.lng));
+    fd.set("nic", png("nic.png"));
+    fd.set("photo", png("photo.png"));
+    fd.append("storagePhotos", png("storage-1.png"));
+    fd.append("storagePhotos", png("storage-2.png"));
+    await applyAsAgent(user.id, fd);
+    const row = await db.agent.findUniqueOrThrow({ where: { userId: user.id } });
+    if (!hours) return { user, id: row.id };
+    await decideAgent(agentsAdmin.id, row.id, true, "");
+    await startDeposit(user.id);
+    const deposit = await db.paymentAttempt.findFirstOrThrow({
+      where: { agentId: row.id, purpose: "DEPOSIT", status: "PENDING" },
     });
+    await payAttempt(deposit.id);
+    await setHours(user.id, hours);
+    return { user, id: row.id };
   }
+  const kollupitiya = await agent(
+    "Kamal Perera",
+    DEMO_AGENTS.kollupitiya,
+    "0752222201",
+    { address: "118 Galle Road, Kollupitiya", city: "Colombo 03", lat: 6.9115, lng: 79.8505 },
+    [
+      ...WEEKDAYS.map((weekday) => ({ weekday, opensAt: hm(9), closesAt: hm(20) })),
+      { weekday: 6, opensAt: hm(9), closesAt: hm(20) },
+      { weekday: 0, opensAt: hm(10), closesAt: hm(14) },
+    ],
+  );
+  const wellawatte = await agent(
+    "Fathima Rizwan",
+    DEMO_AGENTS.wellawatte,
+    "0752222202",
+    { address: "402 Galle Road, Wellawatte", city: "Colombo 06", lat: 6.8747, lng: 79.8605 },
+    [
+      ...WEEKDAYS.map((weekday) => ({ weekday, opensAt: hm(8, 30), closesAt: hm(18) })),
+      { weekday: 6, opensAt: hm(9), closesAt: hm(13) },
+    ],
+  );
+  const kotahena = await agent(
+    "Suresh Kumar",
+    DEMO_AGENTS.kotahena,
+    "0752222203",
+    { address: "56 George R. de Silva Mawatha", city: "Colombo 13", lat: 6.9442, lng: 79.8597 },
+    [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, opensAt: hm(7), closesAt: hm(21) })),
+  );
+  await agent(
+    "Ishani Silva",
+    DEMO_AGENTS.applicant,
+    "0752222204",
+    { address: "25 Parliament Road, Rajagiriya", city: "Rajagiriya", lat: 6.9097, lng: 79.8946 },
+    null,
+  );
 
-  // Stock offers (product owner, 2026-10-19): one waiting for review, one accepted, one declined.
-  const offers = [
-    {
-      name: "Ladies cotton skirts",
-      description: "420 skirts, sizes S to XL, black and tan. B-grade: small stitching marks.",
-      amount: 840000,
-      status: "IN_REVIEW",
-      note: null,
-      ago: 3,
-    },
-    {
-      name: "Kids school shirts",
-      description: "300 shirts, white, sizes 6-7Y to 12-13Y. Overrun from an export order.",
-      amount: 540000,
-      status: "ACCEPTED",
-      note: null,
-      ago: 50,
-    },
-    {
-      name: "Men's canvas belts",
-      description: "1,000 belts, mixed colours.",
-      amount: 300000,
-      status: "DECLINED",
-      note: null,
-      ago: 120,
-    },
-  ] as const;
-  for (const o of offers)
-    await db.stockOffer.create({
-      data: {
-        sellerId: seller.id,
-        name: o.name,
-        description: o.description,
-        amount: o.amount,
-        status: o.status,
-        note: o.note,
-        createdAt: addHours(now, -o.ago),
-        decidedAt: o.status === "IN_REVIEW" ? null : addHours(now, -o.ago + 4),
-      },
-    });
+  const basketOf = async (agentId: string, factoryId: string, status: "OPEN" | "LOCKED") =>
+    db.basket.findFirstOrThrow({ where: { agentId, factoryId, status } });
+  const C = ceylon.variants;
+  const L = lanka.variants;
 
-  // ─── A tested design (product owner, 2026-10-24): 24 test pieces of a linen shirt sold out ──
-  // in its sizes M and L at LKR 2,400, so the factory made the bulk; it went onto the same product
-  // at LKR 2,150. The seller dashboard shows it as a design with its price and pieces by day.
-  const DAY = 86_400_000;
-  const daysAgo = (d: number) => new Date(now.getTime() - d * DAY);
-  // Pieces stocked per size (test + bulk) and sold, so the sizes add up with the carts below.
-  const shirtSizes = { S: [43, 6], M: [89, 33], L: [88, 24], XL: [44, 6] } as const;
-  const shirt = await db.product.create({
-    data: {
-      title: "Linen short-sleeve shirt",
-      brand: "Ceylon",
-      category: "APPAREL",
-      audience: "MEN",
-      kind: "men-shirts",
-      stockType: "FACTORY_SURPLUS",
-      price: "2150",
-      factoryPrice: "2050",
-      commission: "100",
-      retailPrice: 4900,
-      description: "Washed linen, short sleeves. Made in our Ja-Ela factory.",
-      status: "LIVE",
-      sellerId: seller.id,
-      createdAt: daysAgo(21),
-      variants: {
-        create: Object.entries(shirtSizes).map(([size, [stocked, sold]]) => ({
-          size,
-          available: stocked - sold,
-          sold,
-        })),
-      },
-      prices: {
-        create: [
-          { price: 2400, at: daysAgo(21) },
-          { price: 2150, at: daysAgo(6) },
-        ],
-      },
-    },
-    include: { variants: true },
+  // ─── AT_AGENT: Kollupitiya × Ceylon. Sachini's blouses, then Dilan's order locks it ──
+  await buy(sachini.id, kollupitiya.id, [[C[4][1], 2]]);
+  await buy(dilan.id, kollupitiya.id, [
+    [C[0][1], 8],
+    [C[1][2], 6],
+  ]);
+  const atAgent = await basketOf(kollupitiya.id, ceylon.owner.id, "LOCKED");
+  await markPacked(ceylon.packing.id, atAgent.id);
+  await bookCourier(agentsAdmin.id, atAgent.id, {
+    fee: "1500",
+    driverName: "Nimal Silva",
+    driverPhone: "0771234567",
+    vehicleNo: "CAB-4521",
   });
-  const shirtSize = (size: keyof typeof shirtSizes) =>
-    shirt.variants.find((v) => v.size === size)!.id;
-  for (const o of [
-    {
-      kind: "TEST",
-      name: "Linen shirt test run",
-      description: "24 pieces, S to XL, white.",
-      amount: 36000,
-      sent: 24,
-      received: 21,
-    },
-    {
-      kind: "BULK",
-      name: "Linen shirt bulk",
-      description: "240 pieces, S to XL, white.",
-      amount: 312000,
-      sent: 12,
-      received: 6,
-    },
-  ] as const)
-    await db.stockOffer.create({
-      data: {
-        sellerId: seller.id,
-        kind: o.kind,
-        name: o.name,
-        description: o.description,
-        amount: o.amount,
-        status: "ACCEPTED",
-        productId: shirt.id,
-        createdAt: daysAgo(o.sent),
-        decidedAt: daysAgo(o.sent - 0.2),
-        receivedById: kasun.id,
-        receivedAt: daysAgo(o.received),
-      },
-    });
-  /** A past cart of shirts: [buyer, size, qty] lines at `price`, paid and delivered or expired. */
-  const shirtCart = async (
-    ago: number,
-    price: number,
-    lines: [number, keyof typeof shirtSizes, number][],
-    paid: boolean,
-  ) => {
-    const at = daysAgo(ago);
-    const owner = users[lines[0][0]];
-    const total = lines.reduce((n, [, , q]) => n + q * price, 0);
-    const c = await db.groupCart.create({
-      data: {
-        code: newCartCode(randomBytes),
-        name: `${owner.name}'s cart`,
-        ownerId: owner.id,
-        status: paid ? "DELIVERED" : "EXPIRED",
-        minOrderValue: 50000,
-        total,
-        createdAt: at,
-        expiresAt: addHours(at, 24),
-        ...(paid
-          ? {
-              readyAt: addHours(at, 3),
-              acceptedAt: addHours(at, 4),
-              slipDueAt: addHours(at, 6),
-              confirmedAt: addHours(at, 5),
-              deliveryAddress: owner.address,
-              deliveryCity: owner.city,
-              deliveryLat: owner.lat,
-              deliveryLng: owner.lng,
-              deliveryPhone: owner.phone,
-              delivery: { create: { provider: "manual", status: "DELIVERED", quotedFee: 850 } },
-            }
-          : { closedReason: "Expired" }),
-        members: {
-          create: [...new Set(lines.map((l) => l[0]))].map((i) => ({
-            userId: users[i].id,
-            joinedAt: at,
-          })),
-        },
-        lines: {
-          create: lines.map(([ui, size, qty], i) => ({
-            userId: users[ui].id,
-            variantId: shirtSize(size),
-            qty,
-            unitPrice: price,
-            createdAt: addHours(at, i * 0.5),
-          })),
-        },
-      },
-    });
-    if (paid)
-      await db.packing.create({
-        data: {
-          cartId: c.id,
-          gatheredById: kasun.id,
-          gatheredAt: addHours(at, 6),
-          packedById: ishara.id,
-          packedAt: addHours(at, 7),
-          handedOverById: ishara.id,
-          handedOverAt: addHours(at, 8),
-        },
-      });
-  };
-  // The test: 21 of 24 bought in one cart at 2,400 (M and L sold out); 3 more wanted in a cart that expired.
-  await shirtCart(
-    18,
-    2400,
-    [
-      [DILAN, "M", 4],
-      [DILAN, "L", 4],
-      [SACHINI, "M", 5],
-      [SACHINI, "S", 2],
-      [THARINDU, "L", 4],
-      [THARINDU, "XL", 2],
-    ],
-    true,
-  );
-  await shirtCart(15, 2400, [[THARINDU, "M", 3]], false);
-  // The bulk at 2,150: two paid carts, and one that expired.
-  await shirtCart(
-    4,
-    2150,
-    [
-      [DILAN, "M", 8],
-      [DILAN, "L", 6],
-      [SACHINI, "S", 4],
-      [SACHINI, "M", 6],
-    ],
-    true,
-  );
-  await shirtCart(
-    2,
-    2150,
-    [
-      [THARINDU, "L", 10],
-      [THARINDU, "XL", 4],
-      [THARINDU, "M", 10],
-    ],
-    true,
-  );
-  await shirtCart(1, 2150, [[SACHINI, "XL", 3]], false);
-  // Factory-direct (product owner, 2026-11-03): a paid shirt order the factory still has to pack.
-  const shirtPaidAt = addHours(now, -5);
-  await db.groupCart.create({
-    data: {
-      code: newCartCode(randomBytes),
-      name: `${users[SACHINI].name}'s shirt cart`,
-      ownerId: users[SACHINI].id,
-      status: "CONFIRMED",
-      minOrderValue: 50000,
-      total: 24 * 2150,
-      createdAt: addHours(shirtPaidAt, -6),
-      expiresAt: addHours(shirtPaidAt, 18),
-      readyAt: addHours(shirtPaidAt, -3),
-      acceptedAt: addHours(shirtPaidAt, -2),
-      slipDueAt: addHours(shirtPaidAt, 1),
-      confirmedAt: shirtPaidAt,
-      deliveryAddress: users[SACHINI].address,
-      deliveryCity: users[SACHINI].city,
-      deliveryLat: users[SACHINI].lat,
-      deliveryLng: users[SACHINI].lng,
-      deliveryPhone: users[SACHINI].phone,
-      members: { create: [{ userId: users[SACHINI].id }] },
-      lines: {
-        create: [
-          { userId: users[SACHINI].id, variantId: shirtSize("M"), qty: 12, unitPrice: 2150 },
-          { userId: users[SACHINI].id, variantId: shirtSize("L"), qty: 12, unitPrice: 2150 },
-        ],
-      },
-    },
+  await givenToDriver(ceylon.packing.id, atAgent.id);
+  // Dilan's code is fixed so the agent spec can type it; receiving keeps an existing code.
+  await db.pickupCode.create({
+    data: { buyerId: dilan.id, agentId: kollupitiya.id, code: DEMO_PICKUP_CODE },
   });
+  await markBasketReceived(kollupitiya.user.id, atAgent.id, []);
+  // Sachini collects her blouses and returns one (too small): the factory accepts.
+  const sachiniCode = await db.pickupCode.findUniqueOrThrow({
+    where: { buyerId_agentId: { buyerId: sachini.id, agentId: kollupitiya.id } },
+  });
+  const blouse = await db.orderLine.findFirstOrThrow({
+    where: { order: { buyerId: sachini.id, basketId: atAgent.id } },
+  });
+  await handOver(kollupitiya.user.id, sachiniCode.code, [blouse.id]);
+  const filed = await fileReturn(sachini.id, blouse.id, {
+    reason: "SIZE",
+    fault: "BUYER",
+    note: "Too small",
+    photos: [],
+    qty: 1,
+  });
+  await factoryDecide(ceylon.sales.id, filed.id, true);
+
+  // ─── WITH_COURIER: Kollupitiya × Lanka. Ravindu and Ayesha; on its way to the agent ──
+  await buy(ravindu.id, kollupitiya.id, [[L[0][2], 7]]);
+  await buy(ayesha.id, kollupitiya.id, [[L[4][1], 6]]);
+  const withCourier = await basketOf(kollupitiya.id, lanka.owner.id, "LOCKED");
+  await markPacked(lanka.packing.id, withCourier.id);
+  await bookCourier(agentsAdmin.id, withCourier.id, {
+    fee: "1200",
+    driverName: "Sunil Fernando",
+    driverPhone: "0712345678",
+    vehicleNo: "WP-KX-7781",
+  });
+  await givenToDriver(lanka.packing.id, withCourier.id);
+
+  // ─── LOCKED: Wellawatte × Ceylon. Tharindu and Nimali; Packing still has to pack it ──
+  await buy(tharindu.id, wellawatte.id, [[C[5][0], 5]]);
+  await buy(nimali.id, wellawatte.id, [[C[2][1], 13]]);
+  await basketOf(wellawatte.id, ceylon.owner.id, "LOCKED");
+
+  // ─── PACKED: Kotahena × Ceylon. Sachini's shirts; the admin has to book a courier ──
+  await buy(sachini.id, kotahena.id, [[C[0][2], 14]]);
+  const packed = await basketOf(kotahena.id, ceylon.owner.id, "LOCKED");
+  await markPacked(ceylon.packing.id, packed.id);
+
+  // ─── OPEN: Wellawatte × Lanka. Nimali's polos; Tharindu cancels his shorts for tokens ──
+  await buy(nimali.id, wellawatte.id, [[L[2][1], 3]]);
+  const [shorts] = await buy(tharindu.id, wellawatte.id, [[L[3][2], 4]]);
+  await cancelOrder(tharindu.id, shorts);
+  await basketOf(wellawatte.id, lanka.owner.id, "OPEN");
+
+  // ─── OPEN: Kollupitiya × Ceylon. Ravindu starts the next basket ──
+  await buy(ravindu.id, kollupitiya.id, [[C[3][3], 2]]);
+  await basketOf(kollupitiya.id, ceylon.owner.id, "OPEN");
 
   // ─── A luxury brand (product owner, 2026-10-24): fictional, on a reserved .example domain ──
-  // It publishes discounted products with the actual price, the discount price we buy at, the
-  // pieces and the link to each on its own website. One is in our shop, one waits for review.
+  // Brands are parked, not removed: its live product and two submissions stay.
+  const DAY = 86_400_000;
+  const daysAgo = (d: number) => new Date(Date.now() - d * DAY);
   const brand = await db.user.create({
     data: {
       role: "SELLER",
@@ -932,8 +610,8 @@ async function main() {
       audience: "WOMEN",
       kind: "women-dresses",
       stockType: "FACTORY_SURPLUS",
-      price: 11900,
-      retailPrice: 18500,
+      price: "11900",
+      retailPrice: "18500",
       brandUrl: kaftanUrl,
       description: "Natural linen, hand-loomed. Last season's colours.",
       status: "LIVE",
@@ -952,8 +630,8 @@ async function main() {
     {
       name: "Hand-loomed linen kaftan",
       description: "Natural linen, S to L. Last season's colours.",
-      actualPrice: 18500,
-      offerPrice: 9800,
+      actualPrice: "18500",
+      offerPrice: "9800",
       pieces: 36,
       productUrl: kaftanUrl,
       accepted: true,
@@ -962,8 +640,8 @@ async function main() {
     {
       name: "Embroidered cotton blouse",
       description: "Hand embroidery, S to XL, ivory and sage.",
-      actualPrice: 12900,
-      offerPrice: 6500,
+      actualPrice: "12900",
+      offerPrice: "6500",
       pieces: 60,
       productUrl: "https://www.serendib-atelier.example/products/embroidered-blouse",
       accepted: false,
@@ -979,12 +657,11 @@ async function main() {
         offerPrice: o.offerPrice,
         pieces: o.pieces,
         productUrl: o.productUrl,
-        amount: o.offerPrice * o.pieces,
+        amount: new D(o.offerPrice).times(o.pieces).toFixed(2),
         status: o.accepted ? "ACCEPTED" : "IN_REVIEW",
         productId: o.accepted ? kaftan.id : null,
         createdAt: daysAgo(o.ago),
         decidedAt: o.accepted ? daysAgo(o.ago - 1) : null,
-        receivedById: o.accepted ? kasun.id : null,
         receivedAt: o.accepted ? daysAgo(3) : null,
       },
     });
@@ -1021,23 +698,22 @@ async function main() {
       await db.stockOffer.update({ where: { id: offer.id }, data: { approvedRevision: 1 } });
   }
 
-  // Every other product starts its price history at its price (the dashboard charts it).
+  // Every product starts its price history at its price (the dashboard charts it).
   await db.$executeRaw`
     INSERT INTO "PriceChange" ("id", "productId", "price", "at")
     SELECT 'pc_' || md5(random()::text || p."id"), p."id", p."price", p."createdAt"
     FROM "Product" p
     WHERE NOT EXISTS (SELECT 1 FROM "PriceChange" pc WHERE pc."productId" = p."id")`;
 
-  console.log(`Seeded. Every password is password123.
-  Admins  core@groupbasket.lk → /admin/users, premium@groupbasket.lk → /admin/brands,
-          factory@groupbasket.lk → /admin/factory, buyers@groupbasket.lk → /admin/warehouse
-  Seller  seller@example.com      → /seller (factory owner: a tested linen shirt and its bulk)
-  Staff   packing@example.com, sales@example.com → /seller (one job each)
-  Brand   brand@example.com       → /seller (Serendib Atelier: a luxury brand's discounted products)
-  Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)
-          buyer2@example.com (Sachini: private cart at the minimum)
-          buyer3@example.com (Tharindu: a paid order to gather, no active cart, free to join)
-  Packing orders: Tharindu's to gather, Sachini's to pack, Dilan's for PickMe, plus one handed over`);
+  console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
+  Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}
+  Return to hand over: ${DEMO_BUYERS.sachini} at ${DEMO_AGENTS.kollupitiya}
+  Tokens: ${DEMO_BUYERS.tharindu}`);
 }
 
-main().finally(() => db.$disconnect());
+main()
+  .catch((error) => {
+    console.error(error);
+    process.exitCode = 1;
+  })
+  .finally(() => db.$disconnect());

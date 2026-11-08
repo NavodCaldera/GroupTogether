@@ -1,5 +1,9 @@
 # Product-owner change log
 
+## 2026-11-08 - Area agent demo seed
+
+- Built (area-agent Task 14a): the demo seed now holds the agent model: two factories (Owner, Packing and Sales, six products each), three live agents in Colombo with hours and one applicant, six buyers (one with tokens), baskets in every stage (filling, locked, packed, with courier, at agent), a buyer with a ready pickup code, a return waiting to be handed over and one admin per area. The luxury brand data stays. The development database has not been reseeded.
+
 ## 2026-11-08 - Agent role and admin areas
 
 - Built (area-agent Task 13): packing staff and the Planner job are removed (Planner staff became Sales, packing staff became buyer accounts), the "Buyers and orders" admin area is now "Agents and orders", factory sections add Earnings (Owner) and Baskets (Sales), and agent pages and services admit only live, suspended or leaving agents.
