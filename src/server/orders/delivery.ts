@@ -256,6 +256,56 @@ export async function removeMissingLine(adminId: string, orderLineId: string): P
   );
 }
 
+/** Factory admin: clears a wrong missing report, so the line ships and is paid as ordered.
+ * Same locks as removeMissingLine: buyer advisory -> Order row -> basket advisory -> Basket row.
+ */
+export async function dismissMissingReport(adminId: string, orderLineId: string): Promise<void> {
+  await requireAdmin(adminId, "FACTORY");
+  const ctx = await lineContext(orderLineId);
+  await withOrderTransaction([ctx.buyerId], [ctx.orderId], async (tx) => {
+    const { line } = await lockLine(tx, ctx.lineId);
+    if (line.missingReportedQty <= 0) throw new DeliveryError("Nothing is reported missing");
+    await tx.orderLine.update({
+      where: { id: line.id },
+      data: {
+        missingReportedQty: 0,
+        missingNote: null,
+        missingReportedAt: null,
+        missingReportedById: null,
+      },
+    });
+  });
+}
+
+/** Factory admin's queue: lines with a pending missing report, oldest first. */
+export async function pendingMissingReports(adminId: string) {
+  await requireAdmin(adminId, "FACTORY");
+  return db.orderLine.findMany({
+    where: { status: "ACTIVE", missingReportedQty: { gt: 0 }, order: { status: "PAID" } },
+    orderBy: { missingReportedAt: "asc" },
+    take: 100,
+    select: {
+      id: true,
+      qty: true,
+      missingQty: true,
+      missingReportedQty: true,
+      missingNote: true,
+      missingReportedAt: true,
+      unitPrice: true,
+      variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
+      order: {
+        select: {
+          buyer: { select: { name: true } },
+          factory: { select: { name: true, company: true } },
+          basket: {
+            select: { status: true, agent: { select: { user: { select: { name: true } } } } },
+          },
+        },
+      },
+    },
+  });
+}
+
 /** Caller holds the basket lock. Returns the buyer's code at this agent, creating it if missing.
  * Inserts use ON CONFLICT DO NOTHING so a clash never aborts the transaction.
  */

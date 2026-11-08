@@ -3,17 +3,29 @@ import Link from "next/link";
 import { Badge, Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { formatDateTime } from "@/lib/format";
 import { factoryDashboard } from "@/server/factory-admin";
+import { requireAdmin } from "@/server/auth/session";
+import { pendingMissingReports } from "@/server/orders/delivery";
 
 export const metadata: Metadata = { title: "Apparel and factories" };
 
 export default async function FactoryAdminPage() {
-  const d = await factoryDashboard();
+  const admin = await requireAdmin("FACTORY");
+  const [d, missing] = await Promise.all([factoryDashboard(), pendingMissingReports(admin.id)]);
   return (
     <>
       <PageHeader
         title="Apparel and factories"
         actions={<LinkButton href="/admin/offers">Review offers</LinkButton>}
       />
+      {missing.length > 0 && (
+        <Link
+          href="/admin/factory/missing"
+          className="mb-5 flex min-h-11 items-center justify-between gap-3 rounded-xl border border-danger px-4 py-3 font-semibold"
+        >
+          <span>Missing items</span>
+          <Badge tone="bad">{missing.length}</Badge>
+        </Link>
+      )}
       <Card>
         <dl className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           {[

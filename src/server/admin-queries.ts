@@ -109,7 +109,29 @@ export async function adminBadges(adminId: string, area: OperationalAdminArea) {
       : none,
     area === "PREMIUM" ? brandRewardWork(adminId) : none,
   ]);
-  return { slips, orders, offers, lowStock, brandRewards };
+  const [courier, applications, missing, payouts] = await Promise.all([
+    area === "AGENTS"
+      ? db.basket.count({ where: { status: "PACKED", courier: { is: null } } })
+      : none,
+    area === "AGENTS" ? db.agent.count({ where: { status: "APPLIED" } }) : none,
+    area === "FACTORY"
+      ? db.orderLine.count({
+          where: { status: "ACTIVE", missingReportedQty: { gt: 0 }, order: { status: "PAID" } },
+        })
+      : none,
+    area === "CORE" ? db.factoryPayout.count({ where: { paidAt: null } }) : none,
+  ]);
+  return {
+    slips,
+    orders,
+    offers,
+    lowStock,
+    brandRewards,
+    courier,
+    applications,
+    missing,
+    payouts,
+  };
 }
 
 async function brandRewardWork(adminId: string) {

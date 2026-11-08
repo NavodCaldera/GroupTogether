@@ -14,6 +14,7 @@ import { appUrl } from "@/server/notify";
 import { getSettings } from "@/server/settings";
 import { storageDir } from "@/server/storage/local";
 import { AdminForm } from "../admin-form";
+import { saveAgentSettingsAction } from "../core/actions";
 
 export const metadata: Metadata = { title: "Settings" };
 
@@ -57,6 +58,47 @@ export default async function SettingsPage() {
                   required
                 />
               </Field>
+            </AdminForm>
+          </Card>
+          <Card>
+            <h2 className="mb-3 font-semibold">Agents and orders</h2>
+            <AdminForm action={saveAgentSettingsAction} submit="Save">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {(
+                  [
+                    [
+                      "Courier charge per item (LKR)",
+                      "courierPerItem",
+                      s.courierPerItem,
+                      "decimal",
+                    ],
+                    ["Agent fee per item (LKR)", "agentFeePerItem", s.agentFeePerItem, "decimal"],
+                    ["Gateway fee rate", "gatewayFeeRate", s.gatewayFeeRate, "decimal"],
+                    ["Basket lock amount (LKR)", "basketLockAmount", s.basketLockAmount, "decimal"],
+                    ["Agent deposit (LKR)", "agentDeposit", s.agentDeposit, "decimal"],
+                    ["Basket max wait (days)", "maxWaitDays", s.maxWaitDays, "numeric"],
+                    [
+                      "Payment hold (minutes)",
+                      "paymentHoldMinutes",
+                      s.paymentHoldMinutes,
+                      "numeric",
+                    ],
+                    ["Collect before payout (hours)", "collectHours", s.collectHours, "numeric"],
+                    [
+                      "Return handover (days)",
+                      "returnHandoverDays",
+                      s.returnHandoverDays,
+                      "numeric",
+                    ],
+                    ["Agent radius (m)", "agentRadiusM", s.agentRadiusM, "numeric"],
+                    ["Gap between agents (m)", "agentGapM", s.agentGapM, "numeric"],
+                  ] as const
+                ).map(([label, name, value, mode]) => (
+                  <Field key={name} label={label} name={name}>
+                    <Input name={name} inputMode={mode} defaultValue={value.toString()} required />
+                  </Field>
+                ))}
+              </div>
             </AdminForm>
           </Card>
           <Card>
@@ -106,19 +148,6 @@ export default async function SettingsPage() {
                   />
                 </Field>
               </div>
-              <p className="pt-2 text-sm font-bold">Bank account shown to cart owners</p>
-              <Field label="Bank" name="bankName">
-                <Input name="bankName" defaultValue={s.bankName} />
-              </Field>
-              <Field label="Branch" name="bankBranch">
-                <Input name="bankBranch" defaultValue={s.bankBranch} />
-              </Field>
-              <Field label="Account name" name="accountName">
-                <Input name="accountName" defaultValue={s.accountName} />
-              </Field>
-              <Field label="Account number" name="accountNumber">
-                <Input name="accountNumber" defaultValue={s.accountNumber} />
-              </Field>
             </AdminForm>
           </Card>
           <Card>

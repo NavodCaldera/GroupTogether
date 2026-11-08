@@ -22,6 +22,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     ],
     FACTORY: [
       ["/admin/factory", "Factories", 0],
+      ["/admin/factory/missing", "Missing items", badges.missing],
       ["/admin/factory/applications", "Applications", 0],
       ["/admin/factory/quality", "Quality", 0],
       ["/admin/factory/returns", "Returns", 0],
@@ -32,16 +33,19 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/users", "Users", 0],
     ],
     AGENTS: [
-      ["/admin/warehouse", "Buyers & orders", 0],
-      ["/admin/slips", "Slips", badges.slips],
-      ["/admin/orders", "Orders", badges.orders],
+      ["/admin/agents", "Agents and orders", badges.courier],
+      ["/admin/agents/applications", "Applications", badges.applications],
+      ["/admin/agents/deposits", "Deposits", 0],
+      ["/admin/agents/baskets", "2-month baskets", 0],
+      ["/admin/agents/search", "Search", 0],
       ["/admin/factory/returns", "Return pickups", 0],
-      ["/admin/carts", "Carts", 0],
       ["/admin/users", "Buyers", 0],
     ],
     CORE: [
-      ["/admin/users", "Admins", 0],
+      ["/admin/core/payouts", "Payouts", badges.payouts],
+      ["/admin/core/tokens", "Tokens", 0],
       ["/admin/settings", "Settings", 0],
+      ["/admin/users", "Admins", 0],
       ["/admin/factory/returns", "Returns", 0],
       ["/admin/factory/quality", "Quality", 0],
     ],
@@ -58,7 +62,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           <NavLink
             key={href}
             href={href}
-            exact={href === "/admin" || href === "/admin/factory"}
+            exact={href === "/admin" || href === "/admin/factory" || href === "/admin/agents"}
             className={link}
             activeClassName={active}
           >

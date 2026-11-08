@@ -180,10 +180,6 @@ const settingsSchema = z.object({
   minOrderValue: z.string().regex(/^\d+(\.\d{1,2})?$/, "Enter the minimum as a number"),
   cartLifetimeHours: z.coerce.number().int().min(1).max(720),
   slipWindowHours: z.coerce.number().int().min(1).max(72),
-  bankName: z.string().trim().max(80),
-  bankBranch: z.string().trim().max(80),
-  accountName: z.string().trim().max(80),
-  accountNumber: z.string().trim().max(40),
 });
 
 export async function saveSettingsAction(_p: AdminState, fd: FormData): Promise<AdminState> {
