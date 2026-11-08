@@ -1,6 +1,6 @@
 # Business decisions and unresolved questions
 
-Consolidated on **2026-10-24** from the existing brief and business-model review. The [main agent brief](../.claude/agents/groupbasket.md) owns established policy. This register separates open questions from approved requirements; it does not authorize new features or commercial commitments.
+Consolidated on **2026-10-24** from the existing brief and business-model review; updated on **2026-11-08** for the area agent model ([spec 003](../specs/003-area-agent-model/spec.md)). The [main agent brief](../.claude/agents/groupbasket.md) owns established policy. This register separates open questions from approved requirements; it does not authorize new features or commercial commitments.
 
 ## Decision procedure
 
@@ -13,9 +13,43 @@ Examples and business-review recommendations are not approved settings. The repo
 
 ## Open decisions
 
+### DEC-016 - Area agent model: open owner questions
+
+**Status:** Open. The area agent model itself was approved by the owner on **2026-11-07**
+([spec 003](../specs/003-area-agent-model/spec.md)). **Rules:** `UX-002`, `FAC-001`,
+`RETURN-001`, `PAY-005`, `COM-001`.
+
+These questions came up while building it. Each is built one way for now; the owner has not yet
+answered.
+
+1. **Agent navigation.** Agents are buyers too, so they keep the buyer phone tab bar and reach
+   their agent sections through an in-page tab row on `/agent`, not a second bottom bar (two fixed
+   bars collide at 360 px). Confirm, or merge agent sections into one bar.
+2. **Factory Owner tabs and Sales money.** The Owner has no Baskets or Earnings tab (the phone bar
+   is full); earnings and past payouts are reached from the Owner's Home. Sales sees basket totals
+   against the lock amount, although only Owners otherwise see money. Decide which tabs the Owner
+   gets and whether Sales may see those totals.
+3. **Condition check on buyer-fault returns.** Tokens are credited when the agent collects the
+   item (`collectReturn`); nobody checks whether a buyer-fault item is used or untagged first. The
+   earlier used/untagged admin review was not carried into the agent model. Decide whether the
+   agent checks an item's condition before buyer-fault return tokens are credited.
+4. **PayHere's written approval.** The first release uses the demo gateway. Switching to PayHere
+   needs PayHere's written approval of this model (tokens, agent deposits, fee passed to the
+   buyer) before going live.
+5. **Cron in production.** Every time-based rule (order expiry, maximum-wait locking, return
+   escalation and lapse, closing leaving agents, weekly payouts and agent fees, notice retries)
+   runs only in `runSweep` from `/api/cron/sweep`; page loads do not run it. A deployment must
+   schedule the cron to run `runSweep` with its bearer secret, or none of these happen.
+
+Also awaiting the owner's check (Claude's calls in the
+[design](superpowers/specs/2026-11-07-area-agent-model-design.md)): the LKR 50,000 lock counts
+goods only; one payment and one PayHere fee per checkout across factories; agents set hours only
+after going live; and what a quality hide, fault hold or factory removal does to paid orders
+already in baskets (the cart-era cleanup does not apply).
+
 ### DEC-001 — Premium-brand distribution boundaries
 
-**Status:** Distribution model resolved by the owner on **2026-10-25**; partner terms remain open. **Rules:** `BRAND-001`, `BRAND-002`, `BRAND-003`, `GIFT-003`.
+**Status:** **Parked** with premium brands under the area agent model (FR-034): hidden, data kept. Distribution model resolved by the owner on **2026-10-25**; partner terms remain open. **Rules:** `BRAND-001`, `BRAND-002`, `BRAND-003`, `GIFT-003`.
 
 The owner clarified that GroupBasket does not purchase or hold premium-brand stock. After the customer pays for a qualifying clothing purchase, GroupBasket authorizes a complimentary gift; the premium brand ships it directly to the customer. GroupBasket pays the brand at the agreed discounted partner price and settles outstanding gift bills every Sunday, using `Asia/Colombo` dates.
 
@@ -25,7 +59,7 @@ The owner's example uses clothing spend around LKR 20,000, factory cost LKR 10,0
 
 ### DEC-002 — Family spending-unit identification
 
-**Status:** Open implementation policy. **Rule:** `GIFT-001`.
+**Status:** Open, parked with premium brands. **Rule:** `GIFT-001`.
 
 Recorded intent permits a family cart or family subgroup in a mixed cart to combine spending. Unrelated members qualify individually; ownership alone earns no gift.
 
@@ -33,13 +67,13 @@ Define household identification, shared-address evidence, unrelated co-residents
 
 ### DEC-003 — Gift threshold and duplicate qualification
 
-**Status:** Open. **Rule:** `GIFT-002`.
+**Status:** Open, parked with premium brands. **Rule:** `GIFT-002`.
 
 The original wording mixes "above/crosses" (with `> LKR 20,000` examples) and "reaches." Decide strict `>` versus inclusive `>=`, actual thresholds, the spend basis, tiers, whether individual/family awards can overlap, and whether qualification is per order or cumulative. LKR 20,000 is illustrative, not a configured default. Gift qualification remains separate from the cart checkout minimum.
 
 ### DEC-004 — Brand fulfilment, weekly billing and campaign economics
 
-**Status:** Direct brand delivery and Sunday settlement approved on **2026-10-25**; operating details open. **Rules:** `GIFT-002`, `GIFT-003`, `BRAND-003`.
+**Status:** Parked with premium brands. Direct brand delivery and Sunday settlement approved on **2026-10-25**; operating details open. How gifts would attach to agent orders is undecided. **Rules:** `GIFT-002`, `GIFT-003`, `BRAND-003`.
 
 Owner clarification on **2026-10-25**: a gift in an unpaid basket reserves quantity and reduces availability. Verified clothing payment is required before the brand may dispatch it. The customer pays the gift's separate delivery. The brand ships directly to the eligible customer and GroupBasket settles approved gift bills each Sunday. Owned gift inventory and staff gift packing are no longer requirements.
 
@@ -51,9 +85,9 @@ Gift cost reduces the contribution from clothing. Campaign budgets, profit floor
 
 ### DEC-005 — Condition disclosure and after-sales exceptions
 
-**Status:** Open exception policy. **Rules:** `CAT-002`, `PAY-003`.
+**Status:** Open exception policy. **Rules:** `CAT-002`, `PAY-006`.
 
-Current recorded scope hides stock-type/defect fields and has no refund workflow. Preserve those instructions until changed. Resolve product-condition disclosure, quality/fit complaints, incorrect/damaged items, failed delivery after payment, and duplicate/late/unmatched bank transfers.
+Current recorded scope hides stock-type/defect fields. Returns through agents (`RETURN-001`) and missing items (`BSK-007`) credit tokens; there is no cash refund. Preserve those instructions until changed. Resolve product-condition disclosure, quality/fit complaints, incorrect/damaged items, and a parcel lost between factory and agent. Late, duplicate and mismatched gateway payments are settled: they become tokens (`PAY-006`).
 
 Reservations prevent overselling; they do not answer these cases. This entry neither introduces a refund entitlement nor approves a new blanket refusal policy. Changes require a concrete business decision and corresponding implementation.
 
@@ -74,32 +108,33 @@ Earlier design-dashboard notes leave district-level insights undecided. Confirm 
 **Status:** Unresolved launch dependencies, not new business policy.
 
 - Choose hosting and durable upload storage; local-disk uploads need a persistent filesystem or object-storage implementation.
-- Obtain actual PickMe business API documentation and credentials before enabling automated booking/webhook mapping. Manual booking remains the supported default.
-- Configure business bank details and scheduled deadline sweeps for the intended environment.
+- The PickMe provider and webhook are removed; admins book couriers by hand (`BSK-005`).
+- Obtain PayHere's written approval and merchant credentials before replacing the demo gateway (`DEC-016`).
+- Schedule `/api/cron/sweep` with its secret; `runSweep` is the only place time-based rules run (`DEC-016`). Factory payouts are bank transfers made outside the app and recorded by Core admin.
 
 Use [architecture](architecture.md) and [README](../README.md) for technical details. This register does not authorize deployment or external-account actions.
 
 ### DEC-009 - Pre-purchase group samples
 
-**Status:** Sample delivery and fee responsibility approved by the owner on **2026-10-27**. **Rule:** `SAMPLE-001`.
+**Status:** **Retired** by the area agent model (FR-033, 2026-11-07): samples are removed. Approved on **2026-10-27**; kept for history. **Rule:** `SAMPLE-001` (retired).
 
 Groups may request a sample of a particular apparel design/pattern before buying as a group. GroupBasket delivers the sample to the group, charges no sample sending fee, and the group pays transport. This does not mean factory test pieces or premium gifts. The implementation coordinates requests through the group owner and records explicit acceptance of the transport quote before dispatch; bank/courier operations remain external. Sample ownership, returns, loss/damage terms and any transport collection mechanism remain open; do not invent deposits, automatic charges or return obligations.
 
 ### DEC-010 - Factory-direct fulfilment
 
-**Status:** Approved by the owner on **2026-11-03**. **Rules:** `SUP-001`, `SUP-002`, `FUL-001`–`FUL-003`, `LOT-001`.
+**Status:** Approved by the owner on **2026-11-03**; **superseded** on 2026-11-07 by the area agent model, which keeps factory packing but ships baskets to agents. **Rules:** `SUP-001`, `SUP-002`; `FUL-001`–`FUL-003` and `LOT-001` retired (see `BSK-004`–`BSK-006`).
 
 GroupBasket no longer buys clothes from factories. Each factory packs its paid orders and marks them packed; the admin books PickMe from the factory and tracks the drop until delivered. A cart holds products from one factory only. There is no lot price drop. Packing staff are parked, not deleted, behind `FULFILMENT_MODE` (default `FACTORY`). Open: how our own listings (products with no factory) are fulfilled, factory payment terms, and who answers for a parcel lost between factory and owner.
 
 ### DEC-011 - Four admins, self-publishing factories and ratings
 
-**Status:** Approved by the owner on **2026-11-03**. **Rules:** `ADMIN-002`, `SUP-002`, `DATA-001`, `RATE-001`.
+**Status:** Approved by the owner on **2026-11-03**; the buyers area became Agents and orders (`AGENTS`) and Core gained payouts and token reports under the area agent model. **Rules:** `ADMIN-002`, `SUP-002`, `DATA-001`, `RATE-001`.
 
 Four admins: luxury brands, factories, buyers, and a core admin who handles only settings and admin accounts. Factories publish listings without approval and see a sales dashboard. Members rate the factory 1–5 stars once after delivery, and products show the factory name and rating. Open: whether ratings need moderation, replies or written reviews, and whether factories may see individual low ratings.
 
 ### DEC-012 - Factory roles, payouts and feedback
 
-**Status:** Approved by the owner on **2026-11-04**; staff logins and roles built (phase 1), the rest not built yet. **Spec:** [factory dashboard](factory-dashboard-spec.md).
+**Status:** Approved by the owner on **2026-11-04**; staff logins built. Under the area agent model Planner merged into Sales (three jobs), payouts are weekly on Sunday (`PAY-007`) and admin books the courier (`BSK-005`); PickMe and design drafts are gone or parked. **Spec:** [factory dashboard](factory-dashboard-spec.md).
 
 Factories get one login per person with fixed roles (packing, planner, sales, owner; several owners allowed; only owners see money). GroupBasket keeps a commission of **LKR 100 per piece** and pays each order to the factory **after delivery by bank transfer**, recorded with the bank reference. Packing staff book PickMe from the factory (API, with a manual fallback); the cart owner still pays the driver. Design drafts collect interest, stars, comments and votes before publishing. Public comments, questions and replies post at once and are hidden by an admin when reported; factories never contact buyers directly. Open: refunds or chargebacks after a payout, and what happens to interest when a draft is dropped.
 
@@ -107,7 +142,7 @@ Factories get one login per person with fixed roles (packing, planner, sales, ow
 
 ### DEC-013 - Factory partnership: checks, agreement, quality, tokens and returns
 
-**Status:** Approved by the owner on **2026-11-05**; Parts 1–4 implemented (see implementation status). **Spec:** [factory partnership](../specs/001-factory-partnership/spec.md). **Brief:** [brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md).
+**Status:** Approved by the owner on **2026-11-05**; Parts 1–4 implemented. Under the area agent model, tokens, returns, ratings and fault holds moved from cart lines to order lines; returns go through agents (`RETURN-001`), and the zero-due cart rule and PickMe return pickups are retired. **Spec:** [factory partnership](../specs/001-factory-partnership/spec.md). **Brief:** [brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-04/brief.md).
 
 Factories join by public application or admin invite and must pass checks (BR number and certificate, owner NIC and photo, address and photos, bank account matching business or owner; visit optional). Rejected businesses cannot reapply. Only the owner or manager is onboarded; they add staff after accepting the in-app agreement (versioned, 12-month term, reminder 30 days before, listings hidden on expiry). Existing factories get 30 days to comply. Private documents: Factories admins and core admin only. Buyer price is factory price plus commission (LKR 100 default, core admin only, new listings only) — this replaces the "sale minus LKR 100" model in `DEC-012`. Ratings are per product (1–2 stars need a report, photo for visible defects); old factory ratings count equally. Rating flags never act automatically. Ordinary hides affect only OPEN/READY carts; holds/removal use the pre-booking cleanup below. Cancellations and accepted returns give **tokens** (1 token = LKR 1, full price paid, never expire, spendable only on the holder's own items in any cart, returned if a cart is not paid); no cash refunds (`PAY-003` kept). Returns: apply within 2 days of delivery; factory answers within 24 hours for new returns or it goes to an admin; every factory refusal goes automatically to admin review; admin final (updated 2026-11-06). Factory fault: factory pays PickMe pickup; buyer fault: buyer pays, item unused with tags. The agreement may allow withholding earned money after a quality removal, subject to lawyer review.
 
@@ -164,7 +199,7 @@ and paid by the buyer; factory-fault PickMe pickup remains externally booked and
 
 ### DEC-014 - Member done before cart finish
 
-**Status:** Approved by the owner on **2026-11-05**. **Rule:** `CART-006`.
+**Status:** **Retired** with group carts (FR-033, 2026-11-07). Approved on **2026-11-05**; kept for history. **Rule:** `CART-006` (retired).
 
 Every non-owner member with clothing lines must mark their own share Done before owner acceptance.
 The owner needs no separate Done; empty members do not block. Done is reversible while the cart
@@ -177,20 +212,56 @@ notice. Existing post-accept immutability, payment and token rules continue unch
 
 ### DEC-015 - Preorders: not completed
 
-**Status:** **Paused by the owner on 2026-11-07. Not completed, not approved policy and not built.**
+**Status:** **Paused by the owner on 2026-11-07. Not completed, not approved policy and not built.** Still paused under the area agent model; resume only from this record and Question 25.
 Do not build it or change an approved rule because of it. **Notes:**
 [parked notes](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/preorder-parked-notes.md).
 
 Only the preorder part is paused: the factory takes preorders before sewing, buyers pay with tokens
 from a deposit of at least LKR 20,000, keep items in a personal Preorder basket, and later move
-ready items into a normal basket, and the factory is paid when its target is reached. `PAY-001`,
-`PAY-003` and `SUP-001` stay as written until the owner resumes this. Open questions, including
+ready items into a normal basket, and the factory is paid when its target is reached. The rules it
+would touch are now `PAY-004`–`PAY-007`, `TOK-001` and `SUP-001`; they stay as written until the
+owner resumes this. Open questions, including
 Question 25 and legal review, are in the notes.
 
-**Not paused, approved on 2026-11-07 and not built yet:** many baskets per buyer (`CART-003`), a
-3-day basket lifetime (`CART-002`), and design tests with likes.
+**Approved on 2026-11-07 alongside the pause, then overtaken the same day:** many baskets per buyer
+(`CART-003`) and a 3-day basket lifetime (`CART-002`) were retired by the area agent model; design
+tests with likes are **parked** (hidden, not built, not deleted).
 
 ## Legacy rule references
+
+### Rule IDs retired by the area agent model (2026-11-08)
+
+Spec 003 retired the group-cart rules (FR-033). Their IDs are never reused. New work references the
+replacement IDs in the [main brief](../.claude/agents/groupbasket.md#6-business-rules).
+
+| Retired ID                                | Replacement                                           |
+| ----------------------------------------- | ----------------------------------------------------- |
+| `CART-001` — Cart minimum                 | `BSK-002` (basket lock amount)                        |
+| `CART-002` — Cart lifetime                | `BSK-003` (maximum wait)                              |
+| `CART-003` — One/many active carts        | `ORD-001` (personal cart), `BSK-001` (agent baskets)  |
+| `CART-004` — Discovery and sharing        | None (discovery removed; Share basket under `UX-002`) |
+| `CART-005` — Moving items/merging         | None (removed)                                        |
+| `CART-006` — Member done before finish    | None (removed; `DEC-014` retired)                     |
+| `INV-001` — Reservations                  | `ORD-003`                                             |
+| `LOT-001` — Lot pricing                   | `SUP-002` (factory price plus commission)             |
+| `LOT-002` — Store operations              | None (no warehouse)                                   |
+| `PAY-001` — Owner payment                 | `PAY-004`, `PAY-005` (each buyer pays by gateway)     |
+| `PAY-002` — Slip review                   | `PAY-005` (verified gateway notice)                   |
+| Zero-due exception to `PAY-001`/`PAY-002` | `PAY-004` (token-only checkout skips the gateway)     |
+| `PAY-003` — Refund scope                  | `PAY-006`, `TOK-001`                                  |
+| `FUL-001` — One clothing delivery         | `BSK-005`                                             |
+| `FUL-002` — Packing                       | `BSK-004`                                             |
+| `FUL-003` — Completion/retry              | `BSK-005`, `BSK-006`                                  |
+| `SAMPLE-001` — Group design samples       | None (removed; `DEC-009` retired)                     |
+| `COM-002` — Owner chat                    | None (removed)                                        |
+| `ADMIN-001` — Operational responsibility  | `ADMIN-002`                                           |
+
+Rewritten in place with the same topic: `ADMIN-002`, `LOC-001`, `COM-001`, `SUP-001`, `SUP-002`,
+`FAC-001`, `RETURN-001`, `RATE-001`, `QUAL-001`, `FAULT-001`, `DATA-001`, `UX-001`, `UX-002`.
+New: `ORD-001`–`ORD-005`, `BSK-001`–`BSK-007`, `PAY-004`–`PAY-007`, `TOK-001`–`TOK-003`,
+`AGT-001`–`AGT-005`. Parked: `SUP-003`, `COM-003`, `BRAND-*`, `GIFT-*`.
+
+### Former CLAUDE.md rules
 
 Former `CLAUDE.md` rules are mapped below so historical comments and specialist notes remain traceable. New work should reference stable IDs in the [main brief](../.claude/agents/groupbasket.md#6-business-rules).
 
@@ -198,14 +269,14 @@ The old `groupbasket.md` had inconsistent/repeated numbers and was later renumbe
 
 | Former CLAUDE.md topic / number           | Current rule or reference                                                    |
 | ----------------------------------------- | ---------------------------------------------------------------------------- |
-| 1 — Minimum order                         | `CART-001`                                                                   |
-| 2 — Stock reservation                     | `INV-001`                                                                    |
-| 3 — Cart expiry                           | `CART-002`                                                                   |
+| 1 — Minimum order                         | `CART-001` (retired) → `BSK-002`                                             |
+| 2 — Stock reservation                     | `INV-001` (retired) → `ORD-003`                                              |
+| 3 — Cart expiry                           | `CART-002` (retired) → `BSK-003`                                             |
 | 4 — Minimum reached notices               | `CART-001`, `COM-001`                                                        |
-| 5 — Owner payment                         | `PAY-001`, `PAY-002`                                                         |
-| 6 — Slip review                           | `PAY-002`                                                                    |
-| 7 — No refunds                            | `PAY-003`, `DEC-005`                                                         |
-| 8 — Delivery                              | `FUL-001`, `FUL-003`                                                         |
+| 5 — Owner payment                         | `PAY-001`, `PAY-002` (retired) → `PAY-004`, `PAY-005`                        |
+| 6 — Slip review                           | `PAY-002` (retired) → `PAY-005`                                              |
+| 7 — No refunds                            | `PAY-003` (retired) → `PAY-006`, `DEC-005`                                   |
+| 8 — Delivery                              | `FUL-001`, `FUL-003` (retired) → `BSK-005`, `BSK-006`                        |
 | 9 — Visibility/sharing                    | `CART-004`                                                                   |
 | 10 — Stock type/defects                   | `CAT-002`, `DEC-005`                                                         |
 | 11 — Roles, sellers, design tests, brands | Participants table; `SUP-001`–`SUP-003`, `DATA-001`, `BRAND-001`/`BRAND-002` |
@@ -215,10 +286,10 @@ The old `groupbasket.md` had inconsistent/repeated numbers and was later renumbe
 | Duplicated 14 — Owner chat                | `COM-002`                                                                    |
 | 15 — Nearest carts                        | `CART-004`                                                                   |
 | 16 — Cart names                           | `CART-004`                                                                   |
-| 17 — Receiving/packing                    | `SUP-002`, `FUL-002`                                                         |
+| 17 — Receiving/packing                    | `SUP-002`, `FUL-002` (retired) → `BSK-004`                                   |
 | 18 — Availability replaces statuses       | `CAT-001`                                                                    |
 | 19 — Admin task ownership                 | `UX-002`                                                                     |
-| 20 — Lots and turnover                    | `LOT-001`, `LOT-002`                                                         |
+| 20 — Lots and turnover                    | `LOT-001`, `LOT-002` (retired) → `SUP-002`                                   |
 | 21 — Premium promotional gifts            | `BRAND-001`, `GIFT-003`, `DEC-001`                                           |
 | 22 — Body measurements                    | `FIT-001`, `DEC-006`                                                         |
 | 23 — Family/individual gifts              | `GIFT-001`, `GIFT-002`, `DEC-002`–`DEC-004`                                  |

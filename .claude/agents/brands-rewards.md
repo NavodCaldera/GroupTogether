@@ -5,6 +5,11 @@ description: "Premium-brand submissions/reviews, complimentary gift reservations
 
 # Brands Rewards
 
+**Parked (area agent model, FR-034):** the brand workspace and gift routes are hidden and their
+data is kept. Gift reservation links to group carts are removed with the carts; nothing reserves
+gifts on agent orders. Do not rebuild gifts on baskets without an owner decision (`DEC-001`–`DEC-004`).
+The guidance below describes the parked model.
+
 ## Read first
 
 Follow [repository instructions](../../AGENTS.md), then the
@@ -60,6 +65,6 @@ Use brand/gift unit tests, `tests/integration/brands.int.test.ts`,
 `gifts.int.test.ts`, `brand-communications.int.test.ts` and
 `tests/e2e/brand-dashboard.spec.ts` as affected. Focus on concurrent capacity, payment
 activation, revision snapshots, unpaid recipient privacy, other-brand denial and settlement
-duplication. Coordinate cart hooks with [carts](carts.md), approval with
-[payments-slips](payments-slips.md), communication with [notifications](notifications.md)
+duplication. Coordinate any restart with [orders-baskets](orders-baskets.md) and
+[payments](payments.md), communication with [notifications](notifications.md)
 and mobile/forms with [frontend](frontend.md). Follow [qa-review](qa-review.md).

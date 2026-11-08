@@ -1,6 +1,6 @@
 ---
 name: notifications
-description: "In-app notifications, private owner chat and premium-brand partnership communication for GroupBasket."
+description: "In-app notifications, return and hold threads, and parked premium-brand partnership communication for GroupBasket."
 ---
 
 # Notifications
@@ -36,25 +36,17 @@ guidance, not business policy. Verify code pointers before editing.
 ## Ownership and code
 
 - Notices: `src/server/notify/index.ts`, `src/app/notifications/`, header bell.
-- Owner chat: `src/server/carts/chat.ts`, `src/app/api/chat/route.ts`, `src/app/messages/`.
+- Owner chat is removed with group carts (`COM-002` retired); there is no buyer-to-buyer messaging.
 - Brand communication: `src/server/brand-communications.ts`, `brand-communication-actions.ts`, shared `src/components/brand-*.tsx`.
-- Policy references: `COM-001`?`COM-003`, `DATA-001`, `BRAND-004`.
+- Policy references: `COM-001`, `COM-003` (parked), `ORD-005`, `BSK-006`, `RETURN-001`, `DATA-001`, `BRAND-004`.
 
 ## In-app delivery
 
 - `notify(userIds, { title, body, href })` writes in-app rows after commit. No email, SMS or WhatsApp sending is implemented.
 - Keep notices brief, actionable and linked to the correct role workspace. Verify recipients in the event's service rather than maintaining a competing event catalogue here.
-- Ready/confirmed/expired/cancelled cart events notify applicable members; slip upload notifies admins, rejection notifies owner. Booking notifies owner/packers; handover notifies owner.
+- Area agent events: a verified payment, cancellation and expiry notify the buyer; Mark received sends each buyer their pickup code; courier booking and Given to driver notify the agent; return decisions and handover instructions notify the buyer and agent; payouts notify the factory Owner. All after commit.
 - Factory offer/review/receipt notices stay separate from brand review, paid gifts and settlement notices.
 - Notification read/redirect routes check ownership and same-site destinations. Use a plain anchor for `/notifications/[id]`: prefetch must not mark a notice read.
-
-## Private owner chat
-
-- Threads are keyed by cart and participant. The owner replies, or initiates only with an eligible pending join requester; threads persist after that request is decided.
-- Enforce participant checks server-side. Sellers and packing staff cannot send cart chat.
-- Messages allow 500 characters and ten sends per minute. Deduplicate notices while a conversation notice is unread.
-- `listMessages` records other-side reads and clears the notice; preserve sent/seen ticks and unread inbox counts.
-- Use `conversationHref` for current `/messages?c=?&with=?` links. Poll only while the tab is visible.
 
 ## Brand partnership communication
 
@@ -66,8 +58,7 @@ guidance, not business policy. Verify code pointers before editing.
 
 ## Verification and coordination
 
-Use `tests/integration/chat.int.test.ts`, `messages.int.test.ts`,
-`brand-communications.int.test.ts` and affected event-service tests.
+Use `brand-communications.int.test.ts`, `returns.int.test.ts`, `fault-holds.int.test.ts` and affected event-service tests.
 Check participant isolation, role restrictions, internal-note privacy, retry deduplication,
 read markers and draft preservation. Coordinate financial events with
 [brands-rewards](brands-rewards.md) and rendering with [frontend](frontend.md).
@@ -75,7 +66,7 @@ See [qa-review](qa-review.md) for commands.
 
 ## Factory agreement reminders
 
-Full cart sweeps call `remindAgreements` after collecting current agreement terms. Acceptance `remindedAt` claims are committed before notification delivery. `notify` accepts an optional deduplication key; reminders use deterministic per-term/per-owner notice IDs and retry missing deliveries, with batched term/notice reads. Approval uses an in-app notice plus an admin-reviewable one-time sign-in link; email/SMS delivery is not implemented. First sign-in sets the owner's password atomically with consuming the hashed token.
+`remindAgreements` must run from `runSweep`: before Task 18 it ran inside the old cart sweep, so check that it still has a caller. Acceptance `remindedAt` claims are committed before notification delivery. `notify` accepts an optional deduplication key; reminders use deterministic per-term/per-owner notice IDs and retry missing deliveries, with batched term/notice reads. Approval uses an in-app notice plus an admin-reviewable one-time sign-in link; email/SMS delivery is not implemented. First sign-in sets the owner's password atomically with consuming the hashed token.
 
 ## Quality cancellation (Part 3)
 

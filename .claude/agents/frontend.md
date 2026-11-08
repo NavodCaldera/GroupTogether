@@ -16,10 +16,10 @@ guidance, not business policy. Verify code pointers before editing.
 ## Ownership and code
 
 - Pages: `src/app/`; shared components: `src/components/`; design tokens: `src/app/globals.css`.
-- Primitives: `ui.tsx`; cart presentation: `cart-bits.tsx`; navigation: `site-header.tsx`, `nav-link.tsx`.
+- Primitives: `ui.tsx`; navigation: `site-header.tsx`, `nav-link.tsx`.
 - Forms and feedback: `client.tsx`, `toast.tsx`, `src/server/flash.ts`.
 - Domain specialists own service invariants; consult them when rendering changes behavior.
-- Policy references: `UX-001`/`UX-002`, `DATA-001`, `CART-004`, `LOC-001`.
+- Policy references: `UX-001`/`UX-002`, `DATA-001`, `ORD-002`, `ORD-005`, `LOC-001`.
 
 ## Shared interface standards
 
@@ -39,17 +39,16 @@ guidance, not business policy. Verify code pointers before editing.
 
 ## Role and journey boundaries
 
-- Buyer home is `/dashboard`; factory/brand `/seller`; packer `/packing`; admin `/admin`. Staff do not get buyer navigation. Backend role guards remain required.
+- Buyer home is `/` (`/dashboard` redirects there), with the phone tab bar Home, Shop, Orders, Tokens. Agents are buyers too: they keep the buyer bar and reach `/agent` sections through an in-page tab row, not a second bottom bar (open, `DEC-016`). Factories use `/seller`; admins their area home. Backend role guards remain required, and agent pages also gate on `Agent.status`.
 - Theme (2026-11-04): light (white) is the default; dark only when the `gt_theme` cookie says so (`data-theme="dark"` on `<html>`). Keep colours as `light-dark()` tokens in `globals.css`; never use `prefers-color-scheme`.
 - Factory pages use `FactoryShell` with the login's `factoryRole`: it shows only that job's sections (`src/lib/factory-roles.ts`) as a bottom tab bar on phones and top tabs from `sm` up (2026-11-04). Hide rupee figures unless `seesMoney(role)`. Guard factory pages and actions with `requireFactory(section)` and use its `factoryId`, never the login id, for factory data.
-- Cart names derive from owners. Discovery cards stay minimal; distance belongs on discovery, not a cart map. Sharing uses dashboard copy-link; removed cart-page invite/share controls stay removed.
-- Cart members see others' names/totals and edit only their own lines. Render one next action from domain rules; dashboard wording belongs in `nextStep`/`journeyStep`, not duplicated page logic.
+- Each home shows its most important item first (`UX-002`). Checkout shows Item, Courier, Agent fee, Tokens, PayHere fee and Total, then Pay; the return page shows Checking until the verified notice arrives. Pickup cards show the code, agent, open now or closed, hours and a map link.
 - Profile location uses `LocationPicker`, the single on-demand map island. Keep map stacking isolated. City lookup is debounced; preserve the configured provider usage rather than switching services casually.
 - Ordinary catalogue UI uses apparel scope and free stock; do not restore product-status, condition or defect controls. Brand rewards remain separate from paid shop listings.
 - Factory dashboards show own design aggregates/shop prices. Brand dashboards show own gift products, paid orders, settlements and Messages. Unpaid reservations expose aggregate counts only.
 - Brand review/history/context use shared `Brand*` components and `GiftProductDetails`. Keep internal notes admin-only and partner pricing private. Preserve drafts during visible-tab refresh; read markers follow visible messages, not GET/prefetch.
 - Brand product forms retain photos unless replaced, preserve required gift details/optional expiry metadata and omit delivery-charge fields.
-- Packing UI hides money and uses the two-person flow, fixed item ticks after packing and no post-pack send-back. Packers have no buyer tab bar, footer or messaging/bell controls.
+- Factory Packing UI hides money. The shared primary `Button` must pass 4.5:1 contrast in both themes.
 - Demo logins are governed by `showDemoLogins()` and development/`SHOW_DEMO_LOGINS`; never enable them for a real deployment as part of unrelated UI work.
 
 ## Verification and coordination
@@ -57,20 +56,7 @@ guidance, not business policy. Verify code pointers before editing.
 Use `.agents/skills/groupbasket-browser-review/` and selected Vercel skills alongside these standards. `tests/e2e/accessibility.spec.ts` checks public pages and role workspaces with axe and overflow assertions on desktop and at 360 px. Preserve manual keyboard and usability review. The pinned interactive browser CLI is available through `npm run browser -- --help`.
 
 Check affected mobile/desktop layouts, theme contrast, keyboard behavior, role boundaries,
-success after redirects and drafts during refresh. Use existing journeys in
-`tests/e2e/journey.spec.ts` and `brand-dashboard.spec.ts` when flows change.
+success after redirects and drafts during refresh. Use the role journeys in
+`tests/e2e/buyer.spec.ts`, `agent.spec.ts`, `factory.spec.ts` and `admin-workspaces.spec.ts` when flows change.
 The standalone [fit lab](../../fit-lab/README.md) is an experiment, not implemented main-app
 personalization. Follow [qa-review](qa-review.md) and the relevant domain specialist.
-
-## Member done before finish (CART-006, DEC-014)
-
-`CartMember.doneAt` is nullable. Self-only `markDone`/`undoDone` and owner-only `removeMember`
-live in `src/server/carts/service.ts`, with session-scoped actions and the shared cart lock order.
-Only non-owner members with lines block acceptance. Recheck inside the transaction, regardless
-of the disabled UI. Line deltas, actual token holds/releases, gift reservation changes and merge
-arrivals reset Done atomically (`src/server/carts/member-done.ts`). Removal uses `releaseLines`,
-refuses done/owner targets, recomputes readiness and notifies after commit; rejoining is allowed.
-Everyone is done is emitted once per incomplete-to-complete transition, and Undo permits another.
-Phone controls use existing primitives: Done/Undo on own section, status badges, two-step Remove
-and the required-member completion count. Verify carts/gifts integration tests and the updated
-`journey.spec.ts`/`commission-tokens.spec.ts` browser flows at 360px.

@@ -32,28 +32,29 @@ defaults or commercial commitments.
 These files describe areas of responsibility; use the references needed for the task.
 Their presence does not require spawning agents.
 
-| Specialist                                           | Owns                                                                              |
-| ---------------------------------------------------- | --------------------------------------------------------------------------------- |
-| [groupbasket](.claude/agents/groupbasket.md)         | Business model, scope, roles and policy across domains                            |
-| [backend-data](.claude/agents/backend-data.md)       | Schema, migrations, data access and seed fixtures                                 |
-| [catalogue-admin](.claude/agents/catalogue-admin.md) | Clothing catalogue, stock, lots, factory offers/designs and general admin         |
-| [carts](.claude/agents/carts.md)                     | Shared carts, reservations, deadlines, discovery and merging                      |
-| [payments-slips](.claude/agents/payments-slips.md)   | Bank evidence, review and clothing payment transitions                            |
-| [packing](.claude/agents/packing.md)                 | Factory stock receipt, gathering, packing and handover                            |
-| [delivery](.claude/agents/delivery.md)               | Clothing delivery booking, outcomes, providers and rebooking                      |
-| [brands-rewards](.claude/agents/brands-rewards.md)   | Premium submissions/reviews, gift reservations, direct fulfilment and settlements |
-| [notifications](.claude/agents/notifications.md)     | In-app notices, owner chat and partnership communication                          |
-| [frontend](.claude/agents/frontend.md)               | Shared UI, role navigation, accessibility and mobile interaction                  |
-| [qa-review](.claude/agents/qa-review.md)             | Verification scope, access boundaries and regression checks                       |
+| Specialist                                           | Owns                                                                            |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------- |
+| [groupbasket](.claude/agents/groupbasket.md)         | Business model, scope, roles and policy across domains                          |
+| [backend-data](.claude/agents/backend-data.md)       | Schema, migrations, data access and seed fixtures                               |
+| [catalogue-admin](.claude/agents/catalogue-admin.md) | Clothing catalogue, stock, factory listings and general admin                   |
+| [orders-baskets](.claude/agents/orders-baskets.md)   | Cart, checkout, orders, agent baskets, stock holds, pickup codes and returns    |
+| [payments](.claude/agents/payments.md)               | Gateway adapter, verified notices, tokens and weekly factory payouts            |
+| [agents](.claude/agents/agents.md)                   | Agent applications, deposits, hours, suspension, leaving and agent screens      |
+| [courier](.claude/agents/courier.md)                 | Factory packing, missing items, manual courier booking and receipt at the agent |
+| [brands-rewards](.claude/agents/brands-rewards.md)   | Parked premium submissions, gift reservations, fulfilment and settlements       |
+| [notifications](.claude/agents/notifications.md)     | In-app notices and partnership communication                                    |
+| [frontend](.claude/agents/frontend.md)               | Shared UI, role navigation, accessibility and mobile interaction                |
+| [qa-review](.claude/agents/qa-review.md)             | Verification scope, access boundaries and regression checks                     |
 
 ### Engineering standards
 
-- Repository skills live in `.agents/skills/`. Apply `groupbasket-money-review`, `groupbasket-cart-concurrency`, `groupbasket-access-review` and `groupbasket-browser-review` when their scopes apply. Vendor skills supplement these rules; they do not override installed framework documentation or business policy. Claude Code reaches the same skills through pointer files in `.claude/skills/`; edit only `.agents/skills/`. Tooling setup and provenance live in [development tooling](docs/development-tooling.md).
+- Repository skills live in `.agents/skills/`. Apply `groupbasket-money-review`, `groupbasket-cart-concurrency` (now for the order and basket services), `groupbasket-access-review` and `groupbasket-browser-review` when their scopes apply. Vendor skills supplement these rules; they do not override installed framework documentation or business policy. Claude Code reaches the same skills through pointer files in `.claude/skills/`; edit only `.agents/skills/`. Tooling setup and provenance live in [development tooling](docs/development-tooling.md).
 
 - Read relevant installed Next.js guides before framework code, as required above.
 - Prioritize speed and low running cost: server rendering, system fonts and small client islands. Avoid heavy UI libraries, paid services and always-on workers unless specifically authorized.
-- Money uses database `Decimal(14,2)` and `D`/`toD` from `src/lib/decimal.ts`; do not calculate it with JavaScript `number`.
-- Pure domain rules belong in `src/lib/`; mutations belong in server services. Cart mutations use transactions and cart-row locks; preserve the per-user active-cart lock. Notify after successful transaction completion. Persist retryable brand business events within their transaction and deliver notices after commit.
+- Money uses database `Decimal(14,2)` and `D`/`toD`/`roundMoney` from `src/lib/decimal.ts`; do not calculate it with JavaScript `number`. GroupBasket pays cash only to factories; buyers and agents receive tokens.
+- Time-based rules run only in `runSweep` from the cron route; page loads do not run them.
+- Pure domain rules belong in `src/lib/`; mutations belong in server services. Order, basket and ledger mutations use transactions with one lock order: user advisory locks (sorted) → `Order` rows (sorted) → basket advisory `basket:<agentId>:<factoryId>` → `Basket` rows → ledger `User` rows (sorted); variant rows after any basket advisory. Never call a payment gateway inside a transaction. Notify after successful transaction completion. Persist retryable brand business events within their transaction and deliver notices after commit.
 - Protected pages, actions and routes enforce appropriate roles. Enforce commercial visibility in server queries and mutations as well as the interface.
 - Select only needed fields, avoid N+1 queries and reuse the existing database pool.
 - Setup and commands live in [README.md](README.md) and [package.json](package.json). `db:migrate` also regenerates Prisma. Seed resets demo data; do not run it against valuable data as a routine check.

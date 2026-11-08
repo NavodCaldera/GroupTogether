@@ -1,6 +1,6 @@
 ---
 name: catalogue-admin
-description: "Clothing catalogue, variant stock, lot pricing, factory offers/design analytics and general admin for GroupBasket. Premium rewards have a separate specialist."
+description: "Clothing catalogue, variant stock, factory listings, quality and general admin for GroupBasket. Premium rewards have a separate specialist."
 ---
 
 # Catalogue Admin
@@ -25,6 +25,14 @@ for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
 [architecture](../../docs/architecture.md) for technical context. This file owns domain
 guidance, not business policy. Verify code pointers before editing.
 
+## Area agent model (2026-11-08)
+
+Lots, price changes, stock offers, receiving, samples, the warehouse and the parked design
+analytics are removed or hidden (Task 18). Factories sell through agent baskets; returns, ratings,
+quality and fault holds now hang off `OrderLine`. Sections below that still mention carts describe
+rules carried over; check the code before relying on a cart-era pointer. Missing items are owned by
+[courier](courier.md).
+
 ## Current model (2026-11-03)
 
 Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/seller/(workspace)/products/`) and see `src/server/factory-dashboard.ts`; quality hiding uses `hiddenAt` and a reason through `quality.ts`; `ARCHIVED` remains a legacy catalogue state. `IN_SHOP` excludes both. Ratings live in `src/server/ratings.ts` (`RATE-001`). Settings belong to the CORE admin (`ADMIN-002`).
@@ -32,10 +40,10 @@ Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/se
 ## Ownership and code
 
 - Catalogue: `src/server/catalogue.ts`, `src/lib/taxonomy.ts`, public photo/suggestion routes.
-- Stock and lots: `src/server/stock.ts`, `lots.ts`, `lot-actions.ts`, `prices.ts`, `src/lib/stock-rules.ts`.
-- Factories: `src/server/offers.ts`, `designs.ts`, `design-actions.ts`, `seller-actions.ts`, `src/lib/design-rules.ts`.
+- Stock: variant stock on the factory Products page; `src/lib/stock-rules.ts` where still used.
+- Factories: `seller-actions.ts`, `factory-dashboard.ts`, `factory-admin.ts`; design files are parked.
 - General admin: `src/server/admin-actions.ts`, `admin-queries.ts`, `src/app/admin/`; factory UI: `src/app/seller/`.
-- Policy references: `CAT-001`/`CAT-002`, `INV-001`, `LOT-001`/`LOT-002`, `SUP-001`?`SUP-003`, `DATA-001`, `UX-002`.
+- Policy references: `CAT-001`/`CAT-002`, `ORD-003`, `SUP-001`–`SUP-003`, `FAC-001`, `QUAL-001`, `FAULT-001`, `RATE-001`, `DATA-001`, `ADMIN-002`, `UX-002`.
 
 ## Catalogue and pricing guards
 
@@ -60,15 +68,13 @@ Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/se
 
 ## Factory staff
 
-- Since 2026-11-04 (`FAC-001`) factory listings and stock are edited by the factory's Owner, Planner or Sales logins; pass `requireFactory("products").factoryId` as `sellerId`. Packing staff cannot edit listings.
+- Since 2026-11-04 (`FAC-001`) factory listings and stock are edited by the factory's Owner or Sales logins (Planner was merged into Sales); pass `requireFactory("products").factoryId` as `sellerId`. Packing staff cannot edit listings.
 
 ## Admin boundaries
 
-The factory admin landing page is `/admin/factory`, with accepted-stock collection and warehouse receipt queues. `User.adminArea` separates factory, premium and warehouse operations; use `requireAdmin("FACTORY")` on factory pages/actions. There is no unrestricted admin (`ADMIN-002`): the Stock dashboard (`/admin`) and store-size/lot-margin settings belong to FACTORY; the orders CSV export lives on warehouse Orders. Lots owns costs, Slips owns payment
-review, Orders owns delivery, and Carts owns inspection/search/pre-confirmation cancellation.
-Brands has its own workspace. Read the live route tree for the current tab list.
+The factory admin landing page is `/admin/factory` (applications, quality, returns, Missing items). `User.adminArea` separates PREMIUM, FACTORY, AGENTS and CORE; use `requireAdmin("FACTORY")` on factory pages/actions. There is no unrestricted admin (`ADMIN-002`). Agents and orders owns courier booking, payment problems and agents; Core owns payouts, tokens, Settings and admins. Read the live route tree for the current tab list.
 
-Enforce factory-area guards on catalogue/offer/design/lot queries/actions/routes. Factory notices go only to FACTORY admins; shared offer receiving attribution connects the factory and warehouse workspaces. Public signup creates buyers. Users and Settings are shared pages scoped by area (`requireAnyAdmin`, `src/server/admin-users.ts`): factory admins manage factory sellers, premium admins brands, warehouse admins buyers and packing staff, and each area adds only its own admins. First admins come from the seed or `npm run admin:create`. Locking a user removes
+Enforce factory-area guards on catalogue/offer/design/lot queries/actions/routes. Factory notices go only to FACTORY admins; shared offer receiving attribution connects the factory and warehouse workspaces. Public signup creates buyers. Users and Settings are shared pages scoped by area (`requireAnyAdmin`, `src/server/admin-users.ts`): factory admins manage factory sellers, premium admins brands, Agents and orders admins buyers and agents; Core adds admins. First admins come from the seed or `npm run admin:create`. Locking a user removes
 sessions, not their carts; admins cannot be locked. CSV output uses the existing formula
 escaping and UTF-8 BOM. Preserve concise screens and flash success messages.
 
@@ -77,19 +83,9 @@ escaping and UTF-8 BOM. Preserve concise screens and flash success messages.
 Use adjacent taxonomy, stock/design/brand-rule and CSV-related tests as applicable, plus
 `tests/integration/admin.int.test.ts`, `lots.int.test.ts`, `seller.int.test.ts`,
 `designs.int.test.ts` and `suggest.int.test.ts`.
-Coordinate receipt with [packing](packing.md), persistence with [backend-data](backend-data.md),
+Coordinate factory packing with [courier](courier.md), persistence with [backend-data](backend-data.md),
 UI with [frontend](frontend.md) and gift flows with [brands-rewards](brands-rewards.md).
 Follow [qa-review](qa-review.md) for checks.
-
-## Group design samples
-
-Follow `SAMPLE-001` in the [operating brief](groupbasket.md) and `DEC-009` in
-[decisions](../../docs/decisions.md). Pre-purchase group sample delivery is separate
-from factory test-piece procurement, paid clothing orders and premium gifts. The group
-pays transport; there is no sample sending fee. `src/server/samples.ts` locks requests,
-checks the group owner and records transport-quote acceptance before warehouse dispatch.
-Buyer `/samples` and warehouse `/admin/warehouse` share the request and tracking record.
-Do not invent sample ownership, return, deposit or loss/damage policies.
 
 ## Factory partnership joining
 

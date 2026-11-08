@@ -21,15 +21,16 @@ capabilities. Static inspection, passing tests and deployment readiness are sepa
 
 ## Review by affected domain
 
-| Change                     | Review focus                                                                                                                      | Existing coverage                                                                                |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
-| Cart/stock lifecycle       | Atomic reservation, locks, minimum snapshot, configurable deadlines, one active cart, merge preservation                          | Adjacent cart/dashboard/location/distance unit tests; carts, merge, open-carts integration tests |
-| Payment                    | Owner-only evidence, fresh rejection window, private files, repeat review, atomic stock/gift activation                           | carts, admin, gifts integration tests                                                            |
-| Catalogue/lots/factories   | Free-stock visibility, hidden condition fields, price snapshots/history, factory-scoped insights                                  | Taxonomy/stock/design unit tests; admin, lots, seller, designs, suggest integration tests        |
-| Receiving/packing/delivery | Receipt once, different gatherer/packer, no send-back after packing, booked handover, rebooking                                   | Packing unit tests; receiving, packing, admin integration tests                                  |
-| Brand rewards              | Immutable revisions, approved terms preserved, capacity locks, recipient snapshots, paid-only dispatch, duplicate-safe settlement | Brand/gift unit tests; brands, gifts integration tests                                           |
-| Communication              | Participant/brand isolation, internal-note privacy, per-user read state, retries/deduplication, draft preservation                | chat, messages, brand-communications integration tests; brand dashboard browser journey          |
-| UI/role navigation         | Mobile usability, keyboard access, correct role home, scoped data, redirect-safe success                                          | Existing buyer and brand browser journeys; focused visual checks                                 |
+| Change                 | Review focus                                                                                                                      | Existing coverage                                                                                        |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| Orders/baskets/stock   | Lock order, atomic hold/sell/release, one open basket, lock amount and maximum wait, cancel before lock, pickup-code throttle     | agent-money, order-rules, agent-rules unit tests; checkout, baskets, handover, returns integration tests |
+| Payment/tokens/payouts | Verified notice only, duplicate/forged/mismatched/late notices, fee rounding, no cash back, append-only ledger, payout cutoff     | payments demo unit test; payments, tokens, token-transfer, payouts integration tests                     |
+| Agents                 | 2 km clash, deposit, status gates after LEFT, suspension locking baskets, leaving and losses                                      | agents, agent-access, admin-screens integration tests; agent browser journey                             |
+| Packing/courier        | Basket moves, Packing sees no money, admin-only booking, exact courier repay, missing-item hold/removal/dismiss                   | delivery, factory-fulfilment, factory-screens integration tests; factory browser journey                 |
+| Catalogue/factories    | Free-stock visibility, hidden condition fields, commission snapshot, factory-scoped data, quality and fault holds                 | Taxonomy/price unit tests; admin, seller, commission, quality, fault-holds integration tests             |
+| Brand rewards          | Immutable revisions, approved terms preserved, capacity locks, recipient snapshots, paid-only dispatch, duplicate-safe settlement | Brand/gift unit tests; brands, gifts integration tests                                                   |
+| Communication          | Return/hold thread privacy, brand isolation, internal-note privacy, per-user read state, retries/deduplication                    | returns, fault-holds, brand-communications integration tests                                             |
+| UI/role navigation     | 360 px, keyboard access, most important item first, correct role home, scoped data, redirect-safe success                         | buyer, agent, factory, admin-workspaces and accessibility browser specs                                  |
 
 Integration files are under `tests/integration/*.int.test.ts`; unit tests are adjacent
 under `src/**/*.test.ts`. Browser journeys live under `tests/e2e/`. Inspect current test
@@ -39,11 +40,11 @@ names/fixtures instead of relying on historical scenario counts.
 
 - Recheck state/authorization under locks, not only before transactions. Look for non-atomic stock changes and inconsistent lock order.
 - Use Decimal for money and existing formatters for display.
-- Enforce protected page/action/route access and query scoping. Restrict slips to uploader/admin, gift photos to authorized users, buyer details from factory sellers and unpaid recipients from brands.
+- Enforce protected page/action/route access and query scoping. Restrict agent, return and report photos to their authorized viewers, buyer details from factories and agents, and money from factory Packing.
 - Notices are in-app, after commit; retryable brand events are persisted transactionally. GET/prefetch must not trigger brand read markers.
 - Configurable defaults are not fixed policy. Gift thresholds/households remain open; no automatic host gift or implied exact-fit promise.
-- One owner-paid clothing drop does not exclude separate brand gift shipments. Factory payments remain outside scope; premium gift reconciliation is separate.
-- Preserve hidden stock-type/defect UI and current refund scope. Do not restore B-grade badges, footwear targeting or the old premium-stock purchase workflow.
+- Cash goes only to factories (weekly payouts); buyers and agents get tokens only. Premium gift reconciliation is parked.
+- Preserve hidden stock-type/defect UI and the no-cash-back rule. Do not restore group carts, slips, lots, samples, owner chat, B-grade badges or footwear targeting.
 - Avoid N+1 queries, over-fetching and unnecessary client dependencies. Preserve existing unrelated changes.
 - Never weaken a test just to make it pass. Check the rule and explain whether a failure is pre-existing, a regression or an unresolved requirement.
 
