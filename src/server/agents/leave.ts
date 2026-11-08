@@ -48,22 +48,28 @@ export async function closeLeavingAgents(now: Date): Promise<number> {
   });
   let closed = 0;
   for (const { id } of leaving) {
-    const done = await withAgent(id, async (tx, agent) => {
-      if (agent.status !== "LEAVING" || !(await settled(tx, agent.id))) return null;
-      await tx.agent.update({ where: { id: agent.id }, data: { status: "LEFT", leftAt: now } });
-      const back = agent.depositPaidAt
-        ? toD(agent.depositAmount).minus(toD(agent.lossAmount))
-        : new D(0);
-      if (back.gt(0))
-        await post(tx, {
-          userId: agent.userId,
-          amount: back,
-          kind: "DEPOSIT_RETURN",
-          eventKey: `deposit-return:${agent.id}`,
-          note: "Deposit returned less losses",
-        });
-      return { userId: agent.userId, back, paid: !!agent.depositPaidAt };
-    });
+    let done: { userId: string; back: D; paid: boolean } | null;
+    try {
+      done = await withAgent(id, async (tx, agent) => {
+        if (agent.status !== "LEAVING" || !(await settled(tx, agent.id))) return null;
+        await tx.agent.update({ where: { id: agent.id }, data: { status: "LEFT", leftAt: now } });
+        const back = agent.depositPaidAt
+          ? toD(agent.depositAmount).minus(toD(agent.lossAmount))
+          : new D(0);
+        if (back.gt(0))
+          await post(tx, {
+            userId: agent.userId,
+            amount: back,
+            kind: "DEPOSIT_RETURN",
+            eventKey: `deposit-return:${agent.id}`,
+            note: "Deposit returned less losses",
+          });
+        return { userId: agent.userId, back, paid: !!agent.depositPaidAt };
+      });
+    } catch (error) {
+      console.error("Agent close will retry", id, error);
+      continue;
+    }
     if (!done) continue;
     closed++;
     await notify(

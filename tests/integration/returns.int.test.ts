@@ -390,8 +390,8 @@ describe("decisions", () => {
     const f = await fixture(),
       r = await fileReturn(f.buyer.id, f.line.id, input(), now);
     const late = new Date(now.getTime() + 48 * HOUR + 1);
-    const { sweep } = await import("@/server/carts/service");
-    await sweep(late);
+    const { runSweep } = await import("@/server/sweep");
+    await runSweep(late);
     expect((await row(r.id)).status).toBe("WITH_ADMIN");
     await expect(factoryDecide(f.factory.id, r.id, true, late)).rejects.toThrow(
       /already been decided/,

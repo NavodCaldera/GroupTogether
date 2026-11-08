@@ -171,23 +171,27 @@ export async function expireOrders(now: Date): Promise<number> {
     orderBy: { id: "asc" },
   });
   for (const a of attempts) {
-    cancelled += await withOrderTransaction(
-      [a.buyerId ?? a.id],
-      a.orders.map((o) => o.id),
-      async (tx) => {
-        const attempt = await tx.paymentAttempt.findUniqueOrThrow({
-          where: { id: a.id },
-          select: { status: true, expiresAt: true },
-        });
-        if (attempt.status !== "PENDING" || attempt.expiresAt > now) return 0;
-        const count = await releasePendingOrders(
-          tx,
-          a.orders.map((o) => o.id),
-        );
-        await tx.paymentAttempt.update({ where: { id: a.id }, data: { status: "EXPIRED" } });
-        return count;
-      },
-    );
+    try {
+      cancelled += await withOrderTransaction(
+        [a.buyerId ?? a.id],
+        a.orders.map((o) => o.id),
+        async (tx) => {
+          const attempt = await tx.paymentAttempt.findUniqueOrThrow({
+            where: { id: a.id },
+            select: { status: true, expiresAt: true },
+          });
+          if (attempt.status !== "PENDING" || attempt.expiresAt > now) return 0;
+          const count = await releasePendingOrders(
+            tx,
+            a.orders.map((o) => o.id),
+          );
+          await tx.paymentAttempt.update({ where: { id: a.id }, data: { status: "EXPIRED" } });
+          return count;
+        },
+      );
+    } catch (error) {
+      console.error("Payment expiry will retry", a.id, error);
+    }
   }
 
   const orphans = await db.order.findMany({
@@ -198,16 +202,20 @@ export async function expireOrders(now: Date): Promise<number> {
   const byBuyer = new Map<string, string[]>();
   for (const o of orphans) byBuyer.set(o.buyerId, [...(byBuyer.get(o.buyerId) ?? []), o.id]);
   for (const [buyerId, ids] of byBuyer)
-    cancelled += await withOrderTransaction([buyerId], ids, async (tx) => {
-      const due = await tx.order.findMany({
-        where: { id: { in: ids }, status: "PENDING", holdUntil: { lte: now } },
-        select: { id: true },
+    try {
+      cancelled += await withOrderTransaction([buyerId], ids, async (tx) => {
+        const due = await tx.order.findMany({
+          where: { id: { in: ids }, status: "PENDING", holdUntil: { lte: now } },
+          select: { id: true },
+        });
+        return releasePendingOrders(
+          tx,
+          due.map((o) => o.id),
+        );
       });
-      return releasePendingOrders(
-        tx,
-        due.map((o) => o.id),
-      );
-    });
+    } catch (error) {
+      console.error("Order expiry will retry", buyerId, error);
+    }
   return cancelled;
 }
 

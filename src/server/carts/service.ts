@@ -41,7 +41,6 @@ import { CartError } from "./errors";
 export { CartError } from "./errors";
 import { releaseLineTokens } from "../tokens";
 import { lockCart, lockLedgerUsers, withCartTransaction } from "./locks";
-import { escalateOverdue, lapseReturns } from "../returns";
 
 function assertEditable(cart: GroupCart, now: Date) {
   if (overdue(cart, now) === "EXPIRE") throw new CartError("This cart has expired");
@@ -487,8 +486,6 @@ export async function cancelCart(actor: { id: string; role: Role }, cartId: stri
  */
 export async function sweep(now = new Date(), cartId?: string) {
   if (!cartId) {
-    await escalateOverdue(now);
-    await lapseReturns(now);
     const holds = await db.faultHold.findMany({
       where: { decidedAt: null, cleanedAt: null },
       select: { id: true },

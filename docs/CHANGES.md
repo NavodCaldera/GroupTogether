@@ -1,5 +1,9 @@
 # Product-owner change log
 
+## 2026-11-08 - Weekly payouts, agent fees and sweep
+
+- Built (area-agent Task 12): the cron sweep expires orders, locks baskets after the maximum wait, escalates and lapses returns, closes leaving agents and, once a week after Saturday 23:59 Sri Lanka time, builds factory payouts and credits agent fees as tokens; Core admin marks a payout paid with a bank reference.
+
 ## 2026-11-07 - Gateway-only payment direction
 
 - Owner decision, not built yet: bank slip upload is being removed; baskets are paid only through a

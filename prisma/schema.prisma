@@ -750,6 +750,8 @@ model Settings {
   agentRadiusM       Int     @default(1000)
   agentGapM          Int     @default(2000)
   agentDeposit       Decimal @default(200000) @db.Decimal(14, 2)
+  /// The last week end (Saturday 23:59:59.999 Asia/Colombo) whose payouts and agent fees were built
+  payoutsBuiltThrough DateTime?
 }
 
 /// A private conversation between a cart's owner and one other user (a member or someone asking

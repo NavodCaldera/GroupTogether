@@ -469,17 +469,21 @@ export async function collectReturn(agentUserId: string, returnId: string, now =
 /** Accepted returns the buyer never handed over close without tokens; the line earns again. */
 export async function lapseReturns(now = new Date()) {
   const rows = await db.returnRequest.findMany({
-    where: { status: "AWAITING_HANDOVER", handoverDueAt: { lte: now } },
+    where: { status: "AWAITING_HANDOVER", handoverDueAt: { lte: now }, orderLineId: { not: null } },
     select: { id: true },
   });
   let count = 0;
   for (const { id } of rows)
-    await locked(null, id, async (tx, r) => {
-      if (r.status !== "AWAITING_HANDOVER" || !r.handoverDueAt || r.handoverDueAt > now) return;
-      const after = await move(tx, r, "LAPSED");
-      count++;
-      await queue(tx, after, "lapsed", "Return cancelled", "buyer");
-    });
+    try {
+      await locked(null, id, async (tx, r) => {
+        if (r.status !== "AWAITING_HANDOVER" || !r.handoverDueAt || r.handoverDueAt > now) return;
+        const after = await move(tx, r, "LAPSED");
+        count++;
+        await queue(tx, after, "lapsed", "Return cancelled", "buyer");
+      });
+    } catch (error) {
+      console.error("Return lapse will retry", id, error);
+    }
   return count;
 }
 /** The factory (or a quality admin) receives a return that came back with its courier. */
@@ -521,14 +525,18 @@ export async function escalateOverdue(now = new Date()) {
     select: { id: true },
   });
   let count = 0;
-  for (const r of rows)
-    await locked(null, r.id, async (tx, r) => {
-      if (r.status !== "WAITING_FACTORY" || !factoryOverdue(r.factoryDueAt, now)) return;
-      const after = await move(tx, r, "WITH_ADMIN", { escalatedAt: now });
-      count++;
-      await queue(tx, after, "overdue", "Return needs review", "admin");
-      await queue(tx, after, "overdue", "Return sent to admin", "buyer");
-    });
+  for (const row of rows)
+    try {
+      await locked(null, row.id, async (tx, r) => {
+        if (r.status !== "WAITING_FACTORY" || !factoryOverdue(r.factoryDueAt, now)) return;
+        const after = await move(tx, r, "WITH_ADMIN", { escalatedAt: now });
+        count++;
+        await queue(tx, after, "overdue", "Return needs review", "admin");
+        await queue(tx, after, "overdue", "Return sent to admin", "buyer");
+      });
+    } catch (error) {
+      console.error("Return escalation will retry", row.id, error);
+    }
   await flushReturnNotices();
   return count;
 }

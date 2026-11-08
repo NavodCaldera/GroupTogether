@@ -1,10 +1,9 @@
 import { timingSafeEqual } from "node:crypto";
-import { sweep } from "@/server/carts/service";
-import { flushBrandNotices } from "@/server/brand-communications";
+import { runSweep } from "@/server/sweep";
 
 /**
- * Expires carts past 24h and cancels missed 2h slip windows. Call every few minutes with
- * `Authorization: Bearer $CRON_SECRET`. Pages also sweep on load, so a late cron only delays the notices.
+ * Runs every time-based rule (order expiry, basket max wait, returns, leaving agents, weekly
+ * payouts and agent fees). Call every few minutes with `Authorization: Bearer $CRON_SECRET`.
  */
 export async function POST(req: Request) {
   const secret = process.env.CRON_SECRET;
@@ -16,7 +15,5 @@ export async function POST(req: Request) {
     !timingSafeEqual(Buffer.from(given), Buffer.from(secret))
   )
     return new Response("Unauthorized", { status: 401 });
-  const result = await sweep();
-  await flushBrandNotices();
-  return Response.json(result);
+  return Response.json(await runSweep());
 }
