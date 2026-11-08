@@ -4,26 +4,24 @@ import { Badge, Button, Field, Input, Select } from "@/components/ui";
 import { FACTORY_ROLES, FACTORY_ROLE_LABEL } from "@/lib/factory-roles";
 import { requireFactory } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { factoryTeam, packedThisWeek } from "@/server/factory-team";
+import { factoryTeam } from "@/server/factory-team";
 import { addStaffAction, updateStaffAction } from "@/server/factory-team-actions";
 import { FactoryShell, Ticket } from "@/app/seller/factory-bits";
 
 export const metadata: Metadata = { title: "Team" };
 
 /**
- * The owner's team (product owner, 2026-11-04): one row per person with their job and the orders
- * they packed this week; change the job or lock someone who leaves in the row. Add staff below.
+ * The owner's team (product owner, 2026-11-04): one row per person with their job; change the job or lock someone who leaves in the row. Add staff below.
  * The factory account itself is always an owner.
  */
 export default async function FactoryTeamPage() {
   const me = await requireFactory("team");
-  const [factory, staff, packedBy] = await Promise.all([
+  const [factory, staff] = await Promise.all([
     db.user.findUniqueOrThrow({
       where: { id: me.factoryId },
       select: { id: true, name: true, email: true },
     }),
     factoryTeam(me.factoryId),
-    packedThisWeek(me.factoryId),
   ]);
   const people = [
     { ...factory, factoryRole: "OWNER" as const, locked: false, main: true },
@@ -53,7 +51,6 @@ export default async function FactoryTeamPage() {
               )}
             </div>
             <p className="text-sm break-all text-subtle">{p.email}</p>
-            <p className="text-sm tabular-nums">Packed this week: {packedBy.get(p.id) ?? 0}</p>
             {!p.main && (
               <div className="mt-2 grid grid-cols-[1fr_auto] gap-1.5">
                 <form action={updateStaffAction} className="grid grid-cols-[1fr_auto] gap-1.5">

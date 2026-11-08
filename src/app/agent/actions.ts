@@ -2,8 +2,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { Hours } from "@/lib/agent-rules";
-import { requireAgent } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { requireAgent, requireAgentHours } from "@/server/auth/session";
+import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
 import { setHours } from "@/server/agents/hours";
 import { requestLeave } from "@/server/agents/leave";
@@ -91,7 +91,7 @@ const toMinutes = (v: string) => {
 };
 
 export async function saveHoursAction(_prev: AgentState, fd: FormData): Promise<AgentState> {
-  const user = await requireAgent();
+  const user = await requireAgentHours();
   const hours: Hours = [];
   for (let weekday = 0; weekday < 7; weekday++) {
     if (fd.get(`open-${weekday}`) !== "on") continue;
@@ -106,6 +106,7 @@ export async function saveHoursAction(_prev: AgentState, fd: FormData): Promise<
   const failed = await attempt(() => setHours(user.id, hours));
   if (failed) return failed;
   revalidatePath("/agent/hours");
+  revalidatePath("/agents/apply");
   return { ok: "Hours saved", at: Date.now() };
 }
 

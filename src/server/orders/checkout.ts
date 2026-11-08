@@ -5,7 +5,7 @@ import { orderTotals, splitCheckout, type OrderTotals, type Rates } from "@/lib/
 import { validCommission } from "@/lib/price-rules";
 import { isBuyerRole } from "@/lib/roles";
 import { db, type Tx } from "../db";
-import { CartError } from "../carts/errors";
+import { CartError } from "@/server/errors";
 import { getSettings } from "../settings";
 import { assertTokenHolder, post, tokenBalance } from "../tokens";
 import { getGateway } from "../payments/gateway";

@@ -15,7 +15,7 @@ import { SellerProfile } from "./seller-profile";
 
 export const metadata: Metadata = { title: "Profile" };
 
-/** The buyer's details and drop-off point, used for joining carts and for PickMe delivery. */
+/** The buyer's details and map pin, used to find agents near them. */
 export default async function ProfilePage({ searchParams }: PageProps<"/account">) {
   const { next, before } = await searchParams;
   const user = await requireUser([], "/account");

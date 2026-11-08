@@ -12,7 +12,7 @@ import { factoryOf } from "@/lib/factory-roles";
 import { toD } from "@/lib/decimal";
 import { returnRefund } from "@/lib/agent-money";
 import { db, type Tx } from "./db";
-import { CartError } from "./carts/errors";
+import { CartError } from "@/server/errors";
 import { withOrderTransaction } from "./orders/locks";
 import { checkUpload, IMAGE_TYPES, saveUpload } from "./storage";
 import { credit } from "./tokens";
@@ -475,7 +475,7 @@ export async function collectReturn(agentUserId: string, returnId: string, now =
 /** Accepted returns the buyer never handed over close without tokens; the line earns again. */
 export async function lapseReturns(now = new Date()) {
   const rows = await db.returnRequest.findMany({
-    where: { status: "AWAITING_HANDOVER", handoverDueAt: { lte: now }, orderLineId: { not: null } },
+    where: { status: "AWAITING_HANDOVER", handoverDueAt: { lte: now } },
     select: { id: true },
   });
   let count = 0;
@@ -527,7 +527,7 @@ export async function markReceived(
 }
 export async function escalateOverdue(now = new Date()) {
   const rows = await db.returnRequest.findMany({
-    where: { status: "WAITING_FACTORY", factoryDueAt: { lt: now }, orderLineId: { not: null } },
+    where: { status: "WAITING_FACTORY", factoryDueAt: { lt: now } },
     select: { id: true },
   });
   let count = 0;
@@ -600,7 +600,7 @@ export async function factoryReturns(userId: string) {
     factory = factoryOf(user);
   await factoryActor(db, userId, factory.factoryId);
   return db.returnRequest.findMany({
-    where: { factoryId: factory.factoryId, orderLineId: { not: null } },
+    where: { factoryId: factory.factoryId },
     select: returnSelect,
     orderBy: { createdAt: "desc" },
   });
@@ -678,7 +678,6 @@ export async function adminReturns(adminId: string) {
   if (!agents) await assertQualityAdmin(adminId);
   return db.returnRequest.findMany({
     where: {
-      orderLineId: { not: null },
       ...(agents ? { status: { in: ["AWAITING_HANDOVER", "HANDED_OVER", "PICKED_UP"] } } : {}),
     },
     select: returnSelect,

@@ -1,4 +1,4 @@
-﻿import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 import { Pool } from "pg";
 import { assertTestDatabase } from "../../scripts/test-database.mjs";
@@ -20,17 +20,27 @@ test.beforeEach(async () => {
     await db.query(
       `INSERT INTO "Variant" (id,"productId",size,available,sold) VALUES ('fault-size','fault-shirt','M',5,2)`,
     );
+    const agent = (
+      await db.query(
+        'SELECT a.id FROM "Agent" a JOIN "User" u ON u.id=a."userId" WHERE u.email=$1',
+        ["agent@example.com"],
+      )
+    ).rows[0].id;
     await db.query(
-      `INSERT INTO "GroupCart" (id,code,"ownerId",status,total,"minOrderValue","expiresAt","updatedAt") VALUES ('fault-cart','FAULT123',$1,'DELIVERED',3000,1500,now(),now())`,
-      [buyer],
+      `INSERT INTO "Order" (id,"buyerId","agentId","factoryId",status,"itemsTotal","courierTotal","agentFeeTotal","amountDue","holdUntil","paidAt","receivedAt") VALUES ('fault-order',$1,$2,$3,'RECEIVED',3000,80,40,3120,now(),now(),now())`,
+      [buyer, agent, factory],
     );
     await db.query(
-      `INSERT INTO "CartLine" (id,"cartId","userId","variantId",qty,"unitPrice","returnedQty") VALUES ('fault-line','fault-cart',$1,'fault-size',2,1500,1)`,
-      [buyer],
+      `INSERT INTO "OrderLine" (id,"orderId","variantId",qty,"unitPrice","factoryPrice","courierEach","agentFeeEach","returnedQty","collectedAt") VALUES ('fault-line','fault-order','fault-size',2,1500,1400,40,20,1,now())`,
     );
     await db.query(
-      `INSERT INTO "ReturnRequest" (id,"cartLineId","buyerId","factoryId",qty,reason,fault,note,status,"factoryDueAt","updatedAt") VALUES ('fault-first','fault-line',$1,$2,1,'DAMAGED','FACTORY','First seam','COMPLETED',now()+interval '1 day',now()),('fault-second','fault-line',$1,$2,1,'DAMAGED','FACTORY','Second seam','WAITING_FACTORY',now()+interval '1 day',now())`,
+      `INSERT INTO "ReturnRequest" (id,"orderLineId","buyerId","factoryId",qty,reason,fault,note,status,"factoryDueAt","updatedAt") VALUES ('fault-first','fault-line',$1,$2,1,'DAMAGED','FACTORY','First seam','COMPLETED',now()+interval '1 day',now()),('fault-second','fault-line',$1,$2,1,'DAMAGED','FACTORY','Second seam','WAITING_FACTORY',now()+interval '1 day',now())`,
       [buyer, factory],
+    );
+    // The factory accepted the second return; the agent records the fault on collection.
+    await db.query(
+      `UPDATE "ReturnRequest" SET status='AWAITING_HANDOVER', "factoryDecidedAt"=now(), "handoverAgentId"=$1, "handoverDueAt"=now()+interval '7 days' WHERE id='fault-second'`,
+      [agent],
     );
     await db.query(
       `INSERT INTO "FactoryFault" (id,"factoryId","returnId",units,"confirmedBy","confirmedById") VALUES ('fault-prior',$1,'fault-first',1,'FACTORY',$1)`,
@@ -57,11 +67,14 @@ for (const width of [1280, 360])
     test.setTimeout(180000);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.setViewportSize({ width, height: 800 });
+    await signIn(page, "agent@example.com");
+    await page.goto("/agent");
+    // The smallest card enclosing the item and its Collected button.
+    const second = page.getByText(/Fault review shirt/).locator("..");
+    await second.getByRole("button", { name: "Collected", exact: true }).click();
+    await expect(page.getByRole("status").getByText("Return collected")).toBeVisible();
     await signIn(page, "seller@example.com");
     await page.goto("/seller/returns");
-    // The smallest card enclosing the reason and its decision form.
-    const second = page.getByText("Second seam", { exact: true }).locator("..");
-    await second.getByRole("button", { name: "Save decision", exact: true }).click();
     await expect(page.getByText("Your shop is on hold", { exact: true })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Faults", exact: true })).toBeVisible();
     await accessible(page);
@@ -104,7 +117,8 @@ for (const width of [1280, 360])
       "buyer3@example.com",
     ]) {
       await signIn(page, email);
-      expect((await page.request.get(holdUrl, { maxRedirects: 0 })).status()).toBe(404);
+      // Not found, or sent away by the role gate (jobs without Returns are redirected).
+      expect([307, 404]).toContain((await page.request.get(holdUrl, { maxRedirects: 0 })).status());
     }
     await page.goto("/shop?q=Fault+review+shirt");
     await expect(page.getByRole("link", { name: /Fault review shirt/ }).first()).toBeVisible();

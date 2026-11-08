@@ -4,7 +4,9 @@ import { db } from "./db";
 import { getSettings } from "./settings";
 import { closeLeavingAgents } from "./agents/leave";
 import { flushBrandNotices } from "./brand-communications";
-import { sweep as sweepCarts } from "./carts/service";
+import { remindAgreements } from "./agreements";
+import { enforceHold } from "./fault-holds";
+import { removeFactory } from "./quality";
 import { expireOrders, lockBasket } from "./orders/baskets";
 import { lockBasketSlot, withOrderTransaction } from "./orders/locks";
 import { buildWeeklyPayouts, creditAgentFees } from "./payouts";
@@ -59,6 +61,42 @@ async function weekly(now: Date): Promise<{ payouts: number; agentFees: number }
   return { payouts, agentFees };
 }
 
+/** Finishes open fault holds and carries out decided factory removals; each retries next run. */
+async function sweepFaultHolds(): Promise<number> {
+  let done = 0;
+  const holds = await db.faultHold.findMany({
+    where: { decidedAt: null, cleanedAt: null },
+    select: { id: true },
+  });
+  for (const hold of holds) {
+    try {
+      await enforceHold(hold.id);
+      done++;
+    } catch (error) {
+      console.error("Fault hold cleanup will retry", hold.id, error);
+    }
+  }
+  const removals = await db.faultHold.findMany({
+    where: {
+      decision: "REMOVE",
+      factory: { factoryProfile: { is: { status: { not: "REMOVED" } } } },
+    },
+    select: { id: true, factoryId: true, decidedById: true, decisionNote: true },
+    orderBy: { id: "asc" },
+  });
+  for (const hold of removals) {
+    try {
+      if (!hold.decidedById || !hold.decisionNote)
+        throw new Error("Removal decision is incomplete");
+      await removeFactory(hold.decidedById, hold.factoryId, hold.decisionNote, false);
+      done++;
+    } catch (error) {
+      console.error("Fault hold removal will retry", hold.id, error);
+    }
+  }
+  return done;
+}
+
 /** Every time-based rule, run by cron. Each step is independent: one failing step is logged and
  * the rest still run. Page loads never call this.
  */
@@ -80,9 +118,10 @@ export async function runSweep(now = new Date()): Promise<Record<string, number>
   await step("lapsedReturns", () => lapseReturns(now));
   await step("agentsClosed", () => closeLeavingAgents(now));
   await step("weekly", () => weekly(now));
-  await step("carts", async () => {
-    const { closed } = await sweepCarts(now);
-    return { closedCarts: closed };
+  await step("faultHolds", () => sweepFaultHolds());
+  await step("agreements", async () => {
+    await remindAgreements(now);
+    return 0;
   });
   await step("notices", async () => {
     await flushBrandNotices();

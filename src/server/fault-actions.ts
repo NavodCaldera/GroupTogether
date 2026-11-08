@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "./auth/session";
 import { flash } from "./flash";
-import { CartError } from "./carts/errors";
+import { CartError } from "@/server/errors";
 import { decideHold, cancelFault, postHoldMessage } from "./fault-holds";
 export async function faultAction(
   _previous: { error?: string },

@@ -13,7 +13,7 @@ import { closeLeavingAgents, collectHeldReturns, requestLeave } from "@/server/a
 import { cancelOrder } from "@/server/orders/baskets";
 import { lockBasketSlot } from "@/server/orders/locks";
 import { factoryDecide, fileReturn } from "@/server/returns";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { setHours } from "@/server/agents/hours";
 import { liveAgents } from "@/server/agents/live";
 import {
@@ -168,8 +168,19 @@ describe("deposit", () => {
   async function approved() {
     const a = await applicant();
     await decideAgent((await agentsAdmin()).id, a.agent.id, true, "");
+    await setHours(a.user.id, [{ weekday: 1, opensAt: 540, closesAt: 1080 }]);
     return a;
   }
+
+  it("an approved applicant sets opening hours before the deposit can start", async () => {
+    const a = await applicant();
+    await decideAgent((await agentsAdmin()).id, a.agent.id, true, "");
+    await expect(startDeposit(a.user.id)).rejects.toThrow("opening hours");
+    expect(await db.paymentAttempt.count({ where: { agentId: a.agent.id } })).toBe(0);
+    await setHours(a.user.id, [{ weekday: 1, opensAt: 540, closesAt: 1080 }]);
+    await startDeposit(a.user.id);
+    expect(await db.paymentAttempt.count({ where: { agentId: a.agent.id } })).toBe(1);
+  });
 
   it("the amount is the deposit plus the gateway fee", async () => {
     const { user, agent } = await approved();
@@ -402,8 +413,7 @@ describe("leaving", () => {
     ).rejects.toThrow();
     expect(await collectHeldReturns(admin.id, a.agent.id)).toBe(1);
     const moved = await db.returnRequest.findUniqueOrThrow({ where: { id: ret.id } });
-    expect([moved.status, moved.pickupBookedById]).toEqual(["PICKED_UP", admin.id]);
-    expect(moved.pickupBookedAt).not.toBeNull();
+    expect(moved.status).toBe("PICKED_UP");
     expect(await closeLeavingAgents(new Date())).toBe(1);
     expect(await closeLeavingAgents(new Date())).toBe(0);
     expect(await collectHeldReturns(admin.id, a.agent.id)).toBe(0);

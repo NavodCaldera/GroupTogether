@@ -12,12 +12,11 @@ export const metadata: Metadata = { title: "Brand rewards" };
 export default async function BrandRewardsPage({ searchParams }: PageProps<"/admin/brands">) {
   const admin = await requireAdmin("PREMIUM");
   const search = await searchParams;
-  const allowed = ["overview", "brands", "products", "orders", "settlements", "messages"];
+  // Gift orders and settlements are parked with the old baskets: their tabs are hidden.
+  const allowed = ["overview", "brands", "products", "messages"];
   const tab = allowed.includes(searchValue(search, "tab"))
     ? searchValue(search, "tab")
-    : searchValue(search, "cart")
-      ? "orders"
-      : "overview";
+    : "overview";
   const brand = searchValue(search, "brand");
   const brands = await db.user.findMany({
     where: { role: "SELLER", isBrand: true },
@@ -34,7 +33,7 @@ export default async function BrandRewardsPage({ searchParams }: PageProps<"/adm
     orderBy: { company: "asc" },
   });
   const scope = brand ? { sellerId: brand } : {};
-  const [inbox, reviews, issues, bills, queries] = await Promise.all([
+  const [inbox, reviews] = await Promise.all([
     brandInbox(admin.id, brand || undefined),
     db.brandOfferRevision.count({
       where: {
@@ -43,16 +42,6 @@ export default async function BrandRewardsPage({ searchParams }: PageProps<"/adm
         offer: { ...scope, seller: { isBrand: true } },
       },
     }),
-    db.giftOrder.count({ where: { status: "ISSUE", offer: scope } }),
-    db.giftOrder.count({
-      where: {
-        paidAt: { not: null },
-        billApprovedAt: null,
-        status: { in: ["READY", "DISPATCHED", "DELIVERED"] },
-        offer: scope,
-      },
-    }),
-    db.giftSettlement.count({ where: { queryOpen: true, ...(brand ? { brandId: brand } : {}) } }),
   ]);
   const unread = inbox.reduce((sum, thread) => sum + thread.unread, 0);
   return (
@@ -70,8 +59,6 @@ export default async function BrandRewardsPage({ searchParams }: PageProps<"/adm
           ["overview", "Overview"],
           ["brands", "Brands"],
           ["products", "Gift products"],
-          ["orders", "Gift orders"],
-          ["settlements", "Settlements"],
           ["messages", "Messages"],
         ].map(([key, label]) => (
           <Link
@@ -108,9 +95,6 @@ export default async function BrandRewardsPage({ searchParams }: PageProps<"/adm
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             {[
               ["Products to review", reviews, "products"],
-              ["Delivery issues", issues, "orders"],
-              ["Bills to approve", bills, "orders"],
-              ["Payment queries", queries, "settlements"],
               ["Unread messages", unread, "messages"],
               [
                 "Needs reply",

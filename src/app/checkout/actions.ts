@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
 import { startCheckout } from "@/server/orders/checkout";
 

@@ -161,7 +161,7 @@ The owner cannot cancel during `SLIP_REVIEW`; an admin can. Removing a line or l
 - `sweep()` applies cart deadlines. A full sweep also calls `reduceDueLots()` for scheduled lot repricing. It runs on relevant page loads and through the authenticated cron route; notices are in-app only.
 - Packing mutations lock the cart and enforce separate gatherer and packer identities. Sending back is allowed only before packing is finalized.
 
-See [cart rules](../src/lib/cart-rules.ts), [cart service](../src/server/carts/service.ts), [slip service](../src/server/carts/slips.ts), [packing service](../src/server/packing.ts), and [delivery service](../src/server/delivery/index.ts) for exact guards.
+See [checkout](../src/server/orders/checkout.ts), [baskets](../src/server/orders/baskets.ts), [delivery and handover](../src/server/orders/delivery.ts) and [order locks](../src/server/orders/locks.ts) for exact guards; the old group-cart, slip, packing and PickMe services were removed in Task 18.
 
 ## Routes by responsibility
 

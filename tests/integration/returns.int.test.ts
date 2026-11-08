@@ -95,7 +95,6 @@ describe("filing", () => {
     expect(r).toMatchObject({
       status: "WAITING_FACTORY",
       orderLineId: f.line.id,
-      cartLineId: null,
     });
     expect(r.factoryDueAt.getTime() - r.createdAt.getTime()).toBe(24 * HOUR);
   });
@@ -488,7 +487,8 @@ describe("messages and photos", () => {
         where: { userId: f.admin.id, title: "New return message", readAt: null },
       }),
     ).toBe(1);
-    expect((await listReturnMessages(f.admin.id, r.id)).map((m) => m.body)).toEqual([
+    // The two posts race, so their order is not fixed.
+    expect((await listReturnMessages(f.admin.id, r.id)).map((m) => m.body).sort()).toEqual([
       "Please inspect",
       "Sleeve seam",
     ]);

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { db } from "@/server/db";
 import { setCartItem } from "@/server/orders/cart";
 

@@ -2,7 +2,7 @@ import "server-only";
 import { isPickupCode } from "@/lib/agent-rules";
 import { assertAgent } from "../auth/service";
 import { db, type Tx } from "../db";
-import { CartError } from "../carts/errors";
+import { CartError } from "@/server/errors";
 import { lockPickupAgent, withOrderTransaction } from "./locks";
 
 export class PickupBlocked extends CartError {}

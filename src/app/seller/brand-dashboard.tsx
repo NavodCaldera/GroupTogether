@@ -30,7 +30,8 @@ export async function BrandDashboard({ brandId, search }: { brandId: string; sea
   const { brand, offers, gifts, settlements } = await brandDashboard(brandId);
   const inbox = await brandInbox(brandId);
   const unread = inbox.reduce((sum, thread) => sum + thread.unread, 0);
-  const tab = ["products", "orders", "settlements", "messages"].includes(String(search.tab))
+  // Gift orders and settlements are parked with the old baskets: their tabs are hidden.
+  const tab = ["products", "messages"].includes(String(search.tab))
     ? String(search.tab)
     : "overview";
   const q = typeof search.q === "string" ? search.q.trim().slice(0, 100) : "";
@@ -99,9 +100,7 @@ export async function BrandDashboard({ brandId, search }: { brandId: string; sea
       >
         {[
           ["overview", "Overview"],
-          ["orders", "Gift orders"],
           ["products", "Gift products"],
-          ["settlements", "Settlements"],
           ["messages", "Messages"],
         ].map(([key, label]) => (
           <Link

@@ -8,10 +8,10 @@ import { FactoryShell, ScrollTable, Ticket } from "@/app/seller/factory-bits";
 export const metadata: Metadata = { title: "Ratings and insights" };
 
 /**
- * Ratings and insights for a factory (product owner, 2026-11-03): its rating (the average only
- * from 5 ratings, always with the count), restock advice, how long it takes to pack, demand in
- * carts not yet paid, pieces sold by price band, and paid orders by city (cities under 5 orders
- * hidden). Tables and plain numbers only.
+ * Ratings and insights for a factory (product owner, 2026-11-03; orders since the area-agent
+ * model): its product rating (the average only from 5 ratings, always with the count), restock
+ * advice, lock-to-courier time, demand in buyers' carts, pieces sold by price band, and paid
+ * orders by agent city (cities under 5 orders hidden). Tables and plain numbers only.
  */
 export default async function FactoryInsightsPage() {
   const seller = await requireFactory("insights");
@@ -64,39 +64,38 @@ export default async function FactoryInsightsPage() {
         <Ticket>
           <h2 className="mb-1 font-bold">Time to pack</h2>
           {hours === null ? (
-            <p className="text-sm">No packed orders yet</p>
+            <p className="text-sm">No baskets with the courier yet</p>
           ) : (
             <p className="text-sm">
               <span className="text-[1.75rem] font-bold tabular-nums">
                 {hours < 24 ? `${Math.round(hours)} h` : `${(hours / 24).toFixed(1)} days`}
               </span>{" "}
-              usual time from payment to packed (the middle of {d.packTime.sample}{" "}
-              {d.packTime.sample === 1 ? "order" : "orders"})
+              from lock to courier ({d.packTime.sample}{" "}
+              {d.packTime.sample === 1 ? "basket" : "baskets"})
             </p>
           )}
         </Ticket>
 
         <Ticket>
-          <h2 className="mb-1 font-bold">Wanted in active carts</h2>
-          <p className="mb-2 text-xs text-subtle">Carts not paid yet. These are not sales.</p>
+          <h2 className="mb-2 font-bold">In buyers&rsquo; carts</h2>
           {d.demand.length === 0 ? (
-            <p className="text-sm">No active carts with your products</p>
+            <p className="text-sm">No buyer has your products in their cart</p>
           ) : (
             <ScrollTable
-              label="Wanted in active carts by product"
+              label="In buyers' carts by product"
               head={
                 <>
                   <th className="p-2">Product</th>
-                  <th className="p-2 text-right">Carts</th>
-                  <th className="p-2 text-right">To minimum</th>
+                  <th className="p-2 text-right">Buyers</th>
+                  <th className="p-2 text-right">Pieces</th>
                 </>
               }
             >
               {d.demand.map((r) => (
                 <tr key={r.product} className="border-t border-line">
                   <td className="p-2">{r.product}</td>
-                  <td className="p-2 text-right tabular-nums">{r.carts}</td>
-                  <td className="p-2 text-right tabular-nums">{r.averagePct}%</td>
+                  <td className="p-2 text-right tabular-nums">{r.buyers}</td>
+                  <td className="p-2 text-right tabular-nums">{r.pieces}</td>
                 </tr>
               ))}
             </ScrollTable>

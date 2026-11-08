@@ -35,7 +35,7 @@ export function adminHome(area: string | null | undefined): string {
   if (area === "PREMIUM") return "/admin/brands";
   if (area === "FACTORY") return "/admin/factory";
   if (area === "AGENTS") return "/admin/agents";
-  if (area === "CORE") return "/admin/users";
+  if (area === "CORE") return "/admin/core/payouts";
   return "/";
 }
 

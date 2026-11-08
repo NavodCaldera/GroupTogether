@@ -1,5 +1,5 @@
 "use server";
-import { CartError } from "./carts/errors";
+import { CartError } from "@/server/errors";
 import { revalidatePath } from "next/cache";
 import { requireUser } from "./auth/session";
 import { hideProduct, removeFactory } from "./quality";

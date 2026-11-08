@@ -1,5 +1,11 @@
 # Product-owner change log
 
+## 2026-11-08 - Old group carts removed
+
+- Removed (area-agent Task 18): buyer-run group carts and their pages (`/c`, `/carts`, `/my-carts`, `/messages`, `/samples`), join requests, merging, invites, owner chat, bank slips and slip review, packing staff records, the warehouse (`/admin/warehouse`, the Stock page and store size), lots and price changes, samples, factory stock offers and designs, PickMe delivery records and the PickMe webhook, the home-page sales counter, and the admin Carts, Slips, Orders, Deliveries, Lots, Offers and Packing pages. The database drops those tables, the cart-keyed factory star ratings, the minimum order, cart lifetime, slip window, bank account, margin and store-size settings, and the old cancellation token kind (existing entries became order cancellations). Every return now belongs to an order line.
+- Changed: the cron sweep is the only sweep (fault holds and agreement reminders moved into it; pages no longer sweep). Factory ratings are the average of product ratings. The factory Ratings page now reads orders: pack time is basket lock to courier, demand is pieces in buyers' carts, and cities are agents' cities. Core admins land on Payouts. The admin factory home shows missing items and active factories. Premium brands stay parked: gift orders lost their cart link, the Gift orders and Settlements tabs are hidden, and no new gift can be reserved.
+- Fixed: the accent green is one step darker so white button text passes contrast even on hover; packing step buttons use the shared button. An approved agent applicant sets opening hours (at `/agent/hours`) before the deposit can be paid (FR-029a).
+
 ## 2026-11-08 - Factory screens on baskets
 
 - Built (area-agent Task 16): the factory home is by job. Packing sees To pack (locked baskets with the agent and area, lines by product, size and colour, Report missing on each line and Mark packed) and Courier booked (driver name, phone, vehicle and Given to driver). Sales sees Filling baskets (agent, area and total against the lock amount), Returns waiting and Products and stock, plus a Baskets tab. The Owner sees all of it and Earnings and payouts: this week's earned amount, the Sunday it is paid, held lines, waiting deductions and past payouts with their deductions. Orders shows baskets in the stages Filling, Locked, Packed, With courier and At agent. Product sales figures now count paid orders at the factory price.
@@ -12,6 +18,7 @@
 ## 2026-11-08 - Agent screens
 
 - Built (area-agent Task 15): agents sign in to `/agent`: Hand over (type a buyer's code, tick the items, hand over), Arriving today (driver, phone, vehicle and fee, Mark received with the returns to send back), Waiting for pickup, Returns to collect, Open baskets against the lock amount, and Tokens; plus Pickups, Returns, Tokens (balance, agent fees, courier repaid, Send, deposit and Leave with a confirm step) and Hours. `/agents/apply` takes the NIC, own photo, storage photos and a map pin, then shows Applied, or the deposit to pay once approved; `/agent/deposit/<id>` shows the payment result. Left or rejected agents cannot open the agent screens. Agents also get the buyer Dashboard tab, footer and token balance.
+- Correction (Task 18): the buyer Dashboard tab was removed in Task 14, so agents get the buyer Home, Shop, Orders and Tokens tabs instead.
 
 ## 2026-11-08 - Buyer screens
 

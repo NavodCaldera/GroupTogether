@@ -1,9 +1,7 @@
 import "server-only";
 import type { BasketStatus, Prisma } from "@/generated/prisma/client";
-import { HOLDS_STOCK } from "@/lib/cart-rules";
 import { lineEarning } from "@/lib/agent-money";
 import {
-  PAID,
   citiesShown,
   compareSizes,
   median,
@@ -11,7 +9,6 @@ import {
   ratingDisplay,
   restockAdvice,
   stockAlert,
-  towardMinimum,
 } from "@/lib/factory-insights";
 import type { FactorySection } from "@/lib/factory-roles";
 import { D, roundMoney, toD } from "@/lib/decimal";
@@ -26,14 +23,6 @@ import { getSettings } from "./settings";
  * signed-in login's factory and gated by its job's section; buyer names and phones are never
  * selected. Baskets replace the old shared-cart widgets.
  */
-const own = (factoryId: string) => ({
-  status: "ACTIVE" as const,
-  variant: { product: { sellerId: factoryId } },
-});
-const ownCarts = (factoryId: string) => ({
-  lines: { some: own(factoryId) },
-});
-
 /** At-agent baskets shown on the orders board. */
 const SHOWN_DONE = 20;
 
@@ -211,7 +200,7 @@ export async function fillingBaskets(userId: string) {
 export async function returnsWaiting(userId: string) {
   const { factoryId } = await factoryFor(userId, ["returns"]);
   return db.returnRequest.count({
-    where: { factoryId, status: "WAITING_FACTORY", orderLineId: { not: null } },
+    where: { factoryId, status: "WAITING_FACTORY" },
   });
 }
 
@@ -335,7 +324,7 @@ async function paidLines(factoryId: string) {
   });
 }
 
-/** Products: each listing with paid sales, and per size the stock left and the active-cart hold. */
+/** Products: each listing with paid sales, and per size the stock left and the unpaid-order hold. */
 export async function factoryProducts(factoryId: string) {
   const [products, lines] = await Promise.all([
     db.product.findMany({
@@ -355,7 +344,7 @@ export async function factoryProducts(factoryId: string) {
             colour: true,
             available: true,
             reserved: true,
-            _count: { select: { lines: true, orderLines: true } },
+            _count: { select: { orderLines: true } },
           },
           orderBy: [{ size: "asc" }, { colour: "asc" }],
         },
@@ -384,80 +373,61 @@ export async function factoryProducts(factoryId: string) {
       variants: p.variants.map(({ _count, ...v }) => ({
         ...v,
         soldPaid: bySize.get(v.size) ?? 0,
-        // A size never put in a cart can be removed; others keep their order history.
-        removable: _count.lines === 0 && _count.orderLines === 0,
+        // A size never ordered can be removed; others keep their order history.
+        removable: _count.orderLines === 0,
       })),
     };
   });
 }
 
-/** Ratings and insights: restock advice, pack time, active-cart demand, price bands, cities. */
+/** Ratings and insights: restock advice, pack time, buyer-cart demand, price bands, cities. */
 export async function factoryInsights(factoryId: string) {
-  const [ratings, variants, packed, active, lines, cities] = await Promise.all([
-    Promise.all([
-      db.factoryRating.findMany({
-        where: { factoryId },
-        select: { id: true, stars: true, createdAt: true },
-      }),
-      db.productRating.findMany({
-        where: { product: { sellerId: factoryId } },
-        select: { id: true, stars: true, createdAt: true },
-      }),
-    ]).then((groups) =>
-      groups.flat().sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()),
-    ),
+  const paid = { factoryId, status: { in: ["PAID" as const, "RECEIVED" as const] } };
+  const [ratings, variants, packed, wanted, lines, cities] = await Promise.all([
+    db.productRating.findMany({
+      where: { product: { sellerId: factoryId } },
+      select: { id: true, stars: true, createdAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
     db.variant.findMany({
       where: { product: { sellerId: factoryId } },
       select: { size: true, available: true, reserved: true, product: { select: { title: true } } },
       orderBy: [{ product: { title: "asc" } }, { size: "asc" }],
     }),
-    db.groupCart.findMany({
-      where: {
-        factoryPackedById: factoryId,
-        confirmedAt: { not: null },
-        factoryPackedAt: { not: null },
-      },
-      select: { confirmedAt: true, factoryPackedAt: true },
+    db.basket.findMany({
+      where: { factoryId, lockedAt: { not: null }, courier: { givenToDriverAt: { not: null } } },
+      select: { lockedAt: true, courier: { select: { givenToDriverAt: true } } },
     }),
-    db.groupCart.findMany({
-      where: { status: { in: [...HOLDS_STOCK] }, ...ownCarts(factoryId) },
+    db.cartItem.findMany({
+      where: { variant: { product: { sellerId: factoryId } } },
       select: {
-        total: true,
-        minOrderValue: true,
-        lines: {
-          where: own(factoryId),
-          select: { variant: { select: { product: { select: { title: true } } } } },
-        },
+        buyerId: true,
+        qty: true,
+        variant: { select: { product: { select: { title: true } } } },
       },
     }),
-    db.cartLine.findMany({
-      where: { ...own(factoryId), cart: { status: { in: [...PAID] } } },
+    db.orderLine.findMany({
+      where: { status: "ACTIVE", order: paid },
       select: {
         qty: true,
         unitPrice: true,
         variant: { select: { product: { select: { kind: true, category: true } } } },
       },
     }),
-    db.groupCart.groupBy({
-      by: ["deliveryCity"],
-      where: { status: { in: [...PAID] }, ...ownCarts(factoryId) },
-      _count: true,
-    }),
+    db.order.findMany({ where: paid, select: { agent: { select: { city: true } } } }),
   ]);
 
   const hours = packed.map(
-    (c) => (c.factoryPackedAt!.getTime() - c.confirmedAt!.getTime()) / 3_600_000,
+    (b) => (b.courier!.givenToDriverAt!.getTime() - b.lockedAt!.getTime()) / 3_600_000,
   );
 
-  const demand = new Map<string, { carts: number; pct: number }>();
-  for (const c of active) {
-    const pct = towardMinimum(c.total, c.minOrderValue);
-    for (const title of new Set(c.lines.map((l) => l.variant.product.title))) {
-      const d = demand.get(title) ?? { carts: 0, pct: 0 };
-      d.carts++;
-      d.pct += pct;
-      demand.set(title, d);
-    }
+  const demand = new Map<string, { buyers: Set<string>; pieces: number }>();
+  for (const c of wanted) {
+    const title = c.variant.product.title;
+    const d = demand.get(title) ?? { buyers: new Set<string>(), pieces: 0 };
+    d.buyers.add(c.buyerId);
+    d.pieces += c.qty;
+    demand.set(title, d);
   }
 
   const bands = new Map<string, Map<string, number>>();
@@ -470,6 +440,10 @@ export async function factoryInsights(factoryId: string) {
     bands.set(cat, row);
   }
 
+  const byCity = new Map<string, number>();
+  for (const o of cities)
+    if (o.agent.city) byCity.set(o.agent.city, (byCity.get(o.agent.city) ?? 0) + 1);
+
   return {
     rating: { ...ratingDisplay(ratings.map((r) => r.stars)), latest: ratings.slice(0, 10) },
     restock: variants.flatMap((v) => {
@@ -477,20 +451,15 @@ export async function factoryInsights(factoryId: string) {
       return advice ? [{ product: v.product.title, advice }] : [];
     }),
     packTime: { medianHours: median(hours), sample: hours.length },
-    demand: [...demand].map(([product, d]) => ({
-      product,
-      carts: d.carts,
-      averagePct: Math.round(d.pct / d.carts),
-    })),
+    demand: [...demand]
+      .map(([product, d]) => ({ product, buyers: d.buyers.size, pieces: d.pieces }))
+      .sort((a, b) => b.buyers - a.buyers || a.product.localeCompare(b.product)),
     priceBands: [...bands].map(([category, row]) => ({
       category,
       pieces: Object.fromEntries(row) as Record<string, number>,
     })),
     cities: citiesShown(
-      cities
-        .filter((c) => c.deliveryCity)
-        .map((c) => ({ city: c.deliveryCity!, orders: c._count }))
-        .sort((a, b) => b.orders - a.orders),
+      [...byCity].map(([city, orders]) => ({ city, orders })).sort((a, b) => b.orders - a.orders),
     ),
   };
 }

@@ -2,10 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
-import { StatusBadge } from "@/components/cart-bits";
 import { Alert, Badge, Card, PageHeader } from "@/components/ui";
 import { ADMIN_AREA_LABEL, userAdminArea } from "@/lib/admin-access";
-import { HOLDS_STOCK, cartTotal } from "@/lib/cart-rules";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import { lockUserAction } from "@/server/admin-actions";
 import { requireAnyAdmin } from "@/server/auth/session";
@@ -22,27 +20,10 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
   const user = await db.user.findUnique({
     where: { id },
     include: {
-      memberships: {
-        include: {
-          cart: {
-            select: {
-              code: true,
-              name: true,
-              status: true,
-              total: true,
-              ownerId: true,
-              updatedAt: true,
-              lines: { where: { userId: id }, select: { qty: true, unitPrice: true } },
-            },
-          },
-        },
-        orderBy: { joinedAt: "desc" },
-        take: 50,
-      },
-      slips: {
-        include: { cart: { select: { code: true } } },
+      buyerOrders: {
+        select: { id: true, status: true, amountDue: true, createdAt: true },
         orderBy: { createdAt: "desc" },
-        take: 20,
+        take: 50,
       },
       _count: {
         select: { sessions: { where: { expiresAt: { gt: now } } }, products: true },
@@ -51,7 +32,7 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
   });
   // Only the area that manages the account may open it.
   if (!user || userAdminArea(user) !== admin.adminArea) notFound();
-  const active = user.memberships.filter((m) => HOLDS_STOCK.includes(m.cart.status));
+  const pending = user.buyerOrders.filter((o) => o.status === "PENDING").length;
 
   return (
     <>
@@ -97,80 +78,30 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
               </p>
             </Card>
           )}
-          <section className="flex flex-col gap-3">
-            <h2 className="font-semibold">Carts ({user.memberships.length})</h2>
-            {user.memberships.length === 0 ? (
-              <p className="text-sm text-subtle">Hasn&apos;t joined any cart.</p>
-            ) : (
+          {user.buyerOrders.length > 0 && (
+            <section className="flex flex-col gap-3">
+              <h2 className="font-semibold">Orders ({user.buyerOrders.length})</h2>
               <Table
                 head={
                   <>
-                    <th>Cart</th>
-                    <th>Role</th>
+                    <th>Order</th>
                     <th>Status</th>
-                    <th className="text-right">Their items</th>
-                    <th className="text-right">Cart total</th>
-                    <th>Updated</th>
+                    <th className="text-right">Paid or due</th>
+                    <th>Placed</th>
                   </>
                 }
               >
-                {user.memberships.map((m) => (
-                  <tr key={m.id}>
+                {user.buyerOrders.map((o) => (
+                  <tr key={o.id}>
+                    <td className="font-mono">{o.id.slice(-8).toUpperCase()}</td>
                     <td>
-                      <Link
-                        href={`/admin/carts/${m.cart.code}`}
-                        className="font-mono text-accent underline"
-                      >
-                        {m.cart.code}
-                      </Link>
-                      {m.cart.name && <span className="text-subtle"> · {m.cart.name}</span>}
+                      <Badge>{o.status.toLowerCase()}</Badge>
                     </td>
-                    <td>{m.cart.ownerId === user.id ? "Owner" : "Member"}</td>
-                    <td>
-                      <StatusBadge status={m.cart.status} />
-                    </td>
-                    <td className="text-right">{formatLKR(cartTotal(m.cart.lines))}</td>
-                    <td className="text-right">{formatLKR(m.cart.total)}</td>
-                    <td className="text-subtle">{formatDateTime(m.cart.updatedAt)}</td>
+                    <td className="text-right">{formatLKR(o.amountDue)}</td>
+                    <td className="text-subtle">{formatDateTime(o.createdAt)}</td>
                   </tr>
                 ))}
               </Table>
-            )}
-          </section>
-
-          {user.slips.length > 0 && (
-            <section className="flex flex-col gap-3">
-              <h2 className="font-semibold">Bank slips uploaded</h2>
-              <ul className="divide-y divide-line rounded-xl border border-line text-sm">
-                {user.slips.map((s) => (
-                  <li
-                    key={s.id}
-                    className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
-                  >
-                    <span>
-                      <Link
-                        href={`/admin/carts/${s.cart.code}`}
-                        className="font-mono text-accent underline"
-                      >
-                        {s.cart.code}
-                      </Link>{" "}
-                      · {formatLKR(s.amount)} · {formatDateTime(s.createdAt)}
-                      {s.reviewNote && <span className="text-subtle"> · {s.reviewNote}</span>}
-                    </span>
-                    <Badge
-                      tone={
-                        s.status === "APPROVED"
-                          ? "good"
-                          : s.status === "REJECTED"
-                            ? "bad"
-                            : "neutral"
-                      }
-                    >
-                      {s.status.toLowerCase()}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
             </section>
           )}
         </div>
@@ -198,11 +129,10 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
               <h2 className="mb-2 font-semibold">
                 {user.locked ? "Unlock account" : "Lock account"}
               </h2>
-              {!user.locked && active.length > 0 && (
+              {!user.locked && pending > 0 && (
                 <div className="mb-3">
                   <Alert tone="info">
-                    In {active.length} unpaid {active.length === 1 ? "cart" : "carts"} holding
-                    stock.
+                    {pending} unpaid {pending === 1 ? "order" : "orders"} holding stock.
                   </Alert>
                 </div>
               )}

@@ -108,7 +108,7 @@ test("factory joins, accepts and renews the current agreement at 360px", async (
   await page.getByLabel("Email", { exact: true }).fill("core@groupbasket.lk");
   await page.getByLabel("Password", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
-  await page.waitForURL("**/admin/users");
+  await page.waitForURL("**/admin/core/payouts");
   await page.goto(applicationUrl);
   await expect(page.getByText("APPROVED", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "New sign-in link", exact: true })).toHaveCount(0);

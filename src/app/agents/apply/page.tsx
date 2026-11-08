@@ -8,6 +8,7 @@ import { formatLKR } from "@/lib/format";
 import { AGENT_ACCESS } from "@/server/auth/service";
 import { getCurrentUser } from "@/server/auth/session";
 import { myApplication } from "@/server/agents/screens";
+import { db } from "@/server/db";
 import { getSettings } from "@/server/settings";
 import { ApplyForm, PayDepositForm } from "./apply-forms";
 
@@ -54,7 +55,10 @@ export default async function AgentApplyPage() {
       <Badge tone="info">Applied</Badge>,
     );
   if (application?.status === "APPROVED") {
-    const settings = await getSettings();
+    const [settings, hours] = await Promise.all([
+      getSettings(),
+      db.agentHours.count({ where: { agentId: application.id } }),
+    ]);
     const deposit = toD(settings.agentDeposit);
     const fee = gatewayFee(deposit, toD(settings.gatewayFeeRate));
     return frame(
@@ -68,7 +72,16 @@ export default async function AgentApplyPage() {
           <dt className="font-semibold">Total</dt>
           <dd className="text-right font-semibold">{formatLKR(deposit.plus(fee))}</dd>
         </dl>
-        <PayDepositForm />
+        {hours ? (
+          <>
+            <LinkButton href="/agent/hours" variant="secondary">
+              Opening hours
+            </LinkButton>
+            <PayDepositForm />
+          </>
+        ) : (
+          <LinkButton href="/agent/hours">Set opening hours</LinkButton>
+        )}
       </Card>,
       <Badge tone="good">Approved</Badge>,
     );

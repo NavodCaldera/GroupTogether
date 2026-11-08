@@ -5,7 +5,7 @@ import { canMoveBasket, canMoveOrder } from "@/lib/order-rules";
 import { db, type Tx } from "../db";
 import { getSettings } from "../settings";
 import { post } from "../tokens";
-import { CartError } from "../carts/errors";
+import { CartError } from "@/server/errors";
 import { CheckoutError } from "./checkout";
 import { lockBasketSlot, withOrderTransaction } from "./locks";
 

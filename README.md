@@ -64,17 +64,9 @@ Development assistant skills, MCP setup, CI, security checks and upstream proven
 Codex turn/session; configured MCP servers must appear in the client's actual tool inventory
 before an assistant may claim access.
 
-To preview all premium brand dashboard states without resetting existing local data:
-
-```sh
-node scripts/seed-brand-demo.mjs
-```
-
-Sign in as `brand@example.com` with `password123` and open `/seller`. Fixtures are labelled Demo. This command is additive and restricted to the local development database; the regular `db:seed` command resets data.
-
 ```sh
 npm run check      # typecheck, lint and unit tests
-npm run test:int   # integration tests: stock locking, deadlines, slips, delivery
+npm run test:int   # integration tests: checkout, baskets, payments, returns, payouts
 npm run e2e        # browser journeys
 ```
 

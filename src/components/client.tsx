@@ -23,34 +23,6 @@ export function Countdown({ until, prefix = "" }: { until: string; prefix?: stri
   );
 }
 
-type Sales = { total: string; updatedAt: string };
-
-/** Total sales in LKR. The server renders the first value; it refreshes every 15s while visible. */
-export function SalesCounter({ initial }: { initial: Sales }) {
-  const [s, setS] = useState(initial);
-  useEffect(() => {
-    const load = async () => {
-      if (document.hidden) return;
-      try {
-        const r = await fetch("/api/sales", { cache: "no-store" });
-        if (r.ok) setS(await r.json());
-      } catch {}
-    };
-    const t = setInterval(load, 15_000);
-    document.addEventListener("visibilitychange", load);
-    return () => {
-      clearInterval(t);
-      document.removeEventListener("visibilitychange", load);
-    };
-  }, []);
-  return (
-    <>
-      <p className="text-sm font-semibold text-accent">Total Sale</p>
-      <p className="mt-2 text-5xl font-bold tabular-nums tracking-tight sm:text-7xl">{s.total}</p>
-    </>
-  );
-}
-
 /** Copies `url` to the clipboard; the label reads `copiedLabel` for 2s afterwards. */
 export function CopyLinkButton({
   url,

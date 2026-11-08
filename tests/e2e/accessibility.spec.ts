@@ -57,10 +57,9 @@ test("buyer, admin, brand and packing workspaces remain usable at the configured
   test.setTimeout(240_000);
   for (const [email, route] of [
     ["buyer@example.com", "/dashboard"],
-    ["buyer@example.com", "/samples"],
     ["factory@groupbasket.lk", "/admin"],
     ["factory@groupbasket.lk", "/admin/factory/applications"],
-    ["buyers@groupbasket.lk", "/admin/warehouse"],
+    ["buyers@groupbasket.lk", "/admin/agents"],
     ["premium@groupbasket.lk", "/admin/brands"],
     ["brand@example.com", "/seller?tab=products"],
     ["seller@example.com", "/seller"],

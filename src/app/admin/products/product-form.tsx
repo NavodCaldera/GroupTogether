@@ -1,7 +1,6 @@
 import { FactoryPriceInput } from "@/components/factory-price-input";
 import { TaxonomyFields } from "@/components/taxonomy-fields";
-import { Field, Input, Select, Textarea } from "@/components/ui";
-import { formatDate } from "@/lib/format";
+import { Field, Input, Textarea } from "@/components/ui";
 import { type AdminState, saveProductAction } from "@/server/admin-actions";
 import { AdminForm } from "../admin-form";
 
@@ -17,43 +16,28 @@ type ProductValues = {
   commission?: { toString(): string } | null;
   retailPrice: { toString(): string } | null;
   brandUrl: string | null;
-  lotId: string | null;
 };
-
-type LotChoice = { id: string; name: string; receivedAt: Date };
 
 /** Product details: the admin's form, and a factory's own listing with `factory` (2026-11-03). */
 export function ProductForm({
   product,
-  lots = [],
-  lotId,
-  offer,
   action = saveProductAction,
   factory,
 }: {
-  /** A factory's own listing: its own price and brand, no lot or brand link. */
+  /** A factory's own listing: its own price and brand, no brand link. */
   factory?: { brand: string; commission?: string };
   product?: ProductValues;
-  /** Bulk lots to pick from: a product from a lot takes the lot's price (cost + margin). */
-  lots?: LotChoice[];
-  lotId?: string;
-  /** A seller's accepted offer this new product is for: it becomes one of their designs. A
-   * luxury brand's offer also fills the actual price and the link to the brand's page. */
-  offer?: { id: string; name: string; actualPrice?: string; productUrl?: string };
   action?: (prev: AdminState, fd: FormData) => Promise<AdminState>;
 }) {
-  const commission = !product?.lotId
-    ? (product?.commission?.toString() ?? factory?.commission)
-    : undefined;
+  const commission = product?.commission?.toString() ?? factory?.commission;
   return (
     <AdminForm
       action={action}
       submit={product ? "Save product" : factory ? "Publish" : "Create product"}
     >
       {product && <input type="hidden" name="id" value={product.id} />}
-      {offer && <input type="hidden" name="offerId" value={offer.id} />}
       <Field label="Title" name="title">
-        <Input name="title" defaultValue={product?.title ?? offer?.name} required />
+        <Input name="title" defaultValue={product?.title} required />
       </Field>
       <Field label="Brand" name="brand">
         <Input name="brand" defaultValue={product?.brand ?? factory?.brand} required />
@@ -65,18 +49,6 @@ export function ProductForm({
           selectClass="min-h-11 rounded-lg border border-line bg-paper px-3 text-base outline-none focus:border-ink sm:min-h-10 sm:text-sm"
         />
       </div>
-      {!factory && (
-        <Field label="Lot" name="lotId">
-          <Select name="lotId" defaultValue={product?.lotId ?? lotId ?? ""}>
-            <option value="">None (price below)</option>
-            {lots.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name} · {formatDate(l.receivedAt)}
-              </option>
-            ))}
-          </Select>
-        </Field>
-      )}
       <div className="grid gap-3 sm:grid-cols-2">
         {commission !== undefined ? (
           <FactoryPriceInput
@@ -84,12 +56,12 @@ export function ProductForm({
             commission={commission}
           />
         ) : (
-          <Field label={factory ? "Price (LKR)" : "Our price (LKR, no lot)"} name="price">
+          <Field label={factory ? "Price (LKR)" : "Our price (LKR)"} name="price">
             <Input
               name="price"
               inputMode="decimal"
               defaultValue={product?.price.toString()}
-              required={!!factory}
+              required
             />
           </Field>
         )}
@@ -97,7 +69,7 @@ export function ProductForm({
           <Input
             name="retailPrice"
             inputMode="decimal"
-            defaultValue={product?.retailPrice?.toString() ?? offer?.actualPrice ?? ""}
+            defaultValue={product?.retailPrice?.toString() ?? ""}
           />
         </Field>
       </div>
@@ -107,7 +79,7 @@ export function ProductForm({
             name="brandUrl"
             type="url"
             placeholder="https://"
-            defaultValue={product?.brandUrl ?? offer?.productUrl ?? ""}
+            defaultValue={product?.brandUrl ?? ""}
           />
         </Field>
       )}

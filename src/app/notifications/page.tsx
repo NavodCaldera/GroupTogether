@@ -1,54 +1,19 @@
 import type { Metadata } from "next";
-import { Toast } from "@/components/toast";
-import { Alert, Button, EmptyState, PageHeader } from "@/components/ui";
-import { cartTotal } from "@/lib/cart-rules";
-import { formatDateTime, formatLKR } from "@/lib/format";
+import { Button, EmptyState, PageHeader } from "@/components/ui";
+import { formatDateTime } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
-import { acceptMergeAction, declineMergeAction, markAllReadAction } from "@/server/carts/actions";
-import { mergeRequestLines } from "@/server/carts/queries";
 import { db } from "@/server/db";
+import { markAllReadAction } from "@/server/notification-actions";
 
 export const metadata: Metadata = { title: "Notifications" };
 
-const JOIN = " wants to join your cart";
-
-export default async function NotificationsPage({ searchParams }: PageProps<"/notifications">) {
+export default async function NotificationsPage() {
   const user = await requireUser([], "/notifications");
-  const sp = await searchParams;
   const items = await db.notification.findMany({
     where: { userId: user.id },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
-
-  // Join requests can be answered right here. Newer notices carry the request id; older ones
-  // are matched by cart and requester name.
-  const ids = items
-    .map((n) =>
-      n.href?.includes("?") ? new URLSearchParams(n.href.split("?")[1]).get("request") : null,
-    )
-    .filter((x): x is string => !!x);
-  const requests = await db.cartMergeRequest.findMany({
-    where: { toCart: { ownerId: user.id }, OR: [{ id: { in: ids } }, { status: "PENDING" }] },
-    include: {
-      user: { select: { name: true } },
-      toCart: { select: { code: true } },
-    },
-  });
-  const pendingLines = await mergeRequestLines(requests.filter((r) => r.status === "PENDING"));
-  const brings = new Map([...pendingLines].map(([id, lines]) => [id, cartTotal(lines)] as const));
-  const requestFor = (href: string | null, title: string) => {
-    if (!href) return undefined;
-    const id = href.includes("?") ? new URLSearchParams(href.split("?")[1]).get("request") : null;
-    if (id) return requests.find((r) => r.id === id);
-    if (!title.endsWith(JOIN) || !href.startsWith("/c/")) return undefined;
-    const code = href.slice(3).split("?")[0];
-    const name = title.slice(0, -JOIN.length);
-    return requests.find(
-      (r) => r.status === "PENDING" && r.toCart.code === code && r.user.name === name,
-    );
-  };
-  const decided = { ACCEPTED: "You accepted", DECLINED: "You declined", CANCELLED: "Withdrawn" };
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -62,22 +27,11 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
           )
         }
       />
-      {/* Answering a join request: a short pop-up, not a banner. */}
-      {sp.done === "accepted" && <Toast>Accepted. Their items are now in your cart.</Toast>}
-      {sp.done === "declined" && <Toast>Declined. Their cart stays as it was.</Toast>}
-      {typeof sp.error === "string" && (
-        <div className="mb-4">
-          <Alert>{sp.error}</Alert>
-        </div>
-      )}
       {items.length === 0 ? (
         <EmptyState title="Nothing yet" />
       ) : (
         <ul className="flex flex-col divide-y divide-line rounded-xl border border-line">
           {items.map((n) => {
-            const req = requestFor(n.href, n.title);
-            // Join requests show only their title and the Accept / Decline buttons.
-            const joinRequest = n.title.endsWith(JOIN);
             const body = (
               <>
                 <p className={n.readAt ? "font-medium" : "font-semibold"}>
@@ -86,10 +40,8 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
                   )}
                   {n.title}
                 </p>
-                {!joinRequest && n.body && <p className="mt-0.5 text-sm text-subtle">{n.body}</p>}
-                {!joinRequest && (
-                  <p className="mt-1 text-xs text-subtle">{formatDateTime(n.createdAt)}</p>
-                )}
+                {n.body && <p className="mt-0.5 text-sm text-subtle">{n.body}</p>}
+                <p className="mt-1 text-xs text-subtle">{formatDateTime(n.createdAt)}</p>
               </>
             );
             return (
@@ -101,30 +53,6 @@ export default async function NotificationsPage({ searchParams }: PageProps<"/no
                   </a>
                 ) : (
                   <div className="p-4">{body}</div>
-                )}
-                {req?.status === "PENDING" && (
-                  <div className="flex flex-wrap items-center gap-2 px-4 pb-4">
-                    {brings.has(req.id) && (
-                      <p className="mr-auto text-sm">
-                        Brings <strong>{formatLKR(brings.get(req.id)!)}</strong>
-                      </p>
-                    )}
-                    <form action={acceptMergeAction}>
-                      <input type="hidden" name="requestId" value={req.id} />
-                      <input type="hidden" name="back" value="/notifications" />
-                      <input type="hidden" name="verdict" value="accepted" />
-                      <Button>Accept</Button>
-                    </form>
-                    <form action={declineMergeAction}>
-                      <input type="hidden" name="requestId" value={req.id} />
-                      <input type="hidden" name="back" value="/notifications" />
-                      <input type="hidden" name="verdict" value="declined" />
-                      <Button variant="secondary">Decline</Button>
-                    </form>
-                  </div>
-                )}
-                {req && req.status !== "PENDING" && (
-                  <p className="px-4 pb-4 text-sm text-subtle">{decided[req.status]}</p>
                 )}
               </li>
             );

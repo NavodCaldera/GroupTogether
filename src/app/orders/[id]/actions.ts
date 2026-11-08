@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import type { ReportReason } from "@/lib/quality-rules";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
 import { cancelOrder } from "@/server/orders/baskets";
 import { rateProduct } from "@/server/ratings";

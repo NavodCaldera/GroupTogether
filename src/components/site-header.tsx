@@ -2,7 +2,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCurrentUser } from "@/server/auth/session";
 import { NavLink } from "./nav-link";
-import { unreadMessageCount } from "@/server/carts/chat";
 import { unreadCount } from "@/server/notify";
 import { currentTheme } from "@/server/theme";
 import { toggleThemeAction } from "@/server/theme-actions";
@@ -28,19 +27,14 @@ export function hasTabBar(user: { role: string } | null) {
  */
 export async function SiteHeader() {
   const [user, theme] = await Promise.all([getCurrentUser(), currentTheme()]);
-  // Factory sellers keep the bell (product live / needs changes) but never message shoppers.
   const inbox = !!user;
-  const chat = inbox && user.role !== "SELLER";
-  const [unread, unreadMessages] = user
-    ? await Promise.all([inbox ? unreadCount(user.id) : 0, chat ? unreadMessageCount(user.id) : 0])
-    : [0, 0];
+  const unread = user ? await unreadCount(user.id) : 0;
   const tap = "min-h-11 items-center rounded-md px-2.5 hover:bg-muted sm:min-h-9";
   const link = `inline-flex ${tap}`;
   const underline =
     "relative text-ink after:absolute after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
   const sections: { href: string; label: string; icon: ReactNode; also?: string[] }[] = [
-    // Admins have no home page, shop or buyer carts: `/` and `/my-carts` send them to /admin,
-    // `/shop` to /admin/products and `/carts` to /admin/carts. Packing staff go to /packing.
+    // Admins and factory logins have no buyer home, shop, orders or tokens tabs.
     ...(user && user.role in STAFF_HOME
       ? []
       : [
@@ -63,7 +57,7 @@ export async function SiteHeader() {
             icon: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9h6M9 15h6M12 7v10" />,
           },
         ]),
-    // Each role's own home: buyers their dashboard, sellers their products, admins Admin.
+    // Each role's own home: agents Agent, sellers their products, admins Admin.
     ...(user?.role === "AGENT"
       ? [
           {
@@ -149,34 +143,6 @@ export async function SiteHeader() {
             <>
               {inbox && (
                 <>
-                  {chat && (
-                    <NavLink
-                      href="/messages"
-                      className={link}
-                      activeClassName={underline}
-                      aria-label={`Messages, ${unreadMessages} unread`}
-                    >
-                      <svg
-                        viewBox="0 0 24 24"
-                        width="20"
-                        height="20"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        aria-hidden="true"
-                        className="text-ink"
-                      >
-                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-                      </svg>
-                      {unreadMessages > 0 && (
-                        <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
-                          {unreadMessages}
-                        </span>
-                      )}
-                    </NavLink>
-                  )}
                   <NavLink
                     href="/notifications"
                     className={link}

@@ -3,7 +3,7 @@ import { revalidatePath } from "next/cache";
 import type { AdminState } from "@/server/admin-actions";
 import { decideAgent, liftSuspension, recordLoss, suspendAgent } from "@/server/agents/admin";
 import { requireAdmin } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
 import { bookCourier } from "@/server/orders/delivery";
 

@@ -65,27 +65,6 @@ describe("commission snapshots", () => {
     expect(product.commission).toBeNull();
     expect(product.factoryPrice).toBeNull();
   });
-  it("keeps lot pricing unchanged when a factory edits an existing lot product", async () => {
-    const { core, factory } = await setup();
-    await setCommission(core.id, "120");
-    const lot = await db.lot.create({
-      data: {
-        name: "Original lot",
-        pieces: 1,
-        bulkCost: "1000",
-        receivedAt: new Date(),
-        fullMarginPct: 20,
-        reducedMarginPct: 10,
-        reduceAt: new Date("2099-01-01"),
-      },
-    });
-    const own = await saveProduct(null, { ...listing, lotId: lot.id }, null);
-    await db.product.update({ where: { id: own.id }, data: { sellerId: factory.id } });
-    const edited = await saveProduct(own.id, listing, null, { sellerId: factory.id });
-    expect(edited.price.toFixed(2)).toBe("1200.00");
-    expect(edited.lotId).toBe(lot.id);
-    expect(edited.commission).toBeNull();
-  });
   it("keeps old prices and consistent snapshots during a concurrent setting change", async () => {
     const { core, factory } = await setup();
     const old = await saveProduct(null, listing, null, { sellerId: factory.id });

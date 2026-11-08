@@ -84,29 +84,12 @@ model User {
   factoryAcceptances   AgreementAcceptance[] @relation("AcceptanceFactory")
   acceptedAgreements   AgreementAcceptance[] @relation("AcceptancePerson")
 
-  sampleRequests     SampleRequest[]
   tokenEntries       TokenEntry[]
   sessions           Session[]
-  ownedCarts         GroupCart[]             @relation("CartOwner")
-  factoryPackedCarts GroupCart[]             @relation("FactoryPacked")
-  ratingsGiven       FactoryRating[]         @relation("RatingsGiven")
-  ratingsReceived    FactoryRating[]         @relation("RatingsReceived")
-  memberships        CartMember[]
-  lines              CartLine[]
-  slips              PaymentSlip[]           @relation("SlipUploader")
-  reviewedSlips      PaymentSlip[]           @relation("SlipReviewer")
-  messages           CartMessage[]           @relation("MessageParticipant")
-  messagesSent       CartMessage[]           @relation("MessageAuthor")
-  invitesSent        CartInvite[]            @relation("InviteFrom")
-  invites            CartInvite[]            @relation("InviteTo")
-  mergeRequests      CartMergeRequest[]
   notifications      Notification[]
   products           Product[]               @relation("SellerProducts")
   stockOffers        StockOffer[]            @relation("OfferSeller")
   stockReceived      StockOffer[]            @relation("StockReceivedBy")
-  gathered           Packing[]               @relation("GatheredBy")
-  packed             Packing[]               @relation("PackedBy")
-  handedOver         Packing[]               @relation("HandedOverBy")
   giftOrders         GiftOrder[]             @relation("GiftRecipient")
   brandSettlements   GiftSettlement[]
   brandConversations BrandConversation[]     @relation("ConversationBrand")
@@ -201,63 +184,16 @@ model Product {
   /// A luxury brand's product: the page on the brand's own website showing its actual price
   /// (`retailPrice`), linked from our product page (2026-10-24)
   brandUrl       String?
-  /// The bulk lot it came from; its price then follows the lot's cost and margin
-  lotId          String?
-  lot            Lot?            @relation(fields: [lotId], references: [id], onDelete: SetNull)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
-  samples  SampleRequest[]
   variants Variant[]
   /// Stock offers whose pieces went onto this product: a design test, then its bulk (2026-10-24)
   offers   StockOffer[]
-  prices   PriceChange[]
 
   @@index([status, category])
   @@index([sellerId])
   @@index([status, audience, kind])
-  @@index([lotId])
-}
-
-/// A bulk we bought (product owner, 2026-10-21). Bulk cost + transport + wages over its pieces is
-/// the cost per piece. Its products sell at cost + fullMarginPct until reduceAt (7 days after it
-/// reached our store), then at cost + reducedMarginPct. Margins and days are snapshotted from
-/// Settings when the lot is created.
-model Lot {
-  id               String    @id @default(cuid())
-  name             String
-  pieces           Int
-  bulkCost         Decimal   @db.Decimal(14, 2)
-  transportCost    Decimal   @default(0) @db.Decimal(14, 2)
-  wages            Decimal   @default(0) @db.Decimal(14, 2)
-  /// Midnight (Colombo) of the day the bulk reached our store
-  receivedAt       DateTime
-  fullMarginPct    Int
-  reducedMarginPct Int
-  /// When its products drop to the reduced margin
-  reduceAt         DateTime
-  /// Set once the sweep has moved its products to the reduced price
-  reducedAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-
-  products Product[]
-
-  @@index([reducedAt, reduceAt])
-  @@index([receivedAt])
-}
-
-/// The shop price of a product from `at` until the next row (product owner, 2026-10-24): the
-/// seller dashboard charts price against pieces sold. Written whenever a product's price changes
-/// (`logPrices` in src/server/designs.ts).
-model PriceChange {
-  id        String   @id @default(cuid())
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  price     Decimal  @db.Decimal(14, 2)
-  at        DateTime @default(now())
-
-  @@index([productId, at])
 }
 
 /// One size/colour of a product. available + reserved + sold is everything ever stocked.
@@ -274,199 +210,10 @@ model Variant {
   /// Turned into sales when a cart is confirmed
   sold      Int     @default(0)
 
-  lines      CartLine[]
   orderLines OrderLine[]
   cartItems  CartItem[]
 
   @@unique([productId, size, colour])
-}
-
-// ─── Group carts ───────────────────────────────────────────────────────────
-
-enum Visibility {
-  PUBLIC
-  PRIVATE
-}
-
-enum CartStatus {
-  /// Below the minimum: join, add, change, leave
-  OPEN
-  /// At or above the minimum, members notified; the owner can accept
-  READY
-  /// Owner accepted: frozen, owner has slipDueAt to upload one bank slip
-  AWAITING_SLIP
-  /// Slip uploaded, waiting for an admin
-  SLIP_REVIEW
-  CONFIRMED
-  DISPATCHED
-  DELIVERED
-  EXPIRED
-  CANCELLED
-}
-
-model GroupCart {
-  cancelPickupReview Boolean         @default(false)
-  id                 String          @id @default(cuid())
-  /// Share code in /c/<code>
-  code               String          @unique
-  name               String          @default("")
-  ownerId            String
-  owner              User            @relation("CartOwner", fields: [ownerId], references: [id])
-  visibility         Visibility      @default(PUBLIC)
-  status             CartStatus      @default(OPEN)
-  /// Snapshot of Settings.minOrderValue when the cart started
-  minOrderValue      Decimal         @db.Decimal(14, 2)
-  /// Sum of qty × unitPrice over all lines, kept in step in the same transaction
-  total              Decimal         @default(0) @db.Decimal(14, 2)
-  expiresAt          DateTime
-  readyAt            DateTime?
-  acceptedAt         DateTime?
-  slipDueAt          DateTime?
-  confirmedAt        DateTime?
-  /// Factory-direct fulfilment (2026-11-03): when and by whom the factory packed this order
-  factoryPackedAt    DateTime?
-  factoryPackedById  String?
-  factoryPackedBy    User?           @relation("FactoryPacked", fields: [factoryPackedById], references: [id])
-  factoryRatings     FactoryRating[]
-  deliveryAddress    String?
-  deliveryCity       String?
-  deliveryPhone      String?
-  deliveryLat        Float?
-  deliveryLng        Float?
-  closedReason       String?
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
-
-  members  CartMember[]
-  lines    CartLine[]
-  slips    PaymentSlip[]
-  invites  CartInvite[]
-  delivery Delivery?
-  packing  Packing?
-  gifts    GiftOrder[]
-  samples  SampleRequest[]
-
-  messages  CartMessage[]
-  mergeFrom CartMergeRequest[] @relation("MergeFrom")
-  mergeTo   CartMergeRequest[] @relation("MergeTo")
-
-  @@index([status, visibility, createdAt])
-  @@index([status, expiresAt])
-  @@index([status, slipDueAt])
-}
-
-model CartMember {
-  id       String    @id @default(cuid())
-  cartId   String
-  cart     GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  userId   String
-  user     User      @relation(fields: [userId], references: [id])
-  doneAt   DateTime?
-  joinedAt DateTime  @default(now())
-  /// Where this member is, pinned on the map when they joined
-  address  String?
-  city     String?
-  lat      Float?
-  lng      Float?
-
-  @@unique([cartId, userId])
-  @@index([userId])
-}
-
-/// One member's quantity of one variant. Its stock is locked while the cart is OPEN, READY,
-/// AWAITING_SLIP or SLIP_REVIEW; closed carts keep their lines as history.
-model CartLine {
-  returnedQty      Int             @default(0)
-  returns          ReturnRequest[]
-  status           LineStatus      @default(ACTIVE)
-  cancelledAt      DateTime?
-  cancelReason     String?
-  notEarned        Boolean         @default(false)
-  cancelNotifiedAt DateTime?
-  id               String          @id @default(cuid())
-  cartId           String
-  cart             GroupCart       @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  userId           String
-  user             User            @relation(fields: [userId], references: [id])
-  variantId        String
-  variant          Variant         @relation(fields: [variantId], references: [id])
-  tokensApplied    Decimal         @default(0) @db.Decimal(14, 2)
-  tokenVersion     Int             @default(0)
-  qty              Int
-  /// Product price when first added
-  unitPrice        Decimal         @db.Decimal(14, 2)
-  createdAt        DateTime        @default(now())
-
-  @@unique([cartId, userId, variantId])
-  @@index([variantId])
-  @@index([userId])
-}
-
-enum SlipStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-/// The owner's one bank slip for the whole cart. A rejected slip can be replaced.
-model PaymentSlip {
-  id          String     @id @default(cuid())
-  cartId      String
-  cart        GroupCart  @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  uploaderId  String
-  uploader    User       @relation("SlipUploader", fields: [uploaderId], references: [id])
-  amount      Decimal    @db.Decimal(14, 2)
-  storageKey  String
-  contentType String
-  status      SlipStatus @default(PENDING)
-  reviewNote  String?
-  reviewerId  String?
-  reviewer    User?      @relation("SlipReviewer", fields: [reviewerId], references: [id])
-  reviewedAt  DateTime?
-  createdAt   DateTime   @default(now())
-
-  @@index([status, createdAt])
-  @@index([cartId])
-}
-
-enum MergeStatus {
-  PENDING
-  ACCEPTED
-  DECLINED
-  CANCELLED
-}
-
-/// A buyer in one cart asks to join another: on accept by that cart's owner, their items move
-/// over and their old cart goes (CLAUDE.md rule 13). One pending request per user.
-model CartMergeRequest {
-  id         String      @id @default(cuid())
-  userId     String
-  user       User        @relation(fields: [userId], references: [id])
-  /// The cart they are leaving; null once it has been deleted
-  fromCartId String?
-  fromCart   GroupCart?  @relation("MergeFrom", fields: [fromCartId], references: [id], onDelete: SetNull)
-  toCartId   String
-  toCart     GroupCart   @relation("MergeTo", fields: [toCartId], references: [id], onDelete: Cascade)
-  status     MergeStatus @default(PENDING)
-  createdAt  DateTime    @default(now())
-  decidedAt  DateTime?
-
-  @@index([toCartId, status])
-  @@index([userId, status])
-}
-
-model CartInvite {
-  id            String    @id @default(cuid())
-  cartId        String
-  cart          GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  invitedById   String
-  invitedBy     User      @relation("InviteFrom", fields: [invitedById], references: [id])
-  invitedUserId String
-  invitedUser   User      @relation("InviteTo", fields: [invitedUserId], references: [id])
-  createdAt     DateTime  @default(now())
-
-  @@unique([cartId, invitedUserId])
-  @@index([invitedUserId])
 }
 
 model Notification {
@@ -482,56 +229,6 @@ model Notification {
 
   @@index([userId, readAt])
   @@index([userId, createdAt])
-}
-
-// ─── Delivery ──────────────────────────────────────────────────────────────
-
-enum DeliveryStatus {
-  BOOKED
-  PICKED_UP
-  DELIVERED
-  FAILED
-  CANCELLED
-}
-
-/// One PickMe drop per confirmed cart, to the owner. The owner pays the driver directly:
-/// the platform never charges, collects or refunds the fee (quotedFee is shown only).
-model Delivery {
-  deliveredAt DateTime?
-  id          String         @id @default(cuid())
-  cartId      String         @unique
-  cart        GroupCart      @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  provider    String
-  externalRef String?
-  status      DeliveryStatus @default(BOOKED)
-  quotedFee   Decimal?       @db.Decimal(14, 2)
-  /// Always the cart owner (the receiver)
-  paidBy      String         @default("OWNER")
-  driverName  String?
-  driverPhone String?
-  trackingUrl String?
-  createdAt   DateTime       @default(now())
-  updatedAt   DateTime       @updatedAt
-}
-
-/// Packing a confirmed cart in our store (product owner, 2026-10-19): one of the packing staff
-/// checks every item and gathers it all together, then a different person rechecks it and packs
-/// it; only then is it handed to the PickMe driver. Deleted if it is sent back to be gathered again.
-model Packing {
-  id             String    @id @default(cuid())
-  cartId         String    @unique
-  cart           GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  /// First check: who checked the items and gathered them
-  gatheredById   String
-  gatheredBy     User      @relation("GatheredBy", fields: [gatheredById], references: [id])
-  gatheredAt     DateTime  @default(now())
-  /// Second check, by someone else: who rechecked and packed it
-  packedById     String?
-  packedBy       User?     @relation("PackedBy", fields: [packedById], references: [id])
-  packedAt       DateTime?
-  handedOverById String?
-  handedOverBy   User?     @relation("HandedOverBy", fields: [handedOverById], references: [id])
-  handedOverAt   DateTime?
 }
 
 // ─── Stock offers ──────────────────────────────────────────────────────────
@@ -609,8 +306,6 @@ model GiftOrder {
   id               String          @id @default(cuid())
   offerId          String
   offer            StockOffer      @relation(fields: [offerId], references: [id])
-  cartId           String
-  cart             GroupCart       @relation(fields: [cartId], references: [id], onDelete: Cascade)
   recipientId      String
   recipient        User            @relation("GiftRecipient", fields: [recipientId], references: [id])
   status           GiftOrderStatus @default(RESERVED)
@@ -635,7 +330,7 @@ model GiftOrder {
   createdAt        DateTime        @default(now())
 
   @@index([offerId, status])
-  @@index([cartId, recipientId])
+  @@index([recipientId])
   @@index([settlementId])
 }
 
@@ -718,116 +413,25 @@ model BrandOfferRevision {
 
 // ─── Settings ──────────────────────────────────────────────────────────────
 
-/// One row (id = 1). Changes apply to carts started afterwards (minOrderValue is snapshotted).
+/// One row (id = 1).
 model Settings {
   commissionPerPiece Decimal @default(100) @db.Decimal(14, 2)
   id                 Int     @id @default(1)
-  minOrderValue      Decimal @default(50000) @db.Decimal(14, 2)
-  cartLifetimeHours  Int     @default(24)
-  slipWindowHours    Int     @default(2)
-  bankName           String  @default("")
-  bankBranch         String  @default("")
-  accountName        String  @default("")
-  accountNumber      String  @default("")
-  /// Pieces our store holds (product owner, 2026-10-21: 6,000)
-  storeCapacity      Int     @default(6000)
-  /// New lots: margin on cost for the first days, then the reduced margin (20% for 7 days, then 10%)
-  fullMarginPct      Int     @default(20)
-  reducedMarginPct   Int     @default(10)
-  fullMarginDays     Int     @default(7)
 
   // Agent model
-  courierPerItem     Decimal @default(40) @db.Decimal(14, 2)
-  agentFeePerItem    Decimal @default(20) @db.Decimal(14, 2)
-  gatewayFeeRate     Decimal @default(0.033) @db.Decimal(6, 4)
-  basketLockAmount   Decimal @default(50000) @db.Decimal(14, 2)
-  maxWaitDays        Int     @default(60)
-  paymentHoldMinutes Int     @default(15)
-  collectHours       Int     @default(48)
-  returnHandoverDays Int     @default(7)
-  agentRadiusM       Int     @default(1000)
-  agentGapM          Int     @default(2000)
-  agentDeposit       Decimal @default(200000) @db.Decimal(14, 2)
+  courierPerItem      Decimal   @default(40) @db.Decimal(14, 2)
+  agentFeePerItem     Decimal   @default(20) @db.Decimal(14, 2)
+  gatewayFeeRate      Decimal   @default(0.033) @db.Decimal(6, 4)
+  basketLockAmount    Decimal   @default(50000) @db.Decimal(14, 2)
+  maxWaitDays         Int       @default(60)
+  paymentHoldMinutes  Int       @default(15)
+  collectHours        Int       @default(48)
+  returnHandoverDays  Int       @default(7)
+  agentRadiusM        Int       @default(1000)
+  agentGapM           Int       @default(2000)
+  agentDeposit        Decimal   @default(200000) @db.Decimal(14, 2)
   /// The last week end (Saturday 23:59:59.999 Asia/Colombo) whose payouts and agent fees were built
   payoutsBuiltThrough DateTime?
-}
-
-/// A private conversation between a cart's owner and one other user (a member or someone asking
-/// about the cart). `participantId` is the non-owner side; `authorId` is who wrote the message.
-model CartMessage {
-  id            String    @id @default(cuid())
-  cartId        String
-  cart          GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  participantId String
-  participant   User      @relation("MessageParticipant", fields: [participantId], references: [id], onDelete: Cascade)
-  authorId      String
-  author        User      @relation("MessageAuthor", fields: [authorId], references: [id], onDelete: Cascade)
-  body          String
-  createdAt     DateTime  @default(now())
-  /// When the other side (not the author) opened the conversation; null = unread
-  readAt        DateTime?
-
-  @@index([cartId, participantId, createdAt])
-  @@index([participantId, readAt])
-}
-
-enum SampleStatus {
-  REQUESTED
-  QUOTED
-  ACCEPTED
-  DISPATCHED
-  DELIVERED
-  DECLINED
-  CANCELLED
-}
-
-/// Pre-purchase design sample: no sample sending fee; transport is paid by the group.
-model SampleRequest {
-  id            String       @id @default(cuid())
-  cartId        String
-  cart          GroupCart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  productId     String
-  product       Product      @relation(fields: [productId], references: [id])
-  requesterId   String
-  requester     User         @relation(fields: [requesterId], references: [id])
-  status        SampleStatus @default(REQUESTED)
-  designNote    String       @default("")
-  recipientName String
-  address       String
-  city          String
-  phone         String
-  lat           Float
-  lng           Float
-  transportFee  Decimal?     @db.Decimal(14, 2)
-  courier       String?
-  tracking      String?
-  note          String?
-  handledById   String?
-  acceptedAt    DateTime?
-  dispatchedAt  DateTime?
-  deliveredAt   DateTime?
-  createdAt     DateTime     @default(now())
-  updatedAt     DateTime     @updatedAt
-
-  @@index([cartId, createdAt])
-  @@index([status, createdAt])
-}
-
-/// A member's 1–5 star rating of the factory that packed and shipped a delivered cart
-/// (product owner, 2026-11-03). One per member per cart.
-model FactoryRating {
-  id        String    @id @default(cuid())
-  cartId    String
-  cart      GroupCart @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User      @relation("RatingsGiven", fields: [userId], references: [id], onDelete: Cascade)
-  factoryId String
-  factory   User      @relation("RatingsReceived", fields: [factoryId], references: [id], onDelete: Cascade)
-  stars     Int
-  createdAt DateTime  @default(now())
-
-  @@unique([cartId, userId])
-  @@index([factoryId, createdAt])
 }
 
 enum ApplicationStatus {
@@ -965,7 +569,6 @@ model FactoryActivation {
 }
 
 enum TokenKind {
-  CANCELLATION
   RETURN
   HOLD
   RELEASE
@@ -986,10 +589,8 @@ model TokenEntry {
   user           User      @relation(fields: [userId], references: [id], onDelete: Restrict)
   amount         Decimal   @db.Decimal(14, 2)
   kind           TokenKind
-  /// Immutable audit references survive line deletion; deliberately not cascading foreign keys.
-  cartLineId     String?
+  /// Audit references without foreign keys
   returnId       String?
-  /// Also audit references without foreign keys
   orderId        String?
   orderLineId    String?
   counterpartyId String?
@@ -998,7 +599,6 @@ model TokenEntry {
   createdAt      DateTime  @default(now())
 
   @@index([userId, createdAt])
-  @@index([cartLineId])
   @@index([orderId])
   @@index([orderLineId])
 }
@@ -1090,10 +690,8 @@ model ReturnRequest {
   factoryNote        String?
   messages           ReturnMessage[]
   id                 String          @id @default(cuid())
-  cartLineId         String?
-  cartLine           CartLine?       @relation(fields: [cartLineId], references: [id], onDelete: Restrict)
-  orderLineId        String?
-  orderLine          OrderLine?      @relation(fields: [orderLineId], references: [id], onDelete: Restrict)
+  orderLineId        String
+  orderLine          OrderLine       @relation(fields: [orderLineId], references: [id], onDelete: Restrict)
   handoverAgentId    String?
   handoverAgent      Agent?          @relation("ReturnHandoverAgent", fields: [handoverAgentId], references: [id], onDelete: Restrict)
   handoverDueAt      DateTime?
@@ -1120,10 +718,6 @@ model ReturnRequest {
   receivedById       String?
   unusedWithTags     Boolean?
   receivedCondition  String?
-  pickupRef          String?
-  pickupDriver       String?
-  pickupBookedAt     DateTime?
-  pickupBookedById   String?
   paidBy             ReturnFault?
   photos             ReturnPhoto[]
   notices            ReturnNotice[]
@@ -1131,7 +725,6 @@ model ReturnRequest {
   @@index([factoryId, status])
   @@index([buyerId, createdAt])
   @@index([status, factoryDueAt])
-  @@index([cartLineId])
   @@index([orderLineId])
   @@index([handoverAgentId, status])
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { RewardForm } from "@/components/reward-form";
-import { Badge, Card, EmptyState, Field, Input, Select } from "@/components/ui";
+import { Badge, Card, EmptyState, Field, Input } from "@/components/ui";
 import { BrandSearch, searchValue } from "@/components/brand-inbox";
 import { subjectHref } from "@/server/brand-communications";
 import { BrandSettlements } from "@/components/brand-settlements";
@@ -9,48 +9,19 @@ import { GIFT_STATUS, giftReference, nextSettlementSunday } from "@/lib/gift-rul
 import { toD } from "@/lib/decimal";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
-import {
-  approveGiftBillAction,
-  removeGiftAction,
-  reserveGiftAction,
-  settleGiftsAction,
-} from "@/server/gift-actions";
+import { approveGiftBillAction, settleGiftsAction } from "@/server/gift-actions";
 
 export async function BrandOperations({ search }: { search: BrandSearch }) {
   const admin = await requireAdmin("PREMIUM");
   const brand = searchValue(search, "brand");
   const settlementTab = searchValue(search, "tab") === "settlements";
-  const code = typeof search.cart === "string" ? search.cart.trim().toUpperCase() : "";
-  const [cart, offers, gifts, brands] = await Promise.all([
-    code
-      ? db.groupCart.findUnique({
-          where: { code },
-          select: {
-            id: true,
-            code: true,
-            status: true,
-            total: true,
-            expiresAt: true,
-            members: { select: { id: true, userId: true, user: { select: { name: true } } } },
-          },
-        })
-      : null,
-    db.stockOffer.findMany({
-      where: {
-        seller: { isBrand: true },
-        status: "ACCEPTED",
-        paused: false,
-        ...(brand ? { sellerId: brand } : {}),
-      },
-      include: { seller: { select: { company: true, name: true } } },
-    }),
+  const [gifts, brands] = await Promise.all([
     db.giftOrder.findMany({
       where: brand ? { offer: { sellerId: brand } } : {},
       include: {
         offer: {
           select: { name: true, sellerId: true, seller: { select: { company: true, name: true } } },
         },
-        cart: { select: { code: true } },
       },
       orderBy: { createdAt: "desc" },
       take: 100,
@@ -71,72 +42,6 @@ export async function BrandOperations({ search }: { search: BrandSearch }) {
   });
   return (
     <div className="flex flex-col gap-5">
-      {!settlementTab && (
-        <>
-          <Card>
-            <h2 className="mb-3 font-semibold">Reserve a gift</h2>
-            <form className="flex flex-wrap gap-2">
-              <input type="hidden" name="tab" value="orders" />
-              {brand && <input type="hidden" name="brand" value={brand} />}
-              <Input
-                name="cart"
-                aria-label="Basket code"
-                placeholder="Basket code"
-                defaultValue={code}
-                required
-              />
-              <button className="min-h-11 rounded-lg border border-line px-4 text-sm font-medium">
-                Find basket
-              </button>
-            </form>
-            {code && !cart && <p className="mt-3 text-sm text-danger">Basket not found</p>}
-            {cart && (
-              <div className="mt-4">
-                <p className="text-sm">
-                  {cart.code} · {cart.status} · {formatLKR(cart.total)}
-                </p>
-                {["OPEN", "READY"].includes(cart.status) && cart.expiresAt > new Date() ? (
-                  <div className="mt-3">
-                    <RewardForm
-                      action={reserveGiftAction}
-                      submit="Confirm eligibility & reserve gift"
-                    >
-                      <input type="hidden" name="cartId" value={cart.id} />
-                      <Field label="Eligible recipient" name="recipientId">
-                        <Select name="recipientId" required defaultValue="">
-                          <option value="" disabled>
-                            Choose member
-                          </option>
-                          {cart.members.map((m) => (
-                            <option value={m.userId} key={m.id}>
-                              {m.user.name}
-                            </option>
-                          ))}
-                        </Select>
-                      </Field>
-                      <Field label="Gift product" name="offerId">
-                        <Select name="offerId" required defaultValue="">
-                          <option value="" disabled>
-                            Choose approved product
-                          </option>
-                          {offers.map((o) => (
-                            <option key={o.id} value={o.id}>
-                              {o.seller.company || o.seller.name} · {o.name} ·{" "}
-                              {formatLKR(o.offerPrice ?? 0)}
-                            </option>
-                          ))}
-                        </Select>
-                      </Field>
-                    </RewardForm>
-                  </div>
-                ) : (
-                  <p className="mt-3 text-sm text-subtle">Basket is locked or expired</p>
-                )}
-              </div>
-            )}
-          </Card>
-        </>
-      )}
       {settlementTab && (
         <>
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -196,8 +101,7 @@ export async function BrandOperations({ search }: { search: BrandSearch }) {
                   <div>
                     <h3 className="font-medium">{g.offer.name}</h3>
                     <p className="text-xs text-subtle">
-                      {g.offer.seller.company || g.offer.seller.name} · {giftReference(g.id)} ·{" "}
-                      {g.cart.code}
+                      {g.offer.seller.company || g.offer.seller.name} · {giftReference(g.id)}
                     </p>
                   </div>
                   <Badge tone={g.status === "ISSUE" ? "bad" : "neutral"}>
@@ -235,11 +139,6 @@ export async function BrandOperations({ search }: { search: BrandSearch }) {
                       <input type="hidden" name="giftId" value={g.id} />
                     </RewardForm>
                   )}
-                {g.status === "RESERVED" && (
-                  <RewardForm action={removeGiftAction} submit="Release reservation" secondary>
-                    <input type="hidden" name="giftId" value={g.id} />
-                  </RewardForm>
-                )}
               </Card>
             ))
           ) : (

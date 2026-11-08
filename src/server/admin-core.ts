@@ -1,7 +1,7 @@
 import "server-only";
 import { D, toD } from "@/lib/decimal";
 import { assertAdminArea } from "./auth/service";
-import { CartError } from "./carts/errors";
+import { CartError } from "@/server/errors";
 import { db } from "./db";
 import { tokenBalance } from "./tokens";
 

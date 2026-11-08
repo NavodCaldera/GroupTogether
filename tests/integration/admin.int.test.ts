@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { adminBadges, salesStats } from "@/server/admin-queries";
+import { adminBadges } from "@/server/admin-queries";
 import {
   authenticate,
   hashToken,
@@ -8,10 +8,8 @@ import {
   userForToken,
 } from "@/server/auth/service";
 import { hashPassword } from "@/server/auth/password";
-import { markDone, acceptAndPay, createCart, setLine } from "@/server/carts/service";
-import { approveSlip, uploadSlip } from "@/server/carts/slips";
 import { db } from "@/server/db";
-import { makeUser, makeVariant, resetDb, slipFile } from "./helpers";
+import { makeAgent, makeUser, resetDb } from "./helpers";
 
 beforeEach(async () => {
   await resetDb();
@@ -45,35 +43,13 @@ describe("locking a customer", () => {
   });
 });
 
-describe("sales figures and tab counts", () => {
-  it("counts a confirmed cart as a sale and open carts as locked stock", async () => {
-    const [owner, member, admin] = [await makeUser(), await makeUser(), await makeUser("ADMIN")];
-    const v = await makeVariant("25000", 10);
-
-    const paid = await createCart(owner.id, { name: "Paid" });
-    await setLine(owner.id, paid.id, v.id, 1);
-    await setLine(member.id, paid.id, v.id, 1);
-    await markDone(member.id, paid.id);
-    await acceptAndPay(owner.id, paid.id, {
-      deliveryAddress: "12 Flower Rd",
-      deliveryCity: "Colombo",
-      deliveryPhone: "0771234567",
-    });
-    await uploadSlip(owner.id, paid.id, slipFile());
-    const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: paid.id } });
-    await approveSlip(admin.id, slip.id);
-
-    const open = await createCart(member.id, {});
-    await setLine(member.id, open.id, v.id, 1);
-
-    const s = await salesStats();
-    expect(s.sales.today).toMatchObject({ orders: 1 });
-    expect(s.sales.today.total.toFixed(2)).toBe("50000.00");
-    expect(s.sales.month.orders).toBe(1);
-    expect(s.locked.carts).toBe(1);
-    expect(s.locked.total.toFixed(2)).toBe("25000.00");
-
-    // The Orders tab counts the paid cart waiting for PickMe.
-    expect((await adminBadges("unused", "AGENTS")).orders).toBe(1);
+describe("tab counts", () => {
+  it("counts only each area's own work", async () => {
+    await makeAgent({ status: "APPLIED" });
+    const agents = await adminBadges("unused", "AGENTS");
+    expect(agents).toMatchObject({ applications: 1, courier: 0, payouts: 0, missing: 0 });
+    expect(Object.keys(agents)).not.toContain("slips");
+    expect(Object.keys(agents)).not.toContain("orders");
+    expect((await adminBadges("unused", "CORE")).applications).toBe(0);
   });
 });

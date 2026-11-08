@@ -3,7 +3,7 @@ import type { Agent, AgentStatus } from "@/generated/prisma/client";
 import { AGENTS_AREA } from "@/lib/admin-access";
 import { db, type Tx } from "../db";
 import { assertAdminArea } from "../auth/service";
-import { CartError } from "../carts/errors";
+import { CartError } from "@/server/errors";
 import { lockBasket } from "../orders/baskets";
 import { lockBasketSlot, withOrderTransaction } from "../orders/locks";
 

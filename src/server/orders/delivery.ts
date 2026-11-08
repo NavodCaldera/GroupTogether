@@ -11,7 +11,7 @@ import { AGENT_ACCESS } from "../auth/service";
 import { db, type Tx } from "../db";
 import { notify } from "../notify";
 import { post } from "../tokens";
-import { CartError } from "../carts/errors";
+import { CartError } from "@/server/errors";
 import { lockBasketSlot, withOrderTransaction } from "./locks";
 
 export class DeliveryError extends CartError {}

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { transferTokens } from "@/server/tokens";
 
 export type SendState = { error?: string; ok?: string; at?: number };

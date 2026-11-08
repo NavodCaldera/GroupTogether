@@ -4,27 +4,15 @@ import { assertTestDatabase } from "../../scripts/test-database.mjs";
 import { LocalDiskStorage } from "../../src/server/storage/local";
 import { seedBrowserFixtures } from "./seed-fixtures";
 
-let fixture: { productId: string; slipId: string; cartId: string; participantId: string };
+let fixture: { productId: string; docId: string };
 test.beforeAll(async () => {
   seedBrowserFixtures();
   const url = assertTestDatabase(process.env.TEST_DATABASE_URL, process.env.DATABASE_URL);
   const pool = new Pool({ connectionString: url });
   try {
-    const owner = (
-      await pool.query('SELECT id FROM "User" WHERE email = $1', ["buyer@example.com"])
-    ).rows[0];
-    const participant = (
-      await pool.query('SELECT id FROM "User" WHERE email = $1', ["buyer3@example.com"])
-    ).rows[0];
-    const cart = (
-      await pool.query('SELECT id FROM "GroupCart" WHERE "ownerId" = $1 AND status = $2 LIMIT 1', [
-        owner.id,
-        "OPEN",
-      ])
-    ).rows[0];
     const product = (
       await pool.query(
-        'SELECT p.id FROM "Product" p WHERE p."sellerId" IS NULL AND EXISTS (SELECT 1 FROM "Variant" v WHERE v."productId" = p.id AND v.available > 0) LIMIT 1',
+        `SELECT p.id FROM "Product" p JOIN "User" u ON u.id = p."sellerId" WHERE u."isBrand" = false AND p.status = 'LIVE' AND EXISTS (SELECT 1 FROM "Variant" v WHERE v."productId" = p.id AND v.available > 0) LIMIT 1`,
       )
     ).rows[0];
     const key = "e2e/security-headers.png";
@@ -40,16 +28,16 @@ test.beforeAll(async () => {
       "image/png",
       product.id,
     ]);
-    const slipId = "e2e-security-slip";
+    const docId = "e2e-security-doc";
     await pool.query(
-      'INSERT INTO "PaymentSlip" (id, "cartId", "uploaderId", amount, "storageKey", "contentType") VALUES ($1, $2, $3, $4, $5, $6)',
-      [slipId, cart.id, owner.id, "1.00", key, "image/png"],
+      `INSERT INTO "FactoryApplication" (id, "businessName", "brNumber", "ownerName", "ownerNic", phone, email, address, city, "bankName", "bankBranch", "accountName", "accountNumber") VALUES ($1, 'CSP Mill', 'PV0001', 'Owner', '900000000V', '0770000999', 'csp@example.com', '1 Mill Rd', 'Colombo', 'Bank', 'Branch', 'CSP Mill', '0001')`,
+      ["e2e-security-application"],
     );
     await pool.query(
-      'INSERT INTO "CartMessage" (id, "cartId", "participantId", "authorId", body) VALUES ($1, $2, $3, $3, $4)',
-      ["e2e-security-chat", cart.id, participant.id, "Security header test conversation"],
+      'INSERT INTO "FactoryDocument" (id, "applicationId", kind, "storageKey", "contentType") VALUES ($1, $2, $3, $4, $5)',
+      [docId, "e2e-security-application", "BR_CERT", key, "image/png"],
     );
-    fixture = { productId: product.id, slipId, cartId: cart.id, participantId: participant.id };
+    fixture = { productId: product.id, docId };
   } finally {
     await pool.end();
   }
@@ -80,18 +68,18 @@ test("GET / sends the site security headers", async ({ request }) => {
   }
 });
 
-test("an owner's slip retains exactly one restrictive CSP", async ({ page }) => {
-  await signIn(page, "buyer@example.com");
-  const response = await page.request.get(`/api/slips/${fixture.slipId}`);
+test("a private factory document retains exactly one restrictive CSP", async ({ page }) => {
+  await signIn(page, "factory@groupbasket.lk");
+  const response = await page.request.get(`/api/partner-docs/${fixture.docId}`);
   expect(response.ok()).toBe(true);
   const csp = response
     .headersArray()
     .filter((header) => header.name.toLowerCase() === "content-security-policy");
   expect(csp).toHaveLength(1);
-  expect(csp[0].value).toBe("default-src 'none'; style-src 'unsafe-inline'; sandbox");
+  expect(csp[0].value).toBe("default-src 'none'; sandbox");
 });
 
-test("buyer, admin, photo, chat, map and error pages have no CSP violations", async ({ page }) => {
+test("buyer, admin, photo, map and error pages have no CSP violations", async ({ page }) => {
   const violations: string[] = [];
   page.on("console", (message) => {
     if (/Content Security Policy/i.test(message.text())) violations.push(message.text());
@@ -113,12 +101,8 @@ test("buyer, admin, photo, chat, map and error pages have no CSP violations", as
   await expect
     .poll(() => photo.evaluate((image: HTMLImageElement) => image.naturalWidth))
     .toBeGreaterThan(0);
-  await page.goto(`/messages?c=${fixture.cartId}&with=${fixture.participantId}`);
-  await page.getByPlaceholder("Write a message").fill("CSP permits chat messages");
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  await expect(page.getByText("CSP permits chat messages", { exact: true })).toBeVisible();
   await signIn(page, "buyers@groupbasket.lk");
-  await page.goto("/admin/slips");
+  await page.goto("/admin/agents");
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await page.context().clearCookies();
   await page.goto("/sign-up");

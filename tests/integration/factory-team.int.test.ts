@@ -1,12 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
-import {
-  addStaff,
-  factoryTeam,
-  packedThisWeek,
-  setStaffLocked,
-  setStaffRole,
-} from "@/server/factory-team";
+import { addStaff, factoryTeam, setStaffLocked, setStaffRole } from "@/server/factory-team";
 import { makeUser, resetDb } from "./helpers";
 
 beforeEach(async () => {
@@ -58,22 +52,5 @@ describe("factory staff (2026-11-04)", () => {
     expect(await db.session.count({ where: { userId: s.id } })).toBe(0);
     await expect(setStaffLocked(f.id, s.id, false, s.id)).rejects.toThrow("own login");
     expect((await factoryTeam(f.id))[0]).toMatchObject({ factoryRole: "SALES", locked: true });
-  });
-
-  it("counts orders each person packed this week", async () => {
-    const f = await factory();
-    const s = await addStaff(f.id, staff("p@example.com"));
-    const owner = await makeUser();
-    await db.groupCart.create({
-      data: {
-        code: "TEAM1",
-        ownerId: owner.id,
-        minOrderValue: "50000",
-        expiresAt: new Date(Date.now() + 1e8),
-        factoryPackedAt: new Date(),
-        factoryPackedById: s.id,
-      },
-    });
-    expect((await packedThisWeek(f.id)).get(s.id)).toBe(1);
   });
 });

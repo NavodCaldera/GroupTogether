@@ -4,7 +4,7 @@ import { ZodError, z } from "zod";
 import { validCommission } from "@/lib/price-rules";
 import type { AdminState } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { db } from "@/server/db";
 import { flash } from "@/server/flash";
 import { markPayoutPaid } from "@/server/payouts";

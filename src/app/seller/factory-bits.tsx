@@ -275,3 +275,6 @@ export function ScrollTable({
     </div>
   );
 }
+
+/** "1 pc", "12 pcs". */
+export const pcs = (n: number) => `${n.toLocaleString("en-LK")} ${n === 1 ? "pc" : "pcs"}`;

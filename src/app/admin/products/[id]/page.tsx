@@ -6,7 +6,6 @@ import { Button, Card, Field, Input, PageHeader, LinkButton } from "@/components
 import { adjustStockAction, setProductHiddenAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { lotChoices } from "@/server/lots";
 import { AdminForm } from "../../admin-form";
 import { ProductForm } from "../product-form";
 
@@ -15,16 +14,13 @@ export const metadata: Metadata = { title: "Edit product" };
 export default async function EditProductPage({ params }: PageProps<"/admin/products/[id]">) {
   await requireAdmin("FACTORY");
   const { id } = await params;
-  const [product, lots] = await Promise.all([
-    db.product.findFirst({
-      where: { id, OR: [{ sellerId: null }, { seller: { isBrand: false } }] },
-      include: {
-        variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
-        seller: { select: { name: true, company: true } },
-      },
-    }),
-    lotChoices(),
-  ]);
+  const product = await db.product.findFirst({
+    where: { id, OR: [{ sellerId: null }, { seller: { isBrand: false } }] },
+    include: {
+      variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
+      seller: { select: { name: true, company: true } },
+    },
+  });
   if (!product) notFound();
   const seller = product.sellerId
     ? await db.user.findUnique({
@@ -70,7 +66,7 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
             }
           />
           <Card>
-            <ProductForm product={product} lots={lots} />
+            <ProductForm product={product} />
           </Card>
         </div>
         <div className="flex flex-col gap-4">

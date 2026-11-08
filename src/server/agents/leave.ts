@@ -99,7 +99,7 @@ export async function collectHeldReturns(adminId: string, agentId: string): Prom
       throw new AgentError("Only a leaving agent's returns can be collected");
     const moved = await tx.returnRequest.updateMany({
       where: { handoverAgentId: agent.id, status: "HANDED_OVER" },
-      data: { status: "PICKED_UP", pickupBookedAt: new Date(), pickupBookedById: adminId },
+      data: { status: "PICKED_UP" },
     });
     return moved.count;
   });

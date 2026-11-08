@@ -245,15 +245,7 @@ async function buy(
 async function main() {
   await resetDatabase();
 
-  await db.settings.create({
-    data: {
-      id: 1,
-      bankName: "Commercial Bank",
-      bankBranch: "Colombo 03",
-      accountName: "GroupBasket (Pvt) Ltd",
-      accountNumber: "1000 2345 6789",
-    },
-  });
+  await db.settings.create({ data: { id: 1 } });
 
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
@@ -462,12 +454,13 @@ async function main() {
     const row = await db.agent.findUniqueOrThrow({ where: { userId: user.id } });
     if (!hours) return { user, id: row.id };
     await decideAgent(agentsAdmin.id, row.id, true, "");
+    // Hours come before the deposit (FR-029a).
+    await setHours(user.id, hours);
     await startDeposit(user.id);
     const deposit = await db.paymentAttempt.findFirstOrThrow({
       where: { agentId: row.id, purpose: "DEPOSIT", status: "PENDING" },
     });
     await payAttempt(deposit.id);
-    await setHours(user.id, hours);
     return { user, id: row.id };
   }
   const kollupitiya = await agent(
@@ -697,13 +690,6 @@ async function main() {
     if (offer.status === "ACCEPTED")
       await db.stockOffer.update({ where: { id: offer.id }, data: { approvedRevision: 1 } });
   }
-
-  // Every product starts its price history at its price (the dashboard charts it).
-  await db.$executeRaw`
-    INSERT INTO "PriceChange" ("id", "productId", "price", "at")
-    SELECT 'pc_' || md5(random()::text || p."id"), p."id", p."price", p."createdAt"
-    FROM "Product" p
-    WHERE NOT EXISTS (SELECT 1 FROM "PriceChange" pc WHERE pc."productId" = p."id")`;
 
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}

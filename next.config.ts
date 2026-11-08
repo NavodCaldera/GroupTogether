@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
       },
       {
         // Config headers override route responses in this Next version; preserve private sandbox CSPs.
-        source: "/:path((?!api/(?:slips|partner-docs)(?:/|$)).*)",
+        source: "/:path((?!api/partner-docs(?:/|$)).*)",
         headers: [{ key: "Content-Security-Policy", value: csp }],
       },
     ];

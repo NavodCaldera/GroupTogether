@@ -6,7 +6,6 @@ import { ZodError } from "zod";
 import { requireFactory, requireSeller } from "./auth/session";
 import { createBrandOffer, reviseBrandOffer } from "./brands";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
-import { createOffer } from "./offers";
 import { db } from "./db";
 import { canSell } from "./agreements";
 import { flash } from "./flash";
@@ -15,26 +14,6 @@ import { UploadError } from "./storage";
 export type SellerState = { error?: string };
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
-
-/** The seller's one form: product name, details about the stock and the total price. */
-export async function sendOfferAction(_p: SellerState, fd: FormData): Promise<SellerState> {
-  const seller = await requireSeller();
-  try {
-    await createOffer(seller.id, {
-      name: str(fd, "name"),
-      description: str(fd, "description"),
-      amount: str(fd, "amount"),
-      kind: str(fd, "kind") || undefined,
-      productId: str(fd, "productId"),
-    });
-  } catch (e) {
-    if (e instanceof CatalogueError) return { error: e.message };
-    if (e instanceof ZodError) return { error: e.issues[0]?.message ?? "Check the form" };
-    throw e;
-  }
-  revalidatePath("/seller");
-  redirect("/seller?done=sent");
-}
 
 /** A luxury brand's discounted product: actual price, discount price, pieces and its link. */
 export async function sendBrandOfferAction(_p: SellerState, fd: FormData): Promise<SellerState> {
@@ -141,7 +120,7 @@ export async function factorySizeStockAction(fd: FormData) {
   revalidatePath("/shop");
 }
 
-/** A sold-out size that was never in a cart can be taken off the listing. */
+/** A sold-out size that was never ordered can be taken off the listing. */
 export async function removeFactorySizeAction(fd: FormData) {
   const { factoryId } = await requireFactory("products");
   const removed = await db.variant.deleteMany({
@@ -149,7 +128,7 @@ export async function removeFactorySizeAction(fd: FormData) {
       id: str(fd, "variantId"),
       available: 0,
       reserved: 0,
-      lines: { none: {} },
+      orderLines: { none: {} },
       product: { sellerId: factoryId },
     },
   });

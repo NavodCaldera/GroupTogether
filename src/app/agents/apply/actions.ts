@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { applyAsAgent } from "@/server/agents/apply";
 import { startDeposit } from "@/server/agents/deposit";
 import { requireUser } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
 import { UploadError } from "@/server/storage";
 

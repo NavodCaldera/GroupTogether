@@ -1,5 +1,5 @@
 import "server-only";
-import { CartError } from "./carts/errors";
+import { CartError } from "@/server/errors";
 import { withOrderTransaction } from "./orders/locks";
 import {
   photoRequired,
@@ -11,30 +11,18 @@ import { checkUpload, saveUpload, IMAGE_TYPES } from "./storage";
 import { BUYER_ROLES } from "@/lib/roles";
 import { db } from "./db";
 
-/**
- * Factory ratings (product owner, 2026-11-03): each member of a delivered cart rates the factory
- * that packed and shipped it, 1–5 stars, once. Products show the factory's average and count.
- */
 export type RatingSummary = { average: number; count: number };
 
-/** Averages for these factories, one grouped query; factories with no ratings are left out. */
+/** A factory's score: the average of its products' ratings. Factories with none are left out. */
 export async function ratingSummaries(factoryIds: (string | null)[]) {
   const ids = [...new Set(factoryIds.filter((x): x is string => !!x))];
-  const rows = ids.length
-    ? await db.factoryRating.groupBy({
-        by: ["factoryId"],
-        where: { factoryId: { in: ids } },
-        _avg: { stars: true },
-        _count: true,
+  const products = ids.length
+    ? await db.product.findMany({
+        where: { sellerId: { in: ids } },
+        select: { sellerId: true, productRatings: { select: { stars: true } } },
       })
     : [];
-  const products = await db.product.findMany({
-    where: { sellerId: { in: ids } },
-    select: { sellerId: true, productRatings: { select: { stars: true } } },
-  });
   const combined = new Map<string, { sum: number; count: number }>();
-  for (const r of rows)
-    combined.set(r.factoryId, { sum: (r._avg.stars ?? 0) * r._count, count: r._count });
   for (const p of products) {
     if (!p.sellerId) continue;
     const score = combined.get(p.sellerId) ?? { sum: 0, count: 0 };
@@ -48,10 +36,6 @@ export async function ratingSummaries(factoryIds: (string | null)[]) {
     [...combined].map(([id, r]) => [id, { average: r.sum / r.count, count: r.count }]),
   );
 }
-
-/** The member's own rating of this cart, if any. */
-export const myRating = (userId: string, cartId: string) =>
-  db.factoryRating.findUnique({ where: { cartId_userId: { cartId, userId } } });
 
 /** A buyer rates each product once per order, after collecting a line of it. */
 export async function rateProduct(

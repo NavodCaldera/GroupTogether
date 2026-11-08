@@ -8,13 +8,16 @@ import { appUrl } from "../notify";
 import { getGateway } from "../payments/gateway";
 import { agentOfUser, AgentError, withAgent } from "./common";
 
-/** An APPROVED agent starts paying the deposit plus the gateway fee. Tokens never pay it. A
+/** An APPROVED agent with opening hours starts paying the deposit plus the gateway fee. Tokens never pay it. A
  * second attempt is allowed; if both are paid, the later one becomes tokens (late path).
  */
 export async function startDeposit(agentUserId: string): Promise<{ redirectUrl: string }> {
   const { id } = await agentOfUser(agentUserId);
   const pay = await withAgent(id, async (tx, agent) => {
     if (agent.status !== "APPROVED") throw new AgentError("The deposit is not due");
+    // Every agent sets weekly opening hours before going live (FR-029a).
+    if (!(await tx.agentHours.count({ where: { agentId: agent.id } })))
+      throw new AgentError("Set your opening hours first");
     const settings = await getSettings(tx);
     const deposit = toD(settings.agentDeposit);
     const amount = deposit.plus(gatewayFee(deposit, toD(settings.gatewayFeeRate))).toFixed(2);

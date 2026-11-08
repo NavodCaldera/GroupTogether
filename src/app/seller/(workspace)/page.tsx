@@ -4,7 +4,6 @@ import { Toast } from "@/components/toast";
 import { cx } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { requireSeller } from "@/server/auth/session";
-import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import {
   factoryEarnings,
@@ -38,10 +37,7 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
     where: { id: seller.id },
     select: { id: true, isBrand: true, factoryId: true, factoryRole: true },
   });
-  if (login.isBrand) {
-    await sweep();
-    return <BrandDashboard brandId={seller.id} search={search} />;
-  }
+  if (login.isBrand) return <BrandDashboard brandId={seller.id} search={search} />;
   const { factoryId, factoryRole: role } = factoryOf(login);
   const packs = canFactory(role, "orders");
   const owner = canFactory(role, "earnings");

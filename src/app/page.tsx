@@ -5,9 +5,7 @@ import { isBuyerRole } from "@/lib/roles";
 import { BuyerHome } from "./buyer-home";
 import { ProductImage } from "@/components/cart-bits";
 import { formatLKR } from "@/lib/format";
-import { SalesCounter } from "@/components/client";
-import { listProducts, retailSaving, salesSnapshot } from "@/server/catalogue";
-import { sweep } from "@/server/carts/service";
+import { listProducts, retailSaving } from "@/server/catalogue";
 
 export default async function HomePage() {
   // The home page is for shoppers; admins go straight to the back office, packing staff to
@@ -17,18 +15,9 @@ export default async function HomePage() {
   if (role === "ADMIN") redirect("/admin");
   if (role === "SELLER") redirect("/seller");
   if (user && isBuyerRole(user.role)) return <BuyerHome user={user} />;
-  await sweep();
-  const [products, sales, saving] = await Promise.all([
-    listProducts({}, 8, "cheapest"),
-    salesSnapshot(),
-    retailSaving(),
-  ]);
+  const [products, saving] = await Promise.all([listProducts({}, 8, "cheapest"), retailSaving()]);
   return (
     <div className="flex flex-col gap-12">
-      <section className="rounded-2xl bg-muted px-5 py-8 sm:px-10 sm:py-10">
-        <SalesCounter initial={sales} />
-      </section>
-
       <section>
         <h1 className="mb-4 text-xl font-semibold">Buy clothing from partner factories together</h1>
         <ol className="grid gap-4 sm:grid-cols-4">

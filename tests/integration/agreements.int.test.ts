@@ -1,6 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
-import { canSell, publishVersion, acceptLatest, acceptDisplayedVersion } from "@/server/agreements";
+import {
+  acceptDisplayedVersion,
+  acceptLatest,
+  canSell,
+  publishVersion,
+  remindAgreements,
+} from "@/server/agreements";
+import { runSweep } from "@/server/sweep";
 import {
   saveProduct,
   setProductHidden,
@@ -10,8 +17,7 @@ import {
   shopFacets,
 } from "@/server/catalogue";
 import { addStaff } from "@/server/factory-team";
-import { createCart, setLine, sweep, acceptAndPay } from "@/server/carts/service";
-import { makeUser, makeVariant, resetDb, cartRow } from "./helpers";
+import { makeUser, makeVariant, resetDb } from "./helpers";
 const now = new Date("2026-12-01T00:00:00Z");
 const listing = {
   title: "Linen Shirt",
@@ -108,7 +114,7 @@ describe("factory agreements", () => {
     await Promise.all([acceptLatest(factory.id, now), acceptLatest(factory.id, now)]);
     expect(await db.agreementAcceptance.count()).toBe(1);
   });
-  it("expiry hides every shop path, refuses additions and keeps paid orders unchanged", async () => {
+  it("expiry hides every shop path", async () => {
     const { factory } = await setup();
     await acceptLatest(factory.id, now);
     const v = await makeVariant("25000", 10);
@@ -116,50 +122,12 @@ describe("factory agreements", () => {
       where: { id: v.productId },
       data: { sellerId: factory.id, title: "Unique Shirt", brand: "OnlyFactory" },
     });
-    const buyer = await makeUser();
-    const paid = await createCart(buyer.id, {});
-    await db.groupCart.update({
-      where: { id: paid.id },
-      data: { expiresAt: new Date("2028-01-01") },
-    });
-    await setLine(buyer.id, paid.id, v.id, 2, { now });
-    await db.groupCart.update({
-      where: { id: paid.id },
-      data: { status: "CONFIRMED", confirmedAt: now },
-    });
-    const unpaidOwner = await makeUser();
-    const unpaid = await createCart(unpaidOwner.id, {});
-    await db.groupCart.update({
-      where: { id: unpaid.id },
-      data: { expiresAt: new Date("2028-01-01") },
-    });
-    await setLine(unpaidOwner.id, unpaid.id, v.id, 2, { now });
     const late = new Date("2027-12-02");
-    await expect(
-      acceptAndPay(
-        unpaidOwner.id,
-        unpaid.id,
-        { deliveryAddress: "1 Factory Road", deliveryCity: "Colombo", deliveryPhone: "0771234567" },
-        late,
-      ),
-    ).rejects.toThrow(/agreement/i);
-    expect((await cartRow(unpaid.id)).status).toBe("READY");
-    const before = await cartRow(paid.id);
     expect((await listProducts({}, 60, "newest", now)).map((p) => p.id)).toContain(v.productId);
     expect(await listProducts({}, 60, "newest", late)).toEqual([]);
     expect(await getProduct(v.productId, late)).toBeNull();
     expect(await suggestProducts("Unique", 6, late)).toEqual([]);
     expect((await shopFacets(late)).brands).not.toContain("OnlyFactory");
-    const open = await createCart((await makeUser()).id, {});
-    await db.groupCart.update({
-      where: { id: open.id },
-      data: { expiresAt: new Date("2028-01-01") },
-    });
-    await expect(setLine(open.ownerId, open.id, v.id, 1, { now: late })).rejects.toThrow(
-      /agreement/i,
-    );
-    await sweep(late);
-    expect(await cartRow(paid.id)).toEqual(before);
   });
   it("legacy grace ends until checks and current acceptance are both complete", async () => {
     const { factory } = await setup();
@@ -202,23 +170,23 @@ describe("factory agreements", () => {
     await acceptLatest(factory.id, now);
     const reminderAt = new Date("2027-11-01");
     await db.agreementAcceptance.updateMany({ data: { remindedAt: reminderAt } });
-    await sweep(reminderAt);
-    await sweep(reminderAt);
+    await remindAgreements(reminderAt);
+    await remindAgreements(reminderAt);
     expect(
       await db.notification.count({
         where: { userId: factory.id, title: "Factory agreement renewal" },
       }),
     ).toBe(1);
   });
-  it("sweep sends the reminder once even concurrently, and renewal starts a new term", async () => {
+  it("sends the reminder once even concurrently, and renewal starts a new term", async () => {
     const { factory } = await setup();
     await acceptLatest(factory.id, now);
     const beforeReminder = new Date("2027-10-31");
-    await sweep(beforeReminder);
+    await remindAgreements(beforeReminder);
     expect(await db.notification.count({ where: { title: "Factory agreement renewal" } })).toBe(0);
     const atReminder = new Date("2027-11-01");
-    await Promise.all([sweep(atReminder), sweep(atReminder)]);
-    await sweep(atReminder);
+    await Promise.all([remindAgreements(atReminder), remindAgreements(atReminder)]);
+    await remindAgreements(atReminder);
     expect(
       await db.notification.count({
         where: { userId: factory.id, title: "Factory agreement renewal" },
@@ -228,5 +196,16 @@ describe("factory agreements", () => {
     await acceptLatest(factory.id, atReminder);
     expect(await db.agreementAcceptance.count()).toBe(2);
     expect(await canSell(factory.id, new Date("2028-10-31"))).toBe(true);
+  });
+  it("the cron sweep sends the agreement reminder", async () => {
+    const { factory } = await setup();
+    await acceptLatest(factory.id, now);
+    const result = await runSweep(new Date("2027-11-01"));
+    expect(result.agreementsFailed).toBeUndefined();
+    expect(
+      await db.notification.count({
+        where: { userId: factory.id, title: "Factory agreement renewal" },
+      }),
+    ).toBe(1);
   });
 });

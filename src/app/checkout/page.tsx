@@ -9,7 +9,7 @@ import { formatLKR } from "@/lib/format";
 import { validCommission } from "@/lib/price-rules";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { liveAgents } from "@/server/agents/live";
 import { buyerPin } from "@/server/orders/buyer";
 import { cartView } from "@/server/orders/cart";

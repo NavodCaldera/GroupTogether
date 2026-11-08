@@ -4,7 +4,7 @@ import { lineEarning } from "@/lib/agent-money";
 import { weekEnding } from "@/lib/agent-rules";
 import type { DeductionKind, Prisma, ReturnStatus } from "@/generated/prisma/client";
 import { assertAdminArea } from "../auth/service";
-import { CartError } from "../carts/errors";
+import { CartError } from "@/server/errors";
 import { db } from "../db";
 import { getSettings } from "../settings";
 import { post } from "../tokens";

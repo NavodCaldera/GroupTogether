@@ -95,8 +95,8 @@ test("each admin lands in their area and is sent home from the others", async ({
     },
     {
       email: DEMO_ADMINS.CORE,
-      home: "/admin/users",
-      title: "Users",
+      home: "/admin/core/payouts",
+      title: "Payouts",
       tabs: ["Payouts", "Tokens", "Settings", "Admins", "Returns", "Quality"],
       pages: ["/admin/core/payouts", "/admin/core/tokens?q=buyer3@example.com", "/admin/settings"],
       denied: [
@@ -117,7 +117,6 @@ test("each admin lands in their area and is sent home from the others", async ({
         "/admin/agents",
         "/admin/factory/missing",
         "/admin/core/payouts",
-        "/admin/offers",
         "/admin/settings",
         "/admin/users/new-admin",
       ],

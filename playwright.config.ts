@@ -47,7 +47,6 @@ export default defineConfig({
       DATABASE_URL: TEST_DATABASE_URL,
       STORAGE_DIR: ".data/test-uploads",
       APP_URL: `http://localhost:${PORT}`,
-      DELIVERY_PROVIDER: "manual",
       GROUPBASKET_E2E: "1",
     },
   },

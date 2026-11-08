@@ -1,18 +1,14 @@
-import { lockUserAdvisory } from "./carts/locks";
-import { cancelledValue } from "./carts/visible-totals";
 import "server-only";
+import { lockUserAdvisory } from "./orders/locks";
 import { z } from "zod";
 import type { Prisma, StockType } from "@/generated/prisma/client";
 import { type Audience, findKind, kindFits } from "@/lib/taxonomy";
 import { D, toD } from "@/lib/decimal";
-import { formatLKR } from "@/lib/format";
 import { linkOnSite } from "@/lib/brand-rules";
-import { lotPrice } from "@/lib/stock-rules";
 import { db } from "./db";
 import { canSell, canSellIn, sellingFactoryWhere } from "./agreements";
 import { buyerPrice } from "@/lib/price-rules";
 import { getSettings } from "./settings";
-import { logPrices } from "./prices";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
 export class CatalogueError extends Error {}
@@ -161,8 +157,6 @@ export const productSchema = z
     kind: z.string().min(1, "Choose a category"),
     // No longer chosen in the form (product owner, 2026-10-20): kept as stored, new ones surplus.
     stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]).optional(),
-    // A product from a lot takes the lot's price (cost + margin); others need one typed in.
-    lotId: z.string().trim().optional(),
     price: money.optional().or(z.literal("")),
     retailPrice: money.optional().or(z.literal("")),
     // A luxury brand's product: its page on the brand's website showing the actual price.
@@ -180,14 +174,13 @@ export const productSchema = z
     message: "That category isn't offered for this audience",
     path: ["kind"],
   })
-  .refine((v) => v.lotId || v.price, {
-    message: "Enter our price, or choose the lot it came from",
+  .refine((v) => v.price, {
+    message: "Enter the price",
     path: ["price"],
   });
 
 /**
- * Creates or updates a product. It shows in the shop once it has free stock. With a lot, the
- * price is the lot's price now (`src/server/lots.ts` keeps it in step). A factory (`sellerId`)
+ * Creates or updates a product. It shows in the shop once it has free stock. A factory (`sellerId`)
  * publishes its own listings straight to the shop, with no review (product owner, 2026-11-03),
  * and edits only its own.
  */
@@ -202,27 +195,17 @@ export async function saveProduct(
   if (sellerId && id && !(await db.product.count({ where: { id, sellerId } })))
     throw new CatalogueError("Product not found");
   const existing = id
-    ? await db.product.findUnique({ where: { id }, select: { sellerId: true, lotId: true } })
+    ? await db.product.findUnique({ where: { id }, select: { sellerId: true } })
     : null;
   const ownerId = sellerId ?? existing?.sellerId;
   if (ownerId && !(await canSell(ownerId)))
     throw new CatalogueError("Accept the current factory agreement before listing products");
   const parsed = productSchema.parse(input);
-  // Factories set their own price; lots and brand links are ours.
-  const { lotId, price, ...p } = sellerId
-    ? { ...parsed, lotId: existing?.lotId ?? undefined, brandUrl: "" }
-    : parsed;
-  let lotData: { lotId: string | null; price: string };
-  if (lotId) {
-    const lot = await db.lot.findUnique({ where: { id: lotId } });
-    if (!lot) throw new CatalogueError("Choose a lot from the list");
-    lotData = { lotId, price: lotPrice(lot, new Date()).toString() };
-  } else {
-    lotData = { lotId: null, price: price! };
-  }
+  // Factories set their own price; brand links are ours.
+  const { price, ...p } = sellerId ? { ...parsed, brandUrl: "" } : parsed;
   const data = {
     ...p,
-    ...lotData,
+    price: price!,
     category: findKind(p.kind)!.category,
     retailPrice: p.retailPrice || null,
     brandUrl: p.brandUrl || null,
@@ -234,7 +217,7 @@ export async function saveProduct(
         })()
       : {}),
   };
-  const factoryListing = !!ownerId && !lotData.lotId;
+  const factoryListing = !!ownerId;
   if (factoryListing && !id) await getSettings();
   const saved = await db.$transaction(async (tx) => {
     // A new listing cannot slip past removal's metadata-first owner fence.
@@ -280,7 +263,6 @@ export async function saveProduct(
           },
         });
   });
-  await logPrices(db, [saved.id]);
   return saved;
 }
 
@@ -315,8 +297,7 @@ export async function adjustStock(
     where: { id: existing.id, available: { gte: -delta } },
     data: { available: { increment: delta } },
   });
-  if (r.count === 0)
-    throw new CatalogueError("Can't remove more than the free stock (locked stock stays in carts)");
+  if (r.count === 0) throw new CatalogueError("Can't remove more than the free stock");
 }
 
 /**
@@ -345,22 +326,6 @@ export async function retailSaving(now = new Date()) {
   }
   if (n < 3) return null;
   return retail.minus(ours).div(retail).times(100).toDecimalPlaces(0, D.ROUND_DOWN).toNumber();
-}
-
-/** Money taken so far: carts whose slip an admin approved. Formatted here so the client stays light. */
-export async function salesSnapshot() {
-  const s = await db.groupCart.aggregate({
-    where: { status: { in: ["CONFIRMED", "DISPATCHED", "DELIVERED"] } },
-    _sum: { total: true },
-  });
-  return {
-    total: formatLKR(
-      toD(s._sum.total ?? 0).minus(
-        await cancelledValue({ status: { in: ["CONFIRMED", "DISPATCHED", "DELIVERED"] } }),
-      ),
-    ),
-    updatedAt: new Date().toISOString(),
-  };
 }
 
 /** Admin publish/hide keeps agreement eligibility intact. */

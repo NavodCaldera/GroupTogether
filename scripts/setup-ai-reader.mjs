@@ -50,9 +50,9 @@ try {
     FROM public."Variant" v JOIN public."Product" p ON p.id=v."productId"
     LEFT JOIN public."User" seller ON seller.id=p."sellerId"
     WHERE COALESCE(seller."isBrand",false)=false AND p.category<>'SHOES'`);
-  await client.query(`CREATE VIEW groupbasket_ai.cart_summary AS
-    SELECT status::text, COUNT(*)::text AS carts, SUM(total)::text AS clothing_total
-    FROM public."GroupCart" GROUP BY status`);
+  await client.query(`CREATE VIEW groupbasket_ai.order_summary AS
+    SELECT status::text, COUNT(*)::text AS orders, SUM("itemsTotal")::text AS clothing_total
+    FROM public."Order" GROUP BY status`);
   await client.query("GRANT USAGE ON SCHEMA groupbasket_ai TO gb_ai_reader");
   await client.query("GRANT SELECT ON ALL TABLES IN SCHEMA groupbasket_ai TO gb_ai_reader");
   fs.writeFileSync(".env.mcp", `GROUPBASKET_READER_PASSWORD=${password}\n`, {

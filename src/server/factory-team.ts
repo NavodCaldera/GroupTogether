@@ -6,7 +6,7 @@ import { hashPassword } from "./auth/password";
 import { phoneSchema } from "./auth/service";
 import { db } from "./db";
 import { canSellIn } from "./agreements";
-import { lockUserAdvisory } from "./carts/locks";
+import { lockUserAdvisory } from "./orders/locks";
 
 /**
  * Factory staff (product owner, 2026-11-04): an owner adds each person with their own login and a
@@ -29,19 +29,6 @@ export async function factoryTeam(factoryId: string) {
     orderBy: [{ locked: "asc" }, { createdAt: "asc" }],
     select: { id: true, name: true, email: true, factoryRole: true, locked: true },
   });
-}
-
-/** Orders each person packed in the last seven days, by their user id. */
-export async function packedThisWeek(factoryId: string, now = new Date()) {
-  const rows = await db.groupCart.groupBy({
-    by: ["factoryPackedById"],
-    where: {
-      factoryPackedAt: { gte: new Date(now.getTime() - 7 * 86_400_000) },
-      factoryPackedBy: { OR: [{ id: factoryId }, { factoryId }] },
-    },
-    _count: true,
-  });
-  return new Map(rows.map((r) => [r.factoryPackedById, r._count]));
 }
 
 export async function addStaff(factoryId: string, raw: unknown) {

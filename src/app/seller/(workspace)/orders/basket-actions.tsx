@@ -25,14 +25,9 @@ function BasketStep({
   return (
     <form action={run} className="mt-3 flex flex-col gap-2">
       <input type="hidden" name="basketId" value={basketId} />
-      {/* Large bold text: white on the accent green needs it for contrast. */}
-      <button
-        type="submit"
-        disabled={pending}
-        className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-accent px-4 text-xl font-bold text-on-accent transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-      >
+      <Button type="submit" disabled={pending} className="min-h-12 w-full">
         {label}
-      </button>
+      </Button>
       {state.error && <Alert>{state.error}</Alert>}
     </form>
   );

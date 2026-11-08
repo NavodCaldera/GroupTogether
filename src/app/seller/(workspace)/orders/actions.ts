@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireFactory } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
 import { givenToDriver, markPacked, reportMissing } from "@/server/orders/delivery";
 

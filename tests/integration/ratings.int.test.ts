@@ -4,7 +4,6 @@ vi.mock("@/server/auth/session", () => ({ getCurrentUser: async () => principal.
 import { db } from "@/server/db";
 import { rateProduct, ratingSummaries } from "@/server/ratings";
 import { GET } from "@/app/api/report-photos/[id]/route";
-import { createCart } from "@/server/carts/service";
 import { makeReceivedOrder, makeUser, resetDb, giftPhotoFile } from "./helpers";
 beforeEach(async () => {
   await resetDb();
@@ -59,15 +58,11 @@ describe("product ratings", () => {
     });
     await expect(rateProduct(f.user.id, f.order.id, f.v.productId, 5)).rejects.toThrow();
   });
-  it("combines legacy factory and product stars one-for-one", async () => {
+  it("scores a factory by its product stars", async () => {
     const f = await fixture();
-    await rateProduct(f.user.id, f.order.id, f.v.productId, 5);
-    const cart = await createCart(f.user.id, {});
-    await db.factoryRating.create({
-      data: { cartId: cart.id, userId: f.user.id, factoryId: f.factory.id, stars: 1 },
-    });
+    await rateProduct(f.user.id, f.order.id, f.v.productId, 4);
     const score = (await ratingSummaries([f.factory.id])).get(f.factory.id)!;
-    expect(score).toEqual({ average: 3, count: 2 });
+    expect(score).toEqual({ average: 4, count: 1 });
   });
   it("keeps report photos private to the rater and FACTORY/CORE admins", async () => {
     const f = await fixture();

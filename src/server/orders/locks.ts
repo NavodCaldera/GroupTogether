@@ -1,6 +1,6 @@
 import "server-only";
 import { db, type Tx } from "../db";
-import { CartError } from "../carts/errors";
+import { CartError } from "@/server/errors";
 
 /** Lock order everywhere: user advisories (sorted) -> Order rows (sorted) -> basket advisory
  * basket:<agentId>:<factoryId> -> Basket rows -> ledger User rows (sorted).

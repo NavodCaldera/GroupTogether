@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import type { AdminState } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
 import { dismissMissingReport, removeMissingLine } from "@/server/orders/delivery";
 

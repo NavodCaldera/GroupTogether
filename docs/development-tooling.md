@@ -104,7 +104,7 @@ It changes no application rows and refuses existing role/config/schema conflicts
 overwriting access. Keep this local credential file private, including Windows file permissions.
 
 The role receives SELECT only on `groupbasket_ai.schema_columns`, `stock_summary` and
-`cart_summary`; no blanket access to user profiles, slips, private messages, partner terms or
+`order_summary` (before Task 18, `cart_summary`); no blanket access to user profiles, private messages, partner terms or
 application tables. Schema inspection exposes column types; operational views expose aggregates.
 Do not grant new tables by default when migrations introduce sensitive fields.
 

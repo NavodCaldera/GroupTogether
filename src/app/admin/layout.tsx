@@ -26,10 +26,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/factory/applications", "Applications", 0],
       ["/admin/factory/quality", "Quality", 0],
       ["/admin/factory/returns", "Returns", 0],
-      ["/admin", "Stock", 0],
-      ["/admin/lots", "Lots", 0],
       ["/admin/products", "Products", badges.lowStock, "muted"],
-      ["/admin/offers", "Offers", badges.offers],
       ["/admin/users", "Users", 0],
     ],
     AGENTS: [
@@ -62,7 +59,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
           <NavLink
             key={href}
             href={href}
-            exact={href === "/admin" || href === "/admin/factory" || href === "/admin/agents"}
+            exact={href === "/admin/factory" || href === "/admin/agents"}
             className={link}
             activeClassName={active}
           >

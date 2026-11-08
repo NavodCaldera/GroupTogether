@@ -14,16 +14,11 @@ import {
 import {
   acknowledgeGift,
   approveGiftBill,
-  cancelReservedGift,
   recordGiftSettlement,
-  reserveGift,
   respondToSettlement,
 } from "@/server/gifts";
-import { acceptAndPay, createCart, setLine } from "@/server/carts/service";
-import { approveSlip, uploadSlip } from "@/server/carts/slips";
 import { brandPhotoFor } from "@/server/brand-photos";
-import { decideOffer } from "@/server/offers";
-import { giftPhotoFile, makeUser, makeVariant, resetDb, slipFile } from "./helpers";
+import { giftPhotoFile, makeUser, resetDb } from "./helpers";
 
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
@@ -64,26 +59,29 @@ const input = (brandId: string, body: string, key = crypto.randomUUID()) => ({
   body,
   requestKey: key,
 });
-async function basket() {
-  const owner = await makeUser(),
-    variant = await makeVariant("25000", 10),
-    cart = await createCart(owner.id, {});
-  await setLine(owner.id, cart.id, variant.id, 2);
-  return { owner, cart };
+/** A stored gift order at the offer's current partner price (reservation is parked). */
+async function storedGift(f: Awaited<ReturnType<typeof fixture>>, paid: boolean) {
+  const recipient = await makeUser();
+  const offer = await db.stockOffer.findUniqueOrThrow({ where: { id: f.offer.id } });
+  return db.giftOrder.create({
+    data: {
+      offerId: f.offer.id,
+      recipientId: recipient.id,
+      status: paid ? "READY" : "RESERVED",
+      retailValue: offer.actualPrice!,
+      partnerPrice: offer.offerPrice!,
+      recipientName: recipient.name,
+      phone: recipient.phone!,
+      address: "1 Test Rd",
+      city: "Colombo",
+      authorizedById: f.admin.id,
+      paidAt: paid ? new Date() : null,
+    },
+  });
 }
 async function paidGift(f: Awaited<ReturnType<typeof fixture>>) {
   await reviewBrandOffer(f.admin.id, f.offer.id, 1, "approve", "");
-  const { owner, cart } = await basket();
-  const gift = await reserveGift(f.admin.id, cart.id, owner.id, f.offer.id);
-  await acceptAndPay(owner.id, cart.id, {
-    deliveryAddress: "1 Test Rd",
-    deliveryCity: "Colombo",
-    deliveryPhone: owner.phone!,
-  });
-  await uploadSlip(owner.id, cart.id, slipFile());
-  const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: cart.id } });
-  await approveSlip((await makeUser("ADMIN")).id, slip.id);
-  return gift;
+  return storedGift(f, true);
 }
 
 describe("premium brand communication", () => {
@@ -118,7 +116,6 @@ describe("premium brand communication", () => {
     await expect(communicationActor(factory.id)).rejects.toThrow("admins and premium brands");
     expect(await brandPhotoFor(f.other, f.offer.id, 1)).toBeNull();
     expect(await brandPhotoFor(buyer, f.offer.id, 1)).toBeNull();
-    await expect(decideOffer(f.offer.id, true, "")).rejects.toThrow("Brand rewards");
   });
 
   it("deduplicates concurrent sends, preserves per-admin read state and retry-safe notifications", async () => {
@@ -163,8 +160,7 @@ describe("premium brand communication", () => {
   it("blocks unpaid gift conversations and notifications, and acknowledges only paid orders", async () => {
     const f = await fixture();
     await reviewBrandOffer(f.admin.id, f.offer.id, 1, "approve", "");
-    const { owner, cart } = await basket();
-    const gift = await reserveGift(f.admin.id, cart.id, owner.id, f.offer.id);
+    const gift = await storedGift(f, false);
     const thread = await sendBrandMessage(f.admin.id, {
       ...input(f.partner.id, "Recipient instruction"),
       kind: "GIFT",
@@ -203,8 +199,7 @@ describe("premium brand communication", () => {
       "Refresh",
     );
     await reviewBrandOffer(f.admin.id, f.offer.id, 2, "approve", "");
-    const first = await basket(),
-      gift = await reserveGift(f.admin.id, first.cart.id, first.owner.id, f.offer.id);
+    const gift = await storedGift(f, false);
     await reviseBrandOffer(
       f.partner.id,
       f.offer.id,
@@ -220,9 +215,9 @@ describe("premium brand communication", () => {
     expect(
       (await db.giftOrder.findUniqueOrThrow({ where: { id: gift.id } })).partnerPrice.toString(),
     ).toBe("3200");
-    const next = await basket(),
-      newGift = await reserveGift(f.admin.id, next.cart.id, next.owner.id, f.offer.id);
-    expect(newGift.partnerPrice.toString()).toBe("3000");
+    expect(
+      (await db.stockOffer.findUniqueOrThrow({ where: { id: f.offer.id } })).offerPrice?.toString(),
+    ).toBe("3000");
     expect(await db.brandOfferRevision.count({ where: { offerId: f.offer.id } })).toBe(3);
     await reviseBrandOffer(
       f.partner.id,
@@ -321,21 +316,11 @@ describe("premium admin boundaries", () => {
     }
     await reviewBrandOffer(premium.id, f.offer.id, 1, "approve", "");
     expect(await brandPhotoFor(premium, f.offer.id)).not.toBeNull();
-    const b = await basket();
     for (const denied of [factory, warehouse]) {
-      await expect(reserveGift(denied.id, b.cart.id, b.owner.id, f.offer.id)).rejects.toThrow(
-        "Only admins",
-      );
       await expect(approveGiftBill(denied.id, "missing")).rejects.toThrow("Only admins");
       await expect(
         recordGiftSettlement(denied.id, f.partner.id, ["missing"], "test"),
       ).rejects.toThrow("Only admins");
     }
-    const gift = await reserveGift(premium.id, b.cart.id, b.owner.id, f.offer.id);
-    await expect(cancelReservedGift(factory.id, gift.id)).rejects.toThrow("not yours");
-    await cancelReservedGift(premium.id, gift.id);
-    expect((await db.giftOrder.findUniqueOrThrow({ where: { id: gift.id } })).status).toBe(
-      "CANCELLED",
-    );
   });
 });

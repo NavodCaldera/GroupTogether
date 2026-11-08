@@ -1,6 +1,6 @@
 ﻿import "server-only";
 import type { Tx } from "./db";
-import { CartError } from "./carts/errors";
+import { CartError } from "@/server/errors";
 export function messageText(body: string) {
   const text = body.trim();
   if (!text || text.length > 1000) throw new CartError("Write a message from 1 to 1000 characters");

@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { StatusBadge } from "@/components/cart-bits";
 import { Badge, EmptyState, PageHeader, cx } from "@/components/ui";
 import type { Prisma, Role } from "@/generated/prisma/client";
 import { ADMIN_AREA_LABEL, type OperationalAdminArea } from "@/lib/admin-access";
-import { type CartStatus, HOLDS_STOCK } from "@/lib/cart-rules";
 import { formatDate, formatDateTime } from "@/lib/format";
 import { areaUsersWhere } from "@/server/admin-users";
 import { requireAnyAdmin } from "@/server/auth/session";
-import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { FilterSelect } from "../filter-select";
 import {
@@ -62,7 +59,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
   const admin = await requireAnyAdmin();
   const area = admin.adminArea;
   const filters = AREA_FILTERS[area];
-  await sweep();
   const sp = await searchParams;
   const show = filters.find((f) => f === param(sp, "show"));
   const q = param(sp, "q");
@@ -101,8 +97,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
         createdAt: true,
         _count: {
           select: {
-            ownedCarts: true,
-            memberships: true,
+            buyerOrders: true,
             products: true,
           },
         },
@@ -116,16 +111,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
     db.user.count({ where: { ...search, role: "SELLER", isBrand: true } }),
   ]);
   const users = rows.slice(0, PAGE);
-
-  // The cart each buyer is in right now (one cart at a time, so at most one).
-  const live = await db.cartMember.findMany({
-    where: {
-      userId: { in: users.map((u) => u.id) },
-      cart: { status: { in: [...HOLDS_STOCK] } },
-    },
-    select: { userId: true, cart: { select: { code: true, status: true } } },
-  });
-  const liveCart = new Map(live.map((m) => [m.userId, m.cart]));
 
   const roleCount = (role: Role) => byRole.find((r) => r.role === role)?._count ?? 0;
   const counts: Record<Filter | "all", number> = {
@@ -219,7 +204,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
           {/* Phones and small tablets: one card per user, two columns from sm. */}
           <ul className="grid gap-2 sm:grid-cols-2 md:hidden">
             {users.map((u) => {
-              const cart = liveCart.get(u.id);
               return (
                 <li
                   key={u.id}
@@ -255,7 +239,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                       {u.city && <span className="text-subtle">{u.city}</span>}
                     </div>
                     <div className="mt-2 flex items-center justify-between gap-2 border-t border-line pt-2 text-xs text-subtle">
-                      <Activity user={u} cart={cart} />
+                      <Activity user={u} />
                       <span className="ml-auto shrink-0" title={formatDateTime(u.createdAt)}>
                         Since {formatDate(u.createdAt)}
                       </span>
@@ -317,7 +301,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
                     {u.city ?? <span className="text-subtle">—</span>}
                   </td>
                   <td>
-                    <Activity user={u} cart={liveCart.get(u.id)} />
+                    <Activity user={u} />
                   </td>
                   <td className="text-right text-subtle" title={formatDateTime(u.createdAt)}>
                     {formatDate(u.createdAt)}
@@ -379,20 +363,17 @@ function RoleBadge({
   return <Badge>Buyer</Badge>;
 }
 
-/** What the user does here: a buyer's carts (and the one they are in now), a seller's products. */
+/** What the user does here: a buyer's orders, a seller's products. */
 function Activity({
   user,
-  cart,
 }: {
   user: {
     role: Role;
     _count: {
-      ownedCarts: number;
-      memberships: number;
+      buyerOrders: number;
       products: number;
     };
   };
-  cart?: { code: string; status: CartStatus };
 }) {
   if (user.role === "SELLER") {
     const n = user._count.products;
@@ -403,24 +384,10 @@ function Activity({
     );
   }
   if (user.role === "ADMIN") return <span className="text-subtle">Back office</span>;
-  const { ownedCarts, memberships } = user._count;
+  const n = user._count.buyerOrders;
   return (
-    <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-      {cart && (
-        <Link
-          href={`/admin/carts/${cart.code}`}
-          className="relative z-10 inline-flex items-center gap-1.5"
-          aria-label={`In cart ${cart.code}`}
-        >
-          <span className="font-mono text-xs text-accent underline">{cart.code}</span>
-          <StatusBadge status={cart.status} />
-        </Link>
-      )}
-      <span className="text-subtle">
-        {ownedCarts + memberships === 0
-          ? "No carts yet"
-          : `${ownedCarts} started · ${memberships} joined`}
-      </span>
+    <span className="text-subtle">
+      {n === 0 ? "No orders yet" : `${n} ${n === 1 ? "order" : "orders"}`}
     </span>
   );
 }

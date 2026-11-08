@@ -6,7 +6,8 @@
   color-scheme: light;
   --paper: light-dark(#ffffff, #0d1110);
   --ink: light-dark(#111614, #eef2f0);
-  --accent: light-dark(#0b7a55, #3fcf98);
+  /* White text on the accent stays above 4.5:1 even at the 90% hover opacity (light 4.79:1). */
+  --accent: light-dark(#0a7350, #3fcf98);
   /* Chart bars: the accent, one step darker at night (validated: L band, chroma, 3:1 vs surface). */
   --chart: light-dark(#0b7a55, #2aa877);
   /* Second part of a chart bar (pieces wanted, not bought): validated with --chart (L band,

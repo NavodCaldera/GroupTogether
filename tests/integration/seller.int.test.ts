@@ -1,10 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { createSeller, homeFor } from "@/server/auth/service";
-import { sendMessage } from "@/server/carts/chat";
-import { createCart } from "@/server/carts/service";
 import { db } from "@/server/db";
-import { createOffer, decideOffer } from "@/server/offers";
-import { makeUser, resetDb } from "./helpers";
+import { resetDb } from "./helpers";
 
 let n = 0;
 beforeEach(async () => {
@@ -23,57 +20,10 @@ async function seller() {
   });
 }
 
-const offer = { name: "Cotton shirts", description: "600 shirts, sizes S-XXL", amount: "250,000" };
-
-describe("factory seller stock offers", () => {
-  it("send → admins told → accept with a note → seller told", async () => {
-    const [s, admin] = [await seller(), await makeUser("ADMIN", "FACTORY")];
-    expect(homeFor(s.role)).toBe("/seller");
-
-    const o = await createOffer(s.id, offer);
-    expect(o).toMatchObject({ status: "IN_REVIEW", name: "Cotton shirts", sellerId: s.id });
-    expect(o.amount.toString()).toBe("250000");
-    expect(
-      await db.notification.count({ where: { userId: admin.id, title: "Stock offer to review" } }),
-    ).toBe(1);
-
-    await decideOffer(o.id, true, "Deliver to our store on Monday");
-    expect(await db.stockOffer.findUniqueOrThrow({ where: { id: o.id } })).toMatchObject({
-      status: "ACCEPTED",
-      note: "Deliver to our store on Monday",
-    });
-    expect(
-      await db.notification.count({ where: { userId: s.id, title: "Your offer was accepted" } }),
-    ).toBe(1);
-    // Answered once only.
-    await expect(decideOffer(o.id, false, "")).rejects.toThrow("already been answered");
-  });
-
-  it("declines without a note", async () => {
+describe("factory seller accounts", () => {
+  it("land on the seller workspace", async () => {
     const s = await seller();
-    const o = await createOffer(s.id, offer);
-    await decideOffer(o.id, false, "  ");
-    expect(await db.stockOffer.findUniqueOrThrow({ where: { id: o.id } })).toMatchObject({
-      status: "DECLINED",
-      note: null,
-    });
-  });
-
-  it("checks the three fields, and only sellers can send", async () => {
-    const [s, buyer] = [await seller(), await makeUser()];
-    await expect(createOffer(s.id, { ...offer, name: "" })).rejects.toThrow("product name");
-    await expect(createOffer(s.id, { ...offer, description: "" })).rejects.toThrow("details");
-    await expect(createOffer(s.id, { ...offer, amount: "0" })).rejects.toThrow("total price");
-    await expect(createOffer(s.id, { ...offer, amount: "abc" })).rejects.toThrow("total price");
-    await expect(createOffer(buyer.id, offer)).rejects.toThrow("Only factory sellers");
-    expect(await db.stockOffer.count()).toBe(0);
-  });
-
-  it("sellers can't use carts or message shoppers", async () => {
-    const [s, buyer] = [await seller(), await makeUser()];
-    await expect(createCart(s.id, {})).rejects.toThrow("Only shoppers");
-    const cart = await createCart(buyer.id, {});
-    await expect(sendMessage(s.id, cart.id, "Hello")).rejects.toThrow("Only shoppers");
+    expect(homeFor(s.role)).toBe("/seller");
   });
 
   it("refuses a second account with the same email", async () => {

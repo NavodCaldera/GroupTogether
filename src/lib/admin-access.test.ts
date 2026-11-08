@@ -21,6 +21,12 @@ describe("admin operational boundaries", () => {
     }
     expect(adminHome(null)).toBe("/");
   });
+  it("lands each area on its most important page", () => {
+    expect(adminHome("CORE")).toBe("/admin/core/payouts");
+    expect(adminHome("AGENTS")).toBe("/admin/agents");
+    expect(adminHome("FACTORY")).toBe("/admin/factory");
+    expect(adminHome("PREMIUM")).toBe("/admin/brands");
+  });
   it("assigns every account to the area that manages it", () => {
     expect(userAdminArea({ role: "SELLER", isBrand: true })).toBe("PREMIUM");
     expect(userAdminArea({ role: "SELLER", isBrand: false })).toBe("FACTORY");

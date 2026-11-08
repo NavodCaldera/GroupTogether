@@ -4,12 +4,10 @@ import { latestAgreement } from "@/server/agreements";
 import { Textarea } from "@/components/ui";
 import type { Metadata } from "next";
 import { Card, Field, Input, PageHeader } from "@/components/ui";
-import { saveSettingsAction, setCommissionAction } from "@/server/admin-actions";
-import { saveStockSettingsAction } from "@/server/lot-actions";
+import { setCommissionAction } from "@/server/admin-actions";
 import { redirect } from "next/navigation";
 import { adminHome } from "@/lib/admin-access";
 import { requireAnyAdmin } from "@/server/auth/session";
-import { deliveryProvider } from "@/server/delivery/provider";
 import { appUrl } from "@/server/notify";
 import { getSettings } from "@/server/settings";
 import { storageDir } from "@/server/storage/local";
@@ -25,20 +23,9 @@ export default async function SettingsPage() {
   const [s, agreement] = await Promise.all([getSettings(), latestAgreement()]);
   const system: [string, string, boolean][] = [
     [
-      "Delivery",
-      configured(() =>
-        deliveryProvider().name === "pickme"
-          ? "PickMe API"
-          : "Manual (admin books in the PickMe app)",
-      ),
-      true,
-    ],
-    [
       "Deadline sweep",
-      process.env.CRON_SECRET
-        ? "Cron endpoint enabled, and on page loads"
-        : "On page loads only (no CRON_SECRET)",
-      true,
+      process.env.CRON_SECRET ? "Cron endpoint enabled" : "Not running (no CRON_SECRET)",
+      Boolean(process.env.CRON_SECRET),
     ],
     ["Site address", appUrl(), Boolean(process.env.APP_URL)],
     ["Uploads folder", storageDir(), true],
@@ -114,85 +101,6 @@ export default async function SettingsPage() {
               </Field>
             </PartnerForm>
           </Card>
-          <Card>
-            <AdminForm action={saveSettingsAction} submit="Save settings">
-              <Field
-                label="Minimum order value per cart (LKR)"
-                name="minOrderValue"
-                hint="Existing carts keep the minimum they started with."
-              >
-                <Input
-                  name="minOrderValue"
-                  inputMode="decimal"
-                  defaultValue={s.minOrderValue.toString()}
-                  required
-                />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Cart lifetime (hours)" name="cartLifetimeHours">
-                  <Input
-                    name="cartLifetimeHours"
-                    type="number"
-                    min={1}
-                    defaultValue={s.cartLifetimeHours}
-                    required
-                  />
-                </Field>
-                <Field label="Slip upload window (hours)" name="slipWindowHours">
-                  <Input
-                    name="slipWindowHours"
-                    type="number"
-                    min={1}
-                    defaultValue={s.slipWindowHours}
-                    required
-                  />
-                </Field>
-              </div>
-            </AdminForm>
-          </Card>
-          <Card>
-            <h2 className="mb-3 font-semibold">Stock</h2>
-            <AdminForm action={saveStockSettingsAction} submit="Save stock settings">
-              <Field label="Store size (pieces)" name="storeCapacity">
-                <Input
-                  name="storeCapacity"
-                  type="number"
-                  min={1}
-                  defaultValue={s.storeCapacity}
-                  required
-                />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-3">
-                <Field label="First margin (%)" name="fullMarginPct">
-                  <Input
-                    name="fullMarginPct"
-                    type="number"
-                    min={0}
-                    defaultValue={s.fullMarginPct}
-                    required
-                  />
-                </Field>
-                <Field label="For (days)" name="fullMarginDays">
-                  <Input
-                    name="fullMarginDays"
-                    type="number"
-                    min={0}
-                    defaultValue={s.fullMarginDays}
-                    required
-                  />
-                </Field>
-                <Field label="Then margin (%)" name="reducedMarginPct">
-                  <Input
-                    name="reducedMarginPct"
-                    type="number"
-                    min={0}
-                    defaultValue={s.reducedMarginPct}
-                    required
-                  />
-                </Field>
-              </div>
-            </AdminForm>
-          </Card>
         </div>
       </div>
       <aside className="flex flex-col gap-4 lg:pt-14">
@@ -210,13 +118,4 @@ export default async function SettingsPage() {
       </aside>
     </div>
   );
-}
-
-/** A setting's description, or the configuration error that stops it working. */
-function configured(describe: () => string): string {
-  try {
-    return describe();
-  } catch (e) {
-    return `Not working: ${(e as Error).message}`;
-  }
 }

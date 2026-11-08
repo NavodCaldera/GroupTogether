@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
-import { CartError } from "@/server/carts/errors";
+import { CartError } from "@/server/errors";
 import { handOver, lookupCode, PickupBlocked } from "@/server/orders/handover";
 import { makeAgent, makeReceivedOrder, resetDb } from "./helpers";
 

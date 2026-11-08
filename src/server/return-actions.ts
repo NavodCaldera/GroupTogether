@@ -2,7 +2,7 @@
 import { revalidatePath } from "next/cache";
 import { requireUser } from "./auth/session";
 import { flash } from "./flash";
-import { CartError } from "./carts/errors";
+import { CartError } from "@/server/errors";
 import { UploadError } from "./storage";
 import { fileReturn, factoryDecide, postReturnMessage, adminDecide, markReceived } from "./returns";
 import type { ReportReason } from "@/lib/quality-rules";

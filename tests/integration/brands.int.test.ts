@@ -4,10 +4,7 @@ import { createBrandOffer, reviseBrandOffer } from "@/server/brands";
 import { brandPhotoFor } from "@/server/brand-photos";
 import { storage } from "@/server/storage";
 import { getProduct, listProducts, saveProduct, suggestProducts } from "@/server/catalogue";
-import { createCart, setLine } from "@/server/carts/service";
-import { stockToReceive } from "@/server/receiving";
 import { db } from "@/server/db";
-import { linkOfferProduct } from "@/server/designs";
 import { reviewBrandOffer } from "@/server/brand-reviews";
 import { giftPhotoFile, makeUser, resetDb } from "./helpers";
 
@@ -131,7 +128,7 @@ describe("brand products", () => {
     await expect(createBrandOffer(factory.id, kaftan)).rejects.toThrow("Only luxury brands");
   });
 
-  it("retain retail references but cannot be linked to an ordinary shop product", async () => {
+  it("retain retail references and stay out of the clothing shop", async () => {
     const brand = await account(true, SITE);
     const o = await createBrandOffer(brand.id, kaftan, giftPhotoFile());
     await reviewBrandOffer((await makeUser("ADMIN", "PREMIUM")).id, o.id, 1, "approve", "");
@@ -157,17 +154,12 @@ describe("brand products", () => {
     );
     expect(p.brandUrl).toBe(kaftan.productUrl);
     expect(p.retailPrice?.toString()).toBe("18500");
-    await expect(linkOfferProduct(o.id, p.id)).rejects.toThrow("gift-only");
     expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).sellerId).toBeNull();
     // Legacy linked products remain stored, but no longer appear or sell as clothing.
     await db.product.update({ where: { id: p.id }, data: { sellerId: brand.id } });
-    const variant = await db.variant.create({ data: { productId: p.id, size: "M", available: 5 } });
+    await db.variant.create({ data: { productId: p.id, size: "M", available: 5 } });
     expect(await listProducts()).toEqual([]);
     expect(await suggestProducts("kaftan")).toEqual([]);
     expect(await getProduct(p.id)).toBeNull();
-    expect(await stockToReceive()).toEqual([]);
-    const buyer = await makeUser();
-    const cart = await createCart(buyer.id, {});
-    await expect(setLine(buyer.id, cart.id, variant.id, 1)).rejects.toThrow("complimentary gifts");
   });
 });

@@ -98,3 +98,20 @@ export async function requireAgent() {
     redirect("/dashboard");
   }
 }
+
+/**
+ * Opening hours only: an agent, or an APPROVED applicant (still a buyer login) who must set
+ * weekly hours before paying the deposit (FR-029a). Every other agent page uses requireAgent.
+ */
+export async function requireAgentHours() {
+  const user = await requireUser(["AGENT", "CUSTOMER"]);
+  if (user.role === "CUSTOMER") {
+    const agent = await db.agent.findUnique({
+      where: { userId: user.id },
+      select: { id: true, userId: true, status: true },
+    });
+    if (agent?.status !== "APPROVED") redirect("/agents/apply");
+    return { ...user, agent };
+  }
+  return requireAgent();
+}

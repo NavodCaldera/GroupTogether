@@ -2,20 +2,14 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { ZodError, z } from "zod";
-import type { DeliveryStatus } from "@/generated/prisma/client";
+import { ZodError } from "zod";
 import { AuthError, createOperationalAdmin, createSeller, setUserLocked } from "./auth/service";
 import { requireAdmin, requireAnyAdmin } from "./auth/session";
 import { assertManagesUser } from "./admin-users";
-import { CartError, cancelCart } from "./carts/service";
-import { approveSlip, rejectSlip } from "./carts/slips";
+import { CartError } from "./errors";
 import { CatalogueError, adjustStock, saveProduct, setProductHidden } from "./catalogue";
-import { db } from "./db";
 import { setCommission, SettingsError } from "./settings";
-import { bookDelivery, setDeliveryStatus } from "./delivery";
 import { flash } from "./flash";
-import { linkOfferProduct } from "./designs";
-import { decideOffer, noteOffer } from "./offers";
 import { UploadError } from "./storage";
 
 export type AdminState = { error?: string };
@@ -42,99 +36,18 @@ async function attempt(fn: () => Promise<unknown>, ok?: string): Promise<AdminSt
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 
-export async function approveSlipAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  const admin = await requireAdmin("AGENTS");
-  const slipId = str(fd, "slipId");
-  const res = await attempt(() => approveSlip(admin.id, slipId));
-  revalidatePath("/admin", "layout");
-  if (res.error) return res;
-  // Back to the queue, which says it's done and offers the delivery booking and the next slip.
-  redirect(`/admin/slips?done=approved&cart=${await slipCartCode(slipId)}`);
-}
-
-export async function rejectSlipAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  const admin = await requireAdmin("AGENTS");
-  const slipId = str(fd, "slipId");
-  const res = await attempt(() => rejectSlip(admin.id, slipId, str(fd, "note")));
-  revalidatePath("/admin", "layout");
-  if (res.error) return res;
-  redirect(`/admin/slips?done=rejected&cart=${await slipCartCode(slipId)}`);
-}
-
-async function slipCartCode(slipId: string) {
-  const slip = await db.paymentSlip.findUnique({
-    where: { id: slipId },
-    select: { cart: { select: { code: true } } },
-  });
-  return slip?.cart.code ?? "";
-}
-
-export async function adminCancelAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  const admin = await requireAdmin("AGENTS");
-  const res = await attempt(
-    () => cancelCart(admin, str(fd, "cartId"), str(fd, "reason")),
-    "Cancelled",
-  );
-  revalidatePath("/admin", "layout");
-  return res;
-}
-
-export async function bookDeliveryAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin("AGENTS");
-  const cartId = str(fd, "cartId");
-  const fee = str(fd, "quotedFee");
-  const res = await attempt(async () => {
-    if (fee && !/^\d+(\.\d{1,2})?$/.test(fee)) throw new CartError("Enter the fee as a number");
-    await bookDelivery(cartId, {
-      externalRef: str(fd, "externalRef") || null,
-      quotedFee: fee || null,
-      trackingUrl: str(fd, "trackingUrl") || null,
-      driverName: str(fd, "driverName") || null,
-    });
-  });
-  revalidatePath("/admin", "layout");
-  if (res.error) return res;
-  await flash("Delivery booked");
-  redirect("/admin/orders");
-}
-
-const DELIVERY_STATUSES: DeliveryStatus[] = [
-  "BOOKED",
-  "PICKED_UP",
-  "DELIVERED",
-  "FAILED",
-  "CANCELLED",
-];
-
-export async function deliveryStatusAction(fd: FormData) {
-  await requireAdmin("AGENTS");
-  const status = str(fd, "status") as DeliveryStatus;
-  if (!DELIVERY_STATUSES.includes(status)) return;
-  await setDeliveryStatus(str(fd, "deliveryId"), status);
-  revalidatePath("/admin", "layout");
-  await flash(`Delivery marked ${status.replace("_", " ").toLowerCase()}`);
-}
-
 export async function saveProductAction(_p: AdminState, fd: FormData): Promise<AdminState> {
   await requireAdmin("FACTORY");
   const id = str(fd, "id") || null;
   const photo = fd.get("photo");
   let savedId = id;
   const res = await attempt(async () => {
-    const offerId = str(fd, "offerId");
-    if (
-      offerId &&
-      (await db.stockOffer.count({ where: { id: offerId, seller: { isBrand: true } } }))
-    )
-      throw new CatalogueError("Premium brand products are gift-only");
     const p = await saveProduct(
       id,
       Object.fromEntries([...fd.entries()].filter(([, v]) => typeof v === "string")),
       photo instanceof File ? photo : null,
     );
     savedId = p.id;
-    // Made from a seller's accepted offer: it becomes one of their designs (2026-10-24).
-    if (!id && offerId) await linkOfferProduct(offerId, p.id);
   });
   if (res.error) return res;
   revalidatePath("/admin/products");
@@ -176,22 +89,6 @@ export async function adjustStockAction(_p: AdminState, fd: FormData): Promise<A
   return res;
 }
 
-const settingsSchema = z.object({
-  minOrderValue: z.string().regex(/^\d+(\.\d{1,2})?$/, "Enter the minimum as a number"),
-  cartLifetimeHours: z.coerce.number().int().min(1).max(720),
-  slipWindowHours: z.coerce.number().int().min(1).max(72),
-});
-
-export async function saveSettingsAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin("CORE");
-  const res = await attempt(async () => {
-    const data = settingsSchema.parse(Object.fromEntries(fd));
-    await db.settings.upsert({ where: { id: 1 }, create: { id: 1, ...data }, update: data });
-  }, "Settings saved. New carts use them; existing carts keep their minimum.");
-  revalidatePath("/admin/settings");
-  return res;
-}
-
 export async function lockUserAction(_p: AdminState, fd: FormData): Promise<AdminState> {
   const admin = await requireAnyAdmin();
   const userId = str(fd, "userId");
@@ -205,24 +102,6 @@ export async function lockUserAction(_p: AdminState, fd: FormData): Promise<Admi
   );
   revalidatePath("/admin/users", "layout");
   return res;
-}
-
-/** Accept or decline a factory seller's stock offer, or send a note without deciding. */
-export async function decideOfferAction(_p: AdminState, fd: FormData): Promise<AdminState> {
-  await requireAdmin("FACTORY");
-  const offerId = str(fd, "offerId");
-  const decision = str(fd, "decision");
-  if (decision === "note") {
-    const res = await attempt(() => noteOffer(offerId, str(fd, "note")));
-    revalidatePath("/admin", "layout");
-    if (res.error) return res;
-    redirect(`/admin/offers/${offerId}?done=noted`);
-  }
-  const accept = decision === "accept";
-  const res = await attempt(() => decideOffer(offerId, accept, str(fd, "note")));
-  revalidatePath("/admin", "layout");
-  if (res.error) return res;
-  redirect(`/admin/offers?done=${accept ? "accepted" : "declined"}`);
 }
 
 /** Factory admins add factory sellers; premium admins add brands. */

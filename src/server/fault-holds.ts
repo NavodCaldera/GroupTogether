@@ -68,11 +68,9 @@ export async function recordFault(
   return tx.faultHold.findUniqueOrThrow({ where: { id } });
 }
 
-import { lockUserAdvisory } from "./carts/locks";
-import { cleanFactoryCarts } from "./quality";
-import { flushCancellationNotices } from "./cancellations";
+import { lockUserAdvisory } from "./orders/locks";
 import { flushQualityNotices } from "./quality-notices";
-/** Only metadata and completion markers hold the hold row. Cart transactions stand alone. */
+/** Hides the factory's products and marks the hold cleaned; safe to re-run. */
 export async function enforceHold(holdId: string): Promise<void> {
   const pending = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "FaultHold" WHERE id=${holdId} FOR NO KEY UPDATE`;
@@ -99,39 +97,25 @@ export async function enforceHold(holdId: string): Promise<void> {
   });
   if (pending) {
     const { hold, removed } = pending;
-    const completed = await cleanFactoryCarts(
-      hold.factoryId,
-      "Factory fault limit",
-      hold.factoryId,
-      async (client) => {
-        const current = await client.faultHold.findUnique({
-          where: { id: hold.id },
-          select: { decidedAt: true, cleanedAt: true },
-        });
-        return !!current && !current.decidedAt && !current.cleanedAt;
-      },
-    );
-    if (completed)
-      await db.$transaction(async (tx) => {
-        await tx.$queryRaw`SELECT 1 FROM "FaultHold" WHERE id=${hold.id} FOR NO KEY UPDATE`;
-        await tx.faultHold.updateMany({
-          where: { id: hold.id, decidedAt: null, cleanedAt: null },
-          data: {
-            cleanedAt: new Date(),
-            ...(removed
-              ? { decision: "REMOVE", decidedAt: new Date(), decisionNote: "Factory removed" }
-              : {}),
-          },
-        });
+    await db.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT 1 FROM "FaultHold" WHERE id=${hold.id} FOR NO KEY UPDATE`;
+      await tx.faultHold.updateMany({
+        where: { id: hold.id, decidedAt: null, cleanedAt: null },
+        data: {
+          cleanedAt: new Date(),
+          ...(removed
+            ? { decision: "REMOVE", decidedAt: new Date(), decisionNote: "Factory removed" }
+            : {}),
+        },
       });
+    });
   }
   await flushQualityNotices();
-  await flushCancellationNotices();
 }
 
 import type { FactoryFault } from "@/generated/prisma/client";
 import { factoryOf } from "@/lib/factory-roles";
-import { CartError } from "./carts/errors";
+import { CartError } from "@/server/errors";
 import { assertQualityAdmin, removeFactory } from "./quality";
 import { messageText, checkMessageRate, readThreadNotice } from "./private-thread";
 export class HoldError extends CartError {}

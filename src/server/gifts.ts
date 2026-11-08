@@ -1,8 +1,4 @@
 import "server-only";
-import { canAdminArea } from "@/lib/admin-access";
-import { withCartTransaction, lockCart } from "./carts/locks";
-import { resetMemberDone } from "./carts/member-done";
-import type { Tx } from "./db";
 import { db } from "./db";
 import { CatalogueError } from "./catalogue";
 import { toD } from "@/lib/decimal";
@@ -25,102 +21,6 @@ async function assertAdmin(adminId: string) {
     }))
   )
     throw new CatalogueError("Only admins can authorize gifts and payments");
-}
-
-/** Caller locks the cart first. No brand charge is created for an unpaid reservation. */
-export async function releaseGiftReservations(tx: Tx, cartId: string, recipientId?: string) {
-  const released = await tx.giftOrder.findMany({
-    where: { cartId, recipientId, status: "RESERVED" },
-    select: { recipientId: true },
-    distinct: ["recipientId"],
-  });
-  for (const gift of released) await resetMemberDone(tx, cartId, gift.recipientId);
-  await tx.giftOrder.updateMany({
-    where: { cartId, recipientId, status: "RESERVED" },
-    data: { status: "CANCELLED" },
-  });
-}
-
-/** Manual eligibility approval while household/threshold policy remains open. One active gift per recipient/cart. */
-export async function reserveGift(
-  adminId: string,
-  cartId: string,
-  recipientId: string,
-  offerId: string,
-  now = new Date(),
-) {
-  await assertAdmin(adminId);
-  return withCartTransaction([cartId], [adminId, recipientId], async (tx) => {
-    await lockCart(tx, cartId);
-    const cart = await tx.groupCart.findUniqueOrThrow({ where: { id: cartId } });
-    if (!["OPEN", "READY"].includes(cart.status) || cart.expiresAt <= now)
-      throw new CatalogueError("Gifts can be reserved only in an editable, unexpired basket");
-    const member = await tx.cartMember.findUnique({
-      where: { cartId_userId: { cartId, userId: recipientId } },
-      include: { user: true },
-    });
-    if (!member || !(await tx.cartLine.count({ where: { cartId, userId: recipientId } })))
-      throw new CatalogueError("Choose a basket member with clothing items");
-    if (await tx.giftOrder.count({ where: { cartId, recipientId, status: { not: "CANCELLED" } } }))
-      throw new CatalogueError("This member already has a gift in this basket");
-    await tx.$queryRaw`SELECT 1 FROM "StockOffer" WHERE id = ${offerId} FOR UPDATE`;
-    const offer = await tx.stockOffer.findFirst({
-      where: {
-        id: offerId,
-        status: "ACCEPTED",
-        paused: false,
-        seller: { isBrand: true, locked: false },
-      },
-    });
-    if (!offer?.offerPrice || !offer.actualPrice || !offer.pieces)
-      throw new CatalogueError("Choose an approved, active gift product");
-    const allocated = await tx.giftOrder.count({
-      where: { offerId, status: { not: "CANCELLED" } },
-    });
-    if (allocated >= offer.pieces) throw new CatalogueError("This gift is out of stock");
-    const address = member.address || member.user.address;
-    const city = member.city || member.user.city;
-    if (!address || !city || !member.user.phone)
-      throw new CatalogueError("The recipient needs an address, city and phone");
-    await resetMemberDone(tx, cartId, recipientId);
-    return tx.giftOrder.create({
-      data: {
-        offerId,
-        cartId,
-        recipientId,
-        retailValue: offer.actualPrice,
-        partnerPrice: offer.offerPrice,
-        recipientName: member.user.name,
-        phone: member.user.phone,
-        address,
-        city,
-        authorizedById: adminId,
-      },
-    });
-  });
-}
-
-export async function cancelReservedGift(actorId: string, giftId: string) {
-  const before = await db.giftOrder.findUniqueOrThrow({ where: { id: giftId } });
-  await withCartTransaction([before.cartId], [actorId, before.recipientId], async (tx) => {
-    const [actor, gift] = await Promise.all([
-      tx.user.findUniqueOrThrow({ where: { id: actorId } }),
-      tx.giftOrder.findUniqueOrThrow({ where: { id: giftId }, include: { cart: true } }),
-    ]);
-    if (
-      actor.locked ||
-      (!canAdminArea(actor, "PREMIUM") &&
-        (actor.role !== "CUSTOMER" || actor.id !== gift.recipientId))
-    )
-      throw new CatalogueError("This gift is not yours to remove");
-    if (gift.cartId !== before.cartId)
-      throw new CatalogueError("This gift moved to another cart. Try again.");
-    await lockCart(tx, before.cartId);
-    if (gift.status !== "RESERVED" || !["OPEN", "READY"].includes(gift.cart.status))
-      throw new CatalogueError("This gift is already locked for payment");
-    await resetMemberDone(tx, gift.cartId, gift.recipientId);
-    await tx.giftOrder.update({ where: { id: giftId }, data: { status: "CANCELLED" } });
-  });
 }
 
 export async function updateGiftAvailability(
@@ -226,11 +126,7 @@ export async function updateGiftDelivery(
             : `Delivery issue: ${issue.trim().slice(0, 500)}`,
       requestKey: `gift-event:${giftId}:${crypto.randomUUID()}`,
     });
-    return { id: gift.recipientId, cartId: gift.cartId };
-  });
-  const cart = await db.groupCart.findUniqueOrThrow({
-    where: { id: recipient.cartId },
-    select: { code: true },
+    return { id: gift.recipientId };
   });
   await notify([recipient.id], {
     title:
@@ -243,7 +139,6 @@ export async function updateGiftDelivery(
       event === "issue"
         ? issue.trim().slice(0, 500)
         : `${courier.trim()} ${tracking.trim()}`.trim(),
-    href: `/c/${cart.code}`,
   });
   await flushBrandNotices().catch(() => {});
 }

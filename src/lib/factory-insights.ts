@@ -1,14 +1,10 @@
-import type { CartStatus } from "./cart-rules";
-import { D, toD } from "./decimal";
+import { toD } from "./decimal";
 
 /**
  * Figures for a factory's own dashboard (product owner, 2026-11-03). No database. Two numbers are
- * never mixed: "sold (paid)" counts only approved payments; "wanted in active carts" is stock
- * held in carts that aren't paid yet, and is never a sale.
+ * never mixed: "sold (paid)" counts only paid orders; stock held for an order waiting for payment
+ * is never a sale.
  */
-
-/** Carts whose payment is approved: their lines are sales. */
-export const PAID: readonly CartStatus[] = ["CONFIRMED", "DISPATCHED", "DELIVERED"];
 
 /** A size with this many or fewer left is low stock. */
 export const LOW_STOCK = 3;
@@ -18,20 +14,6 @@ export const MIN_RATINGS = 5;
 
 /** City figures are shown only for cities with at least this many orders. */
 export const MIN_CITY_ORDERS = 5;
-
-type LineLike = { qty: number; unitPrice: { toString(): string }; status: CartStatus };
-
-/** Pieces and value sold, from paid carts only; unpaid carts never count. */
-export function paidTotals(lines: readonly LineLike[]) {
-  let pieces = 0;
-  let value = new D(0);
-  for (const l of lines) {
-    if (!PAID.includes(l.status)) continue;
-    pieces += l.qty;
-    value = value.plus(toD(l.unitPrice).times(l.qty));
-  }
-  return { pieces, value };
-}
 
 /** The average to show, or null below MIN_RATINGS; the count is always shown. */
 export function ratingDisplay(stars: readonly number[]) {
@@ -61,12 +43,12 @@ export function stockAlert(available: number): StockAlert {
 }
 
 /**
- * Restock advice for one size: what is held in active carts (not yet sales) against what is left.
+ * Restock advice for one size: what is held for unpaid orders (not yet sales) against what is left.
  * Null when nothing calls for it.
  */
 export function restockAdvice(v: { size: string; available: number; reserved: number }) {
   if (v.reserved > 0 && v.reserved >= v.available)
-    return `Size ${v.size}: ${v.available} left, ${v.reserved} wanted in active carts — restock`;
+    return `Size ${v.size}: ${v.available} left, ${v.reserved} held for unpaid orders — restock`;
   if (v.available <= 0) return `Size ${v.size}: sold out — restock`;
   if (v.available <= LOW_STOCK) return `Size ${v.size}: ${v.available} left`;
   return null;
@@ -83,13 +65,6 @@ export const PRICE_BANDS = [
 export function priceBand(price: { toString(): string }): string {
   const p = toD(price);
   return PRICE_BANDS.find((b) => p.lt(b.max))!.label;
-}
-
-/** How far a cart is toward its minimum, as a whole percent capped at 100. */
-export function towardMinimum(total: { toString(): string }, minimum: { toString(): string }) {
-  const min = toD(minimum);
-  if (min.lte(0)) return 100;
-  return Math.min(100, toD(total).div(min).times(100).floor().toNumber());
 }
 
 const LETTER_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL"];

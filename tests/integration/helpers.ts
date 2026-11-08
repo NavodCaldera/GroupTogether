@@ -55,10 +55,10 @@ export async function makeVariant(price: string, available: number) {
 }
 
 export const variantRow = (id: string) => db.variant.findUniqueOrThrow({ where: { id } });
-export const cartRow = (id: string) => db.groupCart.findUniqueOrThrow({ where: { id } });
 
+/** A tiny JPEG upload. */
 export function slipFile() {
-  return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "slip.jpg", { type: "image/jpeg" });
+  return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "photo.jpg", { type: "image/jpeg" });
 }
 
 export function giftPhotoFile() {
@@ -133,7 +133,10 @@ export async function makeAgent({
 }
 
 /** A buyer with a pin. */
-export async function makeBuyer({ lat = 6.9271, lng = 79.8612 }: { lat?: number; lng?: number } = {}) {
+export async function makeBuyer({
+  lat = 6.9271,
+  lng = 79.8612,
+}: { lat?: number; lng?: number } = {}) {
   const user = await makeUser("CUSTOMER");
   return db.user.update({ where: { id: user.id }, data: { lat, lng } });
 }
