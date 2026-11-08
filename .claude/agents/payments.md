@@ -23,7 +23,7 @@ Policy references: `PAY-004`–`PAY-007`, `TOK-001`–`TOK-003`, `AGT-002`, `AGT
 - Routes: `src/app/api/payments/notify/route.ts`, the hosted demo page `src/app/demo-pay/`,
   the return page `src/app/checkout/return/`.
 - Tokens: `src/server/tokens.ts` (`post`, `credit`, `transferTokens`, `assertTokenHolder`,
-  holds), `src/lib/token-rules.ts`; buyer page `src/app/tokens/`, agent page `/agent/tokens`.
+  holds); buyer page `src/app/tokens/`, agent page `/agent/tokens`.
 - Payouts and agent fees: `src/server/payouts/index.ts` (`weekOf`, `payableLines`,
   `buildWeeklyPayouts`, `creditAgentFees`, `markPayoutPaid`); Core pages `src/app/admin/core/`.
 - Sweep: `src/server/sweep.ts` `runSweep`, called only by `/api/cron/sweep`.
@@ -56,7 +56,7 @@ Policy references: `PAY-004`–`PAY-007`, `TOK-001`–`TOK-003`, `AGT-002`, `AGT
 
 ## Verification and coordination
 
-Unit: `src/server/payments/demo.test.ts`, `agent-money` tests, `token-rules.test.ts`.
+Unit: `src/server/payments/demo.test.ts`, `agent-money` tests.
 Integration: `payments.int.test.ts`, `tokens.int.test.ts`, `token-transfer.int.test.ts`,
 `payouts.int.test.ts`. Apply `groupbasket-money-review` for any amount, fee, token or payout
 change. Cover forged, duplicate, mismatched and late notices and concurrent notices locking a

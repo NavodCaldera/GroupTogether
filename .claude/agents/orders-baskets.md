@@ -29,8 +29,8 @@ Policy references: `ORD-001`–`ORD-005`, `RETURN-001`, `BSK-001`–`BSK-003`, `
 - Buyer reads: `src/server/orders/buyer.ts`; pages `/`, `src/app/orders/`, `src/app/tokens/`.
 - Returns: `src/server/returns.ts` (`fileReturn`, `factoryDecide`, `adminDecide`,
   `collectReturn`, `lapseReturns`, `markReceived`, `escalateOverdue`).
-- Locks: `src/server/orders/locks.ts`. The shared error class lives in `src/server/errors.ts` once
-  Task 18 lands (`AppError`, with `CartError` kept as an alias).
+- Locks: `src/server/orders/locks.ts`. The shared error class is `AppError` in `src/server/errors.ts`
+  (`CartError` is kept as an alias until every import changes).
 - Courier and packing steps belong to [courier](courier.md); gateway and payouts to
   [payments](payments.md); agent lifecycle to [agents](agents.md).
 

@@ -47,9 +47,9 @@ Policy references: `AGT-001`–`AGT-005`, `ORD-005`, `BSK-006`, `RETURN-001`, `A
   `closeLeavingAgents` moves a leaving agent to `LEFT` only when nothing is left to hand over,
   then credits the deposit minus recorded losses as `DEPOSIT_RETURN` tokens. `collectHeldReturns`
   lets an admin move returns stranded at a leaving or left agent onto a return courier.
-- Hours are weekly days with open and close minutes; a 23:59 close is stored as 24:00. Hours can
-  be set only once the agent is live; applicants cannot set them before the deposit (see
-  implementation status).
+- Hours are weekly days with open and close minutes; a 23:59 close is stored as 24:00. An
+  APPROVED applicant sets hours at `/agent/hours` (gate `requireAgentHours()`), and
+  `startDeposit` refuses until hours exist (FR-029a). Every other agent page uses `requireAgent`.
 - Agents are buyers too. Their sections show as an in-page tab row under the buyer tab bar, not a
   second bottom bar; whether that stays is open (`DEC-016`).
 

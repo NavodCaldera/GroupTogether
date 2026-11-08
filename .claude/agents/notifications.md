@@ -66,27 +66,16 @@ See [qa-review](qa-review.md) for commands.
 
 ## Factory agreement reminders
 
-`remindAgreements` must run from `runSweep`: before Task 18 it ran inside the old cart sweep, so check that it still has a caller. Acceptance `remindedAt` claims are committed before notification delivery. `notify` accepts an optional deduplication key; reminders use deterministic per-term/per-owner notice IDs and retry missing deliveries, with batched term/notice reads. Approval uses an in-app notice plus an admin-reviewable one-time sign-in link; email/SMS delivery is not implemented. First sign-in sets the owner's password atomically with consuming the hashed token.
+`runSweep` calls `remindAgreements` in its `agreements` step and retries fault-hold enforcement in its `faultHolds` step (Task 18). Acceptance `remindedAt` claims are committed before notification delivery. `notify` accepts an optional deduplication key; reminders use deterministic per-term/per-owner notice IDs and retry missing deliveries, with batched term/notice reads. Approval uses an in-app notice plus an admin-reviewable one-time sign-in link; email/SMS delivery is not implemented. First sign-in sets the owner's password atomically with consuming the hashed token.
 
-## Quality cancellation (Part 3)
+## Quality actions after the area agent model
 
-`cancelPaidLines` in `src/server/cancellations.ts` requires participant advisories and the cart
-row, then sorted ledger users. Only ACTIVE lines in CONFIRMED/DISPATCHED carts cancel; delivered
-lines are untouched. Credit the full captured line price once, decrement sold, never restock
-hidden goods. Preserve stored cart.total; display projections and packing/factory lists exclude
-CANCELLED lines. Call `flushCancellationNotices` after commit; durable markers/stable IDs make
-retries safe. The generic cancellation helper retains historical dispatched support, but hide/hold/removal
-callers never cancel DISPATCHED/DELIVERED carts. See `tests/integration/cancellations.int.test.ts`.
-
-Part 3.3 guards: `src/server/quality.ts` requires FACTORY/CORE principals in mutations and queries;
-flags are read-time only. Metadata commits before per-cart cleanup. OPEN/READY removal shares
-`releaseLines` with setLine(0), including Done reset and stock/token/gift release. Ordinary hides preserve finished carts, including confirmation. Holds/removal share
-pre-booking cleanup for finished carts.
-Paid cancellation keeps stored totals and decrements sold without restocking hidden goods.
-DISPATCHED/DELIVERED carts are never changed by hide, hold or removal.
-Removal reuses session-ending account locks and sends no factory-user notice. QualityNotice and
-cancel-notified markers persist retries; flush only after commit. Verify `quality.int.test.ts`,
-`cancellations.int.test.ts`, `ratings.int.test.ts` and the 360px `quality.spec.ts` browser journey.
+`src/server/quality.ts` requires FACTORY/CORE principals in mutations and queries; flags are
+read-time only. Since Task 18 hides, holds and factory removal no longer clean carts (none exist)
+and `src/server/cancellations.ts` is gone. What they do to paid orders already in baskets is open
+(`DEC-016`). Removal reuses session-ending account locks and sends no factory-user notice.
+`QualityNotice` markers persist retries; flush only after commit. Verify `quality.int.test.ts`,
+`fault-holds.int.test.ts` and `ratings.int.test.ts`.
 
 ## Returns rebuild and fault holds (2026-11-06)
 

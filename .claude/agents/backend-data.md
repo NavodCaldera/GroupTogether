@@ -17,7 +17,7 @@ guidance, not business policy. Verify code pointers before editing.
 
 - Schema and migrations: `prisma/schema.prisma`, `prisma/migrations/`, `prisma.config.ts`.
 - Client and settings: `src/server/db.ts` (exports `db`, `Tx`), `src/server/settings.ts`.
-- Fixtures: `prisma/seed.ts`, `scripts/seed-brand-demo.mjs`; local databases: `scripts/local-db.mjs`.
+- Fixtures: `prisma/seed.ts`, `prisma/seed-hooks.mjs`, `src/lib/demo-accounts.ts`; local databases: `scripts/local-db.mjs`.
 - Model relationships and lifecycle tables belong in [architecture](../../docs/architecture.md); do not maintain a second exhaustive model list here.
 
 ## Implementation guards
@@ -38,11 +38,10 @@ guidance, not business policy. Verify code pointers before editing.
 - Local Postgres uses ports 5546 (`groupbasket`) and 5547 (`groupbasket_test`), with data in `.data/pg`. Test and development database URLs must differ.
 - The main seed clears tables. Treat fixture accounts, agents, baskets in every stage and the demo pickup code as test dependencies (`src/lib/demo-accounts.ts`); inspect the seed and browser setup before changing them.
 - Demo products and test fixtures use clothing; the legacy SHOES schema enum remains for stored rows. Consult implementation status rather than copying historical fixture inventories.
-- The separate brand demo script has its own local-development guard and fixture behavior; inspect it rather than assuming it behaves like the destructive main seed.
 
 ## Verification and coordination
 
-Use the repository money/concurrency/access skills under `.agents/skills/`. `npm run check:money` checks Decimal schema precision and selected type-aware hazards; it does not prove all financial paths are correct. Test entry points share `scripts/test-database.mjs`. The optional MCP inspector uses a restricted reader and sanitized views; see [tooling setup](../../docs/development-tooling.md). Never substitute application credentials for inspector credentials.
+Use the repository money/concurrency/access skills under `.agents/skills/`. `npm run check:money` checks Decimal schema precision and selected type-aware hazards; it does not prove all financial paths are correct. Test entry points share `scripts/test-database.mjs`. The optional MCP inspector uses a restricted reader and sanitized views (`order_summary` replaced `cart_summary` in Task 18; an existing reader role must be set up again to get it); see [tooling setup](../../docs/development-tooling.md). Never substitute application credentials for inspector credentials.
 
 Use [qa-review](qa-review.md) to select checks. Review migration compatibility, regenerated
 types, constraints and affected integration fixtures. Coordinate stock/lifecycle schema

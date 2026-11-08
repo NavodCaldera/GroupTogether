@@ -27,8 +27,8 @@ guidance, not business policy. Verify code pointers before editing.
 
 ## Area agent model (2026-11-08)
 
-Lots, price changes, stock offers, receiving, samples, the warehouse and the parked design
-analytics are removed or hidden (Task 18). Factories sell through agent baskets; returns, ratings,
+Lots, price changes, factory stock offers, receiving, samples, the warehouse, designs and the
+Stock page and store size were removed in Task 18. `StockOffer` stays for parked premium brands. Factories sell through agent baskets; returns, ratings,
 quality and fault holds now hang off `OrderLine`. Sections below that still mention carts describe
 rules carried over; check the code before relying on a cart-era pointer. Missing items are owned by
 [courier](courier.md).
@@ -40,7 +40,7 @@ Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/se
 ## Ownership and code
 
 - Catalogue: `src/server/catalogue.ts`, `src/lib/taxonomy.ts`, public photo/suggestion routes.
-- Stock: variant stock on the factory Products page; `src/lib/stock-rules.ts` where still used.
+- Stock: variant stock on the factory Products page (`seller-actions.ts`).
 - Factories: `seller-actions.ts`, `factory-dashboard.ts`, `factory-admin.ts`; design files are parked.
 - General admin: `src/server/admin-actions.ts`, `admin-queries.ts`, `src/app/admin/`; factory UI: `src/app/seller/`.
 - Policy references: `CAT-001`/`CAT-002`, `ORD-003`, `SUP-001`–`SUP-003`, `FAC-001`, `QUAL-001`, `FAULT-001`, `RATE-001`, `DATA-001`, `ADMIN-002`, `UX-002`.
@@ -91,31 +91,14 @@ Follow [qa-review](qa-review.md) for checks.
 
 Task 1.1 adds `FactoryApplication`, `FactoryDocument`, `FactoryInvite`, `AgreementVersion`, `AgreementAcceptance` and `FactoryProfile`. Migration `factory_partnership_joining` grants existing seller owners a 30-day compliance window. `src/server/partners.ts` owns validation, transactional invite redemption/review and optional visits. Public forms are `/factories/apply` and `/factories/apply/[token]`; review is `/admin/factory/applications`. Only unlocked FACTORY/CORE admins can read `/api/partner-docs/[id]`, with all other callers receiving 404 before storage access. Submission and rejection share an advisory lock; review also locks its application row. Existing owner association comes from the session, never form data. Approval for new owners creates a single-use seven-day token stored hashed in `FactoryActivation`, never `Session`. Its raw URL is returned only in the approving admin action response; notifications link to `/sign-in`. FACTORY/CORE admins can issue a replacement after approval only before any owner redemption. Under the owner lock, any non-null activation `usedAt` refuses reissue; unused links are revoked using `revokedAt`, not `usedAt`. The admin detail page hides New sign-in link after redemption. Activation history distinguishes newly created owners from authenticated legacy applicants, whose passwords remain unchanged and who receive no activation. Redemption locks owner then activation, requires both `usedAt` and `revokedAt` null, and sets `usedAt` and the password atomically, before the existing action starts a normal session. The admin page never retrieves tokens from notifications. Migration cleanup revokes exact hash-matched historical approval sessions, sanitizes links and retains only invalidated new-owner activation history. The revoked-column migration leaves ambiguous historical `usedAt` values untouched; these conservatively block reissue. External delivery is not configured. `agreements.ts` owns `canSell`, CORE append-only publication, owner-only acceptance/renewal and reminder delivery. Public catalogue queries filter in the database before pagination; positive cart additions and starting payment check eligibility within the existing cart transaction. Seller listing/staff services and admin republishing also enforce the gate. Legacy grace alone is insufficient after its deadline: checks must be approved and the latest agreement accepted/unexpired. Paid carts are never expired or repriced by agreement logic. `/seller/(workspace)/layout.tsx` redirects blocked factory owners to `/seller/agreement`; shared seller components keep their existing paths. Brands and staff retain their existing workspace access. The first sign-in exchange sets the owner's chosen password. Tests: `partner-rules`, `agreement-rules`, `partners.int.test.ts`, `agreements.int.test.ts`, and the 360px `partners.spec.ts` journey.
 
-## Quality cancellation (Part 3)
+## Quality actions after the area agent model
 
-`cancelPaidLines` in `src/server/cancellations.ts` requires participant advisories and the cart
-row, then sorted ledger users. Only ACTIVE lines in CONFIRMED/DISPATCHED carts cancel; delivered
-lines are untouched. Credit the full captured line price once, decrement sold, never restock
-hidden goods. Preserve stored cart.total; display projections and packing/factory lists exclude
-CANCELLED lines. Call `flushCancellationNotices` after commit; durable markers/stable IDs make
-retries safe. The generic cancellation helper retains historical dispatched support, but hide/hold/removal
-callers never cancel DISPATCHED/DELIVERED carts. See `tests/integration/cancellations.int.test.ts`.
-
-Product-rating guard: `src/server/ratings.ts` accepts only actual delivered product receivers,
-once per user/cart/product, and preserves legacy factory ratings for score reads only. Private
-report photos use `/api/report-photos/[id]`, restricted to the rater and FACTORY/CORE admins.
-Verify `quality-rules.test.ts` and `ratings.int.test.ts`; public score queries never expose notes,
-photos or buyer identities. Delivered cart forms replace the former factory-wide write action.
-
-Part 3.3 guards: `src/server/quality.ts` requires FACTORY/CORE principals in mutations and queries;
-flags are read-time only. Metadata commits before per-cart cleanup. OPEN/READY removal shares
-`releaseLines` with setLine(0), including Done reset and stock/token/gift release. Ordinary hides preserve finished carts, including confirmation. Holds/removal share
-pre-booking cleanup for finished carts.
-Paid cancellation keeps stored totals and decrements sold without restocking hidden goods.
-DISPATCHED/DELIVERED carts are never changed by hide, hold or removal.
-Removal reuses session-ending account locks and sends no factory-user notice. QualityNotice and
-cancel-notified markers persist retries; flush only after commit. Verify `quality.int.test.ts`,
-`cancellations.int.test.ts`, `ratings.int.test.ts` and the 360px `quality.spec.ts` browser journey.
+`src/server/quality.ts` requires FACTORY/CORE principals in mutations and queries; flags are
+read-time only. Since Task 18 hides, holds and factory removal no longer clean carts (none exist)
+and `src/server/cancellations.ts` is gone. What they do to paid orders already in baskets is open
+(`DEC-016`). Removal reuses session-ending account locks and sends no factory-user notice.
+`QualityNotice` markers persist retries; flush only after commit. Verify `quality.int.test.ts`,
+`fault-holds.int.test.ts` and `ratings.int.test.ts`.
 
 ## Returns rebuild and fault holds (2026-11-06)
 

@@ -43,8 +43,7 @@ answered.
 
 Also awaiting the owner's check (Claude's calls in the
 [design](superpowers/specs/2026-11-07-area-agent-model-design.md)): the LKR 50,000 lock counts
-goods only; one payment and one PayHere fee per checkout across factories; agents set hours only
-after going live; and what a quality hide, fault hold or factory removal does to paid orders
+goods only; one payment and one PayHere fee per checkout across factories; and what a quality hide, fault hold or factory removal does to paid orders
 already in baskets (the cart-era cleanup does not apply).
 
 ### DEC-001 — Premium-brand distribution boundaries
