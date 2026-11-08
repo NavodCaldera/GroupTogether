@@ -1,6 +1,6 @@
 ---
 name: groupbasket-cart-concurrency
-description: Review GroupBasket cart creation, joining, reservations, merges, expiry and payment mutations for transactional stock and single-active-cart invariants.
+description: Review GroupBasket checkout, order, agent-basket, stock-hold, cancellation, pickup-code, payment-notice, token and payout mutations for lock order, transactional stock and one-open-basket invariants.
 ---
 
 <!-- Pointer for Claude Code. The canonical skill is .agents/skills/groupbasket-cart-concurrency/SKILL.md; edit it there. -->

@@ -1,9 +1,9 @@
 ---
 name: groupbasket-browser-review
-description: Verify changed GroupBasket buyer, admin, brand or packing screens with local Playwright, mobile layout, accessibility and role-specific journeys.
+description: Verify changed GroupBasket buyer, agent, factory or admin screens with local Playwright, mobile layout, accessibility and role-specific journeys.
 ---
 
-Read `.claude/agents/frontend.md` and `.claude/agents/qa-review.md`. Use synthetic seeded accounts and the isolated test database for mutations. Never operate real bank or courier services.
+Read `.claude/agents/frontend.md` and `.claude/agents/qa-review.md`. Use synthetic seeded accounts and the isolated test database for mutations. Never operate real bank, payment gateway or courier services; use the demo gateway. Role journeys live in `tests/e2e/buyer.spec.ts`, `agent.spec.ts`, `factory.spec.ts` and `admin-workspaces.spec.ts`; check every screen at 360 px.
 
 Use `npm run browser -- --help` for the pinned Playwright CLI, or existing Playwright tests. Run `npm run e2e` for desktop journeys and 360-pixel mobile/accessibility smoke coverage. Use `npm run e2e:mobile` to focus on mobile checks. These commands migrate/seed the guarded test database, never development.
 

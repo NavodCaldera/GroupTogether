@@ -7,7 +7,7 @@ Read `AGENTS.md`, `.claude/agents/groupbasket.md`, the affected specialist and `
 
 Trace access through pages, server actions, services, queries and file routes. Verify roles server-side and scope records by the authenticated principal; a hidden component or an identifier supplied by the browser is not authorization. Select only needed fields.
 
-Check own-factory design metrics and own-brand products, paid recipients and settlements. Unpaid gifts expose only aggregate counts to brands. Keep internal admin notes, bank slips, customer profiles and other-brand data out of partner queries and payloads. Brands may see authorized paid gift delivery snapshots, not unrestricted customer profiles. Keep premium gift capacity separate from owned clothing stock.
+Check own-factory design metrics and own-brand products, paid recipients and settlements. Unpaid gifts expose only aggregate counts to brands. Keep internal admin notes, customer profiles, agent documents and other-brand data out of partner queries and payloads. Factories and agents never see buyer names or phones beyond what their own parcels need; factory Packing sees no money; agent pages also gate on `Agent.status`. Brands may see authorized paid gift delivery snapshots, not unrestricted customer profiles. Keep premium gift capacity separate from owned clothing stock.
 
 Check financial timeline display and Sunday business dates in `Asia/Colombo`; preserve unambiguous stored instants rather than rewriting timestamps as local strings.
 
