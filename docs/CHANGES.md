@@ -1,5 +1,9 @@
 # Product-owner change log
 
+## 2026-11-08 - Agent screens
+
+- Built (area-agent Task 15): agents sign in to `/agent`: Hand over (type a buyer's code, tick the items, hand over), Arriving today (driver, phone, vehicle and fee, Mark received with the returns to send back), Waiting for pickup, Returns to collect, Open baskets against the lock amount, and Tokens; plus Pickups, Returns, Tokens (balance, agent fees, courier repaid, Send, deposit and Leave with a confirm step) and Hours. `/agents/apply` takes the NIC, own photo, storage photos and a map pin, then shows Applied, or the deposit to pay once approved; `/agent/deposit/<id>` shows the payment result. Left or rejected agents cannot open the agent screens. Agents also get the buyer Dashboard tab, footer and token balance.
+
 ## 2026-11-08 - Area agent demo seed
 
 - Built (area-agent Task 14a): the demo seed now holds the agent model: two factories (Owner, Packing and Sales, six products each), three live agents in Colombo with hours and one applicant, six buyers (one with tokens), baskets in every stage (filling, locked, packed, with courier, at agent), a buyer with a ready pickup code, a return waiting to be handed over and one admin per area. The luxury brand data stays. The development database has not been reseeded.

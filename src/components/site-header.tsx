@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { getCurrentUser } from "@/server/auth/session";
+import { isBuyerRole } from "@/lib/roles";
 import { NavLink } from "./nav-link";
 import { unreadMessageCount } from "@/server/carts/chat";
 import { unreadCount } from "@/server/notify";
@@ -59,12 +60,21 @@ export async function SiteHeader() {
           },
         ]),
     // Each role's own home: buyers their dashboard, sellers their products, admins Admin.
-    ...(user?.role === "CUSTOMER"
+    ...(user && isBuyerRole(user.role)
       ? [
           {
             href: "/dashboard",
             label: "Dashboard",
             icon: <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm-8 9a8 8 0 0 1 16 0" />,
+          },
+        ]
+      : []),
+    ...(user?.role === "AGENT"
+      ? [
+          {
+            href: "/agent",
+            label: "Agent",
+            icon: <path d="M3 21V10l9-6 9 6v11h-6v-6H9v6zM9 10h6" />,
           },
         ]
       : []),

@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SiteHeader, hasTabBar } from "@/components/site-header";
 import { FlashToast } from "@/components/toast";
+import { isBuyerRole } from "@/lib/roles";
 import { getCurrentUser } from "@/server/auth/session";
 import { currentTheme } from "@/server/theme";
 import "./globals.css";
@@ -26,7 +27,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   const tabBar = hasTabBar(user);
   // Only shoppers (visitors and customers) get the consumer footer. Admins, packing staff and
   // sellers manage the platform and get a clean, uncluttered interface.
-  const footer = !user || user.role === "CUSTOMER";
+  const footer = !user || isBuyerRole(user.role);
   return (
     <html lang="en" data-theme={theme} className="h-full antialiased">
       <body className="flex min-h-full flex-col">

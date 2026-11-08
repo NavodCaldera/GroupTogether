@@ -8,6 +8,7 @@ import { BackLink } from "@/components/client";
 import { Alert, Button, PageHeader } from "@/components/ui";
 import { signOutAction } from "@/server/auth/actions";
 import { homeFor } from "@/server/auth/service";
+import { isBuyerRole } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { ProfileForm } from "./profile-form";
 import { SellerProfile } from "./seller-profile";
@@ -30,7 +31,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
         <SellerProfile user={user} />
       </div>
     );
-  const balance = user.role === "CUSTOMER" ? await tokenBalance(user.id) : null;
+  const balance = isBuyerRole(user.role) ? await tokenBalance(user.id) : null;
   // Cursor is constrained to this principal; never use an arbitrary other user's ledger entry.
   const cursor =
     typeof before === "string"

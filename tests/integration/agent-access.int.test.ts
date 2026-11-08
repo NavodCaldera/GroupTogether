@@ -109,7 +109,7 @@ describe("roles and areas", () => {
   });
 
   it("sends an agent to the agent home", () => {
-    expect(homeFor("AGENT")).not.toBe("/packing");
+    expect(homeFor("AGENT")).toBe("/agent");
   });
 });
 

@@ -249,6 +249,7 @@ export async function userForToken(token: string, now = new Date()): Promise<Ses
 export function homeFor(role: Role, adminArea?: string | null): string {
   if (role === "ADMIN") return adminHome(adminArea);
   if (role === "SELLER") return "/seller";
+  if (role === "AGENT") return "/agent";
   return "/dashboard";
 }
 
