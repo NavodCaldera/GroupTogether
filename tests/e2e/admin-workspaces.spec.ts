@@ -31,13 +31,16 @@ async function signIn(page: Page, email: string) {
   await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
 }
 
-async function inspect(page: Page) {
+async function inspect(page: Page, scan = true) {
   await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   await expect
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     .toBe(true);
-  const scan = await new AxeBuilder({ page }).withTags(["wcag2a", "wcag2aa", "wcag21aa"]).analyze();
-  expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
+  if (!scan) return;
+  const result = await new AxeBuilder({ page })
+    .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+    .analyze();
+  expect(result.violations, JSON.stringify(result.violations, null, 2)).toEqual([]);
 }
 
 const flash = (page: Page, text: string) => page.getByRole("status").getByText(text);
@@ -64,7 +67,15 @@ test("each admin lands in their area and is sent home from the others", async ({
         "/admin/agents/baskets",
         "/admin/agents/search?q=0752222201",
       ],
-      denied: ["/admin/core/payouts", "/admin/core/tokens", "/admin/factory/missing"],
+      denied: [
+        "/admin/core/payouts",
+        "/admin/core/tokens",
+        "/admin/factory/missing",
+        "/admin/brands",
+        "/admin/users/new-seller",
+        "/admin/users/new-admin",
+      ],
+      addUser: null,
     },
     {
       email: DEMO_ADMINS.FACTORY,
@@ -72,7 +83,15 @@ test("each admin lands in their area and is sent home from the others", async ({
       title: "Apparel and factories",
       tabs: ["Factories", "Missing items", "Applications", "Quality", "Returns"],
       pages: ["/admin/factory/missing"],
-      denied: ["/admin/agents", "/admin/agents/search", "/admin/core/payouts", "/admin/settings"],
+      denied: [
+        "/admin/agents",
+        "/admin/agents/search",
+        "/admin/core/payouts",
+        "/admin/settings",
+        "/admin/brands",
+        "/admin/users/new-admin",
+      ],
+      addUser: "Add factory",
     },
     {
       email: DEMO_ADMINS.CORE,
@@ -80,7 +99,31 @@ test("each admin lands in their area and is sent home from the others", async ({
       title: "Users",
       tabs: ["Payouts", "Tokens", "Settings", "Admins", "Returns", "Quality"],
       pages: ["/admin/core/payouts", "/admin/core/tokens?q=buyer3@example.com", "/admin/settings"],
-      denied: ["/admin/agents", "/admin/agents/applications", "/admin/factory/missing"],
+      denied: [
+        "/admin/agents",
+        "/admin/agents/applications",
+        "/admin/factory/missing",
+        "/admin/brands",
+      ],
+      addUser: "Add admin",
+    },
+    {
+      email: DEMO_ADMINS.PREMIUM,
+      home: "/admin/brands",
+      title: "Brand rewards",
+      tabs: ["Luxury brands", "Users"],
+      pages: [],
+      denied: [
+        "/admin/agents",
+        "/admin/factory/missing",
+        "/admin/core/payouts",
+        "/admin/offers",
+        "/admin/settings",
+        "/admin/users/new-admin",
+      ],
+      addUser: "Add luxury brand",
+      // Unchanged by the agent model; its own spec scans it.
+      scan: false,
     },
   ];
   for (const area of areas) {
@@ -94,10 +137,14 @@ test("each admin lands in their area and is sent home from the others", async ({
       await page.goto(route);
       await expect(page).toHaveURL(new RegExp(area.home + "$"));
     }
+    await page.goto("/admin/users");
+    if (area.addUser) await expect(page.getByRole("link", { name: area.addUser })).toBeVisible();
+    if (area.addUser !== "Add admin")
+      await expect(page.getByRole("link", { name: "Add admin" })).toHaveCount(0);
     await page.setViewportSize({ width: 360, height: 800 });
     for (const route of [area.home, ...area.pages]) {
       await page.goto(route);
-      await inspect(page);
+      await inspect(page, area.scan ?? true);
     }
     await page.setViewportSize({ width: 1280, height: 720 });
   }
@@ -107,6 +154,26 @@ test("each admin lands in their area and is sent home from the others", async ({
   expect((await page.request.get(`/api/agent-photos/${applicant.id}?k=nic`)).status()).toBe(404);
   await signIn(page, DEMO_ADMINS.AGENTS);
   expect((await page.request.get(`/api/agent-photos/${applicant.id}?k=nic`)).status()).toBe(200);
+});
+
+test("only the core admin adds admins; each lands in their own area", async ({ page }) => {
+  test.setTimeout(120_000);
+  const homes = { PREMIUM: "/admin/brands", FACTORY: "/admin/factory", AGENTS: "/admin/agents" };
+  for (const [index, [area, home]] of Object.entries(homes).entries()) {
+    await signIn(page, DEMO_ADMINS.CORE);
+    await page.goto("/admin/users");
+    await page.getByRole("link", { name: "Add admin" }).click();
+    const email = `${area.toLowerCase()}-operator@example.com`;
+    await page.getByLabel("Area").selectOption(area);
+    await page.getByLabel("Name", { exact: true }).fill(area + " operator");
+    await page.getByLabel("Email (they sign in with this)").fill(email);
+    await page.getByLabel("Mobile", { exact: true }).fill("077123456" + index);
+    await page.getByLabel("Temporary password").fill("password123");
+    await page.getByRole("button", { name: "Create admin account", exact: true }).click();
+    await page.waitForURL("**/admin/users");
+    await signIn(page, email);
+    await expect(page).toHaveURL(new RegExp(home + "$"));
+  }
 });
 
 test("Agents and orders books a courier for the packed basket", async ({ page }) => {
