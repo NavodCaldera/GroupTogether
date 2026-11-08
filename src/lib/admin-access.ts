@@ -1,8 +1,8 @@
 /**
- * Four admins (product owner, 2026-11-03): luxury brands, factories, buyers and orders (stored
- * as WAREHOUSE), and the core admin, who only runs settings and admin accounts.
+ * Admin areas (product owner, 2026-11-03; renamed for the area-agent model): luxury brands,
+ * factories, agents and orders, and the core admin, who runs settings, payouts and admin accounts.
  */
-export const ADMIN_AREAS = ["PREMIUM", "FACTORY", "WAREHOUSE", "CORE"] as const;
+export const ADMIN_AREAS = ["PREMIUM", "FACTORY", "AGENTS", "CORE"] as const;
 export type OperationalAdminArea = (typeof ADMIN_AREAS)[number];
 export type AdminPrincipal = { role: string; adminArea?: string | null; locked?: boolean };
 
@@ -20,7 +20,7 @@ export function canAdminArea(
   return adminAreaOf(user) === area;
 }
 
-/** The area responsible for an account: brands are premium, factory sellers factory, the rest warehouse. */
+/** The area responsible for an account: brands are premium, factory sellers factory, the rest agents. */
 export function userAdminArea(user: {
   role: string;
   isBrand?: boolean;
@@ -28,13 +28,13 @@ export function userAdminArea(user: {
 }): OperationalAdminArea | null {
   if (user.role === "ADMIN") return adminAreaOf(user);
   if (user.role === "SELLER") return user.isBrand ? "PREMIUM" : "FACTORY";
-  return "WAREHOUSE";
+  return "AGENTS";
 }
 
 export function adminHome(area: string | null | undefined): string {
   if (area === "PREMIUM") return "/admin/brands";
   if (area === "FACTORY") return "/admin/factory";
-  if (area === "WAREHOUSE") return "/admin/warehouse";
+  if (area === "AGENTS") return "/admin/warehouse";
   if (area === "CORE") return "/admin/users";
   return "/";
 }
@@ -42,9 +42,9 @@ export function adminHome(area: string | null | undefined): string {
 export const ADMIN_AREA_LABEL: Record<string, string> = {
   PREMIUM: "Luxury brands",
   FACTORY: "Factories",
-  WAREHOUSE: "Buyers and orders",
+  AGENTS: "Agents and orders",
   CORE: "Core",
 };
 
-/** Stored value of the "Agents and orders" admin area; Task 13 of the agent model flips it to "AGENTS". */
-export const AGENTS_AREA = "WAREHOUSE" as const;
+/** The "Agents and orders" admin area. */
+export const AGENTS_AREA = "AGENTS" as const;

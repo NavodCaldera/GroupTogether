@@ -238,7 +238,7 @@ describe("marking a payout paid", () => {
     await makeReceivedOrder({ receivedAt: THURSDAY });
     await runSweep(SUNDAY);
     const [p] = await payouts();
-    const agentsAdmin = await makeUser("ADMIN", "WAREHOUSE");
+    const agentsAdmin = await makeUser("ADMIN", "AGENTS");
     const core = await makeUser("ADMIN", "CORE");
     await expect(markPayoutPaid(agentsAdmin.id, p.id, "BANK-1")).rejects.toThrow();
     await expect(markPayoutPaid(core.id, p.id, "  ")).rejects.toThrow();

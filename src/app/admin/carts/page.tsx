@@ -46,7 +46,7 @@ const LIVE_CAP = 1000;
  * the finished stages sort by latest activity. `?status=` still filters one exact status.
  */
 export default async function AdminCartsPage({ searchParams }: PageProps<"/admin/carts">) {
-  await requireAdmin("WAREHOUSE");
+  await requireAdmin("AGENTS");
   await sweep();
   const sp = await searchParams;
   const exact = STATUSES.find((s) => s === param(sp, "status"));

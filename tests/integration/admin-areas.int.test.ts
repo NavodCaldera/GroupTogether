@@ -17,7 +17,7 @@ it("loads stored scope into sessions and denies other operational services", asy
   expect(await userForToken(token)).toMatchObject({ adminArea: "FACTORY" });
   await expect(assertAdminArea(admin.id, "FACTORY")).resolves.toBeUndefined();
   await expect(assertAdminArea(admin.id, "PREMIUM")).rejects.toThrow("unavailable");
-  await expect(assertAdminArea(admin.id, "WAREHOUSE")).rejects.toThrow("unavailable");
+  await expect(assertAdminArea(admin.id, "AGENTS")).rejects.toThrow("unavailable");
 });
 it("provisions operational accounts without allowing unrestricted scope", async () => {
   const input = {
@@ -25,21 +25,21 @@ it("provisions operational accounts without allowing unrestricted scope", async 
     email: "warehouse@test.lk",
     phone: "0771234567",
     password: "test-password",
-    adminArea: "WAREHOUSE",
+    adminArea: "AGENTS",
   };
   expect(await createOperationalAdmin(input)).toMatchObject({
     role: "ADMIN",
-    adminArea: "WAREHOUSE",
+    adminArea: "AGENTS",
   });
   await expect(createOperationalAdmin({ ...input, adminArea: "ALL" })).rejects.toThrow();
 });
 it("limits each area to its own admins and stakeholder accounts", async () => {
-  const [premium, factory, warehouse, buyer, packer] = [
+  const [premium, factory, warehouse, buyer, agent] = [
     await makeUser("ADMIN", "PREMIUM"),
     await makeUser("ADMIN", "FACTORY"),
-    await makeUser("ADMIN", "WAREHOUSE"),
+    await makeUser("ADMIN", "AGENTS"),
     await makeUser(),
-    await makeUser("PACKER"),
+    await makeUser().then((u) => db.user.update({ where: { id: u.id }, data: { role: "AGENT" } })),
   ];
   const seller = await db.user.update({
     where: { id: (await makeUser()).id },
@@ -49,14 +49,14 @@ it("limits each area to its own admins and stakeholder accounts", async () => {
     where: { id: (await makeUser()).id },
     data: { role: "SELLER", isBrand: true, company: "Brand", website: "https://brand.example" },
   });
-  const visible = async (area: "PREMIUM" | "FACTORY" | "WAREHOUSE") =>
+  const visible = async (area: "PREMIUM" | "FACTORY" | "AGENTS") =>
     (await db.user.findMany({ where: areaUsersWhere(area), select: { id: true } }))
       .map((u) => u.id)
       .sort();
   expect(await visible("PREMIUM")).toEqual([premium.id, brand.id].sort());
   expect(await visible("FACTORY")).toEqual([factory.id, seller.id].sort());
-  expect(await visible("WAREHOUSE")).toEqual([warehouse.id, buyer.id, packer.id].sort());
-  await expect(assertManagesUser("WAREHOUSE", buyer.id)).resolves.toBeUndefined();
+  expect(await visible("AGENTS")).toEqual([warehouse.id, buyer.id, agent.id].sort());
+  await expect(assertManagesUser("AGENTS", buyer.id)).resolves.toBeUndefined();
   await expect(assertManagesUser("FACTORY", buyer.id)).rejects.toThrow("not found");
   await expect(assertManagesUser("PREMIUM", seller.id)).rejects.toThrow("not found");
   await expect(assertManagesUser("FACTORY", premium.id)).rejects.toThrow("not found");

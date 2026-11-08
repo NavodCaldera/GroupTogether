@@ -11,7 +11,14 @@ import {
 import { canFactory, factoryOf, type FactorySection } from "@/lib/factory-roles";
 import type { Role } from "@/generated/prisma/client";
 import { db } from "../db";
-import { type SessionUser, endSession, homeFor, startSession, userForToken } from "./service";
+import {
+  type SessionUser,
+  assertAgent,
+  endSession,
+  homeFor,
+  startSession,
+  userForToken,
+} from "./service";
 
 const COOKIE = "gt_session";
 
@@ -79,4 +86,15 @@ export async function requireFactory(section: FactorySection) {
   if (!canFactory(factoryRole, section)) redirect(section === "home" ? "/" : "/seller");
   return { ...user, factoryId, factoryRole };
 }
-export const requirePacker = () => requireUser(["PACKER"]);
+/**
+ * An agent login with a LIVE, SUSPENDED or LEAVING agent row, and that row. The role stays AGENT
+ * after an agent has left, so the row's status decides.
+ */
+export async function requireAgent() {
+  const user = await requireUser(["AGENT"]);
+  try {
+    return { ...user, agent: await assertAgent(user.id) };
+  } catch {
+    redirect("/dashboard");
+  }
+}

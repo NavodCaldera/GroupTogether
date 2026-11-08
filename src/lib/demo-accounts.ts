@@ -1,6 +1,5 @@
 /**
  * The seeded demo accounts (prisma/seed.ts), shown on the sign-in page outside production.
- * Packing staff are seeded but not listed while factories pack orders (2026-11-03).
  */
 export const DEMO_PASSWORD = "password123";
 
@@ -21,8 +20,8 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     lands: "/admin/factory",
   },
   {
-    role: "Buyers admin",
-    name: "Buyers Admin",
+    role: "Agents and orders admin",
+    name: "Agents Admin",
     email: "buyers@groupbasket.lk",
     lands: "/admin/warehouse",
   },
@@ -36,12 +35,6 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: "Factory packing",
     name: "Ruwan · Ceylon Apparel Mills",
     email: "packing@example.com",
-    lands: "/seller",
-  },
-  {
-    role: "Factory planner",
-    name: "Malini · Ceylon Apparel Mills",
-    email: "planner@example.com",
     lands: "/seller",
   },
   {

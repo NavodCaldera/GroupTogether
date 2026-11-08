@@ -79,7 +79,7 @@ test("factory staff: each job gets its own bottom tabs; the owner adds staff", a
   await expect(page.getByRole("listitem", { name: "Ruwan Perera" })).toBeVisible();
   await page.getByLabel("Name", { exact: true }).fill("Kamal Jayasuriya");
   await page.getByLabel("Email (they sign in with this)").fill("kamal@example.com");
-  await page.getByLabel("Job", { exact: true }).selectOption("PLANNER");
+  await page.getByLabel("Job", { exact: true }).selectOption("SALES");
   await page.getByLabel("Temporary password").fill("password123");
   await page.getByRole("button", { name: "Add staff" }).click();
   await expect(page.getByRole("listitem", { name: "Kamal Jayasuriya" })).toBeVisible();

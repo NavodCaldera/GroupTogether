@@ -76,7 +76,7 @@ export async function requestSample(userId: string, input: unknown) {
     });
   });
   const admins = await db.user.findMany({
-    where: { role: "ADMIN", locked: false, adminArea: "WAREHOUSE" },
+    where: { role: "ADMIN", locked: false, adminArea: "AGENTS" },
     select: { id: true },
   });
   await notify(
@@ -112,7 +112,7 @@ const updateSchema = z.object({
 });
 
 export async function updateSample(adminId: string, input: unknown) {
-  await assertAdminArea(adminId, "WAREHOUSE");
+  await assertAdminArea(adminId, "AGENTS");
   const data = updateSchema.parse(input);
   const updated = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT 1 FROM "SampleRequest" WHERE id = ${data.id} FOR UPDATE`;
@@ -191,7 +191,7 @@ export async function acceptSampleTransport(
       body: "A group accepted its sample transport quote; prepare dispatch.",
       href: "/admin/warehouse",
     },
-    "WAREHOUSE",
+    "AGENTS",
   );
   return accepted;
 }

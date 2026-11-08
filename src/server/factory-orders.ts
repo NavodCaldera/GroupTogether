@@ -44,6 +44,6 @@ export async function markFactoryPacked(
       body: `Cart ${cart.code} is packed at the factory. Book PickMe from the factory.`,
       href: "/admin/orders",
     },
-    "WAREHOUSE",
+    "AGENTS",
   );
 }

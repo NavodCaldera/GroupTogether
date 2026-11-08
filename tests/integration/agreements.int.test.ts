@@ -87,7 +87,7 @@ describe("factory agreements", () => {
   });
   it("publishes only for CORE and serializes version numbers", async () => {
     const { core } = await setup();
-    for (const area of ["FACTORY", "PREMIUM", "WAREHOUSE"] as const)
+    for (const area of ["FACTORY", "PREMIUM", "AGENTS"] as const)
       await expect(publishVersion((await makeUser("ADMIN", area)).id, "Changed")).rejects.toThrow();
     await expect(publishVersion(core.id, " ")).rejects.toThrow();
     const versions = await Promise.all([

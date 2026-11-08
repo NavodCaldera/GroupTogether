@@ -55,7 +55,7 @@ describe("factory-direct fulfilment", () => {
     const [owner, admin, warehouse] = [
       await makeUser(),
       await makeUser("ADMIN"),
-      await makeUser("ADMIN", "WAREHOUSE"),
+      await makeUser("ADMIN", "AGENTS"),
     ];
     const { factory, v } = await factoryVariant();
     const other = await factoryVariant();
@@ -181,7 +181,7 @@ describe("factory-direct fulfilment", () => {
 
   it("a rapid double tap on Mark packed changes the order once", async () => {
     const [owner, admin] = [await makeUser(), await makeUser("ADMIN")];
-    const warehouse = await makeUser("ADMIN", "WAREHOUSE");
+    const warehouse = await makeUser("ADMIN", "AGENTS");
     const { factory, v } = await factoryVariant();
     const cart = await createCart(owner.id, {});
     await setLine(owner.id, cart.id, v.id, 2);

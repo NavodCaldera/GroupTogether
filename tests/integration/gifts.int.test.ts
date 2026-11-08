@@ -34,7 +34,7 @@ afterAll(() => db.$disconnect());
 
 async function fixture(pieces = 10) {
   const admin = await makeUser("ADMIN", "PREMIUM");
-  const warehouse = await makeUser("ADMIN", "WAREHOUSE");
+  const warehouse = await makeUser("ADMIN", "AGENTS");
   const owner = await makeUser();
   const brandUser = await makeUser();
   const brand = await db.user.update({

@@ -32,7 +32,6 @@ const PAID = ["CONFIRMED", "DISPATCHED", "DELIVERED"] as const;
  */
 export default async function BuyerDashboard({ searchParams }: PageProps<"/dashboard">) {
   const user = await requireUser([], "/dashboard");
-  if (user.role === "PACKER") redirect("/packing");
   if (user.role === "SELLER") redirect("/seller");
   const sp = await searchParams;
   const error = typeof sp.error === "string" ? sp.error : null;

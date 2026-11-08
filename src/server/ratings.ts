@@ -8,6 +8,7 @@ import {
   type ReportReason,
 } from "@/lib/quality-rules";
 import { checkUpload, saveUpload, IMAGE_TYPES } from "./storage";
+import { BUYER_ROLES } from "@/lib/roles";
 import { db } from "./db";
 
 /**
@@ -75,7 +76,9 @@ export async function rateProduct(
   for (const file of report?.photos ?? []) checkUpload(file, IMAGE_TYPES, "report photo");
   const eligible = async (client: import("./db").Tx) => {
     if (
-      !(await client.user.count({ where: { id: userId, role: "CUSTOMER", locked: false } })) ||
+      !(await client.user.count({
+        where: { id: userId, role: { in: [...BUYER_ROLES] }, locked: false },
+      })) ||
       !(await client.orderLine.count({
         where: {
           orderId,

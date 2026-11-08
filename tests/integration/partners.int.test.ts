@@ -145,7 +145,7 @@ describe("factory applications", () => {
     expect((await request()).status).toBe(404);
     principal.user = await db.user.update({ where: { id: buyer.id }, data: { role: "SELLER" } });
     expect((await request()).status).toBe(404);
-    for (const area of ["PREMIUM", "WAREHOUSE", "FACTORY", "CORE"] as const) {
+    for (const area of ["PREMIUM", "AGENTS", "FACTORY", "CORE"] as const) {
       principal.user = await makeUser("ADMIN", area);
       const response = await request();
       expect(response.status).toBe(area === "FACTORY" || area === "CORE" ? 200 : 404);
@@ -254,7 +254,7 @@ describe("factory applications", () => {
     for (const admin of [
       await makeUser(),
       await makeUser("ADMIN", "PREMIUM"),
-      await makeUser("ADMIN", "WAREHOUSE"),
+      await makeUser("ADMIN", "AGENTS"),
     ]) {
       await expect(issueActivationLink(admin.id, a.id)).rejects.toThrow(
         "Factories admin access required",

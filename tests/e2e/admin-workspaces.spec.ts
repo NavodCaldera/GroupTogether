@@ -46,7 +46,7 @@ test("four admins: three run their stream, the core admin runs settings and admi
       addUser: "Add factory",
     },
     {
-      area: "WAREHOUSE",
+      area: "AGENTS",
       email: "buyers@groupbasket.lk",
       home: "/admin/warehouse",
       title: "Warehouse and delivery",
@@ -102,7 +102,7 @@ test("four admins: three run their stream, the core admin runs settings and admi
   }
 
   // Only the core admin adds admins, for any area; each new admin lands in their workspace.
-  for (const [index, area] of ["PREMIUM", "FACTORY", "WAREHOUSE"].entries()) {
+  for (const [index, area] of ["PREMIUM", "FACTORY", "AGENTS"].entries()) {
     await signIn(page, "core@groupbasket.lk");
     await page.goto("/admin/users");
     await page.getByRole("link", { name: "Add admin" }).click();

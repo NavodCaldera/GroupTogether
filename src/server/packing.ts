@@ -7,7 +7,7 @@ import { db } from "./db";
 import { notify } from "./notify";
 
 /**
- * Packing staff (role PACKER, created by an admin) prepare confirmed carts in our store
+ * Packing staff (a role removed with the area-agent model) prepared confirmed carts in our store
  * (CLAUDE.md rule 17, product owner 2026-10-19): one person checks every item and gathers it all
  * together, then a different person rechecks it and packs it, and only then is it handed to the
  * PickMe driver, which marks the drop picked up. Who did each step is kept and shown to the
@@ -175,15 +175,4 @@ export async function packingOrder(code: string) {
       packing: { select: packingSelect },
     },
   });
-}
-
-/** What one packer did today (Colombo day), for their profile page. */
-export async function packerToday(staffId: string, now = new Date()) {
-  const since = colomboDayStart(now);
-  const [gathered, packed, handedOver] = await Promise.all([
-    db.packing.count({ where: { gatheredById: staffId, gatheredAt: { gte: since } } }),
-    db.packing.count({ where: { packedById: staffId, packedAt: { gte: since } } }),
-    db.packing.count({ where: { handedOverById: staffId, handedOverAt: { gte: since } } }),
-  ]);
-  return { gathered, packed, handedOver };
 }

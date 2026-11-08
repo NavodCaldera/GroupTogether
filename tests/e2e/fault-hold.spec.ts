@@ -98,7 +98,6 @@ for (const width of [1280, 360])
     for (const email of [
       "sales@example.com",
       "packing@example.com",
-      "planner@example.com",
       "brand@example.com",
       "premium@groupbasket.lk",
       "buyers@groupbasket.lk",

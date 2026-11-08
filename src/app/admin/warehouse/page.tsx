@@ -7,7 +7,7 @@ import { db } from "@/server/db";
 import { stockToReceive } from "@/server/receiving";
 import { updateSampleAction } from "@/server/sample-actions";
 export default async function WarehousePage() {
-  await requireAdmin("WAREHOUSE");
+  await requireAdmin("AGENTS");
   const [samples, receiving] = await Promise.all([
     db.sampleRequest.findMany({
       include: { product: { select: { title: true } }, cart: { select: { code: true } } },

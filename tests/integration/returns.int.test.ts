@@ -65,7 +65,7 @@ async function collected(f: Fixture, qty = 1, fault: "FACTORY" | "BUYER" = "FACT
 
 /** A second basket from the same factory reaches the agent and carries the returns back. */
 async function sendBack(f: Fixture, returnIds: string[]) {
-  const booker = await makeUser("ADMIN", "WAREHOUSE");
+  const booker = await makeUser("ADMIN", "AGENTS");
   const basket = await db.basket.create({
     data: {
       agentId: f.agent.id,
@@ -303,7 +303,7 @@ describe("send back and receipt", () => {
     const basket = await sendBack(f, [r.id]);
     expect(await row(r.id)).toMatchObject({ status: "PICKED_UP", sentBackBasketId: basket.id });
     const before = await db.variant.findUniqueOrThrow({ where: { id: f.variant.id } });
-    for (const id of [f.other.id, f.agentUser.id, (await makeUser("ADMIN", "WAREHOUSE")).id])
+    for (const id of [f.other.id, f.agentUser.id, (await makeUser("ADMIN", "AGENTS")).id])
       await expect(markReceived(id, r.id, true)).rejects.toThrow();
     const results = await Promise.allSettled([
       markReceived(f.sales.id, r.id, true, "Seam open"),

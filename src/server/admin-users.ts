@@ -9,7 +9,7 @@ export function areaUsersWhere(area: OperationalAdminArea): Prisma.UserWhereInpu
   const stakeholders: Record<OperationalAdminArea, Prisma.UserWhereInput[]> = {
     PREMIUM: [{ role: "SELLER", isBrand: true }],
     FACTORY: [{ role: "SELLER", isBrand: false }],
-    WAREHOUSE: [{ role: "CUSTOMER" }, { role: "PACKER" }],
+    AGENTS: [{ role: "CUSTOMER" }, { role: "AGENT" }],
     CORE: [{ role: "ADMIN" }],
   };
   return { OR: [{ role: "ADMIN", adminArea: area }, ...stakeholders[area]] };

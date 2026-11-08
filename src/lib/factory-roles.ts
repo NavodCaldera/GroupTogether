@@ -5,22 +5,22 @@ import type { FactoryRole } from "@/generated/prisma/client";
  * Each job sees only its own sections; owners see every section and are the only ones who see
  * money (sales value, commission, payouts). The factory account itself is always an owner.
  */
-export type FactorySection = "home" | "orders" | "products" | "insights" | "team" | "returns";
+export type FactorySection =
+  "home" | "orders" | "products" | "insights" | "team" | "returns" | "earnings" | "baskets";
 
-export const FACTORY_ROLES: FactoryRole[] = ["OWNER", "PACKING", "PLANNER", "SALES"];
+/** Three jobs only (FR-031): Planner work moved to Sales. */
+export const FACTORY_ROLES: FactoryRole[] = ["OWNER", "PACKING", "SALES"];
 
 export const FACTORY_ROLE_LABEL: Record<FactoryRole, string> = {
   OWNER: "Owner",
   PACKING: "Packing",
-  PLANNER: "Planner",
   SALES: "Sales",
 };
 
 const SECTIONS: Record<FactoryRole, FactorySection[]> = {
-  OWNER: ["home", "orders", "products", "insights", "team", "returns"],
+  OWNER: ["home", "orders", "products", "insights", "team", "returns", "earnings"],
   PACKING: ["home", "orders"],
-  PLANNER: ["home", "products", "insights"],
-  SALES: ["home", "products", "insights", "returns"],
+  SALES: ["home", "products", "insights", "returns", "baskets"],
 };
 
 export const factorySections = (role: FactoryRole) => SECTIONS[role];
@@ -32,8 +32,7 @@ export const canFactory = (role: FactoryRole, section: FactorySection) =>
 export const seesMoney = (role: FactoryRole) => role === "OWNER";
 
 /** Who may publish or edit listings and change stock. */
-export const editsListings = (role: FactoryRole) =>
-  role === "OWNER" || role === "SALES" || role === "PLANNER";
+export const editsListings = (role: FactoryRole) => role === "OWNER" || role === "SALES";
 
 /** The factory account a login works for, and its job there. */
 export function factoryOf(user: {

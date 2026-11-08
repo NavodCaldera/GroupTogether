@@ -5,14 +5,13 @@
  *   core@groupbasket.lk      core admin      → /admin/users (admins and settings)
  *   premium@groupbasket.lk   luxury brand admin → /admin/brands
  *   factory@groupbasket.lk   factory admin   → /admin/factory
- *   buyers@groupbasket.lk    buyers admin    → /admin/warehouse
+ *   buyers@groupbasket.lk    agents and orders admin → /admin/warehouse
  *   seller@example.com      seller      → /seller (Ceylon Apparel Mills owner: a tested linen shirt and its bulk)
  *   packing@example.com     factory staff → /seller (Ruwan, packing: Home and Orders)
- *   planner@example.com     factory staff → /seller (Malini, planner: Home, Products, Ratings)
  *   sales@example.com       factory staff → /seller (Chamari, sales: Home, Products, Ratings)
  *   brand@example.com       brand       → /seller (Serendib Atelier, a luxury brand)
- *   packer@example.com      packing     → /packing (Kasun: one paid order to check and gather)
- *   packer2@example.com     packing     → /packing (Ishara: rechecks and packs what Kasun gathered)
+ *   packer@example.com, packer2@example.com: former packing staff (Kasun, Ishara), now buyer
+ *     accounts kept for the old packing records until the seed is rewritten
  *   buyer@example.com       buyer       → /dashboard (public cart at 49,800, delivered order, invite)
  *   buyer2@example.com      buyer       → /dashboard (private cart at the minimum)
  *   buyer3@example.com      buyer       → /dashboard (paid order being packed; no active cart, free to join)
@@ -268,7 +267,7 @@ async function main() {
       [
         ["Luxury Brand Admin", "premium@groupbasket.lk", "0700000001", "PREMIUM"],
         ["Factory Admin", "factory@groupbasket.lk", "0700000002", "FACTORY"],
-        ["Buyers Admin", "buyers@groupbasket.lk", "0700000003", "WAREHOUSE"],
+        ["Agents Admin", "buyers@groupbasket.lk", "0700000003", "AGENTS"],
         ["Core Admin", "core@groupbasket.lk", "0700000004", "CORE"],
       ] as const
     ).map(([name, email, phone, adminArea]) => ({
@@ -284,13 +283,13 @@ async function main() {
   await db.agreementVersion.create({
     data: { version: 1, text: "Agreement text supplied by GroupBasket", publishedBy: core.id },
   });
-  // Packing staff (rule 17): they pack paid orders and check each other's packing.
+  // Former packing staff: the role is gone, the accounts stay for the old packing records.
   const [kasun, ishara] = await Promise.all(
     [
       ["Kasun Perera", "packer@example.com", "0711111111"],
       ["Ishara Fernando", "packer2@example.com", "0712222222"],
     ].map(([name, email, phone]) =>
-      db.user.create({ data: { role: "PACKER", name, email, phone, passwordHash } }),
+      db.user.create({ data: { role: "CUSTOMER", name, email, phone, passwordHash } }),
     ),
   );
   // The only buyers: Dilan, Sachini and Tharindu (all listed on the sign-in page).
@@ -612,12 +611,11 @@ async function main() {
   await db.user.createMany({
     data: [
       ["Ruwan Perera", "packing@example.com", "PACKING"],
-      ["Malini Silva", "planner@example.com", "PLANNER"],
       ["Chamari Fernando", "sales@example.com", "SALES"],
     ].map(([name, email, factoryRole]) => ({
       role: "SELLER" as const,
       factoryId: seller.id,
-      factoryRole: factoryRole as "PACKING" | "PLANNER" | "SALES",
+      factoryRole: factoryRole as "PACKING" | "SALES",
       name,
       email,
       company: "Ceylon Apparel Mills",
@@ -1034,9 +1032,8 @@ async function main() {
   Admins  core@groupbasket.lk → /admin/users, premium@groupbasket.lk → /admin/brands,
           factory@groupbasket.lk → /admin/factory, buyers@groupbasket.lk → /admin/warehouse
   Seller  seller@example.com      → /seller (factory owner: a tested linen shirt and its bulk)
-  Staff   packing@example.com, planner@example.com, sales@example.com → /seller (one job each)
+  Staff   packing@example.com, sales@example.com → /seller (one job each)
   Brand   brand@example.com       → /seller (Serendib Atelier: a luxury brand's discounted products)
-  Packing packer@example.com      → /packing (Kasun; packer2@example.com is Ishara)
   Buyers  buyer@example.com  (Dilan: public cart at 49,800, a delivered order, an invite)
           buyer2@example.com (Sachini: private cart at the minimum)
           buyer3@example.com (Tharindu: a paid order to gather, no active cart, free to join)

@@ -48,7 +48,7 @@ async function lockedOrder(agentId: string, f: Factory, buyerId?: string, qty = 
   return { buyerId: buyer, order, basket };
 }
 
-async function staff(factoryId: string, factoryRole: "OWNER" | "PACKING" | "SALES" | "PLANNER") {
+async function staff(factoryId: string, factoryRole: "OWNER" | "PACKING" | "SALES") {
   const u = await makeUser();
   return db.user.update({ where: { id: u.id }, data: { role: "SELLER", factoryId, factoryRole } });
 }
@@ -64,7 +64,7 @@ describe("packing, courier and receipt", () => {
     const { user: agentUser, agent } = await makeAgent();
     const f = await makeFactory();
     const packer = await staff(f.factory.id, "PACKING");
-    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const admin = await makeUser("ADMIN", "AGENTS");
     const first = await lockedOrder(agent.id, f);
 
     await markPacked(packer.id, first.basket.id);
@@ -142,21 +142,19 @@ describe("packing, courier and receipt", () => {
     await markPacked(f.factory.id, basket.id); // the factory account itself is an owner
   });
 
-  it("sales and planner staff cannot mark packed", async () => {
+  it("sales staff cannot mark packed", async () => {
     const { agent } = await makeAgent();
     const f = await makeFactory();
     const sales = await staff(f.factory.id, "SALES");
-    const planner = await staff(f.factory.id, "PLANNER");
     const { basket } = await lockedOrder(agent.id, f);
     await expect(markPacked(sales.id, basket.id)).rejects.toThrow(DeliveryError);
-    await expect(markPacked(planner.id, basket.id)).rejects.toThrow(DeliveryError);
     expect((await db.basket.findUniqueOrThrow({ where: { id: basket.id } })).status).toBe("LOCKED");
   });
 
   it("a courier cannot be booked before the basket is packed, nor by another admin area", async () => {
     const { agent } = await makeAgent();
     const f = await makeFactory();
-    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const admin = await makeUser("ADMIN", "AGENTS");
     const factoryAdmin = await makeUser("ADMIN", "FACTORY");
     const { basket } = await lockedOrder(agent.id, f);
     await expect(bookCourier(admin.id, basket.id, COURIER)).rejects.toThrow(DeliveryError);
@@ -180,7 +178,7 @@ describe("packing, courier and receipt", () => {
     const f = await makeFactory();
     const other = await makeFactory();
     const sales = await staff(f.factory.id, "SALES");
-    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const admin = await makeUser("ADMIN", "AGENTS");
     const { basket } = await lockedOrder(agent.id, f);
     await markPacked(f.factory.id, basket.id);
     await bookCourier(admin.id, basket.id, COURIER);
@@ -196,7 +194,7 @@ describe("packing, courier and receipt", () => {
   it("a repeat receipt resends a lost ready notice without crediting again", async () => {
     const { user: agentUser, agent } = await makeAgent();
     const f = await makeFactory();
-    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const admin = await makeUser("ADMIN", "AGENTS");
     const { basket, buyerId } = await lockedOrder(agent.id, f);
     await shipToAgent(basket.id, f.factory.id, admin.id);
     await markBasketReceived(agentUser.id, basket.id, []);
@@ -218,7 +216,7 @@ describe("packing, courier and receipt", () => {
     const { agent } = await makeAgent();
     const { user: otherUser } = await makeAgent({ lat: 7.2, lng: 80.6 });
     const f = await makeFactory();
-    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const admin = await makeUser("ADMIN", "AGENTS");
     const { basket } = await lockedOrder(agent.id, f);
     await shipToAgent(basket.id, f.factory.id, admin.id);
     await expect(markBasketReceived(otherUser.id, basket.id, [])).rejects.toThrow(DeliveryError);
@@ -231,7 +229,7 @@ describe("packing, courier and receipt", () => {
   it("sends back the listed handed-over returns for that factory", async () => {
     const { user: agentUser, agent } = await makeAgent();
     const f = await makeFactory();
-    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const admin = await makeUser("ADMIN", "AGENTS");
     const { basket, order, buyerId } = await lockedOrder(agent.id, f);
     const ret = await db.returnRequest.create({
       data: {
@@ -277,7 +275,7 @@ describe("missing items", () => {
     const f = await makeFactory();
     const packer = await staff(f.factory.id, "PACKING");
     const factoryAdmin = await makeUser("ADMIN", "FACTORY");
-    const agentsAdmin = await makeUser("ADMIN", "WAREHOUSE");
+    const agentsAdmin = await makeUser("ADMIN", "AGENTS");
     const { basket, order, buyerId } = await lockedOrder(agent.id, f);
     const line = order.lines[0];
     expect(money(await tokenBalance(buyerId))).toBe("0.00");
@@ -386,7 +384,7 @@ describe("missing items", () => {
   it("a basket with a pending missing report cannot be handed to the driver", async () => {
     const { agent } = await makeAgent();
     const f = await makeFactory();
-    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const admin = await makeUser("ADMIN", "AGENTS");
     const factoryAdmin = await makeUser("ADMIN", "FACTORY");
     const { basket, order } = await lockedOrder(agent.id, f);
     await markPacked(f.factory.id, basket.id);
@@ -406,7 +404,7 @@ describe("missing items", () => {
   it("cannot report once the basket has left the factory", async () => {
     const { agent } = await makeAgent();
     const f = await makeFactory();
-    const admin = await makeUser("ADMIN", "WAREHOUSE");
+    const admin = await makeUser("ADMIN", "AGENTS");
     const sales = await staff(f.factory.id, "SALES");
     const { basket, order } = await lockedOrder(agent.id, f);
     await expect(reportMissing(sales.id, order.lines[0].id, 1, "Gone")).rejects.toThrow(

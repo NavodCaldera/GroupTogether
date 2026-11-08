@@ -9,7 +9,7 @@ import { packingSelect } from "@/server/packing";
 
 /** Confirmed orders of the last `days` days (Colombo days, default 30) as CSV, for the books. */
 export async function GET(req: Request) {
-  await requireAdmin("WAREHOUSE");
+  await requireAdmin("AGENTS");
   const asked = Number(new URL(req.url).searchParams.get("days"));
   const days = Number.isInteger(asked) && asked >= 1 && asked <= 366 ? asked : 30;
   const now = new Date();

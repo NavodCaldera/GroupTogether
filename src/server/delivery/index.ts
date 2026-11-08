@@ -4,7 +4,7 @@ import { formatLKR } from "@/lib/format";
 import { factoryFulfilment } from "@/lib/fulfilment";
 import { CartError } from "../carts/service";
 import { db } from "../db";
-import { notify, notifyRole } from "../notify";
+import { notify } from "../notify";
 import { type Booking, deliveryProvider } from "./provider";
 
 /** Drops that failed (or were cancelled) can be booked again (product owner, 2026-10-21). */
@@ -116,12 +116,6 @@ export async function bookDelivery(cartId: string, manual?: Partial<Booking>) {
         body: `Cart ${cart.code}: a PickMe driver${driver} is coming to collect the packed parcel.`,
         href: "/seller/orders",
       });
-  } else {
-    await notifyRole("PACKER", {
-      title: "PickMe booked",
-      body: `Cart ${cart.code}: hand the packed parcel to the driver${driver} and mark it handed over.`,
-      href: `/packing/${cart.code}`,
-    });
   }
 }
 

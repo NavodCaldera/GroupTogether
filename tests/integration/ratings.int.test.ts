@@ -86,7 +86,7 @@ describe("product ratings", () => {
       f.other,
       f.factory,
       await makeUser("ADMIN", "PREMIUM"),
-      await makeUser("ADMIN", "WAREHOUSE"),
+      await makeUser("ADMIN", "AGENTS"),
     ]) {
       principal.user = actor;
       expect((await get()).status).toBe(404);

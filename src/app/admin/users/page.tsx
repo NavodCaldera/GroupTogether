@@ -11,7 +11,6 @@ import { requireAnyAdmin } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
 import { FilterSelect } from "../filter-select";
-import { factoryFulfilment } from "@/lib/fulfilment";
 import {
   Chip,
   ChipRow,
@@ -31,7 +30,7 @@ const FILTERS = {
   customers: { role: "CUSTOMER" },
   sellers: { role: "SELLER", isBrand: false },
   brands: { role: "SELLER", isBrand: true },
-  packers: { role: "PACKER" },
+  agents: { role: "AGENT" },
   admins: { role: "ADMIN" },
   locked: { locked: true },
 } satisfies Record<string, Prisma.UserWhereInput>;
@@ -40,7 +39,7 @@ type Filter = keyof typeof FILTERS;
 const AREA_FILTERS: Record<OperationalAdminArea, Filter[]> = {
   PREMIUM: ["brands", "admins", "locked"],
   FACTORY: ["sellers", "admins", "locked"],
-  WAREHOUSE: ["customers", "packers", "admins", "locked"],
+  AGENTS: ["customers", "agents", "admins", "locked"],
   CORE: ["admins", "locked"],
 };
 const BUTTON =
@@ -49,7 +48,7 @@ const FILTER_LABEL: Record<Filter, string> = {
   customers: "Buyers",
   sellers: "Factories",
   brands: "Luxury brands",
-  packers: "Packing staff",
+  agents: "Agents",
   admins: "Admins",
   locked: "Locked",
 };
@@ -105,8 +104,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
             ownedCarts: true,
             memberships: true,
             products: true,
-            gathered: true,
-            packed: true,
           },
         },
       },
@@ -136,7 +133,7 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
     customers: roleCount("CUSTOMER"),
     sellers: roleCount("SELLER") - brandCount,
     brands: brandCount,
-    packers: roleCount("PACKER"),
+    agents: roleCount("AGENT"),
     admins: roleCount("ADMIN"),
     locked: lockedCount,
   };
@@ -153,11 +150,6 @@ export default async function UsersPage({ searchParams }: PageProps<"/admin/user
             {area === "CORE" && (
               <Link href="/admin/users/new-admin" className={BUTTON}>
                 <span aria-hidden>+</span> Add admin
-              </Link>
-            )}
-            {area === "WAREHOUSE" && !factoryFulfilment() && (
-              <Link href="/admin/users/new-packer" className={BUTTON}>
-                <span aria-hidden>+</span> Add packing staff
               </Link>
             )}
             {(area === "PREMIUM" || area === "FACTORY") && (
@@ -356,7 +348,7 @@ function Avatar({ name, role }: { name: string; role: Role }) {
         "grid size-9 shrink-0 place-items-center rounded-full text-xs font-semibold",
         role === "CUSTOMER" && "bg-muted text-ink",
         role === "SELLER" && "bg-accent/15 text-accent",
-        role === "PACKER" && "border border-accent text-accent",
+        role === "AGENT" && "border border-accent text-accent",
         role === "ADMIN" && "bg-ink text-paper",
       )}
     >
@@ -383,7 +375,7 @@ function RoleBadge({
         {company && <span className="truncate text-xs text-subtle">{company}</span>}
       </span>
     );
-  if (role === "PACKER") return <Badge tone="info">Packing</Badge>;
+  if (role === "AGENT") return <Badge tone="info">Agent</Badge>;
   return <Badge>Buyer</Badge>;
 }
 
@@ -398,8 +390,6 @@ function Activity({
       ownedCarts: number;
       memberships: number;
       products: number;
-      gathered: number;
-      packed: number;
     };
   };
   cart?: { code: string; status: CartStatus };
@@ -413,15 +403,6 @@ function Activity({
     );
   }
   if (user.role === "ADMIN") return <span className="text-subtle">Back office</span>;
-  if (user.role === "PACKER") {
-    // Each order they gathered or packed is one they certified.
-    const n = user._count.gathered + user._count.packed;
-    return (
-      <span className="text-subtle">
-        {n} {n === 1 ? "order" : "orders"} checked
-      </span>
-    );
-  }
   const { ownedCarts, memberships } = user._count;
   return (
     <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">

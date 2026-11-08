@@ -22,11 +22,7 @@ export async function notify(userIds: string[], notice: Notice, deduplicationKey
 }
 
 /** Every user with one of these roles (locked accounts left out), for staff notices. */
-export async function notifyRole(
-  role: "ADMIN" | "PACKER",
-  notice: Notice,
-  area?: OperationalAdminArea,
-) {
+export async function notifyRole(role: "ADMIN", notice: Notice, area?: OperationalAdminArea) {
   const users = await db.user.findMany({
     where: {
       role,

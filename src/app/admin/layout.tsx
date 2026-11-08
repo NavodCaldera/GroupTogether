@@ -31,7 +31,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/offers", "Offers", badges.offers],
       ["/admin/users", "Users", 0],
     ],
-    WAREHOUSE: [
+    AGENTS: [
       ["/admin/warehouse", "Buyers & orders", 0],
       ["/admin/slips", "Slips", badges.slips],
       ["/admin/orders", "Orders", badges.orders],

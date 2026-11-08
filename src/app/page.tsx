@@ -13,7 +13,6 @@ export default async function HomePage() {
   // their packing list.
   const role = (await getCurrentUser())?.role;
   if (role === "ADMIN") redirect("/admin");
-  if (role === "PACKER") redirect("/packing");
   if (role === "SELLER") redirect("/seller");
   await sweep();
   const [products, settings, sales, saving] = await Promise.all([

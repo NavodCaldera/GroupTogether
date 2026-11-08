@@ -15,10 +15,10 @@ export async function resetDb() {
 }
 
 let n = 0;
-/** Admins default to the warehouse area; pass another area for premium or factory work. */
+/** Admins default to the Agents and orders area; pass another area for premium or factory work. */
 export async function makeUser(
-  role: "CUSTOMER" | "ADMIN" | "PACKER" = "CUSTOMER",
-  adminArea: "PREMIUM" | "FACTORY" | "WAREHOUSE" | "CORE" = "WAREHOUSE",
+  role: "CUSTOMER" | "ADMIN" = "CUSTOMER",
+  adminArea: "PREMIUM" | "FACTORY" | "AGENTS" | "CORE" = "AGENTS",
 ) {
   n++;
   return db.user.create({

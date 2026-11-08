@@ -579,7 +579,7 @@ describe("hold decisions and private discussion", () => {
       await makeUser("ADMIN"),
       await fixture().then((x) => x.factory),
     ];
-    for (const role of ["SALES", "PACKING", "PLANNER"] as const)
+    for (const role of ["SALES", "PACKING"] as const)
       outsiders.push(
         await db.user.update({
           where: { id: (await makeUser()).id },

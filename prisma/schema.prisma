@@ -16,7 +16,8 @@ datasource db {
 enum AdminArea {
   PREMIUM
   FACTORY
-  WAREHOUSE
+  /// Agents and orders (renamed from WAREHOUSE, area-agent model)
+  AGENTS
   /// Settings and admin accounts only (product owner, 2026-11-03)
   CORE
 }
@@ -25,7 +26,6 @@ enum AdminArea {
 enum FactoryRole {
   OWNER
   PACKING
-  PLANNER
   SALES
 }
 
@@ -35,8 +35,6 @@ enum Role {
   ADMIN
   /// A factory that supplies stock: lists products for an admin to review and publish
   SELLER
-  /// Our packing staff: one checks and gathers a paid order, another rechecks and packs it
-  PACKER
   /// An area agent who receives baskets from factories and hands parcels to buyers
   AGENT
 }

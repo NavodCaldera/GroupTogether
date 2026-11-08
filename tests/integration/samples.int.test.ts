@@ -12,7 +12,7 @@ async function fixture() {
     makeUser("ADMIN"),
     makeUser("ADMIN"),
   ]);
-  await db.user.update({ where: { id: warehouse.id }, data: { adminArea: "WAREHOUSE" } });
+  await db.user.update({ where: { id: warehouse.id }, data: { adminArea: "AGENTS" } });
   await db.user.update({ where: { id: premium.id }, data: { adminArea: "PREMIUM" } });
   const product = await db.product.create({
     data: {

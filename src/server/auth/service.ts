@@ -1,8 +1,14 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
-import type { Role, User } from "@/generated/prisma/client";
-import { adminHome, canAdminArea, type OperationalAdminArea } from "@/lib/admin-access";
+import type { AgentStatus, Role, User } from "@/generated/prisma/client";
+import {
+  ADMIN_AREAS,
+  adminHome,
+  canAdminArea,
+  type OperationalAdminArea,
+} from "@/lib/admin-access";
+import { canFactory, factoryOf, type FactorySection } from "@/lib/factory-roles";
 import { linkOnSite } from "@/lib/brand-rules";
 import { pinFields, pinInSriLanka, pinOutsideMessage } from "@/lib/location";
 import { db } from "../db";
@@ -100,28 +106,9 @@ export const packerSchema = sellerFields
     name: z.string().trim().min(2, "Enter their name").max(80),
   });
 
-/** Admins create packing staff accounts (CLAUDE.md rule 17). */
-export async function createPacker(input: unknown): Promise<User> {
-  const s = packerSchema.parse(input);
-  const clash = await db.user.findFirst({
-    where: { OR: [{ email: s.email }, { phone: s.phone }] },
-  });
-  if (clash?.email === s.email) throw new AuthError("An account with this email already exists");
-  if (clash) throw new AuthError("An account with this mobile number already exists");
-  return db.user.create({
-    data: {
-      role: "PACKER",
-      name: s.name,
-      email: s.email,
-      phone: s.phone,
-      passwordHash: await hashPassword(s.password),
-    },
-  });
-}
-
 /**
- * Public sign-up creates customers only; admins come from the seed, and sellers and packing
- * staff from an admin.
+ * Public sign-up creates customers only; admins come from the seed, sellers from an admin and
+ * agents from an approved application.
  */
 export async function registerUser(input: SignUpInput): Promise<User> {
   const clash = await db.user.findFirst({
@@ -262,7 +249,6 @@ export async function userForToken(token: string, now = new Date()): Promise<Ses
 export function homeFor(role: Role, adminArea?: string | null): string {
   if (role === "ADMIN") return adminHome(adminArea);
   if (role === "SELLER") return "/seller";
-  if (role === "PACKER") return "/packing";
   return "/dashboard";
 }
 
@@ -276,10 +262,47 @@ export async function assertAdminArea(id: string, area: OperationalAdminArea) {
     throw new AuthError("This admin workspace is unavailable to your account");
 }
 
+/** Agents who still serve buyers: a suspended agent still sees parcels and returns. */
+export const AGENT_ACCESS: AgentStatus[] = ["LIVE", "SUSPENDED", "LEAVING"];
+
+/** An AGENT login with a LIVE, SUSPENDED or LEAVING agent row; anyone else is refused. */
+export async function assertAgent(userId: string) {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      role: true,
+      locked: true,
+      agent: { select: { id: true, userId: true, status: true } },
+    },
+  });
+  if (!user || user.role !== "AGENT" || user.locked || !user.agent)
+    throw new AuthError("Agents only");
+  if (!AGENT_ACCESS.includes(user.agent.status)) throw new AuthError("Agents only");
+  return user.agent;
+}
+
+/** A factory login (owner or staff) whose job includes `section`, with the factory it works for. */
+export async function assertFactorySection(userId: string, section: FactorySection) {
+  const user = await db.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      role: true,
+      locked: true,
+      isBrand: true,
+      factoryId: true,
+      factoryRole: true,
+    },
+  });
+  if (!user || user.role !== "SELLER" || user.locked || user.isBrand)
+    throw new AuthError("Factory accounts only");
+  const f = factoryOf(user);
+  if (!canFactory(f.factoryRole, section)) throw new AuthError("Not part of your job");
+  return f;
+}
+
 export async function createOperationalAdmin(input: unknown): Promise<User> {
-  const data = packerSchema
-    .extend({ adminArea: z.enum(["PREMIUM", "FACTORY", "WAREHOUSE", "CORE"]) })
-    .parse(input);
+  const data = packerSchema.extend({ adminArea: z.enum(ADMIN_AREAS) }).parse(input);
   if (await db.user.count({ where: { OR: [{ email: data.email }, { phone: data.phone }] } }))
     throw new AuthError("An account with this email or mobile number already exists");
   const { password, ...fields } = data;

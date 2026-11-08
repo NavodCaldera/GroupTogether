@@ -35,7 +35,7 @@ describe("factory admin stakeholder routing", () => {
   });
   it("routes factory review notices to unlocked factory admins only", async () => {
     const admins = await Promise.all(Array.from({ length: 5 }, () => makeUser("ADMIN")));
-    const areas = ["FACTORY", "FACTORY", "PREMIUM", "WAREHOUSE", "FACTORY"] as const;
+    const areas = ["FACTORY", "FACTORY", "PREMIUM", "AGENTS", "FACTORY"] as const;
     for (const [i, admin] of admins.entries()) {
       await db.user.update({
         where: { id: admin.id },

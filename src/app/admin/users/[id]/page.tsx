@@ -51,27 +51,6 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
   });
   // Only the area that manages the account may open it.
   if (!user || userAdminArea(user) !== admin.adminArea) notFound();
-  // Packing staff: the orders they gathered, packed or handed to PickMe (rule 17).
-  const packingWork =
-    user.role === "PACKER"
-      ? await db.packing.findMany({
-          where: {
-            OR: [{ gatheredById: id }, { packedById: id }, { handedOverById: id }],
-          },
-          select: {
-            id: true,
-            gatheredById: true,
-            gatheredAt: true,
-            packedById: true,
-            packedAt: true,
-            handedOverById: true,
-            handedOverAt: true,
-            cart: { select: { code: true, owner: { select: { name: true } } } },
-          },
-          orderBy: { gatheredAt: "desc" },
-          take: 50,
-        })
-      : [];
   const active = user.memberships.filter((m) => HOLDS_STOCK.includes(m.cart.status));
 
   return (
@@ -90,7 +69,7 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
                 {user.role === "SELLER" && (
                   <Badge tone="info">{user.isBrand ? "Luxury brand" : "Factory seller"}</Badge>
                 )}
-                {user.role === "PACKER" && <Badge tone="info">Packing staff</Badge>}
+                {user.role === "AGENT" && <Badge tone="info">Agent</Badge>}
                 {user.locked && <Badge tone="bad">Locked</Badge>}
               </>
             }
@@ -106,45 +85,6 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
               </Link>
             </Card>
           )}
-          {user.role === "PACKER" && (
-            <section className="flex flex-col gap-3">
-              <h2 className="font-semibold">Packing work ({packingWork.length})</h2>
-              {packingWork.length === 0 ? (
-                <p className="text-sm text-subtle">Hasn&apos;t gathered or packed an order yet.</p>
-              ) : (
-                <ul className="divide-y divide-line rounded-xl border border-line text-sm">
-                  {packingWork.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex flex-wrap justify-between gap-x-3 gap-y-1 px-3 py-2"
-                    >
-                      <span>
-                        <Link
-                          href={`/admin/carts/${p.cart.code}`}
-                          className="font-mono text-accent underline"
-                        >
-                          {p.cart.code}
-                        </Link>{" "}
-                        <span className="text-subtle">· {p.cart.owner.name}</span>
-                      </span>
-                      <span className="text-subtle">
-                        {[
-                          p.gatheredById === id &&
-                            `Checked and gathered ${formatDateTime(p.gatheredAt)}`,
-                          p.packedById === id &&
-                            `Rechecked and packed ${formatDateTime(p.packedAt)}`,
-                          p.handedOverById === id &&
-                            `Handed to PickMe ${formatDateTime(p.handedOverAt)}`,
-                        ]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          )}
           {user.role === "SELLER" && (
             <Card className="text-sm">
               <h2 className="mb-1 font-semibold">{user.company}</h2>
@@ -157,48 +97,46 @@ export default async function AdminUserPage({ params }: PageProps<"/admin/users/
               </p>
             </Card>
           )}
-          {user.role !== "PACKER" && (
-            <section className="flex flex-col gap-3">
-              <h2 className="font-semibold">Carts ({user.memberships.length})</h2>
-              {user.memberships.length === 0 ? (
-                <p className="text-sm text-subtle">Hasn&apos;t joined any cart.</p>
-              ) : (
-                <Table
-                  head={
-                    <>
-                      <th>Cart</th>
-                      <th>Role</th>
-                      <th>Status</th>
-                      <th className="text-right">Their items</th>
-                      <th className="text-right">Cart total</th>
-                      <th>Updated</th>
-                    </>
-                  }
-                >
-                  {user.memberships.map((m) => (
-                    <tr key={m.id}>
-                      <td>
-                        <Link
-                          href={`/admin/carts/${m.cart.code}`}
-                          className="font-mono text-accent underline"
-                        >
-                          {m.cart.code}
-                        </Link>
-                        {m.cart.name && <span className="text-subtle"> · {m.cart.name}</span>}
-                      </td>
-                      <td>{m.cart.ownerId === user.id ? "Owner" : "Member"}</td>
-                      <td>
-                        <StatusBadge status={m.cart.status} />
-                      </td>
-                      <td className="text-right">{formatLKR(cartTotal(m.cart.lines))}</td>
-                      <td className="text-right">{formatLKR(m.cart.total)}</td>
-                      <td className="text-subtle">{formatDateTime(m.cart.updatedAt)}</td>
-                    </tr>
-                  ))}
-                </Table>
-              )}
-            </section>
-          )}
+          <section className="flex flex-col gap-3">
+            <h2 className="font-semibold">Carts ({user.memberships.length})</h2>
+            {user.memberships.length === 0 ? (
+              <p className="text-sm text-subtle">Hasn&apos;t joined any cart.</p>
+            ) : (
+              <Table
+                head={
+                  <>
+                    <th>Cart</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th className="text-right">Their items</th>
+                    <th className="text-right">Cart total</th>
+                    <th>Updated</th>
+                  </>
+                }
+              >
+                {user.memberships.map((m) => (
+                  <tr key={m.id}>
+                    <td>
+                      <Link
+                        href={`/admin/carts/${m.cart.code}`}
+                        className="font-mono text-accent underline"
+                      >
+                        {m.cart.code}
+                      </Link>
+                      {m.cart.name && <span className="text-subtle"> · {m.cart.name}</span>}
+                    </td>
+                    <td>{m.cart.ownerId === user.id ? "Owner" : "Member"}</td>
+                    <td>
+                      <StatusBadge status={m.cart.status} />
+                    </td>
+                    <td className="text-right">{formatLKR(cartTotal(m.cart.lines))}</td>
+                    <td className="text-right">{formatLKR(m.cart.total)}</td>
+                    <td className="text-subtle">{formatDateTime(m.cart.updatedAt)}</td>
+                  </tr>
+                ))}
+              </Table>
+            )}
+          </section>
 
           {user.slips.length > 0 && (
             <section className="flex flex-col gap-3">

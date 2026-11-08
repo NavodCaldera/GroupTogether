@@ -88,7 +88,7 @@ async function paidAgent() {
   return a;
 }
 
-const agentsAdmin = () => makeUser("ADMIN", "WAREHOUSE");
+const agentsAdmin = () => makeUser("ADMIN", "AGENTS");
 
 /** An OPEN basket at the agent holding one PAID order, paid in full with tokens. */
 async function openBasket(agentId: string, f: Awaited<ReturnType<typeof makeFactory>>) {

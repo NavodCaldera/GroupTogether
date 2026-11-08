@@ -7,15 +7,14 @@ import { unreadCount } from "@/server/notify";
 import { currentTheme } from "@/server/theme";
 import { toggleThemeAction } from "@/server/theme-actions";
 
-/** Roles with one section (Admin, Packing or My products), which the logo opens. They don't shop. */
+/** Roles with one section (Admin or My products), which the logo opens. They don't shop. */
 const STAFF_HOME: Record<string, string> = {
   ADMIN: "/admin",
-  PACKER: "/packing",
   SELLER: "/seller",
 };
 
 /**
- * The phone tab bar is for shoppers. Admins, packing staff and factory sellers have one section,
+ * The phone tab bar is for shoppers. Admins and factory sellers have one section,
  * which the logo already opens, so they get no tab bar.
  */
 export function hasTabBar(user: { role: string } | null) {
@@ -29,9 +28,8 @@ export function hasTabBar(user: { role: string } | null) {
  */
 export async function SiteHeader() {
   const [user, theme] = await Promise.all([getCurrentUser(), currentTheme()]);
-  // Packing staff get no messages or bell: only their packing list and profile (2026-10-19).
   // Factory sellers keep the bell (product live / needs changes) but never message shoppers.
-  const inbox = !!user && user.role !== "PACKER";
+  const inbox = !!user;
   const chat = inbox && user.role !== "SELLER";
   const [unread, unreadMessages] = user
     ? await Promise.all([inbox ? unreadCount(user.id) : 0, chat ? unreadMessageCount(user.id) : 0])
@@ -85,15 +83,6 @@ export async function SiteHeader() {
             href: "/admin",
             label: "Admin",
             icon: <path d="M4 6h16M4 12h16M4 18h10" />,
-          },
-        ]
-      : []),
-    ...(user?.role === "PACKER"
-      ? [
-          {
-            href: "/packing",
-            label: "Packing",
-            icon: <path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" />,
           },
         ]
       : []),
@@ -219,9 +208,6 @@ export async function SiteHeader() {
                 aria-label="Profile"
                 title="Profile"
               >
-                {user.role === "PACKER" && (
-                  <span className="mr-2 max-w-32 truncate text-sm font-medium">{user.name}</span>
-                )}
                 <svg
                   viewBox="0 0 24 24"
                   width="22"

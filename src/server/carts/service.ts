@@ -451,7 +451,7 @@ export async function cancelUnpaidCart(tx: Tx, cart: GroupCart, reason: string) 
 }
 
 export async function cancelCart(actor: { id: string; role: Role }, cartId: string, reason = "") {
-  if (actor.role === "ADMIN") await assertAdminArea(actor.id, "WAREHOUSE");
+  if (actor.role === "ADMIN") await assertAdminArea(actor.id, "AGENTS");
   const { cart, members } = await withCartTransaction([cartId], [actor.id], async (tx) => {
     const cart = await lockCart(tx, cartId);
     const isAdmin = actor.role === "ADMIN";

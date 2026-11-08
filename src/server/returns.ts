@@ -21,6 +21,8 @@ import { recordFault, enforceHold } from "./fault-holds";
 import { flushQualityNotices } from "./quality-notices";
 import { notify } from "./notify";
 import { AGENTS_AREA } from "@/lib/admin-access";
+import { isBuyerRole } from "@/lib/roles";
+import { AGENT_ACCESS } from "./auth/service";
 
 export class ReturnError extends CartError {}
 const decided = () => new ReturnError("This return has already been decided");
@@ -269,7 +271,7 @@ export async function fileReturn(
       where: { id: 1 },
       select: { collectHours: true },
     });
-    if (user.role !== "CUSTOMER" || line.order.buyerId !== buyerId)
+    if (!isBuyerRole(user.role) || line.order.buyerId !== buyerId)
       throw new ReturnError("Return only your own collected item");
     if (line.order.status !== "RECEIVED" || !line.order.receivedAt || !line.collectedAt)
       throw new ReturnError("Return only an item you have collected");
@@ -423,7 +425,11 @@ export async function adminDecide(
 export async function collectReturn(agentUserId: string, returnId: string, now = new Date()) {
   return locked(agentUserId, returnId, async (tx, r) => {
     const agent = await tx.agent.findFirst({
-      where: { userId: agentUserId, user: { locked: false } },
+      where: {
+        userId: agentUserId,
+        status: { in: AGENT_ACCESS },
+        user: { locked: false, role: "AGENT" },
+      },
       select: { id: true },
     });
     if (!agent || !r.handoverAgentId || agent.id !== r.handoverAgentId)
@@ -578,7 +584,7 @@ export async function returnPhotoFor(userId: string, photoId: string) {
     },
   });
   if (!photo) return null;
-  if (user.id === photo.request.buyerId && user.role === "CUSTOMER")
+  if (user.id === photo.request.buyerId && isBuyerRole(user.role))
     return { storageKey: photo.storageKey, contentType: photo.contentType };
   if (user.role === "ADMIN" && ["FACTORY", "CORE"].includes(user.adminArea ?? ""))
     return { storageKey: photo.storageKey, contentType: photo.contentType };
@@ -681,7 +687,7 @@ export async function adminReturns(adminId: string) {
 }
 export async function buyerReturns(buyerId: string, orderId: string) {
   const user = await activeUser(db, buyerId);
-  if (user.role !== "CUSTOMER") throw new ReturnError("Buyer access required");
+  if (!isBuyerRole(user.role)) throw new ReturnError("Buyer access required");
   return db.returnRequest.findMany({
     where: { buyerId, orderLine: { orderId } },
     select: returnSelect,

@@ -9,7 +9,6 @@ import { Alert, Button, PageHeader } from "@/components/ui";
 import { signOutAction } from "@/server/auth/actions";
 import { homeFor } from "@/server/auth/service";
 import { requireUser } from "@/server/auth/session";
-import { PackerProfile } from "./packer-profile";
 import { ProfileForm } from "./profile-form";
 import { SellerProfile } from "./seller-profile";
 
@@ -20,17 +19,6 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
   const { next, before } = await searchParams;
   const user = await requireUser([], "/account");
   const back = typeof next === "string" && next.startsWith("/") ? next : undefined;
-  // Packing staff have no drop-off address; an admin keeps their details (rule 17).
-  if (user.role === "PACKER")
-    return (
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-        <div>
-          <BackLink fallback={homeFor(user.role, user.adminArea)} />
-          <PageHeader title="Profile" />
-        </div>
-        <PackerProfile user={user} />
-      </div>
-    );
   // Factory sellers never join carts, so no address or map pin either (rule 11).
   if (user.role === "SELLER")
     return (

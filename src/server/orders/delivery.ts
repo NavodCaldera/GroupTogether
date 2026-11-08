@@ -7,6 +7,7 @@ import { missingDeduction, missingRefund } from "@/lib/agent-money";
 import { factoryOf } from "@/lib/factory-roles";
 import { canMoveBasket } from "@/lib/order-rules";
 import { validCommission } from "@/lib/price-rules";
+import { AGENT_ACCESS } from "../auth/service";
 import { db, type Tx } from "../db";
 import { notify } from "../notify";
 import { post } from "../tokens";
@@ -294,7 +295,7 @@ export async function markBasketReceived(
     !agent ||
     agent.user.locked ||
     key.agentId !== agent.id ||
-    !["LIVE", "SUSPENDED", "LEAVING"].includes(agent.status)
+    !AGENT_ACCESS.includes(agent.status)
   )
     throw new DeliveryError("Not allowed");
   const returnIds = [...new Set(sentBackReturnIds ?? [])];

@@ -37,7 +37,7 @@ export async function acceptSampleAction(_p: State, fd: FormData) {
   );
 }
 export async function updateSampleAction(_p: State, fd: FormData) {
-  const admin = await requireAdmin("WAREHOUSE");
+  const admin = await requireAdmin("AGENTS");
   return attempt(() =>
     updateSample(admin.id, {
       id: value(fd, "id"),

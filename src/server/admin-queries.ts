@@ -86,9 +86,9 @@ export async function suggestCarts(q: string) {
 export async function adminBadges(adminId: string, area: OperationalAdminArea) {
   const none = Promise.resolve(0);
   const [slips, orders, offers, lowStock, brandRewards] = await Promise.all([
-    area === "WAREHOUSE" ? db.paymentSlip.count({ where: { status: "PENDING" } }) : none,
+    area === "AGENTS" ? db.paymentSlip.count({ where: { status: "PENDING" } }) : none,
     // Orders that need the admin: PickMe to book, or a failed drop to book again.
-    area === "WAREHOUSE"
+    area === "AGENTS"
       ? db.groupCart.count({
           where: {
             OR: [

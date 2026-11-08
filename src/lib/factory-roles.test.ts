@@ -7,16 +7,14 @@ describe("factory roles", () => {
     expect(canFactory("PACKING", "orders")).toBe(true);
     expect(canFactory("PACKING", "products")).toBe(false);
     expect(canFactory("SALES", "orders")).toBe(false);
-    expect(canFactory("PLANNER", "team")).toBe(false);
+    expect(canFactory("SALES", "team")).toBe(false);
+    expect(canFactory("PACKING", "earnings")).toBe(false);
+    expect(canFactory("SALES", "baskets")).toBe(true);
   });
 
   it("shows money to owners only", () => {
     expect(seesMoney("OWNER")).toBe(true);
-    expect(["PACKING", "PLANNER", "SALES"].map((r) => seesMoney(r as never))).toEqual([
-      false,
-      false,
-      false,
-    ]);
+    expect(["PACKING", "SALES"].map((r) => seesMoney(r as never))).toEqual([false, false]);
   });
 
   it("lets packing staff leave listings alone", () => {

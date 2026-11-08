@@ -24,8 +24,8 @@ describe("admin operational boundaries", () => {
   it("assigns every account to the area that manages it", () => {
     expect(userAdminArea({ role: "SELLER", isBrand: true })).toBe("PREMIUM");
     expect(userAdminArea({ role: "SELLER", isBrand: false })).toBe("FACTORY");
-    expect(userAdminArea({ role: "CUSTOMER" })).toBe("WAREHOUSE");
-    expect(userAdminArea({ role: "PACKER" })).toBe("WAREHOUSE");
+    expect(userAdminArea({ role: "CUSTOMER" })).toBe("AGENTS");
+    expect(userAdminArea({ role: "AGENT" })).toBe("AGENTS");
     expect(userAdminArea({ role: "ADMIN", adminArea: "FACTORY" })).toBe("FACTORY");
   });
 });

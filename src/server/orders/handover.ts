@@ -1,5 +1,6 @@
 import "server-only";
 import { isPickupCode } from "@/lib/agent-rules";
+import { assertAgent } from "../auth/service";
 import { db, type Tx } from "../db";
 import { CartError } from "../carts/errors";
 import { lockPickupAgent, withOrderTransaction } from "./locks";
@@ -11,13 +12,13 @@ const WINDOW_MS = 10 * 60 * 1000;
 
 export type PickupLine = { id: string; title: string; size: string; colour: string; qty: number };
 
+/** A LIVE, SUSPENDED or LEAVING agent: a suspended agent still hands over parcels. */
 async function requireAgent(agentUserId: string) {
-  const agent = await db.agent.findUnique({
-    where: { userId: agentUserId },
-    select: { id: true, user: { select: { locked: true } } },
-  });
-  if (!agent || agent.user.locked) throw new CartError("Not allowed");
-  return agent;
+  try {
+    return await assertAgent(agentUserId);
+  } catch {
+    throw new CartError("Not allowed");
+  }
 }
 
 /** The buyer behind a code at this agent, or null. */

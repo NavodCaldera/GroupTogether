@@ -23,7 +23,7 @@ export const metadata: Metadata = { title: "Cart" };
 const STEPS = ADMIN_STAGES.slice(1, 5);
 
 export default async function AdminCartPage({ params }: PageProps<"/admin/carts/[code]">) {
-  await requireAdmin("WAREHOUSE");
+  await requireAdmin("AGENTS");
   await sweep();
   const { code } = await params;
   const found = await db.groupCart.findUnique({

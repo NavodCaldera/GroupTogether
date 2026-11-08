@@ -69,10 +69,9 @@ describe("factory seller stock offers", () => {
     expect(await db.stockOffer.count()).toBe(0);
   });
 
-  it("sellers and packing staff can't use carts or message shoppers", async () => {
-    const [s, packer, buyer] = [await seller(), await makeUser("PACKER"), await makeUser()];
+  it("sellers can't use carts or message shoppers", async () => {
+    const [s, buyer] = [await seller(), await makeUser()];
     await expect(createCart(s.id, {})).rejects.toThrow("Only shoppers");
-    await expect(createCart(packer.id, {})).rejects.toThrow("Only shoppers");
     const cart = await createCart(buyer.id, {});
     await expect(sendMessage(s.id, cart.id, "Hello")).rejects.toThrow("Only shoppers");
   });

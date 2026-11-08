@@ -5,7 +5,7 @@ import { toD } from "@/lib/decimal";
 import { factoryFulfilment } from "@/lib/fulfilment";
 import { db, type Tx } from "../db";
 import { spendCartTokens } from "../tokens";
-import { notify, notifyRole } from "../notify";
+import { notify } from "../notify";
 import { appendBrandEvent, flushBrandNotices } from "../brand-communications";
 import { flushCancellationNotices } from "../cancellations";
 import { lockLedgerUsers } from "./locks";
@@ -112,12 +112,6 @@ export async function notifyCartConfirmed(cart: GroupCart): Promise<void> {
         body: `Cart ${cart.code} is paid. Pack it and mark it packed for PickMe pickup.`,
         href: "/seller/orders",
       });
-  } else {
-    await notifyRole("PACKER", {
-      title: "New order to pack",
-      body: `Cart ${cart.code} is paid. One of you checks and gathers it, someone else rechecks and packs it.`,
-      href: `/packing/${cart.code}`,
-    });
   }
   await flushBrandNotices().catch(() => {});
 }

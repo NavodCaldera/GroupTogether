@@ -25,7 +25,7 @@ const STAGES = (Object.keys(ORDER_STAGE_LABEL) as OrderStage[]).filter(
  * progress is shown, not changed: the packers do that on their phones.
  */
 export default async function OrdersPage({ searchParams }: PageProps<"/admin/orders">) {
-  await requireAdmin("WAREHOUSE");
+  await requireAdmin("AGENTS");
   const board = await ordersBoard();
   const sp = await searchParams;
   const asked = STAGES.find((s) => s === param(sp, "stage"));

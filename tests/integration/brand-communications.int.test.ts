@@ -290,11 +290,11 @@ describe("premium admin boundaries", () => {
   it("connects brands to premium admins and denies factory and warehouse access", async () => {
     const f = await fixture();
     const admins = await Promise.all(
-      ["PREMIUM", "FACTORY", "WAREHOUSE"].map(async (area) => {
+      ["PREMIUM", "FACTORY", "AGENTS"].map(async (area) => {
         const user = await makeUser("ADMIN", "PREMIUM");
         return db.user.update({
           where: { id: user.id },
-          data: { adminArea: area as "PREMIUM" | "FACTORY" | "WAREHOUSE" },
+          data: { adminArea: area as "PREMIUM" | "FACTORY" | "AGENTS" },
         });
       }),
     );

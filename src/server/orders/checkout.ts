@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { D, toD } from "@/lib/decimal";
 import { orderTotals, splitCheckout, type OrderTotals, type Rates } from "@/lib/agent-money";
 import { validCommission } from "@/lib/price-rules";
+import { isBuyerRole } from "@/lib/roles";
 import { db, type Tx } from "../db";
 import { CartError } from "../carts/errors";
 import { getSettings } from "../settings";
@@ -43,7 +44,7 @@ export async function assertBuyer(tx: Tx, userId: string) {
     where: { id: userId },
     select: { id: true, role: true, locked: true, factoryId: true, name: true, email: true },
   });
-  if (!user || !["CUSTOMER", "AGENT"].includes(user.role) || user.locked || user.factoryId)
+  if (!user || !isBuyerRole(user.role) || user.locked || user.factoryId)
     throw new CheckoutError("This account cannot buy");
   return user;
 }

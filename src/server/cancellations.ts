@@ -76,7 +76,7 @@ export async function flushCancellationNotices(): Promise<void> {
   });
   if (carts.length) {
     const admins = await db.user.findMany({
-      where: { role: "ADMIN", adminArea: "WAREHOUSE", locked: false },
+      where: { role: "ADMIN", adminArea: "AGENTS", locked: false },
       select: { id: true },
     });
     for (const cart of carts) {
