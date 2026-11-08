@@ -29,10 +29,12 @@ function weekOf(t: Date): Date {
   return end.getTime() === t.getTime() ? end : new Date(end.getTime() + WEEK_MS);
 }
 
-/** Lines payable by `end`: received at least collectHours before it, never paid, no open return. */
+/** Lines payable by `end`: received at least collectHours before it, never paid, no open return
+ * and no missing report waiting for an admin (its removed units must not be paid). */
 function payableLines(end: Date, collectHours: number, factoryId?: string) {
   return {
     payoutItems: { none: {} },
+    missingReportedQty: 0,
     returns: { none: { status: { in: OPEN_RETURNS } } },
     order: {
       ...(factoryId ? { factoryId } : {}),

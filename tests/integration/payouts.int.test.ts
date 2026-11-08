@@ -131,6 +131,38 @@ describe("weekly payouts", () => {
     ).toBeNull();
   });
 
+  it("holds a line with a missing report waiting for an admin", async () => {
+    const r = await makeReceivedOrder({ qty: 2, receivedAt: THURSDAY });
+    await db.orderLine.update({ where: { id: r.line.id }, data: { missingReportedQty: 1 } });
+    await runSweep(SUNDAY);
+    expect(await payouts()).toHaveLength(0);
+
+    // The admin removes the unit; the line is paid next week without it.
+    await db.orderLine.update({
+      where: { id: r.line.id },
+      data: { missingReportedQty: 0, missingQty: 1 },
+    });
+    await runSweep(NEXT_SUNDAY);
+    const [p] = await payouts();
+    expect(p.weekEnding).toEqual(WEEK_2);
+    expect(p.items.map((i) => i.orderLineId)).toEqual([r.line.id]);
+    expect(p.items[0].amount.toFixed(2)).toBe("1000.00");
+  });
+
+  it("does not pay a cancelled order that still carries its basket", async () => {
+    const r = await makeReceivedOrder({ receivedAt: THURSDAY });
+    const basket = await db.basket.create({
+      data: { agentId: r.agent.id, factoryId: r.factory.id, status: "AT_AGENT" },
+    });
+    await db.order.update({
+      where: { id: r.order.id },
+      data: { status: "CANCELLED", basketId: basket.id },
+    });
+    await runSweep(SUNDAY);
+    expect(await payouts()).toHaveLength(0);
+    expect(await db.payoutItem.count()).toBe(0);
+  });
+
   it("running the sweep twice builds one payout and one agent fee credit", async () => {
     const r = await makeReceivedOrder({ qty: 3, receivedAt: THURSDAY });
     await db.orderLine.update({ where: { id: r.line.id }, data: { missingQty: 1 } });
