@@ -16,7 +16,7 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 /** Agent fees for missed weeks are caught up this far back. */
 const FEE_CATCH_UP_WEEKS = 4;
 /** A line with a return in one of these is held from payment. LAPSED and the rest are settled. */
-const OPEN_RETURNS: ReturnStatus[] = [
+export const PAYOUT_HOLD_RETURNS: ReturnStatus[] = [
   "WAITING_FACTORY",
   "WITH_ADMIN",
   "ACCEPTED",
@@ -35,7 +35,7 @@ function payableLines(end: Date, collectHours: number, factoryId?: string) {
   return {
     payoutItems: { none: {} },
     missingReportedQty: 0,
-    returns: { none: { status: { in: OPEN_RETURNS } } },
+    returns: { none: { status: { in: PAYOUT_HOLD_RETURNS } } },
     order: {
       ...(factoryId ? { factoryId } : {}),
       status: { in: ["PAID", "RECEIVED"] },

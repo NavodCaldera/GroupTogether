@@ -1,7 +1,7 @@
 import { factoryFaults, listHoldMessages, HoldError } from "@/server/fault-holds";
 import { HoldThread, FaultList } from "@/components/fault-bits";
 import { Card, Badge, LinkButton } from "@/components/ui";
-import { getCurrentUser, requireFactory } from "@/server/auth/session";
+import { requireFactory } from "@/server/auth/session";
 import { factoryReturns, escalateOverdue, listReturnMessages } from "@/server/returns";
 import { notFound } from "next/navigation";
 import { ReturnThread } from "@/components/return-thread";
@@ -15,18 +15,16 @@ export default async function ReturnsPage({
   searchParams: Promise<{ return?: string; hold?: string }>;
 }) {
   const sp = await searchParams;
+  const user = await requireFactory("returns");
   let authorizedMessages: Awaited<ReturnType<typeof listHoldMessages>> = [];
   if (sp.hold) {
-    const principal = await getCurrentUser();
-    if (!principal || principal.role !== "SELLER") notFound();
     try {
-      authorizedMessages = await listHoldMessages(principal.id, sp.hold);
+      authorizedMessages = await listHoldMessages(user.id, sp.hold);
     } catch (error) {
       if (error instanceof HoldError) notFound();
       throw error;
     }
   }
-  const user = await requireFactory("returns");
   await escalateOverdue();
   const rows = await factoryReturns(user.id);
   const selected = sp.return;

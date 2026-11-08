@@ -1,26 +1,31 @@
 import "server-only";
+import type { BasketStatus, Prisma } from "@/generated/prisma/client";
 import { HOLDS_STOCK } from "@/lib/cart-rules";
+import { lineEarning } from "@/lib/agent-money";
+import { weekEnding } from "@/lib/agent-rules";
 import {
   PAID,
   citiesShown,
+  compareSizes,
   median,
-  paidTotals,
   priceBand,
   ratingDisplay,
   restockAdvice,
-  sizeGrid,
   stockAlert,
   towardMinimum,
 } from "@/lib/factory-insights";
-import { D } from "@/lib/decimal";
-import { colomboIsoDay } from "@/lib/format";
+import type { FactorySection } from "@/lib/factory-roles";
+import { D, roundMoney, toD } from "@/lib/decimal";
 import { findKind } from "@/lib/taxonomy";
+import { assertFactorySection } from "./auth/service";
 import { db } from "./db";
+import { PAYOUT_HOLD_RETURNS } from "./payouts";
+import { getSettings } from "./settings";
 
 /**
- * A factory's own figures (product owner, 2026-11-03). Every query is limited to its own products
- * and orders; buyer names and phones are never selected. Sales are paid carts only; stock held in
- * unpaid carts is reported separately as "wanted in active carts".
+ * A factory's own work and figures (area-agent model, 2026-11-07). Every query is limited to the
+ * signed-in login's factory and gated by its job's section; buyer names and phones are never
+ * selected. Baskets replace the old shared-cart widgets.
  */
 const own = (factoryId: string) => ({
   status: "ACTIVE" as const,
@@ -29,176 +34,294 @@ const own = (factoryId: string) => ({
 const ownCarts = (factoryId: string) => ({
   lines: { some: own(factoryId) },
 });
-const month = (d: Date) => colomboIsoDay(d).slice(0, 7);
 
-/** The order stage a factory sees. */
-export function factoryStage(c: {
-  status: string;
-  factoryPackedAt: Date | null;
-  delivery: { status: string } | null;
-}) {
-  if (c.status === "DELIVERED") return "delivered" as const;
-  const d = c.delivery?.status;
-  if (d === "FAILED" || d === "CANCELLED") return "failed" as const;
-  if (d === "PICKED_UP") return "onTheWay" as const;
-  if (d === "BOOKED" || c.factoryPackedAt) return "awaitingPickup" as const;
-  return "toPack" as const;
-}
-export type FactoryStage = ReturnType<typeof factoryStage>;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+/** At-agent baskets shown on the orders board. */
+const SHOWN_DONE = 20;
 
-export const STAGES: [FactoryStage, string][] = [
-  ["toPack", "To pack"],
-  ["awaitingPickup", "Awaiting pickup"],
-  ["onTheWay", "On the way"],
-  ["delivered", "Delivered"],
-  ["failed", "Failed"],
-];
-
-/** Lines of the factory's paid carts, with what the figures need. */
-async function paidLines(factoryId: string) {
-  const rows = await db.cartLine.findMany({
-    where: { ...own(factoryId), cart: { status: { in: [...PAID] } } },
-    select: {
-      qty: true,
-      unitPrice: true,
-      variant: { select: { size: true, productId: true } },
-      cart: { select: { status: true, confirmedAt: true } },
-    },
-  });
-  return rows.map((l) => ({ ...l, status: l.cart.status }));
-}
-
-/** Home: alerts, orders to pack, this month's paid figures and the last six months. */
-export async function factoryHome(factoryId: string, now = new Date()) {
-  const [lines, variants, failed, toPack, lastPacked, delivered] = await Promise.all([
-    paidLines(factoryId),
-    db.variant.findMany({
-      where: { product: { sellerId: factoryId, status: { not: "ARCHIVED" } } },
-      select: {
-        size: true,
-        colour: true,
-        available: true,
-        product: { select: { id: true, title: true } },
-      },
-    }),
-    db.groupCart.findMany({
-      where: {
-        status: "DISPATCHED",
-        delivery: { is: { status: { in: ["FAILED", "CANCELLED"] } } },
-        ...ownCarts(factoryId),
-      },
-      select: { code: true, deliveryCity: true },
-    }),
-    db.cartLine.findMany({
-      where: { ...own(factoryId), cart: { status: "CONFIRMED", factoryPackedAt: null } },
-      select: {
-        qty: true,
-        cartId: true,
-        variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
-      },
-    }),
-    db.groupCart.findFirst({
-      where: { factoryPackedById: factoryId },
-      orderBy: { factoryPackedAt: "desc" },
-      select: { factoryPackedAt: true },
-    }),
-    db.groupCart.findMany({
-      where: { status: "DELIVERED", ...ownCarts(factoryId) },
-      select: { delivery: { select: { updatedAt: true } } },
-    }),
-  ]);
-  const thisMonth = month(now);
-  const months = new Map<string, { pieces: number; value: D }>();
-  for (let i = 5; i >= 0; i--)
-    months.set(month(new Date(now.getFullYear(), now.getMonth() - i, 15)), {
-      pieces: 0,
-      value: new D(0),
-    });
-  for (const l of lines) {
-    const m = l.cart.confirmedAt && months.get(month(l.cart.confirmedAt));
-    if (!m) continue;
-    const t = paidTotals([l]);
-    m.pieces += t.pieces;
-    m.value = m.value.plus(t.value);
+/** The factory a login works for, if its job includes any of `sections`. */
+async function factoryFor(userId: string, sections: FactorySection[]) {
+  let denied: unknown;
+  for (const section of sections) {
+    try {
+      return await assertFactorySection(userId, section);
+    } catch (error) {
+      denied = error;
+    }
   }
-  const alerts = [
-    ...failed.map((c) => ({
-      tone: "bad" as const,
-      text: `Delivery failed: ${c.code}${c.deliveryCity ? `, ${c.deliveryCity}` : ""}`,
-      href: "/seller/orders",
-    })),
-    ...variants.flatMap((v) => {
-      const a = stockAlert(v.available);
-      if (!a) return [];
-      const size = v.colour ? `${v.size} ${v.colour}` : v.size;
-      return [
-        {
-          tone: a === "sold-out" ? ("bad" as const) : ("warn" as const),
-          text:
-            a === "sold-out"
-              ? `Sold out: ${v.product.title}, ${size}`
-              : `Low stock: ${v.product.title}, ${size} (${v.available} left)`,
-          href: `/seller/products#p-${v.product.id}`,
-        },
-      ];
-    }),
-  ];
-  return {
-    alerts,
-    toPack: new Set(toPack.map((l) => l.cartId)).size,
-    // Everything waiting to be packed, as one cutting-ticket grid.
-    toPackGrid: sizeGrid(
-      toPack.map((l) => ({
-        qty: l.qty,
+  throw denied;
+}
+
+/** Basket stages a factory sees, in order. */
+export const BASKET_STAGES: [BasketStatus, string][] = [
+  ["OPEN", "Filling"],
+  ["LOCKED", "Locked"],
+  ["PACKED", "Packed"],
+  ["WITH_COURIER", "With courier"],
+  ["AT_AGENT", "At agent"],
+];
+export const STAGE_LABEL = Object.fromEntries(BASKET_STAGES) as Record<BasketStatus, string>;
+
+const basketSelect = {
+  id: true,
+  status: true,
+  total: true,
+  firstOrderAt: true,
+  lockedAt: true,
+  agent: { select: { address: true, city: true, user: { select: { name: true } } } },
+  courier: {
+    select: { driverName: true, driverPhone: true, vehicleNo: true, givenToDriverAt: true },
+  },
+} satisfies Prisma.BasketSelect;
+type BasketRow = Prisma.BasketGetPayload<{ select: typeof basketSelect }>;
+
+export type BasketLine = {
+  id: string;
+  size: string;
+  colour: string;
+  qty: number;
+  reportedQty: number;
+  note: string | null;
+  /** A paid order's line: Report missing applies while the basket is at the factory. */
+  reportable: boolean;
+};
+export type BasketCard = Omit<BasketRow, "total"> & {
+  total: D;
+  pieces: number;
+  products: { title: string; lines: BasketLine[] }[];
+};
+
+/** Each basket with its lines grouped by product, then size and colour. */
+async function withLines(baskets: BasketRow[]): Promise<BasketCard[]> {
+  if (!baskets.length) return [];
+  const lines = await db.orderLine.findMany({
+    where: {
+      status: "ACTIVE",
+      order: { basketId: { in: baskets.map((b) => b.id) }, status: { in: ["PAID", "RECEIVED"] } },
+    },
+    select: {
+      id: true,
+      qty: true,
+      missingQty: true,
+      missingReportedQty: true,
+      missingNote: true,
+      order: { select: { basketId: true, status: true } },
+      variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
+    },
+    orderBy: { id: "asc" },
+  });
+  return baskets.map((b) => {
+    const mine = lines
+      .filter((l) => l.order.basketId === b.id)
+      .sort(
+        (x, y) =>
+          x.variant.product.title.localeCompare(y.variant.product.title) ||
+          compareSizes(x.variant.size, y.variant.size) ||
+          x.variant.colour.localeCompare(y.variant.colour),
+      );
+    const products: BasketCard["products"] = [];
+    let pieces = 0;
+    for (const l of mine) {
+      const qty = l.qty - l.missingQty;
+      if (qty <= 0) continue;
+      pieces += qty;
+      const title = l.variant.product.title;
+      let group = products.at(-1);
+      if (group?.title !== title) products.push((group = { title, lines: [] }));
+      group.lines.push({
+        id: l.id,
         size: l.variant.size,
         colour: l.variant.colour,
-        product: l.variant.product.title,
-      })),
-    ),
-    lastPackedAt: lastPacked?.factoryPackedAt ?? null,
-    month: {
-      ...(months.get(thisMonth) ?? { pieces: 0, value: new D(0) }),
-      delivered: delivered.filter((c) => c.delivery && month(c.delivery.updatedAt) === thisMonth)
-        .length,
+        qty,
+        reportedQty: l.missingReportedQty,
+        note: l.missingNote,
+        reportable: l.order.status === "PAID",
+      });
+    }
+    return { ...b, total: toD(b.total), pieces, products };
+  });
+}
+
+/** Packing (and Owner): locked baskets to pack, and packed baskets whose courier is booked. */
+export async function packingWork(userId: string) {
+  const { factoryId } = await factoryFor(userId, ["orders"]);
+  const [locked, packed] = await Promise.all([
+    db.basket.findMany({
+      where: { factoryId, status: "LOCKED" },
+      select: basketSelect,
+      orderBy: [{ lockedAt: "asc" }, { id: "asc" }],
+    }),
+    db.basket.findMany({
+      where: { factoryId, status: "PACKED" },
+      select: basketSelect,
+      orderBy: [{ lockedAt: "asc" }, { id: "asc" }],
+    }),
+  ]);
+  const [toPack, courierBooked] = await Promise.all([
+    withLines(locked),
+    withLines(packed.filter((b) => b.courier)),
+  ]);
+  return { toPack, courierBooked, waitingCourier: packed.filter((b) => !b.courier).length };
+}
+
+/** Orders: basket counts per stage, then every basket past Filling (latest at-agent ones only). */
+export async function factoryBasketBoard(userId: string) {
+  const { factoryId } = await factoryFor(userId, ["orders"]);
+  const [grouped, active, done] = await Promise.all([
+    db.basket.groupBy({
+      by: ["status"],
+      where: { factoryId, NOT: { status: "OPEN", orders: { none: { status: "PAID" } } } },
+      _count: true,
+    }),
+    db.basket.findMany({
+      where: { factoryId, status: { in: ["LOCKED", "PACKED", "WITH_COURIER"] } },
+      select: basketSelect,
+      orderBy: [{ lockedAt: "asc" }, { id: "asc" }],
+    }),
+    db.basket.findMany({
+      where: { factoryId, status: "AT_AGENT" },
+      select: basketSelect,
+      orderBy: [{ lockedAt: "desc" }, { id: "desc" }],
+      take: SHOWN_DONE,
+    }),
+  ]);
+  const counts = Object.fromEntries(BASKET_STAGES.map(([s]) => [s, 0])) as Record<
+    BasketStatus,
+    number
+  >;
+  for (const g of grouped) counts[g.status] = g._count;
+  const order = BASKET_STAGES.map(([s]) => s);
+  const rows = [...active].sort((a, b) => order.indexOf(a.status) - order.indexOf(b.status));
+  return { counts, baskets: await withLines([...rows, ...done]) };
+}
+
+/** Sales (and Owner): open baskets filling at each agent, with their totals and lock amount. */
+export async function fillingBaskets(userId: string) {
+  const { factoryId } = await factoryFor(userId, ["baskets", "earnings"]);
+  const [baskets, settings] = await Promise.all([
+    db.basket.findMany({
+      where: { factoryId, status: "OPEN", orders: { some: { status: "PAID" } } },
+      select: basketSelect,
+      orderBy: [{ total: "desc" }, { id: "asc" }],
+    }),
+    getSettings(),
+  ]);
+  return { baskets: await withLines(baskets), lockAmount: toD(settings.basketLockAmount) };
+}
+
+/** Sales (and Owner): returns waiting for the factory's decision. */
+export async function returnsWaiting(userId: string) {
+  const { factoryId } = await factoryFor(userId, ["returns"]);
+  return db.returnRequest.count({
+    where: { factoryId, status: "WAITING_FACTORY", orderLineId: { not: null } },
+  });
+}
+
+/** Sales (and Owner): sold-out and low-stock sizes of live listings. */
+export async function stockAlerts(userId: string) {
+  const { factoryId } = await factoryFor(userId, ["products"]);
+  const variants = await db.variant.findMany({
+    where: { product: { sellerId: factoryId, status: { not: "ARCHIVED" } } },
+    select: {
+      size: true,
+      colour: true,
+      available: true,
+      product: { select: { id: true, title: true } },
     },
-    months: [...months].map(([m, v]) => ({ month: m, ...v })),
+    orderBy: [{ available: "asc" }, { product: { title: "asc" } }, { size: "asc" }],
+  });
+  return variants.flatMap((v) => {
+    const a = stockAlert(v.available);
+    if (!a) return [];
+    const size = v.colour ? `${v.size} ${v.colour}` : v.size;
+    return [
+      {
+        productId: v.product.id,
+        tone: a === "sold-out" ? ("bad" as const) : ("warn" as const),
+        text:
+          a === "sold-out"
+            ? `Sold out: ${v.product.title}, ${size}`
+            : `Low stock: ${v.product.title}, ${size} (${v.available} left)`,
+      },
+    ];
+  });
+}
+
+/** Owner: this week's earned amount, what is held, waiting deductions and past payouts. */
+export async function factoryEarnings(userId: string, now = new Date()) {
+  const { factoryId } = await factoryFor(userId, ["earnings"]);
+  const [lines, waiting, payouts] = await Promise.all([
+    db.orderLine.findMany({
+      where: {
+        payoutItems: { none: {} },
+        order: { factoryId, status: { in: ["PAID", "RECEIVED"] }, receivedAt: { not: null } },
+      },
+      select: {
+        qty: true,
+        returnedQty: true,
+        missingQty: true,
+        missingReportedQty: true,
+        factoryPrice: true,
+        returns: { where: { status: { in: PAYOUT_HOLD_RETURNS } }, select: { id: true } },
+      },
+    }),
+    db.payoutDeduction.findMany({
+      where: { factoryId, payoutId: null },
+      select: { amount: true },
+    }),
+    db.factoryPayout.findMany({
+      where: { factoryId },
+      select: {
+        id: true,
+        weekEnding: true,
+        gross: true,
+        deductions: true,
+        net: true,
+        paidAt: true,
+        bankRef: true,
+        deductionRows: { select: { id: true, kind: true, amount: true }, orderBy: { id: "asc" } },
+      },
+      orderBy: { weekEnding: "desc" },
+      take: 26,
+    }),
+  ]);
+  let earned = new D(0);
+  let held = new D(0);
+  for (const l of lines) {
+    const amount = lineEarning(l.qty, l.returnedQty, l.missingQty, toD(l.factoryPrice));
+    // A pending missing report or an open return holds the line from the payout.
+    if (l.missingReportedQty > 0 || l.returns.length) held = held.plus(amount);
+    else earned = earned.plus(amount);
+  }
+  return {
+    earned: roundMoney(earned),
+    held: roundMoney(held),
+    deductions: roundMoney(waiting.reduce((s, d) => s.plus(toD(d.amount)), new D(0))),
+    // Payouts are built after Saturday 23:59 Colombo and paid in cash on the Sunday.
+    nextSunday: new Date(weekEnding(now).getTime() + WEEK_MS + 1),
+    payouts: payouts.map((p) => ({
+      ...p,
+      gross: toD(p.gross),
+      deductions: toD(p.deductions),
+      net: toD(p.net),
+      sunday: new Date(p.weekEnding.getTime() + 1),
+      deductionRows: p.deductionRows.map((d) => ({ ...d, amount: toD(d.amount) })),
+    })),
   };
 }
 
-/** Orders: counts per stage and the order cards (no buyer names or phones). */
-export async function factoryOrderBoard(factoryId: string) {
-  const carts = await db.groupCart.findMany({
-    where: { status: { in: [...PAID] }, ...ownCarts(factoryId) },
+/** Lines of the factory's paid orders, for the products page's sales figures. */
+async function paidLines(factoryId: string) {
+  return db.orderLine.findMany({
+    where: { order: { factoryId, status: { in: ["PAID", "RECEIVED"] } } },
     select: {
-      id: true,
-      code: true,
-      status: true,
-      confirmedAt: true,
-      factoryPackedAt: true,
-      deliveryCity: true,
-      updatedAt: true,
-      lines: {
-        where: { status: "ACTIVE" },
-        select: {
-          qty: true,
-          variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
-        },
-        orderBy: { variantId: "asc" },
-      },
-      delivery: { select: { status: true, driverName: true, trackingUrl: true } },
+      qty: true,
+      missingQty: true,
+      returnedQty: true,
+      factoryPrice: true,
+      variant: { select: { size: true, productId: true } },
     },
-    orderBy: { confirmedAt: "asc" },
   });
-  const rows = carts.map((c) => ({ ...c, stage: factoryStage(c) }));
-  const counts = Object.fromEntries(STAGES.map(([s]) => [s, 0])) as Record<FactoryStage, number>;
-  for (const r of rows) counts[r.stage]++;
-  // Work first; delivered orders last, newest first and only the latest 20.
-  const open = rows.filter((r) => r.stage !== "delivered");
-  const done = rows
-    .filter((r) => r.stage === "delivered")
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-    .slice(0, 20);
-  return { counts, orders: [...open, ...done] };
 }
 
 /** Products: each listing with paid sales, and per size the stock left and the active-cart hold. */
@@ -221,7 +344,7 @@ export async function factoryProducts(factoryId: string) {
             colour: true,
             available: true,
             reserved: true,
-            _count: { select: { lines: true } },
+            _count: { select: { lines: true, orderLines: true } },
           },
           orderBy: [{ size: "asc" }, { colour: "asc" }],
         },
@@ -232,20 +355,26 @@ export async function factoryProducts(factoryId: string) {
   ]);
   return products.map((p) => {
     const mine = lines.filter((l) => l.variant.productId === p.id);
-    const { pieces, value } = paidTotals(mine);
+    let pieces = 0;
+    let value = new D(0);
     const bySize = new Map<string, number>();
-    for (const l of mine) bySize.set(l.variant.size, (bySize.get(l.variant.size) ?? 0) + l.qty);
+    for (const l of mine) {
+      const sold = Math.max(l.qty - l.missingQty - l.returnedQty, 0);
+      pieces += sold;
+      value = value.plus(lineEarning(l.qty, l.returnedQty, l.missingQty, toD(l.factoryPrice)));
+      bySize.set(l.variant.size, (bySize.get(l.variant.size) ?? 0) + sold);
+    }
     const best = [...bySize].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
     return {
       ...p,
       pieces,
-      value,
+      value: roundMoney(value),
       bestSize: best,
       variants: p.variants.map(({ _count, ...v }) => ({
         ...v,
         soldPaid: bySize.get(v.size) ?? 0,
         // A size never put in a cart can be removed; others keep their order history.
-        removable: _count.lines === 0,
+        removable: _count.lines === 0 && _count.orderLines === 0,
       })),
     };
   });

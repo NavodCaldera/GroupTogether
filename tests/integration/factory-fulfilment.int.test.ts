@@ -4,12 +4,7 @@ import { approveSlip, uploadSlip } from "@/server/carts/slips";
 import { db } from "@/server/db";
 import { bookDelivery, setDeliveryStatus } from "@/server/delivery";
 import { IN_SHOP, adjustStock, saveProduct } from "@/server/catalogue";
-import {
-  factoryHome,
-  factoryInsights,
-  factoryOrderBoard,
-  factoryProducts,
-} from "@/server/factory-dashboard";
+import { factoryInsights, factoryProducts } from "@/server/factory-dashboard";
 import { markFactoryPacked } from "@/server/factory-orders";
 import { rateProduct, ratingSummaries } from "@/server/ratings";
 import { cartRow, makeReceivedOrder, makeUser, makeVariant, resetDb, slipFile } from "./helpers";
@@ -70,12 +65,10 @@ describe("factory-direct fulfilment", () => {
     const slip = await db.paymentSlip.findFirstOrThrow({ where: { cartId: cart.id } });
     await approveSlip(admin.id, slip.id);
 
-    // The factory hears about it and sees it; another factory doesn't.
+    // The factory hears about it; another factory can't pack it.
     expect(
       await db.notification.count({ where: { userId: factory.id, title: "New order to pack" } }),
     ).toBe(1);
-    expect((await factoryOrderBoard(factory.id)).orders.map((o) => o.code)).toEqual([cart.code]);
-    expect((await factoryOrderBoard(other.factory.id)).orders).toEqual([]);
     await expect(markFactoryPacked(other.factory.id, cart.id)).rejects.toThrow("not found");
 
     await expect(bookDelivery(cart.id, {})).rejects.toThrow("hasn't marked this order packed");
@@ -97,7 +90,6 @@ describe("factory-direct fulfilment", () => {
     await setDeliveryStatus(d.id, "PICKED_UP");
     await setDeliveryStatus(d.id, "DELIVERED");
     expect((await cartRow(cart.id)).status).toBe("DELIVERED");
-    expect((await factoryOrderBoard(factory.id)).orders[0].delivery?.status).toBe("DELIVERED");
   });
 
   it("factories publish their own listings straight to the shop; admins can hide them", async () => {
@@ -125,7 +117,7 @@ describe("factory-direct fulfilment", () => {
     expect(await inShop()).toBe(0);
   });
 
-  it("delivered carts count in factory stats; legacy ratings still count in factory scores", async () => {
+  it("paid orders count in product figures; legacy ratings still count in factory scores", async () => {
     const [owner, friend, admin] = [await makeUser(), await makeUser(), await makeUser("ADMIN")];
     const { factory, v } = await factoryVariant();
     const cart = await createCart(owner.id, {});
@@ -160,16 +152,16 @@ describe("factory-direct fulfilment", () => {
     const open = await createCart(other.id, {});
     await setLine(other.id, open.id, v.id, 3);
 
-    const home = await factoryHome(factory.id);
-    expect(home.month).toMatchObject({ pieces: 2, delivered: 1 });
-    expect(home.month.value.toString()).toBe("50000");
-    expect(home.months.reduce((n, m) => n + m.pieces, 0)).toBe(2);
-    expect(home.toPack).toBe(0);
+    // Product figures count paid orders at the factory price; old carts no longer count.
     const [product] = await factoryProducts(factory.id);
-    expect(product).toMatchObject({ pieces: 2, bestSize: "M" });
-    expect(product.value.toString()).toBe("50000");
-    expect(product.variants[0]).toMatchObject({ available: 5, reserved: 3, soldPaid: 2 });
-    expect((await factoryOrderBoard(factory.id)).counts).toMatchObject({ delivered: 1, toPack: 0 });
+    expect(product).toMatchObject({ pieces: 1, bestSize: "M" });
+    expect(product.value.toString()).toBe("1000");
+    expect(product.variants[0]).toMatchObject({
+      available: 5,
+      reserved: 3,
+      soldPaid: 1,
+      removable: false,
+    });
     const insights = await factoryInsights(factory.id);
     // Two ratings: the count shows, the average is held back until there are five.
     expect(insights.rating).toMatchObject({ count: 2, average: null });

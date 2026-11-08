@@ -2,33 +2,34 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Toast } from "@/components/toast";
 import { cx } from "@/components/ui";
-import { formatDateTime, formatLKR } from "@/lib/format";
+import { formatLKR } from "@/lib/format";
 import { requireSeller } from "@/server/auth/session";
 import { sweep } from "@/server/carts/service";
 import { db } from "@/server/db";
-import { factoryHome } from "@/server/factory-dashboard";
-import { canFactory, editsListings, factoryOf, seesMoney } from "@/lib/factory-roles";
-import { BrandDashboard } from "@/app/seller/brand-dashboard";
-import { pcs } from "@/app/seller/design-chart";
 import {
-  FactoryShell,
-  Figure,
-  SizeGrid,
-  TONE_BORDER,
-  Tape,
-  Ticket,
-} from "@/app/seller/factory-bits";
+  factoryEarnings,
+  fillingBaskets,
+  packingWork,
+  returnsWaiting,
+  stockAlerts,
+} from "@/server/factory-dashboard";
+import { canFactory, editsListings, factoryOf } from "@/lib/factory-roles";
+import { BrandDashboard } from "@/app/seller/brand-dashboard";
+import { FactoryShell, TONE_BORDER, Tape } from "@/app/seller/factory-bits";
+import { BasketTicket } from "./orders/basket-ticket";
+import { EarningsSummary } from "./earnings/earnings-bits";
 
 export const metadata: Metadata = { title: "Home" };
 
-/** Alerts beyond this many are summed up in one line to Products. */
+/** Stock alerts beyond this many are summed up in one line to Products. */
 const SHOWN_ALERTS = 3;
 
+const LINK = "inline-flex min-h-11 items-center font-bold text-accent underline underline-offset-2";
+
 /**
- * The factory's home, phone first (product owner, 2026-11-03): alerts, then one "Pack these"
- * ticket with every piece waiting to be packed by size, then this month's paid figures; all on a
- * 360px screen without scrolling. The six-month tape sits below. Every figure is paid orders only.
- * A luxury brand (2026-10-24) sees its brand dashboard instead.
+ * The factory's home, phone first, by job (area-agent model): Packing gets To pack and Courier
+ * booked; Sales gets Filling baskets, Returns and Products and stock; the Owner gets all of it
+ * plus Earnings and payouts. A luxury brand (2026-10-24) sees its brand dashboard instead.
  */
 export default async function SellerHome({ searchParams }: PageProps<"/seller">) {
   const seller = await requireSeller();
@@ -41,28 +42,26 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
     await sweep();
     return <BrandDashboard brandId={seller.id} search={search} />;
   }
-  // Staff work for the factory account; only owners see money (2026-11-04).
-  const { factoryId, factoryRole } = factoryOf(login);
-  const money = seesMoney(factoryRole);
-  const listings = editsListings(factoryRole);
-  const [me, d] = await Promise.all([
+  const { factoryId, factoryRole: role } = factoryOf(login);
+  const packs = canFactory(role, "orders");
+  const owner = canFactory(role, "earnings");
+  const [me, work, filling, returns, alerts, earnings] = await Promise.all([
     db.user.findUniqueOrThrow({ where: { id: factoryId }, select: { company: true, name: true } }),
-    factoryHome(factoryId),
+    packs ? packingWork(login.id) : null,
+    canFactory(role, "baskets") || owner ? fillingBaskets(login.id) : null,
+    canFactory(role, "returns") ? returnsWaiting(login.id) : null,
+    canFactory(role, "products") ? stockAlerts(login.id) : null,
+    owner ? factoryEarnings(login.id) : null,
   ]);
-  // Each job sees only the alerts it can act on.
-  d.alerts = d.alerts.filter((a) =>
-    canFactory(factoryRole, a.href.startsWith("/seller/orders") ? "orders" : "products"),
-  );
-  const best = Math.max(1, ...d.months.map((m) => m.pieces));
-  const more = d.alerts.length - SHOWN_ALERTS;
+  const more = (alerts?.length ?? 0) - SHOWN_ALERTS;
 
   return (
     <FactoryShell
       active="home"
-      role={factoryRole}
+      role={role}
       title={me.company || me.name}
       action={
-        listings && (
+        editsListings(role) && (
           <Link
             href="/seller/new"
             className="inline-flex min-h-12 shrink-0 items-center rounded-md border-2 border-ink px-3 font-bold"
@@ -74,114 +73,151 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
     >
       {search.done === "sent" && <Toast>Sent for review.</Toast>}
 
-      <ul className="mb-4 flex flex-col gap-1.5" aria-label="Alerts">
-        {d.alerts.length === 0 ? (
-          <li className={cx("border-l-4 py-1 pl-3", TONE_BORDER.good)}>All good</li>
-        ) : (
-          <>
-            {d.alerts.slice(0, SHOWN_ALERTS).map((a, i) => (
-              <li key={i}>
-                <Link
-                  href={a.href}
-                  className={cx(
-                    "flex min-h-12 items-center border-l-4 bg-muted pl-3 underline-offset-2 hover:underline",
-                    TONE_BORDER[a.tone],
-                  )}
-                >
-                  {a.text}
-                </Link>
-              </li>
-            ))}
-            {more > 0 && (
-              <li>
-                <Link
-                  href="/seller/products"
-                  className="inline-flex min-h-11 items-center text-accent underline"
-                >
-                  {more} more {more === 1 ? "alert" : "alerts"} in Products
-                </Link>
-              </li>
+      {work && (
+        <>
+          <section aria-labelledby="to-pack" className="mb-6">
+            <h2 id="to-pack" className="mb-2 text-xl font-bold">
+              To pack
+            </h2>
+            {work.toPack.length === 0 ? (
+              <p className={cx("border-l-4 py-1 pl-3", TONE_BORDER.good)}>Nothing to pack</p>
+            ) : (
+              <ul aria-label="To pack" className="flex flex-col gap-4">
+                {work.toPack.map((b) => (
+                  <li key={b.id} aria-label={b.agent.user.name}>
+                    <BasketTicket basket={b} money={false} packs />
+                  </li>
+                ))}
+              </ul>
             )}
-          </>
-        )}
-      </ul>
-
-      {d.toPack ? (
-        <Link
-          href={canFactory(factoryRole, "orders") ? "/seller/orders" : "/seller"}
-          aria-label={`Orders to pack: ${d.toPack}`}
-          className="block"
-        >
-          <Ticket
-            tone="accent"
-            className="mb-5"
-            head={
-              <>
-                <span className="text-xl font-bold">Pack these</span>
-                <span>
-                  {d.toPack} {d.toPack === 1 ? "order" : "orders"}
-                </span>
-              </>
-            }
-            foot={<span className="font-bold text-accent underline">Open orders to pack</span>}
-          >
-            <SizeGrid grid={d.toPackGrid} />
-          </Ticket>
-        </Link>
-      ) : (
-        <Ticket className="mb-5">
-          <p className="text-xl font-bold">No orders to pack</p>
-          {d.lastPackedAt && (
-            <p className="text-sm text-subtle">Last packed {formatDateTime(d.lastPackedAt)}</p>
-          )}
-        </Ticket>
+          </section>
+          <section aria-labelledby="courier-booked" className="mb-6">
+            <h2 id="courier-booked" className="mb-2 text-xl font-bold">
+              Courier booked
+            </h2>
+            {work.courierBooked.length === 0 ? (
+              <p className="border-l-4 border-l-line py-1 pl-3 text-subtle">
+                {work.waitingCourier > 0 ? `Waiting for a courier: ${work.waitingCourier}` : "None"}
+              </p>
+            ) : (
+              <ul aria-label="Courier booked" className="flex flex-col gap-4">
+                {work.courierBooked.map((b) => (
+                  <li key={b.id} aria-label={b.agent.user.name}>
+                    <BasketTicket basket={b} money={false} packs />
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        </>
       )}
 
-      <section aria-labelledby="month" className="mb-8">
-        <h2 id="month" className="mb-2 font-bold">
-          This month, paid orders
-        </h2>
-        <div
-          className={cx(
-            "grid gap-3 border-y-2 border-ink py-3",
-            money ? "grid-cols-[1fr_1.7fr_auto]" : "grid-cols-2",
+      {filling && (
+        <section aria-labelledby="filling" className="mb-6">
+          <h2 id="filling" className="mb-2 text-xl font-bold">
+            Filling baskets
+          </h2>
+          {filling.baskets.length === 0 ? (
+            <p className="border-l-4 border-l-line py-1 pl-3 text-subtle">None</p>
+          ) : (
+            <ul aria-label="Filling baskets" className="flex flex-col gap-3">
+              {filling.baskets.map((b) => (
+                <li
+                  key={b.id}
+                  aria-label={b.agent.user.name}
+                  className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-1"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-bold break-words">{b.agent.user.name}</span>
+                    <span className="block text-sm text-subtle break-words">
+                      {[b.agent.address, b.agent.city].filter(Boolean).join(", ")}
+                    </span>
+                  </span>
+                  <span className="text-right tabular-nums">
+                    <span className="block font-bold">{formatLKR(b.total)}</span>
+                    <span className="block text-sm text-subtle">
+                      of {formatLKR(filling.lockAmount)}
+                    </span>
+                  </span>
+                  <span className="col-span-2">
+                    <Tape
+                      share={
+                        filling.lockAmount.gt(0)
+                          ? Math.min(1, b.total.div(filling.lockAmount).toNumber())
+                          : 1
+                      }
+                    />
+                  </span>
+                </li>
+              ))}
+            </ul>
           )}
-        >
-          <Figure label="Sold (paid)" value={pcs(d.month.pieces)} />
-          {money && <Figure label="Sales (paid)" value={formatLKR(d.month.value)} />}
-          <Figure label="Delivered" value={String(d.month.delivered)} />
-        </div>
-      </section>
+          {canFactory(role, "baskets") && filling.baskets.length > 0 && (
+            <Link href="/seller/baskets" className={LINK}>
+              Open filling baskets
+            </Link>
+          )}
+        </section>
+      )}
 
-      <section aria-labelledby="months" className="mb-6">
-        <h2 id="months" className="mb-3 font-bold">
-          Sold (paid), last six months
-        </h2>
-        <ul className="flex flex-col gap-3">
-          {d.months.map((m) => (
-            <li key={m.month} className="grid grid-cols-[3.25rem_1fr] items-center gap-x-2">
-              <span className="text-sm text-subtle">{monthLabel(m.month)}</span>
-              <Tape share={m.pieces / best} />
-              <span />
-              <span className="text-sm tabular-nums">
-                {pcs(m.pieces)}
-                {money && `, ${formatLKR(m.value)}`}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </section>
-      {canFactory(factoryRole, "insights") && (
-        <Link
-          href="/seller/insights"
-          className="inline-flex min-h-11 items-center font-bold text-accent underline"
-        >
-          See ratings and insights
-        </Link>
+      {returns !== null && (
+        <section aria-labelledby="returns" className="mb-6">
+          <h2 id="returns" className="mb-2 text-xl font-bold">
+            Returns
+          </h2>
+          <Link
+            href="/seller/returns"
+            className={cx(
+              "flex min-h-12 items-center border-l-4 bg-muted pl-3 underline-offset-2 hover:underline",
+              returns > 0 ? TONE_BORDER.warn : TONE_BORDER.good,
+            )}
+          >
+            {returns > 0 ? `Waiting for your decision: ${returns}` : "No returns waiting"}
+          </Link>
+        </section>
+      )}
+
+      {alerts && (
+        <section aria-labelledby="stock" className="mb-6">
+          <h2 id="stock" className="mb-2 text-xl font-bold">
+            Products and stock
+          </h2>
+          <ul className="flex flex-col gap-1.5" aria-label="Stock alerts">
+            {alerts.length === 0 ? (
+              <li className={cx("border-l-4 py-1 pl-3", TONE_BORDER.good)}>All in stock</li>
+            ) : (
+              alerts.slice(0, SHOWN_ALERTS).map((a, i) => (
+                <li key={i}>
+                  <Link
+                    href={`/seller/products#p-${a.productId}`}
+                    className={cx(
+                      "flex min-h-12 items-center border-l-4 bg-muted pl-3 underline-offset-2 hover:underline",
+                      TONE_BORDER[a.tone],
+                    )}
+                  >
+                    {a.text}
+                  </Link>
+                </li>
+              ))
+            )}
+          </ul>
+          <Link href="/seller/products" className={LINK}>
+            {more > 0 ? `${more} more in Products` : "Open products"}
+          </Link>
+        </section>
+      )}
+
+      {earnings && (
+        <section aria-labelledby="earnings" className="mb-6">
+          <h2 id="earnings" className="mb-2 text-xl font-bold">
+            Earnings and payouts
+          </h2>
+          <EarningsSummary e={earnings} />
+          <Link href="/seller/earnings" className={LINK}>
+            Past payouts
+          </Link>
+        </section>
       )}
     </FactoryShell>
   );
 }
-
-const monthLabel = (ym: string) =>
-  new Date(`${ym}-15T00:00:00Z`).toLocaleDateString("en-LK", { month: "short", year: "2-digit" });

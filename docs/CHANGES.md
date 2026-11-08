@@ -1,5 +1,9 @@
 # Product-owner change log
 
+## 2026-11-08 - Factory screens on baskets
+
+- Built (area-agent Task 16): the factory home is by job. Packing sees To pack (locked baskets with the agent and area, lines by product, size and colour, Report missing on each line and Mark packed) and Courier booked (driver name, phone, vehicle and Given to driver). Sales sees Filling baskets (agent, area and total against the lock amount), Returns waiting and Products and stock, plus a Baskets tab. The Owner sees all of it and Earnings and payouts: this week's earned amount, the Sunday it is paid, held lines, waiting deductions and past payouts with their deductions. Orders shows baskets in the stages Filling, Locked, Packed, With courier and At agent. Product sales figures now count paid orders at the factory price.
+
 ## 2026-11-08 - Agent screens
 
 - Built (area-agent Task 15): agents sign in to `/agent`: Hand over (type a buyer's code, tick the items, hand over), Arriving today (driver, phone, vehicle and fee, Mark received with the returns to send back), Waiting for pickup, Returns to collect, Open baskets against the lock amount, and Tokens; plus Pickups, Returns, Tokens (balance, agent fees, courier repaid, Send, deposit and Leave with a confirm step) and Hours. `/agents/apply` takes the NIC, own photo, storage photos and a map pin, then shows Applied, or the deposit to pay once approved; `/agent/deposit/<id>` shows the payment result. Left or rejected agents cannot open the agent screens. Agents also get the buyer Dashboard tab, footer and token balance.

@@ -34,6 +34,12 @@ const TABS: { key: FactorySection; href: Route; label: string; icon: ReactNode }
     icon: <path d="M3 7l9-4 9 4v10l-9 4-9-4zM3 7l9 4 9-4M12 11v10" />,
   },
   {
+    key: "baskets",
+    href: "/seller/baskets",
+    label: "Baskets",
+    icon: <path d="M3 9h18l-2 11H5zM8 9l4-6 4 6" />,
+  },
+  {
     key: "products",
     href: "/seller/products",
     label: "Products",
