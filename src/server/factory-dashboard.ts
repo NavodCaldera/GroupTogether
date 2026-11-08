@@ -2,7 +2,6 @@ import "server-only";
 import type { BasketStatus, Prisma } from "@/generated/prisma/client";
 import { HOLDS_STOCK } from "@/lib/cart-rules";
 import { lineEarning } from "@/lib/agent-money";
-import { weekEnding } from "@/lib/agent-rules";
 import {
   PAID,
   citiesShown,
@@ -19,7 +18,7 @@ import { D, roundMoney, toD } from "@/lib/decimal";
 import { findKind } from "@/lib/taxonomy";
 import { assertFactorySection } from "./auth/service";
 import { db } from "./db";
-import { PAYOUT_HOLD_RETURNS } from "./payouts";
+import { PAYOUT_HOLD_RETURNS, payableLines, weekOf } from "./payouts";
 import { getSettings } from "./settings";
 
 /**
@@ -35,7 +34,6 @@ const ownCarts = (factoryId: string) => ({
   lines: { some: own(factoryId) },
 });
 
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 /** At-agent baskets shown on the orders board. */
 const SHOWN_DONE = 20;
 
@@ -250,13 +248,21 @@ export async function stockAlerts(userId: string) {
 /** Owner: this week's earned amount, what is held, waiting deductions and past payouts. */
 export async function factoryEarnings(userId: string, now = new Date()) {
   const { factoryId } = await factoryFor(userId, ["earnings"]);
-  const [lines, waiting, payouts] = await Promise.all([
+  // The coming Saturday 23:59 Colombo: its payout takes exactly the lines payableLines picks.
+  const end = weekOf(now);
+  const { collectHours } = await getSettings();
+  const [payable, lines, waiting, payouts] = await Promise.all([
+    db.orderLine.findMany({
+      where: payableLines(end, collectHours, factoryId),
+      select: { id: true },
+    }),
     db.orderLine.findMany({
       where: {
         payoutItems: { none: {} },
         order: { factoryId, status: { in: ["PAID", "RECEIVED"] }, receivedAt: { not: null } },
       },
       select: {
+        id: true,
         qty: true,
         returnedQty: true,
         missingQty: true,
@@ -285,20 +291,25 @@ export async function factoryEarnings(userId: string, now = new Date()) {
       take: 26,
     }),
   ]);
+  const thisWeek = new Set(payable.map((l) => l.id));
   let earned = new D(0);
   let held = new D(0);
+  let nextWeek = new D(0);
   for (const l of lines) {
     const amount = lineEarning(l.qty, l.returnedQty, l.missingQty, toD(l.factoryPrice));
+    if (thisWeek.has(l.id)) earned = earned.plus(amount);
     // A pending missing report or an open return holds the line from the payout.
-    if (l.missingReportedQty > 0 || l.returns.length) held = held.plus(amount);
-    else earned = earned.plus(amount);
+    else if (l.missingReportedQty > 0 || l.returns.length) held = held.plus(amount);
+    // Received too close to Saturday 23:59: it goes into the following week's payout.
+    else nextWeek = nextWeek.plus(amount);
   }
   return {
     earned: roundMoney(earned),
+    nextWeek: roundMoney(nextWeek),
     held: roundMoney(held),
     deductions: roundMoney(waiting.reduce((s, d) => s.plus(toD(d.amount)), new D(0))),
     // Payouts are built after Saturday 23:59 Colombo and paid in cash on the Sunday.
-    nextSunday: new Date(weekEnding(now).getTime() + WEEK_MS + 1),
+    nextSunday: new Date(end.getTime() + 1),
     payouts: payouts.map((p) => ({
       ...p,
       gross: toD(p.gross),

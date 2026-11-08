@@ -10,6 +10,7 @@ export function EarningsSummary({ e }: { e: Earnings }) {
     <div className="grid grid-cols-2 gap-3 border-y-2 border-ink py-3">
       <Figure label="Earned this week" value={formatLKR(e.earned)} />
       <Figure label="Paid on" value={`Sun ${formatDate(e.nextSunday)}`} />
+      {e.nextWeek.gt(0) && <Figure label="Next week" value={formatLKR(e.nextWeek)} />}
       {e.held.gt(0) && <Figure label="Held" value={formatLKR(e.held)} />}
       {e.deductions.gt(0) && <Figure label="Deductions waiting" value={formatLKR(e.deductions)} />}
     </div>

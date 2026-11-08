@@ -3,6 +3,7 @@
 ## 2026-11-08 - Factory screens on baskets
 
 - Built (area-agent Task 16): the factory home is by job. Packing sees To pack (locked baskets with the agent and area, lines by product, size and colour, Report missing on each line and Mark packed) and Courier booked (driver name, phone, vehicle and Given to driver). Sales sees Filling baskets (agent, area and total against the lock amount), Returns waiting and Products and stock, plus a Baskets tab. The Owner sees all of it and Earnings and payouts: this week's earned amount, the Sunday it is paid, held lines, waiting deductions and past payouts with their deductions. Orders shows baskets in the stages Filling, Locked, Packed, With courier and At agent. Product sales figures now count paid orders at the factory price.
+- Fixed (Task 16 review): Earned this week now holds only what Sunday's payout will pay; lines received within the collect window before Saturday 23:59 show as Next week.
 
 ## 2026-11-08 - Agent screens
 

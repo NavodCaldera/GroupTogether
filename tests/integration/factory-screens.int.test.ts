@@ -8,7 +8,7 @@ import {
   packingWork,
   returnsWaiting,
 } from "@/server/factory-dashboard";
-import { buildWeeklyPayouts } from "@/server/payouts";
+import { buildWeeklyPayouts, weekOf } from "@/server/payouts";
 import { makeAgent, makeBuyer, makeFactory, resetDb } from "./helpers";
 
 beforeEach(async () => {
@@ -176,6 +176,7 @@ describe("factory screens", () => {
 
     const before = await factoryEarnings(s.f.factory.id, now);
     expect(before.earned.toString()).toBe("2000");
+    expect(before.nextWeek.toString()).toBe("0");
     expect(before.held.toString()).toBe("1000");
     expect(before.payouts).toEqual([]);
     expect(before.nextSunday.getTime()).toBeGreaterThan(now.getTime());
@@ -184,6 +185,7 @@ describe("factory screens", () => {
     expect(await buildWeeklyPayouts(now)).toBe(1);
     const after = await factoryEarnings(s.f.factory.id, now);
     expect(after.earned.toString()).toBe("0");
+    expect(after.nextWeek.toString()).toBe("0");
     expect(after.held.toString()).toBe("1000");
     expect(after.payouts.map((p) => [p.gross.toString(), p.net.toString(), p.paidAt])).toEqual([
       ["2000", "2000", null],
@@ -192,5 +194,36 @@ describe("factory screens", () => {
     await expect(factoryEarnings(s.sales.id)).rejects.toThrow();
     await expect(factoryEarnings(s.packing.id)).rejects.toThrow();
     expect((await factoryEarnings(s.other.factory.id)).payouts).toEqual([]);
+  });
+
+  it("counts a line received inside the collect window before Saturday in next week's payout", async () => {
+    const s = await setup();
+    const end = weekOf(new Date());
+    // Half an hour before the week ends; one line came an hour ago, one ten days ago.
+    const now = new Date(end.getTime() - 30 * 60_000);
+    await basket(s.f, s.agent.id, "AT_AGENT", {
+      qty: 1,
+      orderStatus: "RECEIVED",
+      receivedAt: new Date(end.getTime() - 3_600_000),
+    });
+    await basket(s.f, s.agent.id, "AT_AGENT", {
+      qty: 3,
+      orderStatus: "RECEIVED",
+      receivedAt: new Date(end.getTime() - 10 * DAY),
+    });
+
+    const e = await factoryEarnings(s.f.factory.id, now);
+    expect(e.earned.toString()).toBe("3000");
+    expect(e.nextWeek.toString()).toBe("1000");
+    expect(e.held.toString()).toBe("0");
+    expect(e.nextSunday.getTime()).toBe(end.getTime() + 1);
+
+    // The Sunday payout built after this Saturday takes exactly "Earned this week".
+    const built = new Date(end.getTime() + 60_000);
+    expect(await buildWeeklyPayouts(built)).toBe(1);
+    const payout = await db.factoryPayout.findFirstOrThrow({
+      where: { factoryId: s.f.factory.id },
+    });
+    expect(payout.gross.toString()).toBe(e.earned.toString());
   });
 });

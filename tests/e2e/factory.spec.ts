@@ -171,8 +171,20 @@ test("sales: filling baskets, returns and stock; cannot open earnings", async ({
   const filling = page
     .getByRole("list", { name: "Filling baskets" })
     .getByRole("listitem", { name: "Kamal Perera", exact: true });
-  await expect(filling).toContainText("LKR");
-  await expect(filling).toContainText("50,000");
+  const [open] = await sql<{ total: string }>(
+    `SELECT b.total::text AS total FROM "Basket" b
+     JOIN "Agent" ag ON ag.id = b."agentId"
+     JOIN "User" au ON au.id = ag."userId"
+     JOIN "User" f ON f.id = b."factoryId"
+     WHERE au.email = $1 AND f.email = $2 AND b.status = 'OPEN'`,
+    [DEMO.readyAgent, DEMO_FACTORIES.ceylon.owner],
+  );
+  const total = Number(open.total);
+  expect(total).toBeGreaterThan(0);
+  expect(total).not.toBe(50_000);
+  // The basket's own total first, then the configured lock amount.
+  const shown = total.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  await expect(filling).toContainText(new RegExp(`LKR\\s${shown}\\s*of LKR\\s50,000`));
   await expect(page.getByRole("heading", { name: "Returns" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Products and stock" })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Earnings and payouts" })).toHaveCount(0);

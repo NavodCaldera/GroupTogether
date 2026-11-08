@@ -24,14 +24,14 @@ export const PAYOUT_HOLD_RETURNS: ReturnStatus[] = [
 ];
 
 /** The Saturday 23:59:59.999 Colombo that ends the week holding `t`. */
-function weekOf(t: Date): Date {
+export function weekOf(t: Date): Date {
   const end = weekEnding(t);
   return end.getTime() === t.getTime() ? end : new Date(end.getTime() + WEEK_MS);
 }
 
 /** Lines payable by `end`: received at least collectHours before it, never paid, no open return
  * and no missing report waiting for an admin (its removed units must not be paid). */
-function payableLines(end: Date, collectHours: number, factoryId?: string) {
+export function payableLines(end: Date, collectHours: number, factoryId?: string) {
   return {
     payoutItems: { none: {} },
     missingReportedQty: 0,
