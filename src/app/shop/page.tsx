@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProductImage } from "@/components/cart-bits";
-import { Alert, EmptyState, PageHeader } from "@/components/ui";
+import { EmptyState, PageHeader } from "@/components/ui";
 import { SearchBox } from "@/components/search-box";
 import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { formatLKR } from "@/lib/format";
@@ -23,7 +23,8 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   if (role === "ADMIN") redirect("/admin/products");
   if (role === "SELLER") redirect("/seller");
   const sp = await searchParams;
-  const cart = one(sp.cart);
+  const agent = one(sp.agent);
+  const keep = agent && /^[a-z0-9]{1,40}$/.test(agent) ? `?agent=${agent}` : "";
   const filters: ProductFilters = {
     audience: isAudience(one(sp.audience)) ? (one(sp.audience) as "MEN") : undefined,
     kind: findKind(one(sp.kind)) ? one(sp.kind) : undefined,
@@ -51,21 +52,11 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   return (
     <>
       <PageHeader title="Shop" />
-      {cart && (
-        <div className="mb-4">
-          <Alert tone="info">
-            Adding to cart <strong>{cart}</strong>. Pick an item, then its size.{" "}
-            <Link href={`/c/${cart}`} className="font-medium underline">
-              Back to the cart
-            </Link>
-          </Alert>
-        </div>
-      )}
       {/* A plain GET form: filtering needs no JavaScript. */}
       {/* Phones: one box per row. Wider screens: one wrapping row. */}
       <form className="mb-6 flex flex-col gap-2 sm:flex-row sm:flex-wrap" action="/shop">
-        {cart && <input type="hidden" name="cart" value={cart} />}
-        <SearchBox defaultValue={filters.q} cart={cart} className="sm:min-w-40 sm:flex-1" />
+        {keep && <input type="hidden" name="agent" value={agent} />}
+        <SearchBox defaultValue={filters.q} className="sm:min-w-40 sm:flex-1" />
         <TaxonomyFields
           audience={filters.audience}
           kind={filters.kind}
@@ -85,11 +76,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
           {products.map((p) => {
             const inStock = p.variants.some((v) => v.available > 0);
             return (
-              <Link
-                key={p.id}
-                href={`/products/${p.id}${cart ? `?cart=${cart}` : ""}`}
-                className="group"
-              >
+              <Link key={p.id} href={`/products/${p.id}${keep}`} className="group">
                 <ProductImage {...p} className={inStock ? "" : "opacity-50"} />
                 <p className="mt-2 text-xs text-subtle">{p.brand}</p>
                 <p className="line-clamp-2 text-sm font-medium group-hover:underline">{p.title}</p>

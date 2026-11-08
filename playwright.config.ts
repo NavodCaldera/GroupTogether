@@ -29,7 +29,7 @@ export default defineConfig({
     { name: "desktop", use: { ...devices["Desktop Chrome"] } },
     {
       name: "mobile",
-      testMatch: "**/accessibility.spec.ts",
+      testMatch: ["**/accessibility.spec.ts", "**/buyer.spec.ts"],
       use: {
         ...devices["Desktop Chrome"],
         viewport: { width: 360, height: 800 },

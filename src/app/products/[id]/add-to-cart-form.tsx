@@ -3,33 +3,24 @@
 import Link from "next/link";
 import { useActionState, useState } from "react";
 import { Toast } from "@/components/toast";
-import { Alert, Button, Field, Input, Select } from "@/components/ui";
+import { Alert, Button, Field, Input } from "@/components/ui";
 import { D } from "@/lib/decimal";
 import { formatLKR } from "@/lib/format";
-import { type ActionState, addToCartAction } from "@/server/carts/actions";
-import { VisibilityChoice } from "../../carts/new/new-cart-form";
+import { type AddState, addToCartAction } from "./actions";
 
 type Variant = { id: string; label: string; available: number };
-type CartOption = { id: string; code: string; label: string };
 
 export function AddToCartForm({
-  productId,
   price,
   variants,
-  carts,
-  preselect,
+  cartHref,
 }: {
-  productId: string;
   /** Unit price as a decimal string (never a JS number) */
   price: string;
   variants: Variant[];
-  carts: CartOption[];
-  preselect?: string;
+  cartHref: string;
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(addToCartAction, {});
-  const [picked, setPicked] = useState(preselect ?? carts[0]?.id ?? "new");
-  // After the first add starts a cart, the list gains it: fall back to it instead of "new".
-  const target = carts.some((c) => c.id === picked) ? picked : (carts[0]?.id ?? "new");
+  const [state, action, pending] = useActionState<AddState, FormData>(addToCartAction, {});
   const [variantId, setVariantId] = useState(variants.find((v) => v.available > 0)?.id ?? "");
   const max = variants.find((v) => v.id === variantId)?.available ?? 0;
   const [qty, setQty] = useState("1");
@@ -45,12 +36,11 @@ export function AddToCartForm({
       {state.ok && !pending && (
         <Toast key={state.at}>
           <span>✓ {state.ok}</span>
-          <Link href={`/c/${state.code}`} className="text-accent underline">
+          <Link href={cartHref} className="text-accent underline">
             View cart
           </Link>
         </Toast>
       )}
-      <input type="hidden" name="productId" value={productId} />
       <fieldset>
         <legend className="mb-1.5 text-sm font-bold">Size</legend>
         <div className="flex flex-wrap gap-2">
@@ -100,24 +90,12 @@ export function AddToCartForm({
           </output>
         </div>
       </div>
-      <Field label="Add to" name="cartId">
-        <Select name="cartId" value={target} onChange={(e) => setPicked(e.target.value)}>
-          {carts.map((c) => (
-            <option key={c.id} value={c.id}>
-              {c.label}
-            </option>
-          ))}
-          {carts.length === 0 && <option value="new">+ Start a new cart</option>}
-        </Select>
-      </Field>
-      {target === "new" && <VisibilityChoice />}
       <Button type="submit" disabled={pending || !variantId || max === 0}>
-        {pending ? "Adding…" : "Add to group cart"}
+        {pending ? "Adding…" : "Add to cart"}
       </Button>
     </form>
   );
 }
-
 /** Signed-out view: pick a size to see how many are left. */
 export function SizeStockPreview({ variants }: { variants: Variant[] }) {
   const [id, setId] = useState(variants.find((v) => v.available > 0)?.id ?? variants[0]?.id ?? "");

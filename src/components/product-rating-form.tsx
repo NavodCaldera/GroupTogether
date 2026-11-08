@@ -1,18 +1,21 @@
 "use client";
 import { useActionState, useState } from "react";
 import { Alert, Button, Input } from "./ui";
-import { rateProductAction, type ActionState } from "@/server/carts/actions";
+
+type RatingState = { error?: string };
 import { photoRequired, REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
 export function ProductRatingForm({
   orderId,
   productId,
   title,
+  rateAction,
 }: {
   orderId: string;
   productId: string;
   title: string;
+  rateAction: (previous: RatingState, fd: FormData) => Promise<RatingState>;
 }) {
-  const [state, action, pending] = useActionState<ActionState, FormData>(rateProductAction, {});
+  const [state, action, pending] = useActionState<RatingState, FormData>(rateAction, {});
   const [stars, setStars] = useState("5"),
     [reason, setReason] = useState("");
   const id = `rating-${productId}`;

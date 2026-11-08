@@ -8,10 +8,10 @@ import { Card } from "@/components/ui";
 import { siteName } from "@/lib/brand-rules";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
-import { editableCartsFor, joinableCart } from "@/server/carts/queries";
 import { getProduct } from "@/server/catalogue";
 import { ratingSummaries, productRatingSummaries } from "@/server/ratings";
 import { FactoryRating } from "@/components/factory-rating";
+import { isBuyerRole } from "@/lib/roles";
 import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
@@ -23,23 +23,18 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const [product, user] = await Promise.all([getProduct(id), getCurrentUser()]);
   if (!product) notFound();
-  const wanted = typeof sp.cart === "string" ? sp.cart.toUpperCase() : undefined;
-  const [carts, ratings, productScores] = await Promise.all([
-    user
-      ? editableCartsFor(user.id)
-      : Promise.resolve([] as Awaited<ReturnType<typeof editableCartsFor>>),
+  // A shared basket link carries its agent through the cart to checkout.
+  const agent =
+    typeof sp.agent === "string" && /^[a-z0-9]{1,40}$/.test(sp.agent) ? sp.agent : undefined;
+  const keep = agent ? `?agent=${agent}` : "";
+  const [ratings, productScores] = await Promise.all([
     ratingSummaries([product.sellerId]),
     productRatingSummaries([product.id]),
   ]);
-  // Came from a shared cart they haven't joined yet: adding to it joins it.
-  if (user && wanted && carts.length === 0 && !carts.some((c) => c.code === wanted)) {
-    const shared = await joinableCart(wanted);
-    if (shared) carts.unshift(shared);
-  }
 
   return (
     <>
-      <BackLink fallback={wanted ? `/shop?cart=${wanted}` : "/shop"} />
+      <BackLink fallback={`/shop${keep}`} />
       <div className="grid gap-8 md:grid-cols-2 [&>*]:min-w-0">
         <ProductImage {...product} />
         <div className="flex flex-col gap-4">
@@ -77,17 +72,15 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           )}
 
           <Card>
-            {user ? (
+            {user && isBuyerRole(user.role) ? (
               <AddToCartForm
-                productId={product.id}
                 price={product.price.toString()}
                 variants={product.variants.map((v) => ({
                   id: v.id,
                   label: v.colour ? `${v.size} · ${v.colour}` : v.size,
                   available: v.available,
                 }))}
-                carts={carts.map((c) => ({ id: c.id, code: c.code, label: c.name || c.code }))}
-                preselect={carts.find((c) => c.code === wanted)?.id}
+                cartHref={`/cart${keep}`}
               />
             ) : (
               <div className="flex flex-col gap-4">
@@ -98,22 +91,17 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                     available: v.available,
                   }))}
                 />
-                <p className="text-sm">
+                {!user && (
                   <Link
-                    href={`/sign-in?next=${encodeURIComponent(`/products/${product.id}${wanted ? `?cart=${wanted}` : ""}`)}`}
-                    className="font-medium text-accent underline"
+                    href={`/sign-in?next=${encodeURIComponent(`/products/${product.id}${keep}`)}`}
+                    className="inline-flex min-h-11 items-center text-sm font-medium text-accent underline sm:min-h-10"
                   >
-                    Sign in
-                  </Link>{" "}
-                  to add this to a group cart.
-                </p>
+                    Sign in to buy
+                  </Link>
+                )}
               </div>
             )}
           </Card>
-          <p className="text-xs text-subtle">
-            Items are held for you as soon as they&apos;re in a cart, and go back on sale if the
-            cart expires or you remove them.
-          </p>
         </div>
       </div>
     </>

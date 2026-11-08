@@ -1,18 +1,21 @@
 "use client";
 import { useActionState, useId, useState } from "react";
 import { Alert, Button, Input, Select, Textarea } from "./ui";
-import { returnAction } from "@/server/return-actions";
+import { returnAction, type ReturnState } from "@/server/return-actions";
 import { REPORT_REASONS } from "@/lib/quality-rules";
 export function ReturnForm({
   id,
   op,
   maxQty = 1,
+  action: custom,
 }: {
   id: string;
   op: "file" | "factory" | "admin" | "received" | "message";
   maxQty?: number;
+  /** Replaces the shared return action, e.g. the buyer order page's own */
+  action?: (previous: ReturnState, fd: FormData) => Promise<ReturnState>;
 }) {
-  const [state, action, pending] = useActionState(returnAction, {});
+  const [state, action, pending] = useActionState(custom ?? returnAction, {});
   const [fault, setFault] = useState("FACTORY");
   const [decision, setDecision] = useState("accept");
   const [restock, setRestock] = useState("yes");

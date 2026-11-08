@@ -1,23 +1,25 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/server/auth/session";
+import { isBuyerRole } from "@/lib/roles";
+import { BuyerHome } from "./buyer-home";
 import { ProductImage } from "@/components/cart-bits";
 import { formatLKR } from "@/lib/format";
 import { SalesCounter } from "@/components/client";
 import { listProducts, retailSaving, salesSnapshot } from "@/server/catalogue";
 import { sweep } from "@/server/carts/service";
-import { getSettings } from "@/server/settings";
 
 export default async function HomePage() {
   // The home page is for shoppers; admins go straight to the back office, packing staff to
   // their packing list.
-  const role = (await getCurrentUser())?.role;
+  const user = await getCurrentUser();
+  const role = user?.role;
   if (role === "ADMIN") redirect("/admin");
   if (role === "SELLER") redirect("/seller");
+  if (user && isBuyerRole(user.role)) return <BuyerHome user={user} />;
   await sweep();
-  const [products, settings, sales, saving] = await Promise.all([
+  const [products, sales, saving] = await Promise.all([
     listProducts({}, 8, "cheapest"),
-    getSettings(),
     salesSnapshot(),
     retailSaving(),
   ]);
@@ -30,17 +32,14 @@ export default async function HomePage() {
       <section>
         <h1 className="mb-4 text-xl font-semibold">Buy clothing from partner factories together</h1>
         <ol className="grid gap-4 sm:grid-cols-4">
-          {[
-            "Start or join a cart",
-            "Add your items",
-            `Reach ${formatLKR(settings.minOrderValue)}`,
-            "Owner pays, PickMe delivers",
-          ].map((t, i) => (
-            <li key={t} className="rounded-xl border border-line p-4">
-              <span className="text-sm font-bold text-accent">{i + 1}</span>
-              <p className="mt-1 font-semibold">{t}</p>
-            </li>
-          ))}
+          {["Add your items", "Pick an agent near you", "Pay online", "Collect with your code"].map(
+            (t, i) => (
+              <li key={t} className="rounded-xl border border-line p-4">
+                <span className="text-sm font-bold text-accent">{i + 1}</span>
+                <p className="mt-1 font-semibold">{t}</p>
+              </li>
+            ),
+          )}
         </ol>
       </section>
 
@@ -74,7 +73,7 @@ export default async function HomePage() {
   );
 }
 
-/** Why prices are low: factory bulk buying feeds group carts. Pure markup, no client JS. */
+/** Why prices are low: factory bulk buying feeds area baskets. Pure markup, no client JS. */
 function WhyCheap({ saving }: { saving: number | null }) {
   const icon = "mt-0.5 h-6 w-6 shrink-0 text-accent sm:h-8 sm:w-8";
   const box = "flex flex-1 gap-3 rounded-xl border border-line bg-paper p-3 sm:p-4";
@@ -127,7 +126,7 @@ function WhyCheap({ saving }: { saving: number | null }) {
           <div>
             <p className="font-semibold">Consumer group buying</p>
             <p className="mt-1 text-sm text-subtle">
-              Share a cart to reach the minimum. The owner pays once.
+              Orders near you travel together in one basket.
             </p>
           </div>
         </div>
