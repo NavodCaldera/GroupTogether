@@ -4,11 +4,11 @@ import { randomBytes } from "node:crypto";
 import { notFound, redirect } from "next/navigation";
 import { db } from "@/server/db";
 import { appUrl } from "@/server/notify";
-import { signNotice } from "@/server/payments/demo";
+import { demoReturnPath, signNotice } from "@/server/payments/demo";
 
 const CODES = { pay: "2", fail: "-2", cancel: "-1" } as const;
 
-/** Plays the part of the hosted payment page: posts a signed notice, then returns the buyer. */
+/** Plays the part of the hosted payment page: posts a signed notice, then returns the payer. */
 export async function demoPayAction(attemptId: string, formData: FormData) {
   if (process.env.PAYMENT_GATEWAY !== "demo") notFound();
   const outcome = String(formData.get("outcome"));
@@ -18,7 +18,7 @@ export async function demoPayAction(attemptId: string, formData: FormData) {
   if (!merchantId || !secret) notFound();
   const attempt = await db.paymentAttempt.findUnique({
     where: { id: attemptId },
-    select: { id: true, amount: true, currency: true, status: true },
+    select: { id: true, purpose: true, amount: true, currency: true, status: true },
   });
   if (!attempt || attempt.status !== "PENDING") notFound();
 
@@ -41,5 +41,5 @@ export async function demoPayAction(attemptId: string, formData: FormData) {
   } catch {
     // The return page reads the attempt's real status; a lost notice is the gateway's retry to fix.
   }
-  redirect(`/checkout/return/${attempt.id}`);
+  redirect(demoReturnPath(attempt));
 }

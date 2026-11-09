@@ -14,7 +14,8 @@ import { agentOfUser, AgentError, withAgent } from "./common";
 export async function startDeposit(agentUserId: string): Promise<{ redirectUrl: string }> {
   const { id } = await agentOfUser(agentUserId);
   const pay = await withAgent(id, async (tx, agent) => {
-    if (agent.status !== "APPROVED") throw new AgentError("The deposit is not due");
+    if (agent.status !== "APPROVED" || agent.depositPaidAt)
+      throw new AgentError("The deposit is not due");
     // Every agent sets weekly opening hours before going live (FR-029a).
     if (!(await tx.agentHours.count({ where: { agentId: agent.id } })))
       throw new AgentError("Set your opening hours first");
@@ -27,6 +28,8 @@ export async function startDeposit(agentUserId: string): Promise<{ redirectUrl: 
         agentId: agent.id,
         buyerId: null,
         amount,
+        // What comes back on leaving is the deposit charged here, not a later setting.
+        depositPrincipal: deposit.toFixed(2),
         currency: "LKR",
         gatewayRef: `ga_${randomUUID()}`,
         expiresAt: new Date(Date.now() + settings.paymentHoldMinutes * 60_000),
@@ -49,31 +52,34 @@ export async function startDeposit(agentUserId: string): Promise<{ redirectUrl: 
   });
 }
 
+/** Caller holds the Agent row. APPROVED -> LIVE and role AGENT. */
+export async function goLive(tx: Tx, agent: { id: string; userId: string }): Promise<void> {
+  await tx.agent.update({ where: { id: agent.id }, data: { status: "LIVE" } });
+  await tx.user.update({ where: { id: agent.userId }, data: { role: "AGENT" } });
+}
+
 /** Called by the payment notice inside its transaction, which holds the agent user's advisory.
- * Moves APPROVED -> LIVE and returns true; returns false when the agent is no longer APPROVED,
- * so the notice credits the payment as tokens instead.
+ * Records the deposit charged on the attempt and moves APPROVED -> LIVE; returns true. An agent
+ * with no opening hours keeps the deposit recorded but stays APPROVED until hours are saved
+ * (FR-029a). Returns false when the agent is no longer APPROVED or has already paid, so the
+ * notice credits the payment as tokens instead.
  */
 export async function agentDepositPaid(tx: Tx, attemptId: string): Promise<boolean> {
   const attempt = await tx.paymentAttempt.findUniqueOrThrow({
     where: { id: attemptId },
-    select: { purpose: true, agentId: true },
+    select: { purpose: true, agentId: true, depositPrincipal: true },
   });
-  if (attempt.purpose !== "DEPOSIT" || !attempt.agentId) return false;
+  if (attempt.purpose !== "DEPOSIT" || !attempt.agentId || !attempt.depositPrincipal) return false;
   await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${attempt.agentId} FOR NO KEY UPDATE`;
   const agent = await tx.agent.findUniqueOrThrow({
     where: { id: attempt.agentId },
-    select: { id: true, status: true, userId: true },
+    select: { id: true, status: true, userId: true, depositPaidAt: true },
   });
-  if (agent.status !== "APPROVED") return false;
-  const settings = await getSettings(tx);
+  if (agent.status !== "APPROVED" || agent.depositPaidAt) return false;
   await tx.agent.update({
     where: { id: agent.id },
-    data: {
-      status: "LIVE",
-      depositPaidAt: new Date(),
-      depositAmount: toD(settings.agentDeposit).toFixed(2),
-    },
+    data: { depositPaidAt: new Date(), depositAmount: toD(attempt.depositPrincipal).toFixed(2) },
   });
-  await tx.user.update({ where: { id: agent.userId }, data: { role: "AGENT" } });
+  if (await tx.agentHours.count({ where: { agentId: agent.id } })) await goLive(tx, agent);
   return true;
 }

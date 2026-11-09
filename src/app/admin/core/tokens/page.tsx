@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import { Button, Card, cx, EmptyState, Input, PageHeader } from "@/components/ui";
+import type { TokenKind } from "@/generated/prisma/client";
 import { formatDateTime, formatLKR } from "@/lib/format";
-import { tokenLookup, tokensByKind } from "@/server/admin-core";
+import { tokenLookup, tokensByKind, tokensOutstanding } from "@/server/admin-core";
 import { requireAdmin } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Tokens" };
 
-const KIND: Record<string, string> = {
-  CANCELLATION: "Cancellation",
+const KIND: Record<TokenKind, string> = {
   RETURN: "Return",
   HOLD: "Hold",
   RELEASE: "Release",
@@ -26,13 +26,18 @@ export default async function TokensPage({ searchParams }: PageProps<"/admin/cor
   const admin = await requireAdmin("CORE");
   const sp = await searchParams;
   const q = typeof sp.q === "string" ? sp.q.trim() : "";
-  const [found, kinds] = await Promise.all([
+  const [found, kinds, outstanding] = await Promise.all([
     q ? tokenLookup(admin.id, q) : null,
     tokensByKind(admin.id),
+    tokensOutstanding(admin.id),
   ]);
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader title="Tokens" />
+      <Card className="p-3 sm:p-4">
+        <p className="text-xs text-subtle">Outstanding</p>
+        <p className="text-2xl font-semibold tabular-nums">{formatLKR(outstanding)}</p>
+      </Card>
       <form role="search" className="flex gap-2">
         <label htmlFor="q" className="sr-only">
           Email or phone

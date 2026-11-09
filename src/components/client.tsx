@@ -27,7 +27,7 @@ export function Countdown({ until, prefix = "" }: { until: string; prefix?: stri
 export function CopyLinkButton({
   url,
   className,
-  label = "Copy cart link",
+  label = "Copy link",
   copiedLabel = "Link copied",
 }: {
   url: string;

@@ -1051,19 +1051,21 @@ enum PaymentAttemptStatus {
 }
 
 model PaymentAttempt {
-  id         String               @id @default(cuid())
-  purpose    PaymentPurpose
-  buyerId    String?
-  buyer      User?                @relation("AttemptBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  id               String               @id @default(cuid())
+  purpose          PaymentPurpose
+  buyerId          String?
+  buyer            User?                @relation("AttemptBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
   /// Deposits only
-  agentId    String?
-  agent      Agent?               @relation(fields: [agentId], references: [id], onDelete: Restrict)
-  amount     Decimal              @db.Decimal(14, 2)
-  currency   String               @default("LKR")
-  status     PaymentAttemptStatus @default(PENDING)
-  gatewayRef String               @unique
-  createdAt  DateTime             @default(now())
-  expiresAt  DateTime
+  agentId          String?
+  agent            Agent?               @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  amount           Decimal              @db.Decimal(14, 2)
+  /// Deposits only: the deposit charged, without the gateway fee; returned on leaving
+  depositPrincipal Decimal?             @db.Decimal(14, 2)
+  currency         String               @default("LKR")
+  status           PaymentAttemptStatus @default(PENDING)
+  gatewayRef       String               @unique
+  createdAt        DateTime             @default(now())
+  expiresAt        DateTime
 
   orders Order[]
   events PaymentEvent[]

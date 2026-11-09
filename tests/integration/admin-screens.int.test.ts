@@ -12,7 +12,7 @@ import {
   reportMissing,
 } from "@/server/orders/delivery";
 import { courierToBook, searchOrders } from "@/server/agents/admin-screens";
-import { adminPayouts, tokenLookup } from "@/server/admin-core";
+import { adminPayouts, tokenLookup, tokensOutstanding } from "@/server/admin-core";
 import { fundTokens, makeAgent, makeBuyer, makeFactory, makeUser, resetDb } from "./helpers";
 
 beforeEach(async () => {
@@ -108,5 +108,20 @@ describe("admin screen queries", () => {
     const found = await tokenLookup(coreAdmin.id, buyer.email.toUpperCase());
     expect(found?.user.id).toBe(buyer.id);
     expect(found?.balance.toFixed(2)).toBe("0.00");
+  });
+
+  it("Core sees the total outstanding tokens: the sum of every balance", async () => {
+    const coreAdmin = await makeUser("ADMIN", "CORE");
+    const agentsAdmin = await makeUser("ADMIN", "AGENTS");
+    expect((await tokensOutstanding(coreAdmin.id)).toFixed(2)).toBe("0.00");
+    const a = await makeBuyer();
+    const b = await makeBuyer();
+    await fundTokens(a.id, "1000.10");
+    await db.tokenEntry.create({
+      data: { userId: a.id, amount: "-250.05", kind: "HOLD", eventKey: "test:hold", note: "Hold" },
+    });
+    await fundTokens(b.id, "0.01");
+    expect((await tokensOutstanding(coreAdmin.id)).toFixed(2)).toBe("750.06");
+    await expect(tokensOutstanding(agentsAdmin.id)).rejects.toThrow("Not allowed");
   });
 });

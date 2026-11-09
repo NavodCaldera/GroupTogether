@@ -10,7 +10,6 @@ type State = { error?: string; thread?: string; admin?: boolean };
 const val = (fd: FormData, key: string) => String(fd.get(key) ?? "");
 function invalidate() {
   revalidatePath("/admin/brands");
-  revalidatePath("/admin/offers");
   revalidatePath("/seller");
   revalidatePath("/notifications");
 }

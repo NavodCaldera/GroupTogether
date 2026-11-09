@@ -8,7 +8,7 @@ import { type FormState, saveProfileAction } from "@/server/auth/actions";
 export function ProfileForm({
   next,
   defaults,
-  phoneHint = "The PickMe driver calls this number",
+  phoneHint,
   addressLabel,
   addressHint,
 }: {

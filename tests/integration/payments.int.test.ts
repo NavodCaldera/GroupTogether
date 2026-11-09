@@ -211,11 +211,15 @@ describe("payment notices", () => {
 
   it("a deposit notice makes an APPROVED agent LIVE and records the event", async () => {
     const { user, agent } = await makeAgent({ status: "APPROVED" });
+    await db.agentHours.create({
+      data: { agentId: agent.id, weekday: 1, opensAt: 540, closesAt: 1080 },
+    });
     const attempt = await db.paymentAttempt.create({
       data: {
         purpose: "DEPOSIT",
         agentId: agent.id,
         amount: "206825.23",
+        depositPrincipal: "200000",
         gatewayRef: "ga_deposit",
         expiresAt: new Date(Date.now() + 900_000),
       },

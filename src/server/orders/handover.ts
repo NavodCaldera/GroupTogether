@@ -85,8 +85,13 @@ export async function lookupCode(
   );
 }
 
+/** One answer for an unknown code and for items the code does not cover, so handOver cannot
+ * tell which codes exist. */
+export const HANDOVER_REFUSED = "Code or items not found";
+
 /** Marks the given lines collected. All must be in the code's current eligible lines, otherwise
- * nothing changes. The order status stays RECEIVED (no collected status exists).
+ * nothing changes. A wrong code or wrong items count toward the same throttle as lookupCode.
+ * The order status stays RECEIVED (no collected status exists).
  */
 export async function handOver(
   agentUserId: string,
@@ -98,8 +103,25 @@ export async function handOver(
   const ids = [...new Set(lineIds ?? [])];
   if (ids.length === 0) throw new CartError("Choose the items to hand over");
 
-  const first = await buyerOfCode(db, agent.id, code);
-  if (!first) throw new CartError("Code not found");
+  // Checked and recorded under the pickup lock in its own transaction, so a refusal is counted.
+  const first = await db.$transaction(
+    async (tx) => {
+      await lockPickupAgent(tx, agent.id);
+      const fails = await tx.pickupAttempt.count({
+        where: { agentId: agent.id, ok: false, at: { gt: new Date(now.getTime() - WINDOW_MS) } },
+      });
+      if (fails >= MAX_FAILS) throw new PickupBlocked("Too many wrong codes. Try again later.");
+      const buyer = await buyerOfCode(tx, agent.id, code);
+      const eligible = buyer
+        ? new Set((await eligibleLines(tx, agent.id, buyer.buyerId)).map((l) => l.id))
+        : new Set<string>();
+      const ok = !!buyer && ids.every((id) => eligible.has(id));
+      if (!ok) await tx.pickupAttempt.create({ data: { agentId: agent.id, ok: false, at: now } });
+      return ok ? buyer : null;
+    },
+    { maxWait: 10000, timeout: 30000 },
+  );
+  if (!first) throw new CartError(HANDOVER_REFUSED);
   const ordersOf = (client: Tx | typeof db, buyerId: string) =>
     client.order.findMany({
       where: { agentId: agent.id, buyerId, status: "RECEIVED" },
@@ -110,18 +132,17 @@ export async function handOver(
   return withOrderTransaction([], locked, async (tx) => {
     // Re-resolve under the Order locks; anything that moved since is refused.
     const buyer = await buyerOfCode(tx, agent.id, code);
-    if (!buyer || buyer.buyerId !== first.buyerId) throw new CartError("Code not found");
+    if (!buyer || buyer.buyerId !== first.buyerId) throw new CartError(HANDOVER_REFUSED);
     const current = (await ordersOf(tx, buyer.buyerId)).map((o) => o.id);
     if (current.length !== locked.length || current.some((id, i) => id !== locked[i]))
       throw new CartError("Busy, try again.");
     const eligible = new Set((await eligibleLines(tx, agent.id, buyer.buyerId)).map((l) => l.id));
-    if (ids.some((id) => !eligible.has(id)))
-      throw new CartError("Those items cannot be handed over");
+    if (ids.some((id) => !eligible.has(id))) throw new CartError(HANDOVER_REFUSED);
     const done = await tx.orderLine.updateMany({
       where: { id: { in: ids }, collectedAt: null },
       data: { collectedAt: now },
     });
-    if (done.count !== ids.length) throw new CartError("Those items cannot be handed over");
+    if (done.count !== ids.length) throw new CartError(HANDOVER_REFUSED);
     return done.count;
   });
 }

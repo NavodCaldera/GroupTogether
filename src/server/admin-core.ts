@@ -59,6 +59,13 @@ export async function tokensByKind(adminId: string) {
   }));
 }
 
+/** Tokens outstanding: the sum of every user's balance (FR-026). */
+export async function tokensOutstanding(adminId: string): Promise<D> {
+  await requireCore(adminId);
+  const { _sum } = await db.tokenEntry.aggregate({ _sum: { amount: true } });
+  return _sum.amount === null ? new D(0) : toD(_sum.amount);
+}
+
 /** A user found by email or phone, with their token balance and latest entries. */
 export async function tokenLookup(adminId: string, raw: string) {
   await requireCore(adminId);

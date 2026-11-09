@@ -237,6 +237,56 @@ describe("deposit", () => {
     ]);
   });
 
+  it("a deposit notice with no opening hours records the deposit but does not go LIVE", async () => {
+    const { user, agent } = await approved();
+    await startDeposit(user.id);
+    const attempt = await db.paymentAttempt.findFirstOrThrow({ where: { agentId: agent.id } });
+    // setHours refuses an empty list; clear the rows directly to reach the guard.
+    await db.agentHours.deleteMany({ where: { agentId: agent.id } });
+    expect(await send(noticeBody(attempt.id, money(attempt.amount)))).toEqual({ status: 200 });
+    const held = await db.agent.findUniqueOrThrow({
+      where: { id: agent.id },
+      include: { user: true },
+    });
+    expect([held.status, held.user.role, money(held.depositAmount)]).toEqual([
+      "APPROVED",
+      "CUSTOMER",
+      "200000.00",
+    ]);
+    expect(held.depositPaidAt).not.toBeNull();
+    expect((await db.paymentAttempt.findUniqueOrThrow({ where: { id: attempt.id } })).status).toBe(
+      "SUCCEEDED",
+    );
+    expect(money(await tokenBalance(user.id))).toBe("0.00");
+    expect(await liveAgents()).toHaveLength(0);
+    await expect(startDeposit(user.id)).rejects.toThrow("not due");
+
+    await setHours(user.id, [{ weekday: 2, opensAt: 540, closesAt: 1080 }]);
+    const live = await db.agent.findUniqueOrThrow({
+      where: { id: agent.id },
+      include: { user: true },
+    });
+    expect([live.status, live.user.role, money(live.depositAmount)]).toEqual([
+      "LIVE",
+      "AGENT",
+      "200000.00",
+    ]);
+  });
+
+  it("the deposit returned on leaving is the one charged, not a later setting", async () => {
+    const { user, agent } = await approved();
+    await startDeposit(user.id);
+    const attempt = await db.paymentAttempt.findFirstOrThrow({ where: { agentId: agent.id } });
+    expect(money(attempt.depositPrincipal!)).toBe("200000.00");
+    await db.settings.update({ where: { id: 1 }, data: { agentDeposit: "250000" } });
+    await send(noticeBody(attempt.id, money(attempt.amount)));
+    const live = await db.agent.findUniqueOrThrow({ where: { id: agent.id } });
+    expect([live.status, money(live.depositAmount)]).toEqual(["LIVE", "200000.00"]);
+    await requestLeave(user.id);
+    expect(await closeLeavingAgents(new Date())).toBe(1);
+    expect(money(await tokenBalance(user.id))).toBe("200000.00");
+  });
+
   it("agentDepositPaid returns false when the agent is no longer APPROVED", async () => {
     const { user, agent } = await approved();
     await startDeposit(user.id);
@@ -269,6 +319,23 @@ describe("hours", () => {
       ]),
     ).rejects.toThrow();
     expect(await db.agentHours.count({ where: { agentId: agent.id } })).toBe(1);
+  });
+
+  it("refuses an empty list in every status and keeps the hours", async () => {
+    const pending = await applicant();
+    const approvedOne = await applicant(FAR_LAT + 0.1);
+    await decideAgent((await agentsAdmin()).id, approvedOne.agent.id, true, "");
+    await setHours(approvedOne.user.id, [{ weekday: 1, opensAt: 540, closesAt: 1080 }]);
+    const live = await makeAgent();
+    await setHours(live.user.id, [{ weekday: 1, opensAt: 540, closesAt: 1080 }]);
+    for (const status of ["SUSPENDED", "LEAVING", "LIVE"] as const) {
+      await db.agent.update({ where: { id: live.agent.id }, data: { status } });
+      await expect(setHours(live.user.id, [])).rejects.toThrow("Open on at least one day");
+    }
+    for (const u of [pending.user, approvedOne.user])
+      await expect(setHours(u.id, [])).rejects.toThrow("Open on at least one day");
+    expect(await db.agentHours.count({ where: { agentId: live.agent.id } })).toBe(1);
+    expect(await db.agentHours.count({ where: { agentId: approvedOne.agent.id } })).toBe(1);
   });
 });
 

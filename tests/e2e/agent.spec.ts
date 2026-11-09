@@ -1,10 +1,26 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
+import { config } from "dotenv";
+import { Client } from "pg";
+import { assertTestDatabase } from "../../scripts/test-database.mjs";
 import { DEMO, DEMO_AGENTS, DEMO_PICKUP_CODE } from "../../src/lib/demo-accounts";
 import { seedBrowserFixtures } from "./seed-fixtures";
 
 test.describe.configure({ mode: "serial" });
 test.beforeAll(seedBrowserFixtures);
+
+/** Rows the seed does not make, written to the test DB. */
+async function sql(text: string, values: unknown[] = []) {
+  config({ quiet: true });
+  const url = assertTestDatabase(process.env.TEST_DATABASE_URL, process.env.DATABASE_URL);
+  const client = new Client({ connectionString: url });
+  await client.connect();
+  try {
+    return (await client.query(text, values)).rows;
+  } finally {
+    await client.end();
+  }
+}
 
 async function signIn(page: Page, email: string) {
   await page.context().clearCookies();
@@ -84,6 +100,32 @@ test("an applicant sees the application; a buyer cannot open the agent screens",
   await signIn(page, DEMO.readyBuyer);
   await page.goto("/agent/pickups");
   await expect(page).not.toHaveURL(/\/agent\//);
+});
+
+test("an approved applicant saves hours, pays the deposit and lands on the deposit page", async ({
+  page,
+}) => {
+  await sql(
+    `UPDATE "Agent" SET status = 'APPROVED' WHERE "userId" = (SELECT id FROM "User" WHERE email = $1)`,
+    [DEMO_AGENTS.applicant],
+  );
+  await signIn(page, DEMO_AGENTS.applicant);
+  await page.goto("/agent/hours");
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("alert").getByText("Open on at least one day")).toBeVisible();
+  await page.getByLabel("Monday", { exact: true }).check();
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByRole("status").getByText("Hours saved")).toBeVisible();
+
+  await page.goto("/agents/apply");
+  await page.getByRole("button", { name: "Pay deposit" }).click();
+  await expect(page).toHaveURL(/\/demo-pay\//);
+  await page.getByRole("button", { name: "Pay", exact: true }).click();
+  await expect(page).toHaveURL(/\/agent\/deposit\//);
+  await expect(page.getByRole("heading", { name: "Deposit paid", level: 1 })).toBeVisible();
+  await inspect(page);
+  await page.getByRole("main").getByRole("link", { name: "Agent home" }).click();
+  await expect(page).toHaveURL(/\/agent$/);
 });
 
 for (const width of [1280, 360])

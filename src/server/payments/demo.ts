@@ -26,6 +26,13 @@ export function signNotice(f: NoticeFields, secret: string): string {
   );
 }
 
+/** Where the demo payment page returns the payer: the deposit page for a deposit, else checkout. */
+export function demoReturnPath(attempt: { id: string; purpose: "ORDERS" | "DEPOSIT" }): string {
+  return attempt.purpose === "DEPOSIT"
+    ? `/agent/deposit/${attempt.id}`
+    : `/checkout/return/${attempt.id}`;
+}
+
 const STATUS: Record<string, NoticeStatus> = {
   "2": "SUCCEEDED",
   "0": "PENDING",

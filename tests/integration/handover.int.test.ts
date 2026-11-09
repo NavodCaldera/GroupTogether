@@ -1,7 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { CartError } from "@/server/errors";
-import { handOver, lookupCode, PickupBlocked } from "@/server/orders/handover";
+import { HANDOVER_REFUSED, handOver, lookupCode, PickupBlocked } from "@/server/orders/handover";
 import { makeAgent, makeReceivedOrder, resetDb } from "./helpers";
 
 beforeEach(resetDb);
@@ -94,5 +94,27 @@ describe("pickup by code", () => {
     expect(nulls).toBe(5);
     expect(blocked).toBe(15);
     expect(await db.pickupAttempt.count({ where: { agentId: s.agent.id, ok: false } })).toBe(5);
+  });
+
+  it("hand over gives one answer for a wrong code or wrong items and shares the throttle", async () => {
+    const s = await setup();
+    const t0 = new Date("2026-11-08T10:00:00Z");
+    const reason = async (code: string, ids: string[]) => {
+      const r = await handOver(s.agentUser.id, code, ids, t0).catch((e: Error) => e);
+      expect(r).toBeInstanceOf(CartError);
+      return (r as Error).message;
+    };
+    const unknown = await reason("000001", s.lineIds);
+    const wrongItems = await reason(s.code, ["not-a-line"]);
+    expect(unknown).toBe(HANDOVER_REFUSED);
+    expect(wrongItems).toBe(unknown);
+    for (const bad of ["000002", "000003", "abc"]) await reason(bad, s.lineIds);
+    await expect(handOver(s.agentUser.id, s.code, s.lineIds, t0)).rejects.toBeInstanceOf(
+      PickupBlocked,
+    );
+    await expect(lookupCode(s.agentUser.id, s.code, t0)).rejects.toBeInstanceOf(PickupBlocked);
+    expect(await db.orderLine.count({ where: { collectedAt: { not: null } } })).toBe(0);
+    const later = new Date(t0.getTime() + 10 * 60_000 + 1);
+    expect(await handOver(s.agentUser.id, s.code, s.lineIds, later)).toBe(2);
   });
 });
