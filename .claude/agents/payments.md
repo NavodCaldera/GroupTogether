@@ -40,7 +40,11 @@ Policy references: `PAY-004`–`PAY-007`, `TOK-001`–`TOK-003`, `AGT-002`, `AGT
   return never confirms a payment.
 - A notice for an attempt that is no longer `PENDING`, or whose amount differs, credits the
   received amount as `LATE_PAYMENT` tokens with event key `late:<attemptId>:<paymentId>`. Never
-  return cash.
+  return cash. The signature does not cover `payment_id`, so these later credits trust unsigned
+  data: confirming them through `Gateway.fetchStatus` is a blocker before the PayHere switch
+  (`DEC-016`).
+- The demo pay page returns by attempt purpose (`demoReturnPath`): deposits to
+  `/agent/deposit/<id>`, orders to `/checkout/return/<id>`.
 - PayHere fee: `round2(remainder / (1 − rate) − remainder)`, 0 when the remainder is 0. LKR 1,000
   item + 40 + 20 at 0.033 gives 36.17 and a total of 1,096.17. One attempt covers all orders of a
   checkout; the fee is split by remainder with the last order taking the rounding cent.

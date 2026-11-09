@@ -17,7 +17,7 @@ Examples and business-review recommendations are not approved settings. The repo
 
 **Status:** Open. The area agent model itself was approved by the owner on **2026-11-07**
 ([spec 003](../specs/003-area-agent-model/spec.md)). **Rules:** `UX-002`, `FAC-001`,
-`RETURN-001`, `PAY-005`, `COM-001`.
+`RETURN-001`, `PAY-005`, `COM-001`, `DATA-001`, `BSK-004`, `BSK-005`.
 
 These questions came up while building it. Each is built one way for now; the owner has not yet
 answered.
@@ -40,6 +40,25 @@ answered.
    escalation and lapse, closing leaving agents, weekly payouts and agent fees, notice retries)
    runs only in `runSweep` from `/api/cron/sweep`; page loads do not run it. A deployment must
    schedule the cron to run `runSweep` with its bearer secret, or none of these happen.
+6. **Packing checklist and photo, and Parcel is back (FR-013, FR-014).** Neither is built:
+   `markPacked` saves no checklist and needs no photo, and nothing sets
+   `CourierBooking.failedAt`, so a failed trip leaves the basket `WITH_COURIER` with no rebooking
+   (and a leaving agent with such a basket never closes). Decide whether launch needs them.
+7. **Later charges and `payment_id` before PayHere.** Every further SUCCEEDED notice with a new
+   `payment_id` is credited as tokens, but the PayHere-style signature does not cover
+   `payment_id`. Before the PayHere switch, decide whether such charges are confirmed through
+   `Gateway.fetchStatus` (or held for admin review) rather than trusted from the notice.
+8. **Basket totals on the agent home (`DATA-001`).** `DATA-001` says agents see no prices beyond
+   the courier fee and their own tokens, but `/agent` shows each open basket's total against the
+   lock amount. Decide whether agents see basket totals (then reword `DATA-001`) or only progress.
+9. **Paid baskets of a removed factory.** Removing a factory locks every login there, including
+   Packing, so its paid baskets cannot be packed and stay stuck. Decide what happens to them
+   (together with the hide and fault-hold question below).
+10. **Map tiles and the applicant's pin.** The location picker loads tiles from
+    `tile.openstreetmap.org`, which sends the area of the applicant's pin to OpenStreetMap. The
+    tile layer sets the "© OpenStreetMap contributors" attribution; the tile usage policy also
+    limits heavy use. Accept the public tiles (and confirm the attribution shows on every map), or
+    self-host or buy tiles.
 
 Also awaiting the owner's check (Claude's calls in the
 [design](superpowers/specs/2026-11-07-area-agent-model-design.md)): the LKR 50,000 lock counts
@@ -123,7 +142,7 @@ Groups may request a sample of a particular apparel design/pattern before buying
 
 **Status:** Approved by the owner on **2026-11-03**; **superseded** on 2026-11-07 by the area agent model, which keeps factory packing but ships baskets to agents. **Rules:** `SUP-001`, `SUP-002`; `FUL-001`–`FUL-003` and `LOT-001` retired (see `BSK-004`–`BSK-006`).
 
-GroupBasket no longer buys clothes from factories. Each factory packs its paid orders and marks them packed; the admin books PickMe from the factory and tracks the drop until delivered. A cart holds products from one factory only. There is no lot price drop. Packing staff are parked, not deleted, behind `FULFILMENT_MODE` (default `FACTORY`). Open: how our own listings (products with no factory) are fulfilled, factory payment terms, and who answers for a parcel lost between factory and owner.
+GroupBasket no longer buys clothes from factories. Each factory packs its paid orders and marks them packed; the admin books the courier from the factory. A cart holds products from one factory only. There is no lot price drop. Packing staff are parked, not deleted, behind `FULFILMENT_MODE` (default `FACTORY`). Open: how our own listings (products with no factory) are fulfilled, factory payment terms, and who answers for a parcel lost between factory and owner.
 
 ### DEC-011 - Four admins, self-publishing factories and ratings
 

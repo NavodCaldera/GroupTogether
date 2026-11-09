@@ -52,8 +52,10 @@ Policy references: `ORD-001`–`ORD-005`, `RETURN-001`, `BSK-001`–`BSK-003`, `
   stock released, basket total and `firstOrderAt` recomputed. Cancelled orders keep `basketId`:
   every query must filter by order status.
 - Pickup codes are one per buyer per agent. `lookupCode` records every attempt; five failures in
-  ten minutes block the agent. `handOver` re-resolves the code under the lock and sets
-  `collectedAt`. Never show anything for a wrong code beyond "not found".
+  ten minutes block the agent. `handOver` checks the same throttle first and records a failure
+  for an unknown code or items the code does not cover, with one error (`HANDOVER_REFUSED`) for
+  both; it then re-resolves the code under the Order locks and sets `collectedAt`. Never show
+  anything for a wrong code beyond "not found".
 - Returns: the window is `collectHours` from `Order.receivedAt` and requires a collected line.
   Tokens are credited at agent collection (`collectReturn`): `qty × unitPrice` for factory fault,
   `qty × (unitPrice − courierPerItem)` for buyer fault. A factory-fault collection records the

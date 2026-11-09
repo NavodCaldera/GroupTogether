@@ -41,15 +41,20 @@ Policy references: `AGT-001`–`AGT-005`, `ORD-005`, `BSK-006`, `RETURN-001`, `A
   hand over and collect returns.
 - Approval is refused within `agentGapM` of an active agent; show the clash. `agentRadiusM` is
   display only.
-- The deposit is `agentDeposit` plus the PayHere fee, by gateway only. A deposit notice for an
-  agent no longer `APPROVED` takes the late-payment path and becomes tokens.
+- The deposit is `agentDeposit` plus the PayHere fee, by gateway only. `startDeposit` stores the
+  deposit charged on the attempt (`PaymentAttempt.depositPrincipal`); `agentDepositPaid` copies it
+  to `Agent.depositAmount`, which is what leaving returns. Never read the current setting for it.
+  A deposit notice for an agent no longer `APPROVED` (or already paid) takes the late-payment
+  path and becomes tokens. A deposit that arrives while the agent has no hours is recorded and
+  the agent stays `APPROVED`; `setHours` then makes it `LIVE`.
 - Suspension and leaving lock the agent's open baskets early (`lockReason SUSPENDED`).
   `closeLeavingAgents` moves a leaving agent to `LEFT` only when nothing is left to hand over,
   then credits the deposit minus recorded losses as `DEPOSIT_RETURN` tokens. `collectHeldReturns`
   lets an admin move returns stranded at a leaving or left agent onto a return courier.
 - Hours are weekly days with open and close minutes; a 23:59 close is stored as 24:00. An
   APPROVED applicant sets hours at `/agent/hours` (gate `requireAgentHours()`), and
-  `startDeposit` refuses until hours exist (FR-029a). Every other agent page uses `requireAgent`.
+  `startDeposit` refuses until hours exist (FR-029a). `setHours` refuses an empty list in every
+  status. Every other agent page uses `requireAgent`.
 - Agents are buyers too. Their sections show as an in-page tab row under the buyer tab bar, not a
   second bottom bar; whether that stays is open (`DEC-016`).
 

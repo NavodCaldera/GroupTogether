@@ -167,55 +167,60 @@ See [checkout](../src/server/orders/checkout.ts), [baskets](../src/server/orders
 
 The route tree in `src/app/` is authoritative. These are the main entry points, not a second specification of every field on each page.
 
-| Audience            | Routes                                                                                                       | Current purpose                                                                                                                                  |
-| ------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Visitors and buyers | `/`, `/shop`, `/products/[id]`                                                                               | Shopping home, catalogue, and product detail. Shop controls include search, audience, garment kind, and size; `?cart=CODE` carries cart context. |
-| Visitors and buyers | `/carts`, `/c/[code]`                                                                                        | Discover public editable carts and view a shared cart by code. Discovery uses nearest-first when a buyer has a pin, otherwise newest-first.      |
-| Buyers              | `/carts/new`, `/c/[code]/pay`                                                                                | Choose cart visibility; the name is derived from its owner. Payment page is for the owner awaiting upload.                                       |
-| Buyers              | `/dashboard`, `/my-carts`, `/messages`                                                                       | Next actions, cart/order history, and private conversations with cart owners.                                                                    |
-| Account holders     | `/account`, `/notifications`                                                                                 | Role-specific profile and in-app notices. `/account/location` redirects to `/account`, preserving return context.                                |
-| Authentication      | `/sign-in`, `/sign-up`                                                                                       | Session entry and buyer registration.                                                                                                            |
-| Sellers and brands  | `/seller`, `/seller/new`, `/seller/designs/[id]`                                                             | Factory offers/design insights; brand accounts receive Overview, Gift orders, Gift products and Settlements.                                     |
-| Packing staff       | `/packing`, `/packing/[code]`, `/packing/stock/[id]`                                                         | Receiving queue, paid-order gathering/packing/handover, and accepted supplier-stock receipt.                                                     |
-| Admin               | `/admin`, `/admin/lots`, `/admin/lots/new`, `/admin/lots/[id]`                                               | Stock dashboard and purchased-lot management.                                                                                                    |
-| Admin               | `/admin/slips`, `/admin/orders`, `/admin/carts`, `/admin/carts/[code]`                                       | Payment review, fulfilment management, and cart inspection/cancellation.                                                                         |
-| Admin               | `/admin/products`, `/admin/products/new`, `/admin/products/[id]`                                             | Product records and variant stock.                                                                                                               |
-| Admin               | `/admin/offers`, `/admin/offers/[id]`, `/admin/brands`                                                       | Review factory/brand offers; factory receiving and product linking; manual gift allocation, bill approval and external transfer recording.       |
-| Admin               | `/admin/users`, `/admin/users/[id]`, `/admin/users/new-seller`, `/admin/users/new-packer`, `/admin/settings` | Accounts, role provisioning, and configuration.                                                                                                  |
+| Audience | Routes | Current purpose |
+| --- | --- | --- |
+| Visitors and buyers | `/`, `/shop`, `/products/[id]` | Shopping home (buyer home when signed in), catalogue and product detail; `?agent=` preselects a pickup agent |
+| Buyers | `/cart`, `/checkout`, `/checkout/return/[attemptId]` | Personal cart, checkout with agent choice and tokens, and the gateway return page for orders |
+| Buyers | `/orders`, `/orders/[id]`, `/tokens` | Orders with basket progress, pickup code, cancellation, returns and ratings; token wallet and transfers |
+| Demo gateway | `/demo-pay/[attemptId]` | Stand-in hosted payment page (`PAYMENT_GATEWAY=demo`); returns a deposit to `/agent/deposit/[id]` and orders to `/checkout/return/[attemptId]` |
+| Agents and applicants | `/agents/apply`, `/agent`, `/agent/pickups`, `/agent/returns`, `/agent/tokens`, `/agent/hours`, `/agent/deposit/[id]` | Application and deposit, arriving baskets, pickup by code, held returns, tokens and leaving, opening hours, deposit return page |
+| Account holders | `/account`, `/notifications`, `/dashboard` | Profile and in-app notices; `/dashboard` and `/account/location` redirect |
+| Authentication | `/sign-in`, `/sign-up`, `/factories/sign-in/[token]` | Session entry, buyer registration and factory invite sign-in |
+| Factories | `/factories/apply`, `/factories/apply/[token]`, `/seller/agreement` | Factory application and agreement |
+| Factories | `/seller`, `/seller/orders`, `/seller/baskets`, `/seller/earnings`, `/seller/products`, `/seller/new`, `/seller/insights`, `/seller/team`, `/seller/returns` | Factory workspace by job (Owner, Sales, Packing): basket tickets and packing, payouts, listings, staff, returns and fault holds; brand accounts get the parked brand dashboard |
+| Admin: Agents and orders | `/admin/agents`, `/admin/agents/applications`, `/admin/agents/deposits`, `/admin/agents/baskets`, `/admin/agents/search` | Courier to book and payment problems, applications, deposits and losses, 2-month baskets, order search |
+| Admin: Factory | `/admin/factory`, `/admin/factory/applications`, `/admin/factory/applications/[id]`, `/admin/factory/missing`, `/admin/factory/quality`, `/admin/factory/returns`, `/admin/factory/returns/[id]`, `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Factory applications, missing-item reports, quality and fault holds, returns, products and variant stock |
+| Admin: Core | `/admin/core/payouts`, `/admin/core/tokens`, `/admin/settings` | Weekly factory payouts, outstanding tokens, totals by type and lookup, settings |
+| Admin: Premium | `/admin/brands` | Parked premium brand reviews and partnership messages |
+| Admin: shared | `/admin`, `/admin/users`, `/admin/users/[id]`, `/admin/users/new-admin`, `/admin/users/new-seller` | `/admin` redirects to the admin's area; accounts scoped to the signed-in area |
 
-`/admin/packing` redirects to the orders board's in-store stage; `/admin/deliveries` redirects to `/admin/orders`. Seller and packing accounts are redirected away from buyer workflows; admins use their own catalogue and cart management routes. Protected pages/actions use role guards in [session.ts](../src/server/auth/session.ts).
-
-Sharing currently uses the buyer dashboard's copy-link action. Cart-page invite and WhatsApp controls described in older notes are not current UI.
+Protected pages and actions use the guards in [session.ts](../src/server/auth/session.ts) (`requireAdmin(area)`, `requireAgent`, `requireAgentHours`, `requireFactory(section)`); services check the role again.
 
 ### HTTP endpoints
 
-| Endpoint                             | Access and purpose                                                      |
-| ------------------------------------ | ----------------------------------------------------------------------- |
-| `GET /api/photos/[id]`               | Public product photo with ETag caching                                  |
-| `GET /api/slips/[id]`                | Uploader or admin; private payment evidence, no-store                   |
-| `GET /api/suggest`, `GET /api/sales` | Public product suggestions and sales summary                            |
-| `GET /api/chat`                      | Signed-in conversation access with service-level participant checks     |
-| `GET /api/admin/carts/suggest`       | Admin cart search suggestions                                           |
-| `GET /admin/export/orders`           | Admin orders CSV; download linked from the stock dashboard              |
-| `GET /notifications/[id]`            | Signed-in user's notice read/redirect handler                           |
-| `POST /api/cron/sweep`               | Bearer `CRON_SECRET`; deadline and lot-price sweep                      |
-| `POST /api/webhooks/pickme`          | HMAC-checked delivery callback; integration payload remains provisional |
+| Endpoint | Access and purpose |
+| --- | --- |
+| `GET /api/photos/[id]` | Public product photo with ETag caching |
+| `GET /api/suggest` | Public product suggestions |
+| `GET /api/agent-photos/[id]` | Agents and orders admin only; private applicant documents, no-store, 404 otherwise |
+| `GET /api/return-photos/[id]`, `GET /api/report-photos/[id]` | Buyer, own factory and Factory/Core admins; private, 404 otherwise |
+| `GET /api/brand-photos/[id]`, `GET /api/partner-docs/[id]` | Scoped private brand images and factory application documents |
+| `POST /api/payments/notify` | Gateway notice: signature verified, applied once per `(gateway, eventId)` |
+| `POST /api/cron/sweep` | Bearer `CRON_SECRET` (constant-time compare; rejects empty or `CHANGE_ME`); runs `runSweep` |
+| `GET /notifications/[id]` | Signed-in user's notice read/redirect handler |
 
 ## Service and verification map
 
 Paths below are relative to the repository root.
 
-| Area                        | Implementation                                                                                                   | Existing verification                                                                                     |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
-| Carts, reservations, merges | `src/server/carts/service.ts`, `queries.ts`, `actions.ts`; `src/lib/cart-rules.ts`, `distance.ts`, `location.ts` | Adjacent unit tests; `tests/integration/carts.int.test.ts`, `merge.int.test.ts`, `open-carts.int.test.ts` |
-| Payment and delivery        | `src/server/carts/slips.ts`, `src/server/delivery/`; admin actions                                               | `tests/integration/carts.int.test.ts`, `admin.int.test.ts`                                                |
-| Offers and receiving        | `src/server/offers.ts`, `receiving.ts`, `seller-actions.ts`                                                      | `tests/integration/seller.int.test.ts`, `receiving.int.test.ts`                                           |
-| Brand offers                | `src/server/brands.ts`, `src/lib/brand-rules.ts`                                                                 | Brand-rule unit tests; `tests/integration/brands.int.test.ts`                                             |
-| Design performance          | `src/server/designs.ts`, `prices.ts`, `src/lib/design-rules.ts`                                                  | Design-rule unit tests; `tests/integration/designs.int.test.ts`                                           |
-| Catalogue and stock         | `src/server/catalogue.ts`, `lots.ts`, `stock.ts`, `admin-queries.ts`; `src/lib/stock-rules.ts`, `taxonomy.ts`    | Adjacent unit tests; `tests/integration/admin.int.test.ts`, `lots.int.test.ts`, `suggest.int.test.ts`     |
-| Packing and order board     | `src/server/packing.ts`, `packing-actions.ts`, `orders.ts`, `src/lib/packing-rules.ts`                           | Packing-rule unit tests; `tests/integration/packing.int.test.ts`                                          |
-| Chat and notifications      | `src/server/carts/chat.ts`, `src/server/notify/index.ts`; chat client polls while visible                        | `tests/integration/chat.int.test.ts`, `messages.int.test.ts`                                              |
-| User experience             | `src/app/`, `src/components/`, `src/server/flash.ts`                                                             | `tests/e2e/journey.spec.ts`                                                                               |
+| Area | Implementation | Existing verification |
+| --- | --- | --- |
+| Cart, checkout and orders | `src/server/orders/cart.ts`, `checkout.ts`, `buyer.ts`, `locks.ts`; `src/lib/order-rules.ts`, `agent-money.ts`, `distance.ts`, `location.ts` | Adjacent unit and property tests; `tests/integration/checkout.int.test.ts` |
+| Baskets | `src/server/orders/baskets.ts` (`markOrdersPaid`, `lockBasket`, cancel, expire) | `tests/integration/baskets.int.test.ts` |
+| Packing, courier and receipt | `src/server/orders/delivery.ts`, `src/server/factory-dashboard.ts` | `tests/integration/delivery.int.test.ts`, `factory-fulfilment.int.test.ts`, `factory-screens.int.test.ts` |
+| Pickup and hand over | `src/server/orders/handover.ts` | `tests/integration/handover.int.test.ts` |
+| Agents | `src/server/agents/` (`apply.ts`, `admin.ts`, `deposit.ts`, `hours.ts`, `leave.ts`, `live.ts`, `screens.ts`, `admin-screens.ts`); `src/lib/agent-rules.ts`, `agent-hours.ts` | Adjacent unit tests; `tests/integration/agents.int.test.ts`, `agent-access.int.test.ts`, `admin-screens.int.test.ts`; `tests/e2e/agent.spec.ts` |
+| Payments and notices | `src/server/payments/gateway.ts`, `demo.ts`, `notice.ts` | `src/server/payments/demo.test.ts`; `tests/integration/payments.int.test.ts` |
+| Tokens and transfers | `src/server/tokens.ts`, `src/server/admin-core.ts` | `tests/integration/tokens.int.test.ts`, `token-transfer.int.test.ts`, `admin-screens.int.test.ts` |
+| Weekly payouts and agent fees | `src/server/payouts/index.ts` | `tests/integration/payouts.int.test.ts`, `commission.int.test.ts` |
+| Time-based rules | `src/server/sweep.ts` (`runSweep`), called from `src/app/api/cron/sweep/route.ts` | Through the suites above |
+| Returns and fault holds | `src/server/returns.ts`, `fault-holds.ts`, `quality.ts`, `ratings.ts`; `src/lib/return-rules.ts`, `quality-rules.ts` | `tests/integration/returns.int.test.ts`, `fault-holds.int.test.ts`, `quality.int.test.ts`, `ratings.int.test.ts` |
+| Catalogue and stock | `src/server/catalogue.ts`, `admin-queries.ts`; `src/lib/price-rules.ts`, `taxonomy.ts` | Adjacent unit tests; `tests/integration/admin.int.test.ts`, `catalogue-eligibility.int.test.ts`, `suggest.int.test.ts` |
+| Factories and agreements | `src/server/partners.ts`, `agreements.ts`, `factory-admin.ts`, `factory-team.ts` | `tests/integration/partners.int.test.ts`, `agreements.int.test.ts`, `factory-admin.int.test.ts`, `factory-team.int.test.ts` |
+| Parked premium brands | `src/server/brands.ts`, `brand-reviews.ts`, `brand-communications.ts`, `gifts.ts` | `tests/integration/brands.int.test.ts`, `brand-communications.int.test.ts`, `gifts.int.test.ts` |
+| Notifications | `src/server/notify/index.ts` | Through the suites above |
+| Admin areas and access | `src/lib/admin-access.ts`, `src/server/auth/`, `src/server/admin-users.ts` | `tests/integration/admin-areas.int.test.ts`, `login-lockout.int.test.ts`; `tests/e2e/admin-workspaces.spec.ts` |
+| User experience | `src/app/`, `src/components/`, `src/server/flash.ts` | `tests/e2e/buyer.spec.ts`, `agent.spec.ts`, `factory.spec.ts`, `accessibility.spec.ts` |
 
 The existence of a test file does not establish that the suite has passed in the current checkout. Use the checks appropriate to a change and report what was actually run.
 
@@ -226,9 +231,9 @@ entry points share `scripts/test-database.mjs`; each serial browser spec owns it
 The optional inspection role reads sanitized views in `groupbasket_ai`, outside Prisma's
 application schema. These tools do not add production integrations or deploy the application.
 
-- **Delivery:** manual booking is the default. The PickMe provider request fields and webhook payload/authentication assumptions need to be matched to the actual business integration before enabling it. `DropRequest` currently carries a text address, city, contact, and item count, but not the saved latitude/longitude.
+- **Delivery:** there is no courier provider integration. Agents and orders admins book the courier by hand (driver, phone, vehicle, fee); factories mark baskets packed and given to the driver, and the agent marks them received.
 - **Uploads:** [storage](../src/server/storage/index.ts) uses local disk via `STORAGE_DIR`, with a 5 MB limit. Photos support JPEG/PNG/WebP; payment evidence also supports PDF. Hosting has not been selected; ephemeral/serverless storage would require another adapter.
-- **Scheduled work:** deploy an authenticated recurring sweep for timely expiry notices and scheduled price updates. Page-triggered sweeps provide a fallback; there is no always-on worker.
+- **Scheduled work:** deploy an authenticated recurring call to `/api/cron/sweep`. `runSweep` is the only place time-based rules run (order expiry, basket maximum wait, returns, leaving agents, weekly payouts and agent fees); page loads do not run them, and there is no always-on worker.
 - **Notifications:** [notify](../src/server/notify/index.ts) writes database notices. No email, SMS, or WhatsApp delivery integration is implemented. Older references to expiry emails are stale.
 - **Brand rewards (updated 2026-10-25):** `src/server/gifts.ts` implements cart/offer-locked reservations, availability controls, brand-scoped dispatch, bill approvals and duplicate-safe settlement recording. `src/server/gift-actions.ts` enforces roles on actions. `/seller` renders `brand-dashboard.tsx` for brands; `/admin/brands` supports manual allocation and reconciliation. Cart payment approval activates reservations atomically; closing/leaving/reducing clothing releases them and merging preserves them. Brands are excluded from shop listing/linking and factory receiving. Automated eligibility, household verification, fee collection and actual bank/courier operations remain outside the implemented flow.
 - **Demand analytics:** design insights aggregate current/historical cart lines, including unpaid expired carts, and distinguish paid purchases. They are not a complete append-only history of every add/remove action or a guarantee of future demand.

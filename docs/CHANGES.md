@@ -1,5 +1,15 @@
 # Product-owner change log
 
+## 2026-11-09 - Area agent model: final review fixes
+
+- Fixed: opening hours can no longer be cleared. Saving an empty hours list is refused in every agent status ("Open on at least one day"). A deposit that arrives while an agent has no hours is recorded, the agent stays approved, and saving hours then makes the agent live (FR-029a).
+- Fixed: the deposit returned when an agent leaves is the deposit charged when the payment started (new `PaymentAttempt.depositPrincipal`, migration `deposit_attempt_principal`), not the deposit setting when the payment notice arrives.
+- Fixed: handing over now counts toward the same wrong-code limit as finding a code (five failures in ten minutes block the agent), and an unknown code and items the code does not cover give the same error.
+- Fixed: paying the agent deposit on the demo payment page returns to the deposit page (`/agent/deposit/<id>`), not the buyer checkout page that showed Not found.
+- Built: Core Tokens shows the total outstanding tokens (the sum of every balance) first (FR-026).
+- Removed text: "Free. Join a cart or start your own." on sign-up and "The PickMe driver calls this number" on Profile. The copy-link button's default label is "Copy link"; a dead Cancellation token label and a stale `/admin/offers` refresh were removed.
+- Docs: the architecture route table, endpoints and service map describe the current code. Implementation status marks the FR-013 packing checklist and photo and the FR-014 Parcel is back rebooking as not built, and records that later charges trusting the unsigned `payment_id` block the PayHere switch. `DEC-016` gains owner questions on FR-013/FR-014 for launch, `payment_id` and `fetchStatus` before PayHere, `DATA-001` against the agent home's basket totals, paid baskets stuck when a factory is removed, and the map tiles sending the applicant's pin area to OpenStreetMap. The stale PickMe mention in `DEC-010` was dropped.
+
 ## 2026-11-08 - Area agent model documented
 
 - Documented (area-agent Task 19): the operating brief now describes the area agent model. New rule IDs: `ORD-001`–`ORD-005` (cart, agent choice, stock hold, cancel before lock, pickup code), `BSK-001`–`BSK-007` (baskets, lock amount, maximum wait, packing, courier booking, receipt, missing items), `PAY-004`–`PAY-007` (checkout prices and PayHere fee, verified notice, no cash back, weekly factory payout), `TOK-001`–`TOK-003` (ledger, transfers, reporting) and `AGT-001`–`AGT-005` (application, deposit, hours, suspension and leaving, earnings). `ADMIN-002`, `LOC-001`, `COM-001`, `SUP-001`, `SUP-002`, `FAC-001`, `RETURN-001`, `RATE-001`, `QUAL-001`, `FAULT-001`, `DATA-001` and `UX-002` were rewritten in place.
