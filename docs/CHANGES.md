@@ -1,5 +1,10 @@
 # Product-owner change log
 
+## 2026-11-09 - Leftover hints and architecture
+
+- Removed text: "We call this number about your offers" and "Where your stock is; pin it on the map" on the factory Profile, and "Used when you join or start a cart" on sign-up.
+- Docs: `docs/architecture.md` now describes the area agent model throughout. Its data model, the order and basket transitions, lock order, admin areas, token ledger, fault holds, removal, ratings and returns sections replace the old group-cart, slip, packing, warehouse and sample text.
+
 ## 2026-11-09 - Area agent model: final review fixes
 
 - Fixed: opening hours can no longer be cleared. Saving an empty hours list is refused in every agent status ("Open on at least one day"). A deposit that arrives while an agent has no hours is recorded, the agent stays approved, and saving hours then makes the agent live (FR-029a).

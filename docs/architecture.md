@@ -1,109 +1,12 @@
 # Architecture reference
 
-## Factory fault holds (2026-11-06)
-
-`FactoryFault` uniquely references a return and records units, confirmation actor/time and
-cancellation audit. `FaultHold` stores cleanup and decision markers; a partial unique index
-allows one open hold per factory. `FaultHoldMessage` stores private owner/admin discussion.
-`Product.hiddenByHoldId` tracks which listings Continue can restore. The migration grants no
-reader access. Owners use `/seller/returns?hold=id`; FACTORY/CORE use `/admin/factory/quality?hold=id`.
-SALES keeps return access but has no fault/hold access. Queries expose no buyer identities or
-payment figures to factories; selected hold routes return 404 for outsiders.
-
-`recordFault` runs inside the existing return transaction: sorted participant/factory advisories,
-cart row, return row, then ledger users if needed. It records once, counts the calendar window,
-opens a hold with conflict-do-nothing semantics and queues durable QualityNotice entries. It never
-locks another cart. After commit `enforceHold` uses one short metadata transaction: the hold
-row FOR NO KEY UPDATE, skip decided/cleaned holds, factory advisory, then product rows in id order.
-It commits before cart cleanup. There is no surrounding transaction or connection held across
-carts, so Continue and hold messages can proceed between them.
-
-`cleanFactoryCarts` accepts an optional open-hold check. Enforcement re-reads the hold before
-each cart and again after acquiring the cart's participant/cart locks, using that transaction's
-client. A decided or already-cleaned hold stops the pass. Completed cart cancellations stay
-committed; remaining carts are not processed after Continue, and a decided hold is never re-hidden.
-Removal omits this check and keeps its existing cleanup behavior. After a complete pass, a final
-short hold-row transaction sets cleanedAt only while the hold remains open. Interrupted passes
-leave cleanedAt null; sweep retries idempotently with one credit per line. A removed factory's
-open hold still closes as REMOVE. Notice flushing follows cart work without a hold gate.
-
-Full sweep also retries committed REMOVE decisions whose factory profile is not REMOVED, using
-the recorded admin and note. Each failed removal or pending-hold cleanup is isolated, leaving
-other holds and normal cart expiry able to run. Per-cart sweeps do not run hold recovery.
-Selling queries and mutations reject open holds.
-
-Shared cleanup removes OPEN/READY lines, wraps close/release in `cancelUnpaidCart` for unpaid
-finished carts, and uses `cancelPaidLines` for CONFIRMED carts. DISPATCHED/DELIVERED are excluded
-and rechecked under the cart lock. Ordinary hides affect only OPEN/READY; confirmation preserves
-hidden lines. Slip approval and cleanup serialize on the same cart lock.
-
-`decideHold` locks the hold first. Continue clears only this hold's product markers; Remove commits
-its decision before calling removal. Removal releases its factory advisory before closing open
-holds, avoiding an inverted gate lock. Hold posting takes the hold gate then author advisory,
-with no cart locks. Shared `private-thread.ts` helpers validate text, serialize per-author limits
-across return/hold threads and deduplicate unread notices. QualityNotice persists hold message
-delivery; reading and delivery share the hold gate. Cancelling a fault retains audit and does not
-itself decide a hold.
-
-## Returns (factory partnership Part 4, 2026-11-06)
-
-`ReturnRequest` belongs to a captured CartLine and stores buyer/factory, quantity, reason,
-fault, decision actors/notes, deadline, receipt condition and manual pickup attribution.
-`ReturnPhoto` stores private image keys; `/api/return-photos/[id]` authorizes the buyer,
-own factory owner/SALES and FACTORY/CORE admins, returning 404 otherwise. `ReturnNotice`
-is a durable after-commit outbox with stable notification keys. No buyer names, addresses,
-phones or monetary figures are selected for the factory returns list.
-
-The pure move table is `src/lib/return-rules.ts`. WAITING_FACTORY → ACCEPTED or WITH_ADMIN;
-factory refusal requires a 1–1000 character reason and sends the case to admins immediately.
-No answer after the stored factoryDueAt (24 hours for new returns) also moves it to WITH_ADMIN. WITH_ADMIN → ACCEPTED/REJECTED
-is the admin decision; REJECTED is terminal and there is no buyer escalation path.
-ACCEPTED → PICKED_UP optionally, then ACCEPTED/PICKED_UP → RECEIVED → COMPLETED
-atomically with the token credit. A used/untagged buyer-fault receipt records receivedAt and
-its condition, moves ACCEPTED/PICKED_UP → WITH_ADMIN and gives no tokens. This also applies
-after an earlier admin acceptance: resetting the pending decision allows one final receipt
-review, and receivedAt prevents another receipt. Final acceptance of an already received item
-completes it immediately. Removal hands unresolved requests to admins; a prior acceptance
-is retained for admin resumption. Only accepted returns may be sent, booked or received.
-
-`ReturnMessage` holds the private admin–factory discussion, exposed through
-`postReturnMessage`/`listReturnMessages` and session-derived actions. FACTORY/CORE and
-the own factory owner/SALES can read; buyers, Warehouse/Premium admins and other jobs or
-factories are denied. Posting requires WITH_ADMIN; reading remains available after decisions.
-Body length is 1–1000, with ten messages per minute per author across return threads, serialized
-by the author advisory. Messages persist their ReturnNotice outbox entries within the return
-transaction. After commit, delivery locks the return row and emits at most one unread message
-notice per recipient/thread; opening it marks the notice and pending deliveries read under
-the same lock. Admin detail is `/admin/factory/returns/[id]`; the factory opens a selected
-item at `/seller/returns?return=id`. Buyer queries never select messages. The `return_messages`
-migration routes legacy appealable refusals to WITH_ADMIN and queues buyer/admin notices.
-
-Every service mutation takes sorted participant/factory user advisories, the cart row,
-then the return row FOR UPDATE; credit subsequently takes the ledger user lock. Filing
-serializes on the cart before checking line quantity and open requests. The factory advisory
-also fences removal, which hands returns off in its metadata transaction, without acquiring
-cart or ledger locks. The full sweep calls `escalateOverdue(now)` and retries notice delivery.
-
-Completion credits `toD(unitPrice).times(returnQty)` via the idempotent RETURN ledger event,
-increments CartLine.returnedQty, and marks RETURNED/notEarned only when fully returned.
-Factory payouts and available-stock restocking are not introduced. Delivery.deliveredAt is
-captured on both completion paths, preserved on repeated callbacks and backfilled from
-updatedAt for existing delivered records. Missing timestamps prevent filing.
-
-Accepted factory-fault returns notify WAREHOUSE admins. An admin records the external
-PickMe reference, driver, booked-by/time and paidBy=FACTORY on ReturnRequest. No provider
-is called and no second Delivery is created. Buyer-fault delivery is arranged and paid by
-the buyer. DEC-013 records the owner-approved automatic review and receipt handling.
-
-Brand partnership communication (2026-10-26) uses `BrandConversation`, `BrandMessage`, `BrandConversationRead` and `BrandOfferRevision`. `brand-communications.ts` validates each subject and actor, locks conversations for read/notification consistency and deduplicates sends by request key. Business services append events within their transaction; notice delivery runs after commit and retries on workspace visits or the sweep endpoint. `brand-reviews.ts` activates explicit approved revisions without changing prior gift price snapshots. The admin brand workspace is separate from factory Offers, and partnership messages are separate from shopper chat.
-
-This describes the source tree inspected on 2026-10-24, with premium rewards updated on 2026-10-25. The [main agent brief](../.claude/agents/groupbasket.md) owns business policy; this document explains the implementation. Gifts support manual assignment, reservations and brand fulfilment/settlement records. Automatic family eligibility and body-measurement recommendations remain planned.
+This describes the source tree after the area agent model (2026-11-09). The [main agent brief](../.claude/agents/groupbasket.md) owns business policy; this document explains the implementation. [Implementation status](implementation-status.md) says what is and is not built.
 
 ## Application structure
 
 - Next.js App Router, React, Tailwind, Prisma with PostgreSQL, zod, and decimal.js. Declared dependencies and scripts are in [package.json](../package.json); consult the lockfile or installed packages for resolved versions.
 - Pages and route handlers: `src/app/`. Server actions validate requests and call services in `src/server/`. Database-independent domain rules live in `src/lib/`, with adjacent unit tests.
-- Most pages render on the server. Small client components handle forms, countdowns, charts, map pins, copy-link actions, toasts, and polling chat.
+- Most pages render on the server. Small client components handle forms, countdowns, charts, map pins and toasts.
 - PostgreSQL access is centralized in [db.ts](../src/server/db.ts). The Prisma client is generated into `src/generated/prisma`; edit the schema and migrations rather than generated files.
 - Money is stored as `Decimal(14,2)` and calculated with `D` / `toD` from [decimal.ts](../src/lib/decimal.ts). Display and business-day helpers in [format.ts](../src/lib/format.ts) use Asia/Colombo.
 
@@ -113,55 +16,50 @@ Read the applicable installed Next.js guide under `node_modules/next/dist/docs/`
 
 The authoritative field definitions and constraints are in [schema.prisma](../prisma/schema.prisma).
 
-| Domain                    | Tables and relationships                                                                                                                                                                                                                                           |
-| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Identity                  | `User` has `CUSTOMER`, `SELLER`, `ADMIN`, or `PACKER` role. Sellers may have `company`, `isBrand`, and `website`. `Session` stores a hash of the cookie token and an expiry.                                                                                       |
-| Catalogue                 | `Product` has selling/retail prices, one photo, taxonomy, optional seller and lot links, and an optional brand product URL. `Variant` is unique by product, size, and colour and holds `available`, `reserved`, and `sold` counts.                                 |
-| Purchasing and pricing    | `Lot` stores pieces, bulk cost, transport, wages, arrival, and a snapshot of pricing settings. `PriceChange` records a product's selling-price history.                                                                                                            |
-| Supplier offers           | `StockOffer` belongs to a seller, has `TEST` or `BULK` kind, review status, optional product link, and receiving attribution. Brand offers additionally record retail price, purchase price, pieces, and a source URL.                                             |
-| Shared orders             | `GroupCart` stores owner, share code, visibility, status, threshold and total, deadlines, and delivery details. `CartMember` stores membership and a location snapshot. `CartLine` is unique by cart, buyer, and variant, with quantity and a price snapshot.      |
-| Payment                   | `PaymentSlip` stores uploaded evidence and `PENDING`, `APPROVED`, or `REJECTED` review state, reviewer, and reason. A rejected slip can be followed by a new upload.                                                                                               |
-| Collaboration             | `CartMergeRequest` links source and target carts; the source link can become null after deletion. `CartMessage` is a private owner/participant thread with read tracking. `CartInvite` remains in the schema and services although its cart-page form was removed. |
-| Fulfilment                | One `Delivery` per cart stores booking details and delivery state. One `Packing` record per gathered order records gathering, packing, and handover actors and times.                                                                                              |
-| Configuration and notices | `Settings` is a singleton with order/payment windows, bank details, capacity, and lot pricing defaults. `Notification` stores in-app notices and read state.                                                                                                       |
+| Domain | Tables and relationships |
+| --- | --- |
+| Identity | `User` has `CUSTOMER`, `SELLER`, `ADMIN` or `AGENT` role. Admins have one `adminArea` (`PREMIUM`, `FACTORY`, `AGENTS`, `CORE`). Factory staff link to their factory owner with a `FactoryRole` (`OWNER`, `PACKING`, `SALES`). `Session` stores a hash of the cookie token; `LoginAttempt` counts failed sign-ins. |
+| Catalogue | `Product` has a factory price, commission and buyer price, one photo, taxonomy, a seller and hidden-state fields. `Variant` is unique by product, size and colour and holds `available`, `reserved` and `sold` counts. |
+| Agents | `Agent` (one per AGENT user) stores status (`APPLIED` → `APPROVED` → `LIVE`, `SUSPENDED`, `LEAVING`, `LEFT`, `REJECTED`), pin and address, private document keys, deposit and losses. `AgentHours` holds one opening window per weekday; `AgentLoss` records admin-decided losses; `PickupAttempt` counts code entries. |
+| Cart and orders | `CartItem` is a buyer's saved wish and holds no stock. Checkout makes one `Order` per factory for the chosen agent, with `OrderLine` price, courier and agent-fee snapshots. `Order.status` is `PENDING` → `PAID` → `RECEIVED`, or `CANCELLED`. |
+| Baskets | `Basket` groups paid orders for one agent and one factory: `OPEN` → `LOCKED` → `PACKED` → `WITH_COURIER` → `AT_AGENT`. The partial unique index `Basket_one_open` allows one OPEN basket per agent and factory. `CourierBooking` stores the hand-booked driver, vehicle and fee. |
+| Payments | `PaymentAttempt` (`ORDERS` or `DEPOSIT`) is one gateway charge; deposits also record `depositPrincipal`. `PaymentEvent` is the append-only record of verified notices, unique by `(gateway, eventId)`. `PickupCode` is one six-digit code per buyer and agent. |
+| Tokens | `TokenEntry` is the immutable signed ledger (see Token ledger below). |
+| Payouts | `FactoryPayout` is one row per factory and week ending; `PayoutItem` ties each order line to at most one payout; `PayoutDeduction` holds return-courier and missing-item deductions until a payout takes them. |
+| Quality and returns | `ProductRating`, `QualityReport`, `ReportPhoto`, `ReturnRequest`, `ReturnPhoto`, `ReturnMessage`, `FactoryFault`, `FaultHold`, `FaultHoldMessage`, and the `QualityNotice` / `ReturnNotice` outboxes. |
+| Factories | `FactoryApplication`, `FactoryDocument`, `FactoryInvite`, `FactoryActivation`, `FactoryProfile`, `AgreementVersion`, `AgreementAcceptance`. |
+| Parked premium brands | `StockOffer`, `GiftOrder`, `GiftSettlement`, `BrandConversation`, `BrandMessage`, `BrandConversationRead`, `BrandOfferRevision`. |
+| Configuration and notices | `Settings` is a singleton with commission, courier and agent fee per item, gateway fee rate, basket lock amount, maximum wait, payment hold, collection and return windows, agent radius and gap, deposit, and the payout watermark. `Notification` stores in-app notices and read state. |
 
-Legacy schema values do not define the current product scope. `SHOES` still exists in the category enum, and `Product.status`, `reviewNote`, `stockType`, and `defectNotes` remain for compatibility. Current shop visibility uses free variant stock; there is no active draft/review/publish workflow for products. Stock-offer review is a separate, active workflow.
+Legacy schema values do not define the current product scope. `SHOES` still exists in the category enum, and `Product.status`, `reviewNote`, `stockType` and `defectNotes` remain for compatibility.
 
-Added on 2026-10-25: `GiftOrder` snapshots the offering, basket, recipient, retail value and partner charge, with reservation/payment/dispatch/delivery/issue and bill-approval states. `GiftSettlement` records selected approved gift charges and an externally completed bank transfer. `StockOffer.paused` controls new gift reservations. No owned premium inventory, automated household qualification, measurements, refund or factory supplier ledger model is introduced.
+## Orders, baskets and fulfilment
 
-Added on 2026-10-26: `StockOffer` stores gift photo key/type, contents, pack size, dispatch business days and applicable expiry/shelf-life metadata. The authenticated `/api/brand-photos/[id]` route uses `brandPhotoFor` to scope images to admins, the owning brand and assigned recipients; responses are private and not cached. `GiftProductDetails` renders these fields in product cards, admin reviews and recipient baskets. No delivery-charge columns or collection flow were added.
+| Trigger | Transition | Stock and money effect |
+| --- | --- | --- |
+| Buyer adds to cart | `CartItem` row | None |
+| Checkout with an amount due | Orders `PENDING`, one `PaymentAttempt` | Available → reserved; token HOLD entries; hold for `paymentHoldMinutes` |
+| Checkout fully covered by tokens | Orders `PAID` at once | Reserved → sold; SPEND marker |
+| Verified payment notice | `PENDING` → `PAID`; joined to the OPEN basket for that agent and factory (created if none) | Reserved → sold; basket total grows by items total |
+| Basket total reaches `basketLockAmount` | `OPEN` → `LOCKED` (`AMOUNT`) | None |
+| `maxWaitDays` after the first order | `OPEN` → `LOCKED` (`MAX_WAIT`) | None |
+| Agent suspended or leaving | Its OPEN baskets → `LOCKED` (`SUSPENDED`); a later payment locks at once | None |
+| Payment hold passes | `PENDING` → `CANCELLED`, attempt `EXPIRED` | Reserved → available; token hold released |
+| Payment arrives after expiry | Attempt `LATE_PAID` | Full amount credited as `LATE_PAYMENT` tokens |
+| Buyer cancels while basket is OPEN | `PAID` → `CANCELLED` | Sold → available; basket total drops; refund as `ORDER_CANCEL` tokens |
+| Factory packs | `LOCKED` → `PACKED` | None |
+| Admin books courier | `CourierBooking` row | None |
+| Factory marks given to driver | `PACKED` → `WITH_COURIER` | None |
+| Agent marks received | `WITH_COURIER` → `AT_AGENT`; orders `PAID` → `RECEIVED` | Returns the agent sends back with this courier move to `PICKED_UP` |
+| Buyer gives pickup code | Lines get `collectedAt` | None |
 
-## Cart and fulfilment transitions
-
-| Trigger                         | Cart transition                        | Stock effect                                                      |
-| ------------------------------- | -------------------------------------- | ----------------------------------------------------------------- |
-| Create a cart                   | → `OPEN`                               | None                                                              |
-| Add or increase an item         | `OPEN` / `READY`, then recompute total | Move the additional quantity from available to reserved           |
-| Cross the cart's saved minimum  | `OPEN` ↔ `READY`                       | No extra movement; notify on becoming ready                       |
-| Owner accepts with positive due | `READY` → `AWAITING_SLIP`              | Keep reservations; freeze edits and snapshot delivery details     |
-| Owner accepts with zero due     | `READY` -> `CONFIRMED`                 | Spend tokens, sell reservations, activate gifts; no slip/deadline |
-| Owner uploads evidence          | `AWAITING_SLIP` → `SLIP_REVIEW`        | Keep reservations; payment timer no longer closes the cart        |
-| Admin rejects evidence          | `SLIP_REVIEW` → `AWAITING_SLIP`        | Keep reservations; assign a fresh payment deadline                |
-| Admin approves evidence         | `SLIP_REVIEW` → `CONFIRMED`            | Move reserved quantities to sold                                  |
-| Admin books delivery            | `CONFIRMED` → `DISPATCHED`             | None                                                              |
-| Delivery completed              | `DISPATCHED` → `DELIVERED`             | None                                                              |
-| Unaccepted cart deadline passes | `OPEN` / `READY` → `EXPIRED`           | Release reservations; retain lines as history                     |
-| Payment-upload deadline passes  | `AWAITING_SLIP` → `CANCELLED`          | Release reservations; retain lines as history                     |
-| Permitted cancellation          | Pre-confirmation state → `CANCELLED`   | Release reservations; retain lines as history                     |
-
-The owner cannot cancel during `SLIP_REVIEW`; an admin can. Removing a line or leaving an editable cart releases the corresponding stock. An accepted merge moves existing lines without releasing their reservations. Cart services enforce one active cart per buyer.
-
-`DISPATCHED` currently means a delivery has been booked; it does not prove the parcel has left the store. Physical handover is recorded by packing staff and changes `Delivery.status` to `PICKED_UP`. Order-board stages combine cart, packing, and delivery records. A failed or cancelled delivery can be booked again on the same record, clearing the prior handover attribution for another handover.
+Missing items are reported by the factory and removed by an Agents and orders admin, refunding the buyer in tokens and queuing a `MISSING_ITEM` payout deduction. The weekly sweep builds factory payouts and credits agent fees.
 
 ### Consistency mechanisms
 
-- Cart and slip mutations use database transactions with a cart row lock (`SELECT … FOR UPDATE`). A guarded variant update requires enough available stock before reserving it.
-- A per-user PostgreSQL advisory lock protects the one-active-cart check. Merge acceptance locks both carts in sorted order.
-- Each line retains the product price from its creation. Later catalogue and lot repricing does not rewrite existing line prices.
-- `sweep()` applies cart deadlines. A full sweep also calls `reduceDueLots()` for scheduled lot repricing. It runs on relevant page loads and through the authenticated cron route; notices are in-app only.
-- Packing mutations lock the cart and enforce separate gatherer and packer identities. Sending back is allowed only before packing is finalized.
+[locks.ts](../src/server/orders/locks.ts) fixes the lock order everywhere: user advisories (sorted) → Order rows (sorted) → basket advisory `basket:<agentId>:<factoryId>` → Basket rows → ledger User rows (sorted). Variant rows are locked after any basket advisory, in variantId order. `withOrderTransaction` takes the advisories and Order rows and retries serialization conflicts. `markOrdersPaid` holds Agent rows `FOR SHARE`, so suspension and leaving either see the new basket or the payment sees their status. Pickup lookups take a `pickup:<agentId>` advisory and are throttled per agent.
 
-See [checkout](../src/server/orders/checkout.ts), [baskets](../src/server/orders/baskets.ts), [delivery and handover](../src/server/orders/delivery.ts) and [order locks](../src/server/orders/locks.ts) for exact guards; the old group-cart, slip, packing and PickMe services were removed in Task 18.
+See [checkout](../src/server/orders/checkout.ts), [baskets](../src/server/orders/baskets.ts), [delivery](../src/server/orders/delivery.ts), [handover](../src/server/orders/handover.ts) and [payment notices](../src/server/payments/notice.ts) for exact guards.
 
 ## Routes by responsibility
 
@@ -231,46 +129,31 @@ entry points share `scripts/test-database.mjs`; each serial browser spec owns it
 The optional inspection role reads sanitized views in `groupbasket_ai`, outside Prisma's
 application schema. These tools do not add production integrations or deploy the application.
 
+- **Payments:** only the demo gateway exists (`PAYMENT_GATEWAY=demo`). The PayHere adapter, its `payment_id` capture and status lookup are not built; see DEC-016.
 - **Delivery:** there is no courier provider integration. Agents and orders admins book the courier by hand (driver, phone, vehicle, fee); factories mark baskets packed and given to the driver, and the agent marks them received.
-- **Uploads:** [storage](../src/server/storage/index.ts) uses local disk via `STORAGE_DIR`, with a 5 MB limit. Photos support JPEG/PNG/WebP; payment evidence also supports PDF. Hosting has not been selected; ephemeral/serverless storage would require another adapter.
-- **Scheduled work:** deploy an authenticated recurring call to `/api/cron/sweep`. `runSweep` is the only place time-based rules run (order expiry, basket maximum wait, returns, leaving agents, weekly payouts and agent fees); page loads do not run them, and there is no always-on worker.
-- **Notifications:** [notify](../src/server/notify/index.ts) writes database notices. No email, SMS, or WhatsApp delivery integration is implemented. Older references to expiry emails are stale.
-- **Brand rewards (updated 2026-10-25):** `src/server/gifts.ts` implements cart/offer-locked reservations, availability controls, brand-scoped dispatch, bill approvals and duplicate-safe settlement recording. `src/server/gift-actions.ts` enforces roles on actions. `/seller` renders `brand-dashboard.tsx` for brands; `/admin/brands` supports manual allocation and reconciliation. Cart payment approval activates reservations atomically; closing/leaving/reducing clothing releases them and merging preserves them. Brands are excluded from shop listing/linking and factory receiving. Automated eligibility, household verification, fee collection and actual bank/courier operations remain outside the implemented flow.
-- **Demand analytics:** design insights aggregate current/historical cart lines, including unpaid expired carts, and distinguish paid purchases. They are not a complete append-only history of every add/remove action or a guarantee of future demand.
-- **Authentication and accounts:** cookie sessions use `gt_session`, hashed tokens, and server-side role checks. Password reset is not implemented. Demo accounts come from the seed; their visibility is controlled by development mode or `SHOW_DEMO_LOGINS`.
+- **Uploads:** [storage](../src/server/storage/index.ts) uses local disk via `STORAGE_DIR`, with a 5 MB limit. Photos support JPEG/PNG/WebP. Hosting has not been selected; ephemeral/serverless storage would require another adapter.
+- **Scheduled work:** deploy an authenticated recurring call to `/api/cron/sweep`. `runSweep` is the only place time-based rules run (payment expiry, basket maximum wait, return escalation and lapse, leaving agents, weekly payouts and agent fees, fault holds, agreement reminders, notice retries); page loads do not run them, and there is no always-on worker.
+- **Notifications:** [notify](../src/server/notify/index.ts) writes database notices. No email, SMS or WhatsApp delivery is implemented.
+- **Parked premium brands:** `src/server/gifts.ts` and `/admin/brands` keep manual gift allocation, brand dispatch, bill approval and settlement records. Gifts are not tied to orders or baskets. `/seller` renders `brand-dashboard.tsx` for brands. Brands are excluded from shop listing.
+- **Authentication and accounts:** cookie sessions use `gt_session`, hashed tokens and server-side role checks. Password reset is not implemented. Demo accounts come from the seed; their visibility is controlled by development mode or `SHOW_DEMO_LOGINS`.
 
 Configuration variable names are listed in [.env.example](../.env.example). Never copy live secrets into documentation. The main brief and its implementation-status reference own prioritization and any business decisions required to close these gaps.
 
 ## Administrative workspaces
 
-`User.adminArea` is `PREMIUM`, `FACTORY` or `WAREHOUSE` for admins and null for everyone else; there is no unrestricted admin (migration `remove_unrestricted_admin` turned former `ALL` admins into warehouse admins). `src/lib/admin-access.ts` holds `adminAreaOf`, `canAdminArea` and `userAdminArea` (the area that manages an account: brands PREMIUM, factory sellers FACTORY, buyers and packers WAREHOUSE, admins their own area). `requireAdmin(area)` protects area pages and actions; `requireAnyAdmin()` serves the shared Users and Settings pages, which `src/server/admin-users.ts` (`areaUsersWhere`, `assertManagesUser`) and per-area settings forms scope to the signed-in area. Sign-in sends each admin to `/admin/brands`, `/admin/factory` or `/admin/warehouse`, and the admin layout shows only that area's tabs and badges. The Stock dashboard (`/admin`) and stock/lot-margin settings are FACTORY; cart/payment/bank settings and the orders CSV export (from Orders) are WAREHOUSE. Each area creates admins only for itself; `npm run admin:create` (`scripts/create-admin.ts`) creates a deployment's first admins.
+`User.adminArea` is `PREMIUM`, `FACTORY`, `AGENTS` or `CORE` for admins and null for everyone else; there is no unrestricted admin. `src/lib/admin-access.ts` holds `adminAreaOf`, `canAdminArea`, `userAdminArea` (brands PREMIUM, factory sellers FACTORY, everyone else AGENTS, admins their own area) and `adminHome`. `requireAdmin(area)` protects area pages and actions; `requireAnyAdmin()` serves the shared Users and Settings pages, which `src/server/admin-users.ts` (`areaUsersWhere`, `assertManagesUser`) scopes to the signed-in area. Sign-in sends each admin to `/admin/brands`, `/admin/factory`, `/admin/agents` or `/admin/core/payouts`, and the admin layout shows only that area's tabs. Each area creates admins only for itself; `npm run admin:create` (`scripts/create-admin.ts`) creates a deployment's first admins.
 
-The factory workspace owns offers, design/product linking, variant stock and purchased lots. Its collection queue links the factory contact to the accepted `StockOffer`; warehouse receipt records `receivedBy` and `receivedAt` on that same offer. Received offers awaiting product linking return to the factory queue. Factory sellers retain only their own offers and aggregate design insight, without buyer identities or individual carts. Premium gift stock stays outside factory receipt and warehouse inventory.
-
-Warehouse administration owns clothing payment review, order inspection, delivery booking and operational oversight. Packing staff retain the existing separate-person gathering/rechecking and handover workflow. Premium administrators manage partner products, gifts, private partnership communication and settlement reconciliation. Staff notifications target the responsible operational area only, so recipients receive links to their permitted workspaces.
-
-## Pre-purchase design samples
-
-`SampleRequest` links a group, apparel product and requesting group owner, snapshots the
-owner's delivery address/pin and records the transport quote and acceptance separately
-from clothing checkout. The request lifecycle is REQUESTED -> QUOTED -> ACCEPTED ->
-DISPATCHED -> DELIVERED, with decline before acceptance. `src/server/samples.ts` serializes
-requests with the group lock and transitions with the sample-row lock; no sample sending
-fee, clothing stock reservation or checkout total is added. `/samples` scopes history to
-current group members; only the requester accepts transport. `/admin/warehouse` and its
-actions require WAREHOUSE access. Courier operations and transport payment remain external.
-
-Group merges move sample request records to the destination group before source deletion, preserving requester, delivery snapshot, accepted transport and tracking history.
+Agents and orders admins review agent applications and deposits, record losses, suspend agents, book couriers, remove missing items and search orders. Factory admins own factory applications, products, quality, returns and fault holds. Core admins run settings, weekly payouts and the token overview. Premium admins handle the parked brand workspace.
 
 ## Factory partnership joining (Part 1)
 
-Applications hold private business, identity and bank fields. FactoryDocument stores private storage keys, exposed only through the FACTORY/CORE checked `/api/partner-docs/[id]` route. `partners.ts` validates submissions and serializes review/invite consumption; `partner-actions.ts` derives principals from sessions. `/factories/apply` and its invite route share the form; `/admin/factory/applications` holds review and visits. Approval links use separate hashed seven-day `FactoryActivation` rows (owner, creating admin, expiry, redeemed `usedAt` and separate `revokedAt` audit). No activation is accepted by session lookup. Approval creates these only for new owners and returns the raw URL once in the authorized admin action response; form state displays it until navigation/refresh. Notifications persist only `/sign-in`. New sign-in link requires FACTORY/CORE access, approval and activation history; it locks the owner, refuses if any activation has `usedAt` set, and revokes unused/non-revoked activations via `revokedAt` before issuing a replacement. The admin page hides this action after any redemption. Redemption locks the owner then the activation (`FOR UPDATE`), checks `usedAt = null`, `revokedAt = null`, expiry and account conditions, and atomically sets the password and used-at marker; the action then starts a normal session. GET never consumes credentials. Legacy applicants receive no activation. Migration cleanup hashes historical notification URL tokens to revoke only matching unredeemed approval sessions and sanitizes those URLs. It preserves invalidated hash-only activation history only for owners created after their application, excluding pre-existing legacy owners. Migration `factory_activation_revoked` adds only the nullable `revokedAt` column; existing ambiguous `usedAt` markers are not reclassified and conservatively block reissue. Delivery uses in-app notices only. FactoryProfile, AgreementVersion and AgreementAcceptance retain lifecycle records alongside the factory User.
+Applications hold private business, identity and bank fields. FactoryDocument stores private storage keys, exposed only through the FACTORY/CORE checked `/api/partner-docs/[id]` route. `partners.ts` validates submissions and serializes review/invite consumption; `partner-actions.ts` derives principals from sessions. `/factories/apply` and its invite route share the form; `/admin/factory/applications` holds review and visits. Approval links use separate hashed seven-day `FactoryActivation` rows (owner, creating admin, expiry, redeemed `usedAt` and separate `revokedAt` audit). No activation is accepted by session lookup. Approval creates these only for new owners and returns the raw URL once in the authorized admin action response; form state displays it until navigation/refresh. Notifications persist only `/sign-in`. New sign-in link requires FACTORY/CORE access, approval and activation history; it locks the owner, refuses if any activation has `usedAt` set, and revokes unused/non-revoked activations via `revokedAt` before issuing a replacement. The admin page hides this action after any redemption. Redemption locks the owner then the activation (`FOR UPDATE`), checks `usedAt = null`, `revokedAt = null`, expiry and account conditions, and atomically sets the password and used-at marker; the action then starts a normal session. GET never consumes credentials. Legacy applicants receive no activation. Migration `factory_activation_revoked` adds only the nullable `revokedAt` column; existing ambiguous `usedAt` markers are not reclassified and conservatively block reissue. Delivery uses in-app notices only. FactoryProfile, AgreementVersion and AgreementAcceptance retain lifecycle records alongside the factory User.
 
 ### Agreement eligibility
 
-`src/lib/agreement-rules.ts` owns the pure calendar/eligibility/reminder rules; `src/server/agreements.ts` persists versions and acceptances. Publication and acceptance share an advisory transaction lock; acceptance also locks the factory profile. Published versions are append-only through services/actions. Forms bind acceptance to the version displayed. `canSell` resolves the factory account/profile/current acceptance and requires legacy checks after the grace deadline. `sellingFactoryWhere` expresses the same visibility in database queries, before limits and facet aggregation. `IN_SHOP` remains the administrative stock/status baseline, not a complete public eligibility predicate. Public catalogue queries compose eligibility with `AND: [...IN_SHOP.AND, eligibility]` so the brand exclusion is independent of the factory predicate. Direct detail lookup reuses only the base AND boundary, preserving access to sold-out ordinary products.
+`src/lib/agreement-rules.ts` owns the pure calendar/eligibility/reminder rules; `src/server/agreements.ts` persists versions and acceptances. Publication and acceptance share an advisory transaction lock; acceptance also locks the factory profile. Published versions are append-only through services/actions. Forms bind acceptance to the version displayed. `canSell` resolves the factory account/profile/current acceptance and requires legacy checks after the grace deadline. `sellingFactoryWhere` expresses the same visibility in database queries, before limits and facet aggregation. Public catalogue queries compose eligibility with the in-shop baseline, so the brand exclusion is independent of the factory predicate. Direct detail lookup reuses only the base boundary, preserving access to sold-out ordinary products.
 
-Listing/staff services, admin republishing and positive `setLine` changes and starting payment from an unpaid cart enforce the gate. Existing cart-row/user locks and guarded stock updates are preserved. Full `sweep()` calls claim reminder markers then deliver notices with deterministic IDs, allowing retries without duplicate notices; reads of current terms and delivered notices are batched. Agreement expiry never changes paid-cart rows or prices. Seller route URLs are unchanged; `(workspace)/layout.tsx` gates owners while `/seller/agreement` remains outside that group. Staff fulfilment and brand routes remain available.
+Listing (`saveProduct`, under the owner advisory with `canSellIn`), staff creation and admin republishing enforce the gate. `runSweep` claims reminder markers then delivers notices with deterministic IDs, allowing retries without duplicate notices. Agreement expiry never changes paid orders or prices. `(workspace)/layout.tsx` gates owners while `/seller/agreement` remains outside that group.
 
 ## Password sign-in rate limiting
 
@@ -291,126 +174,89 @@ verification pending and requires an unrelated `SELECT 1` to finish in under 200
 `src/lib/price-rules.ts` owns Decimal buyer-price addition and commission validation. Only CORE
 can call `setCommission` in `src/server/settings.ts`; the settings action derives the actor
 from the session. `saveProduct` stores `factoryPrice` plus the commission in `Product.price`
-for new direct non-brand factory listings. Creation share-locks Settings until commit; updates
-lock the product and reuse its stored commission, never the current setting. Own and lot
-products keep their original pricing. Existing factory buyer prices are retained by the guarded
-`factory_commission` migration. The form sends the factory price and previews the resulting
-buyer price in a small client island; all existing buyer price paths still use `Product.price`.
+for new factory listings. Creation share-locks Settings until commit; updates lock the product
+and reuse its stored commission, never the current setting. Checkout snapshots `unitPrice` and
+`factoryPrice` on each `OrderLine`, so later repricing never rewrites an order.
 
-## Token ledger and lock order
+## Token ledger
 
-`src/server/tokens.ts` implements balance, credit, hold, release and spend-marker operations;
-`src/lib/token-rules.ts` owns pure Decimal balance/cap rules. `TokenEntry.amount` is the signed
-balance delta: positive credit/release, negative HOLD, zero SPEND. Database triggers reject entry
-updates/deletes. User references restrict deletion; line/return ids are immutable scalar audit
-references so deleting a cart line never rewrites or cascades the ledger.
+`src/server/tokens.ts` implements balance, `post`, `credit` and transfers; `src/lib/token-rules.ts`
+owns pure Decimal rules. `TokenEntry.amount` is the signed balance delta: positive credits and
+releases, negative HOLD, zero SPEND. Database triggers reject entry updates and deletes. Order,
+line and return ids are scalar audit references, so the ledger is never rewritten or cascaded.
 
-Unique `eventKey` values identify credits by `(kind, business reference)`, holds by
-`(line id, submission key)` (or the current revision for a new programmatic call), and
-RELEASE/SPEND by `(line id, tokenVersion, kind)`. A hold/release advances the line revision;
-repeated release finds no excess and spend retries hit the same unique marker. An optional
-request key preserves the binding three-argument applyTokens API while making UI resubmissions
-idempotent. A committed replay with different amount is refused. Ledger entries remain immutable.
+Kinds: `RETURN`, `HOLD`, `RELEASE`, `SPEND`, `LATE_PAYMENT`, `ORDER_CANCEL`, `AGENT_FEE`,
+`COURIER_REPAY`, `MISSING_ITEM`, `DEPOSIT_RETURN`, `TRANSFER_OUT`, `TRANSFER_IN`. Unique `eventKey`
+values make every credit, hold, release and spend idempotent; a replay with a different amount is
+refused. `post` locks the ledger User row last in the global order and refuses an overdraft.
+Only buyers and agents hold tokens (`assertTokenHolder`). `transferTokens` takes both user
+advisories (sorted) then both ledger rows (sorted). There is no cash-out path.
 
-`src/server/carts/locks.ts` centralizes the ordering: sorted existing per-user advisory keys,
-then sorted cart rows, then sorted User ledger rows. Every changed cart/payment entry point uses
-`withCartTransaction`; snapshots include owners, members and line owners. If a join/merge changed
-participants before locks were acquired, the transaction rolls back and retries, never taking
-a newly discovered advisory lock after a cart lock. Cart creation and merge requests retain their
-existing user-first advisory path. Helpers release/spend run inside the caller's cart transaction;
-notifications remain after commit. A credit with no cart context takes only its User-row suffix.
+## Factory fault holds
 
-### Token lifecycle and presentation (Part 2)
+`FactoryFault` uniquely references a return and records units, confirmation actor/time and
+cancellation audit. `FaultHold` stores cleanup and decision markers; a partial unique index
+allows one open hold per factory. `FaultHoldMessage` stores private owner/admin discussion.
+`Product.hiddenByHoldId` tracks which listings Continue can restore. Owners use
+`/seller/returns?hold=id`; FACTORY/CORE use `/admin/factory/quality?hold=id`. SALES keeps return
+access but has no fault/hold access. Queries expose no buyer identities or payment figures to
+factories; selected hold routes return 404 for outsiders.
 
-Cart-line reductions release only tokens above the remaining full line value before updating
-quantity. Removal, leaving, unpaid expiry and cancellation release all unused holds in the same
-transaction as stock restoration. A rejected slip preserves holds; approval appends a zero-delta
-SPEND marker. Ledger references intentionally survive deleted lines. Merge updates only the
-line's cart ID, preserving its applied amount, revision and ledger identity.
+`recordFault` runs inside the return transaction when the agent collects a factory-fault return.
+It records once, counts the calendar window, opens a hold with conflict-do-nothing semantics and
+queues durable QualityNotice entries. After commit `enforceHold` takes the hold row FOR NO KEY
+UPDATE, skips decided or cleaned holds, takes the factory advisory, then hides the factory's
+products in id order and marks the hold cleaned. Orders already paid are not cancelled by a hold.
+A removed factory's open hold closes as REMOVE. `runSweep` retries pending holds and committed
+REMOVE decisions whose factory profile is not REMOVED.
 
-Cart totals and minimums remain gross. `amountDue` subtracts token snapshots for owner pay pages,
-slip recording and dashboard payment prompts. Member settlement prompts subtract that member's
-applied tokens. The cart renders controls only on the viewer's own lines; the action obtains the
-user from the session and the service checks ownership again under locks. Customer account
-history uses a principal-scoped cursor and 50-entry pages; no public credit/mint action exists.
+`decideHold` locks the hold first. Continue clears only this hold's product markers; Remove commits
+its decision before calling removal. Hold posting takes the hold gate then the author advisory.
+Shared `private-thread.ts` helpers validate text, serialize per-author limits across return and
+hold threads and deduplicate unread notices. Cancelling a fault retains audit and does not itself
+decide a hold.
 
-### Fully token-covered acceptance (DEC-013, 2026-11-05)
+## Quality: hides, removal and ratings
 
-`acceptAndPay` calculates the transfer amount inside `withCartTransaction`, after `lockCart`.
-Exactly zero skips payment evidence and calls `confirmPaidCart(tx, cartId, actorId, now)` in
-`src/server/carts/confirmation.ts`. The same function handles approved slips. It atomically
-confirms, spends token holds without a second debit, sells reserved stock, activates gifts and
-records their brand events. `notifyCartConfirmed(cart)` sends the existing member/factory (or
-warehouse packing) notices and flushes brand notices after commit. Delivery snapshots and
-accepted/confirmed timestamps are stored together; zero-due carts have no PaymentSlip or
-slipDueAt. Positive amounts keep the configured upload window. The acceptance action opens the
-confirmed cart directly; the pay page's existing non-payable redirect also returns there.
+`hideProduct` hides one non-brand product with a reason. `removeFactory` marks the profile REMOVED
+under the owner advisory, optionally holds earnings, hands unresolved returns to admins, hides the
+factory's products in id order, closes open holds, then locks the owner and staff accounts with
+`setUserLocked`. The owner advisory also fences new listings and staff creation. Removal does not
+touch paid orders or baskets; what happens to them is open in DEC-016.
 
-## Member completion before cart acceptance (CART-006)
+`ProductRating` is unique per order, user and product, with a 1–5 database constraint.
+`rateProduct` accepts only collected lines (`collectedAt` set) on RECEIVED orders and serializes
+through `withOrderTransaction`. Low stars require a `QualityReport`; damage, wrong item and
+stitching require private `ReportPhoto` rows, served only to the rater and FACTORY/CORE admins.
+`qualityOverview` computes flags on reads.
 
-`CartMember.doneAt` is nullable and starts null on existing/new memberships. `markDone`,
-`undoDone`, `removeMember` and acceptance use `withCartTransaction` and `lockCart`: sorted user
-advisories, cart row(s), then ledger users if releases require them. `doneProgress` counts only
-non-owner users with lines. Acceptance rechecks it under lock; a rendered disabled button is
-not authorization. Repeated Done is idempotent, and only the transition from incomplete to all
-required members done sends Everyone is done after commit. Undo enables a later transition.
+## Returns
 
-`resetMemberDone` runs in the share-changing transaction: nonzero quantity deltas, new token
-holds, actual token releases, gift reservation creation/cancellation/release and merge arrivals.
-Gift reservation mutations use the same user-before-cart wrapper. Removal refuses owner/done
-members, calls the existing `releaseLines`, deletes membership and recomputes gross readiness;
-its removed-member notice follows commit. Done does not freeze edits; acceptance still does.
+`ReturnRequest` belongs to an `OrderLine` and stores buyer and factory, quantity, reason, fault,
+decision actors and notes, deadlines, receipt condition and the handover agent. `ReturnPhoto`
+stores private image keys behind `/api/return-photos/[id]`. `ReturnNotice` is a durable
+after-commit outbox. No buyer names, addresses, phones or monetary figures reach the factory list.
 
-## Quality cancellation foundation (Part 3.1)
+The move table is `src/lib/return-rules.ts`. A buyer files for a collected line within
+`collectHours` of the agent receiving the order. WAITING_FACTORY → ACCEPTED or WITH_ADMIN (refusal needs a reason; no answer within 24 hours
+also escalates). WITH_ADMIN → ACCEPTED or REJECTED; REJECTED is terminal. Acceptance moves the
+return to AWAITING_HANDOVER at the order's agent with a `returnHandoverDays` deadline. The agent
+collects it (HANDED_OVER): the line's `returnedQty` grows, the buyer is credited RETURN tokens
+(`returnRefund`), and a factory fault is recorded with a RETURN_COURIER payout deduction. A return
+never handed over LAPSES without tokens. When the agent marks an arriving basket received, it can
+send held returns back with that courier (PICKED_UP, `sentBackBasketId`); the factory's receipt
+moves them RECEIVED → COMPLETED, optionally restocking. The worn-item check before buyer-fault tokens is open in DEC-016.
 
-`CartLine.status` defaults ACTIVE; cancellation records time/reason and notEarned. Under the
-existing user-advisory -> cart-row -> ledger-user order, `cancelPaidLines(tx, lineIds, reason)`
-processes one CONFIRMED/DISPATCHED cart, credits captured qty * unitPrice exactly once using the
-existing credit event key, and decrements sold without returning hidden goods to available.
-`cancelNotifiedAt` is a durable post-commit notice marker. `flushCancellationNotices` uses stable
-notification IDs before marking delivery complete. `cancelPickupReview` persists manual pickup
-review for a fully cancelled dispatched cart; Delivery is never changed by cancellation.
+`ReturnMessage` holds the private admin–factory discussion. FACTORY/CORE and the own factory
+owner/SALES can read; posting requires WITH_ADMIN. Every mutation goes through `withOrderTransaction`
+with sorted buyer, factory and actor advisories, the Order row, then the return row, then ledger
+rows; fault holds are enforced and notices flushed after commit. `runSweep` escalates overdue
+returns and lapses unhanded ones.
 
-`visibleTotals` subtracts cancelled line snapshots for display, leaving GroupCart.total as the
-original payment record. Packing, delivery contents and factory operational views select ACTIVE
-lines. Delivered lines are ineligible for quality cancellation. Ordinary hides preserve finished carts;
-holds/removal use the pre-booking cleanup described above.
+## Brand partnership communication (parked)
 
-### Product ratings and private quality reports (Part 3.2)
-
-`ProductRating` is unique per cart/user/product, with a 1-5 database constraint. `QualityReport`
-has one rating and private `ReportPhoto` rows whose storage keys never enter public product
-queries. `rateProduct` validates receiver ownership on ACTIVE/RETURNED delivered lines, then
-serializes submission through the cart transaction. Low stars require a report; damage/wrong
-item/stitching require photos. Uploads use the existing private storage adapter and image limits.
-The report-photo route rechecks the actor from DB and returns 404 except for the rater and
-FACTORY/CORE admins. Product/factory scores are computed on reads; each legacy FactoryRating
-counts once alongside product ratings. Legacy write actions are retired, not migrated into
-multiple product ratings. The restricted reader has no access to the three new tables.
-
-### Quality orchestration and CART-006 (Part 3.3)
-
-`hideProduct` persists hidden metadata before any cart cleanup. `removeFactory` records REMOVED
-and hidden metadata in a short owner-advisory transaction with sorted product-row locks, then
-uses existing `setUserLocked` to lock the owner/staff and end their sessions. Listing/staff
-creation shares the owner fence, and removed factories cannot unlock staff. Earnings holds can
-be added after removal and are not cleared by retries. No factory-user notice is sent.
-
-Cleanup processes one cart per `withCartTransaction` and `lockCart`, never all carts in one
-transaction. OPEN/READY removal and ordinary setLine(0) share `releaseLines`; that path resets
-Done and releases stock, token holds and gifts before recomputing readiness. Deleted lines queue
-`QualityNotice` outbox records in the same transaction; stable IDs deduplicate post-commit delivery.
-Expired prepayment carts follow normal sweep release. Ordinary hides leave finished carts alone;
-holds/removal cancel unpaid finished carts through close/release.
-
-`confirmPaidCart` takes sorted product share locks and ledger-user locks, finalizes token/payment,
-stock and gift effects, and preserves hidden-product lines. Both bank-slip and token-only paths
-use it. Holds/removal subsequently cancel CONFIRMED carts through shared locked cleanup with
-full-price tokens. Payment totals remain captured; booked/delivered carts are never cleaned.
-The cancellation helper accepts one cart per transaction and never calls delivery providers.
-
-`qualityOverview` rechecks FACTORY/CORE authorization and computes flags on reads. Private report
-photos remain restricted to raters and those admin areas. The reader is denied the new private
-outbox/table data. Race conservation tests include finalized paid HOLD debits: balance + unpaid
-active holds + finalized paid token usage = business credits. SPEND is zero-delta, so omitting
-paid usage would incorrectly treat valid spending as lost tokens.
+`BrandConversation`, `BrandMessage`, `BrandConversationRead` and `BrandOfferRevision` back private
+brand messages. `brand-communications.ts` validates each subject and actor, locks conversations for
+read/notification consistency and deduplicates sends by request key. Notice delivery runs after
+commit and retries through the sweep. `brand-reviews.ts` activates approved revisions without
+changing prior gift price snapshots.

@@ -84,7 +84,7 @@ export function SignUpForm({ next }: { next?: string }) {
       >
         <Input name="phone" type="tel" autoComplete="tel" placeholder="0771234567" required />
       </Field>
-      <LocationPicker errors={e} addressHint="Used when you join or start a cart" />
+      <LocationPicker errors={e} />
       <Field label="Password" name="password" error={e.password}>
         <PasswordInput name="password" autoComplete="new-password" minLength={8} required />
       </Field>

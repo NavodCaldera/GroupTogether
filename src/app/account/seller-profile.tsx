@@ -6,8 +6,7 @@ import { ProfileForm } from "./profile-form";
 
 /**
  * Profile for factory sellers (rule 11): their company and email, then their name, mobile and
- * factory address with an exact map pin (product owner, 2026-10-20), which the admin sees on
- * their stock offers. Sellers never join carts.
+ * factory address with an exact map pin (product owner, 2026-10-20).
  */
 export async function SellerProfile({ user }: { user: SessionUser }) {
   const { company } = await db.user.findUniqueOrThrow({
@@ -23,9 +22,7 @@ export async function SellerProfile({ user }: { user: SessionUser }) {
       <Card>
         <ProfileForm
           defaults={user}
-          phoneHint="We call this number about your offers"
           addressLabel="Factory address"
-          addressHint="Where your stock is; pin it on the map"
         />
       </Card>
       <form action={signOutAction} className="border-t border-line pt-4">
