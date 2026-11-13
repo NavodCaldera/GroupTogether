@@ -46,7 +46,7 @@ export function colomboDayStart(now = new Date(), daysAgo = 0): Date {
 }
 
 /** Midnight in Colombo starting the calendar day "2026-10-20", or null if it isn't a real date. */
-export function colomboDay(day: string | undefined): Date | null {
+function colomboDay(day: string | undefined): Date | null {
   const m = day?.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (!m) return null;
   const utc = Date.UTC(+m[1], +m[2] - 1, +m[3]);
@@ -91,12 +91,6 @@ export function formatIsoDateTime(date: Date | null | undefined): string {
   }).format(date);
 }
 
-/** "5h 12m left", "3m left", or "ended". */
-/** True when less than `hours` remain until `until`. */
-export function endsWithin(until: Date, hours: number, now = new Date()): boolean {
-  return until.getTime() - now.getTime() < hours * 3_600_000;
-}
-
 /** How long since `since`: "just now", "35m", "2h 5m", "3d". */
 export function waitedFor(since: Date, now = new Date()): string {
   const mins = Math.floor((now.getTime() - since.getTime()) / 60_000);
@@ -105,13 +99,4 @@ export function waitedFor(since: Date, now = new Date()): string {
   const h = Math.floor(mins / 60);
   if (h < 24) return mins % 60 ? `${h}h ${mins % 60}m` : `${h}h`;
   return `${Math.floor(h / 24)}d`;
-}
-
-export function timeLeft(until: Date, now = new Date()): string {
-  const ms = until.getTime() - now.getTime();
-  if (ms <= 0) return "ended";
-  const mins = Math.ceil(ms / 60_000);
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h > 0 ? `${h}h ${m}m left` : `${m}m left`;
 }

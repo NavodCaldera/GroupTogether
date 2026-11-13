@@ -148,7 +148,7 @@ const money = z
   .trim()
   .regex(/^\d+(\.\d{1,2})?$/, "Enter an amount such as 4500 or 4500.50");
 
-export const productSchema = z
+const productSchema = z
   .object({
     title: z.string().trim().min(2, "Enter a title").max(120),
     brand: z.string().trim().min(1, "Enter the brand").max(60),

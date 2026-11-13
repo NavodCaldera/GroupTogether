@@ -31,7 +31,7 @@ export type CartLineView = {
   available: boolean;
 };
 
-export type CartGroup = {
+type CartGroup = {
   factoryId: string;
   name: string;
   lines: CartLineView[];

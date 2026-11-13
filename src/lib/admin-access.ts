@@ -4,7 +4,7 @@
  */
 export const ADMIN_AREAS = ["PREMIUM", "FACTORY", "AGENTS", "CORE"] as const;
 export type OperationalAdminArea = (typeof ADMIN_AREAS)[number];
-export type AdminPrincipal = { role: string; adminArea?: string | null; locked?: boolean };
+type AdminPrincipal = { role: string; adminArea?: string | null; locked?: boolean };
 
 /** The admin's own workspace, or null for anyone who isn't an unlocked admin with one. */
 export function adminAreaOf(user: AdminPrincipal | null | undefined): OperationalAdminArea | null {

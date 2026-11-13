@@ -14,7 +14,7 @@ import { pinFields, pinInSriLanka, pinOutsideMessage } from "@/lib/location";
 import { db } from "../db";
 import { hashPassword, verifyPassword } from "./password";
 
-export const SESSION_TTL_DAYS = 30;
+const SESSION_TTL_DAYS = 30;
 
 /** Sri Lankan mobile: 07XXXXXXXX or +947XXXXXXXX, stored as 07XXXXXXXX. */
 export const phoneSchema = z
@@ -35,7 +35,7 @@ export const signUpSchema = z
   })
   .refine(pinInSriLanka, pinOutsideMessage);
 
-export type SignUpInput = z.infer<typeof signUpSchema>;
+type SignUpInput = z.infer<typeof signUpSchema>;
 
 /** The buyer's own profile: who they are and where PickMe drops their orders. */
 export const profileSchema = z
@@ -48,7 +48,7 @@ export const profileSchema = z
   })
   .refine(pinInSriLanka, pinOutsideMessage);
 
-export type ProfileInput = z.infer<typeof profileSchema>;
+type ProfileInput = z.infer<typeof profileSchema>;
 
 export class AuthError extends Error {}
 
@@ -70,7 +70,7 @@ const sellerFields = z.object({
     .transform((v) => v || undefined),
 });
 
-export const sellerSchema = sellerFields.refine(
+const sellerSchema = sellerFields.refine(
   (v) => !v.isBrand || (!!v.website && linkOnSite(v.website, null)),
   {
     message: "Enter the brand's website, such as https://www.brand.lk",
@@ -100,11 +100,9 @@ export async function createSeller(input: unknown): Promise<User> {
   });
 }
 
-export const packerSchema = sellerFields
-  .omit({ company: true, isBrand: true, website: true })
-  .extend({
-    name: z.string().trim().min(2, "Enter their name").max(80),
-  });
+const packerSchema = sellerFields.omit({ company: true, isBrand: true, website: true }).extend({
+  name: z.string().trim().min(2, "Enter their name").max(80),
+});
 
 /**
  * Public sign-up creates customers only; admins come from the seed, sellers from an admin and

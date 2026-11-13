@@ -41,7 +41,9 @@ describe("openNow", () => {
   });
   it("rolls the weekday over at Colombo midnight, not UTC", () => {
     // Sunday 23:30 UTC is Monday 05:00 Colombo
-    expect(openNow([{ weekday: 1, opensAt: 0, closesAt: 600 }], new Date("2026-11-08T23:30:00Z"))).toBe(true);
+    expect(
+      openNow([{ weekday: 1, opensAt: 0, closesAt: 600 }], new Date("2026-11-08T23:30:00Z")),
+    ).toBe(true);
   });
 });
 

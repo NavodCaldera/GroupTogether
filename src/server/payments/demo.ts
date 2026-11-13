@@ -5,7 +5,7 @@ import type { Gateway, NoticeStatus, VerifiedNotice } from "./gateway";
 
 const md5 = (s: string) => createHash("md5").update(s).digest("hex").toUpperCase();
 
-export type NoticeFields = {
+type NoticeFields = {
   merchant_id: string;
   order_id: string;
   payment_id: string;

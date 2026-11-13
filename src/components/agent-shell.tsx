@@ -3,7 +3,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { Badge, cx } from "@/components/ui";
 
-export type AgentSection = "home" | "pickups" | "returns" | "tokens" | "hours";
+type AgentSection = "home" | "pickups" | "returns" | "tokens" | "hours";
 
 const TABS: { key: AgentSection; href: Route; label: string }[] = [
   { key: "home", href: "/agent", label: "Home" },

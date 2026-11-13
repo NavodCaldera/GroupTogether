@@ -9,7 +9,7 @@ import { lockBasketSlot, withOrderTransaction } from "../orders/locks";
 
 export class AgentError extends CartError {}
 
-export const NOTE_MAX = 500;
+const NOTE_MAX = 500;
 /** Statuses whose pin still serves buyers, so a new agent may not open within the gap. */
 export const ACTIVE_STATUSES: AgentStatus[] = ["LIVE", "APPROVED", "SUSPENDED", "LEAVING"];
 

@@ -4,7 +4,6 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { cx } from "@/components/ui";
 import type { FactoryRole } from "@/generated/prisma/client";
-import type { sizeGrid } from "@/lib/factory-insights";
 import { type FactorySection, canFactory } from "@/lib/factory-roles";
 
 /**
@@ -153,64 +152,6 @@ export function Ticket({
       <div className="px-3 py-2.5">{children}</div>
       {foot && <div className="border-t-2 border-dashed border-line px-3 py-2.5">{foot}</div>}
     </section>
-  );
-}
-
-/** Sizes across, products down, pieces in each cell: read like a cutting ticket. */
-export function SizeGrid({ grid }: { grid: ReturnType<typeof sizeGrid> }) {
-  const one = grid.rows.length === 1;
-  return (
-    <div
-      role="region"
-      aria-label="Pieces by size"
-      tabIndex={0}
-      className="-mx-3 overflow-x-auto px-3 focus-visible:outline-2 focus-visible:outline-ink"
-    >
-      {one && <p className="mb-1 text-sm">{grid.rows[0].label}</p>}
-      <table className="w-full border-collapse text-center tabular-nums">
-        <caption className="sr-only">Pieces to pack by size</caption>
-        <thead>
-          <tr className="text-sm">
-            {!one && (
-              <th scope="col" className="pr-2 text-left font-normal text-subtle">
-                Item
-              </th>
-            )}
-            {grid.sizes.map((s) => (
-              <th key={s} scope="col" className="min-w-11 px-1 pb-1 font-bold">
-                {s}
-              </th>
-            ))}
-            <th scope="col" className="min-w-11 pl-2 pb-1 text-right font-normal text-subtle">
-              Pcs
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {grid.rows.map((r) => (
-            <tr key={r.label} className="border-t border-line">
-              {!one && (
-                <th scope="row" className="py-1.5 pr-2 text-left text-sm font-normal">
-                  {r.label}
-                </th>
-              )}
-              {grid.sizes.map((s) => (
-                <td
-                  key={s}
-                  className={cx(
-                    "px-1 py-1.5 text-[1.75rem] leading-none font-bold",
-                    !r.cells[s] && "text-xl font-normal text-subtle",
-                  )}
-                >
-                  {r.cells[s] ?? "–"}
-                </td>
-              ))}
-              <td className="py-1.5 pl-2 text-right text-xl">{r.total}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
   );
 }
 

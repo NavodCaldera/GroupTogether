@@ -16,7 +16,7 @@ export async function communicationActor(id: string) {
     throw new CatalogueError("This workspace is for admins and premium brands only");
   return user;
 }
-export type CommunicationActor = Awaited<ReturnType<typeof communicationActor>>;
+type CommunicationActor = Awaited<ReturnType<typeof communicationActor>>;
 export const conversationHref = (admin: boolean, id: string) =>
   `${admin ? "/admin/brands" : "/seller"}?tab=messages&thread=${encodeURIComponent(id)}`;
 export const subjectHref = (admin: boolean, kind: string, subject: string, brand?: string) =>

@@ -40,9 +40,4 @@ export const locationSchema = z
   })
   .refine(pinInSriLanka, pinOutsideMessage);
 
-export type Location = z.infer<typeof locationSchema>;
-
-/** Link a driver or admin can open to see the pin. */
-export function mapsLink(lat: number, lng: number) {
-  return `https://www.google.com/maps?q=${lat},${lng}`;
-}
+type Location = z.infer<typeof locationSchema>;

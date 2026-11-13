@@ -3,9 +3,7 @@ import fc from "fast-check";
 import { D } from "./decimal";
 import { gatewayFee, lineEarning, orderTotals, splitCheckout } from "./agent-money";
 
-const price = fc
-  .integer({ min: 100, max: 5_000_000 })
-  .map((c) => new D(c).div(100));
+const price = fc.integer({ min: 100, max: 5_000_000 }).map((c) => new D(c).div(100));
 const order = fc.array(fc.record({ qty: fc.integer({ min: 1, max: 20 }), unitPrice: price }), {
   minLength: 1,
   maxLength: 3,

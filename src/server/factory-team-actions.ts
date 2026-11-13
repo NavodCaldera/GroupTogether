@@ -7,7 +7,7 @@ import { requireFactory } from "./auth/session";
 import { TeamError, addStaff, setStaffLocked, setStaffRole } from "./factory-team";
 import { flash } from "./flash";
 
-export type TeamState = { error?: string; ok?: boolean };
+type TeamState = { error?: string; ok?: boolean };
 
 const str = (fd: FormData, k: string) => String(fd.get(k) ?? "").trim();
 

@@ -2,7 +2,7 @@ import "server-only";
 import { cookies } from "next/headers";
 
 /** Light is the default (product owner, 2026-11-04); dark is an option remembered in a cookie. */
-export type Theme = "light" | "dark";
+type Theme = "light" | "dark";
 
 export const THEME_COOKIE = "gt_theme";
 

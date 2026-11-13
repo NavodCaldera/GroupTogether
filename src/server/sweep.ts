@@ -17,7 +17,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 /** OPEN baskets holding a paid order whose first order is maxWaitDays old lock with MAX_WAIT.
  * One transaction per basket: basket advisory -> Basket row. Returns how many locked.
  */
-export async function lockWaitedBaskets(now: Date): Promise<number> {
+async function lockWaitedBaskets(now: Date): Promise<number> {
   const { maxWaitDays } = await getSettings();
   const cutoff = new Date(now.getTime() - maxWaitDays * DAY_MS);
   const due = await db.basket.findMany({

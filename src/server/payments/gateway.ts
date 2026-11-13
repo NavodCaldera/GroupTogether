@@ -22,7 +22,10 @@ export interface Gateway {
     notifyUrl: string;
     buyer: { id: string; name?: string | null; email?: string | null };
   }): Promise<{ redirectUrl: string }>;
-  verifyNotice(raw: string, headers: Headers | Record<string, string | undefined>): VerifiedNotice | null;
+  verifyNotice(
+    raw: string,
+    headers: Headers | Record<string, string | undefined>,
+  ): VerifiedNotice | null;
   fetchStatus(attemptId: string): Promise<"SUCCEEDED" | "FAILED" | "PENDING">;
 }
 

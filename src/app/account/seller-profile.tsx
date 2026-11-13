@@ -20,10 +20,7 @@ export async function SellerProfile({ user }: { user: SessionUser }) {
         <p className="text-sm text-subtle">{user.email}</p>
       </Card>
       <Card>
-        <ProfileForm
-          defaults={user}
-          addressLabel="Factory address"
-        />
+        <ProfileForm defaults={user} addressLabel="Factory address" />
       </Card>
       <form action={signOutAction} className="border-t border-line pt-4">
         <Button variant="secondary" className="w-full">

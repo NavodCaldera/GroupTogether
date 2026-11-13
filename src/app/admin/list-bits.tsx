@@ -168,7 +168,7 @@ export function Count({ n, tone = "muted" }: { n: number; tone?: "muted" | "aler
 }
 
 /** Label/value pairs, label left and value right. */
-export function Rows({ rows }: { rows: [string, ReactNode][] }) {
+function Rows({ rows }: { rows: [string, ReactNode][] }) {
   return (
     <dl className="flex flex-col gap-2">
       {rows.map(([label, value]) => (

@@ -14,9 +14,7 @@ export const IMAGE_TYPES: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 };
-/** Bank slips may also be a PDF from online banking. */
-export const SLIP_TYPES: Record<string, string> = { ...IMAGE_TYPES, "application/pdf": "pdf" };
-export const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
 export class UploadError extends Error {}
 

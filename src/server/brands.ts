@@ -21,7 +21,7 @@ const money = (message: string) =>
     .pipe(z.string().regex(/^\d+(\.\d{1,2})?$/, message))
     .refine((v) => validMoney(v) && toD(v).gt(0) && toD(v).lt("1000000000000"), message);
 
-export const brandOfferSchema = z
+const brandOfferSchema = z
   .object({
     name: z.string().trim().min(2, "Enter the product name").max(120),
     description: z.string().trim().max(2000, "Keep the details under 2,000 characters").default(""),

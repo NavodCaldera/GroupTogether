@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import type { ComponentProps } from "react";
 
 /** Is `path` inside the section at `href` (or one of its extra prefixes)? */
-export function inSection(path: string, href: string, also: string[] = []) {
+function inSection(path: string, href: string, also: string[] = []) {
   if (href === "/") return path === "/";
   return (
     path === href || path.startsWith(`${href}/`) || also.some((prefix) => path.startsWith(prefix))

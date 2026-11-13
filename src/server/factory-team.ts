@@ -15,7 +15,7 @@ import { lockUserAdvisory } from "./orders/locks";
  */
 export class TeamError extends Error {}
 
-export const staffSchema = z.object({
+const staffSchema = z.object({
   name: z.string().trim().min(2, "Enter their name").max(80),
   email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email")),
   phone: z.union([z.literal("").transform(() => null), phoneSchema]),

@@ -1,8 +1,7 @@
 # Returns rebuild and factory fault limit: implementation plan
 
 > **For the builder (Codex):** no sub-skill is required. Work through Tasks 1 to 5 directly, in
-> order, following the steps. Steps use checkbox (`- [ ]`) syntax for tracking. The prompt is
-> `docs/superpowers/prompts/returns-fault-limit.md`. Claude Code reviews.
+> order, following the steps. Steps use checkbox (`- [ ]`) syntax for tracking. Claude Code reviews.
 
 **Goal:** Give factories a 24-hour return deadline and let admins see every return. Count
 factory-fault items, and hide a factory on its 2nd fault in 12 months for an admin's

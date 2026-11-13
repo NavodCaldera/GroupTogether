@@ -1,5 +1,17 @@
 # Product-owner change log
 
+Every requested change is recorded here and reflected in its canonical documentation and
+affected specialist guidance in the same work. Business rules live in
+[the main agent brief](../.claude/agents/groupbasket.md); `CLAUDE.md` is an entry point.
+Historical entries describe the state at the time, not competing current instructions.
+Newest first.
+
+## 2026-11-14 - Project cleanup
+
+- Removed dead code: the unused `SizeGrid` component and `sizeGrid` helper, `endsWithin`, `timeLeft`, `mapsLink`, `notifyRole`, `OPEN_RETURN_STATUSES`, `SLIP_TYPES` and the `variantRow` test helper. Dropped `export` from 39 names used only in their own file.
+- Deleted the Codex hand-off prompts in `docs/superpowers/prompts/` (that workflow ended on 2026-11-07) and their links. Moved this log's intro back under the title.
+- Formatted files Prettier had missed. Cleared local caches and build output (`.next`, `fit-lab/dist`, Vite, Vitest and Playwright output, old task logs and an unused Python tool folder in `.data`). Databases and uploads in `.data` are kept.
+
 ## 2026-11-09 - Leftover hints and architecture
 
 - Removed text: "We call this number about your offers" and "Where your stock is; pin it on the map" on the factory Profile, and "Used when you join or start a cart" on sign-up.
@@ -113,8 +125,7 @@
   problem, required photo, optional packing slip, driver details, Given to driver and Parcel is back.
   Admin keeps PickMe booking, correcting `DEC-012`.
 - Planner, Sales, Owner and Factory admin still need their interview.
-  [Draft brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/brief.md),
-  [Codex prompt](superpowers/prompts/factory-role-dashboards.md).
+  [Draft brief](../_bmad-output/planning-artifacts/briefs/brief-GroupTogether-2026-11-06/brief.md).
 
 ## 2026-11-06 - Fault hold review fixes
 
@@ -122,7 +133,6 @@
 - Hold enforcement commits product hiding before per-cart cleanup, allows Continue and messages
   between carts, stops on a decision, and marks completion in a final short transaction.
 - Added recovery, failure-isolation, mid-cleanup discussion/Continue and partial-retry regressions.
-  [Review-fixes prompt](superpowers/prompts/fault-hold-review-fixes.md).
 
 ## 2026-11-06 - Returns rebuild and factory fault limit
 
@@ -132,19 +142,12 @@
 - Holds/removal share pre-booking cleanup: unpaid reservations released, paid full-price tokens;
   booked/delivered carts stay untouched. Ordinary hides affect only OPEN/READY.
 - Added a migration without reader grants, service/race/access tests and desktop/360px browser
-  checks. [Task prompt](superpowers/prompts/returns-fault-limit.md).
-
-Every requested change is recorded here and reflected in its canonical documentation and
-affected specialist guidance in the same work. Business rules live in
-[the main agent brief](../.claude/agents/groupbasket.md); `CLAUDE.md` is an entry point.
-Historical entries describe the state at the time, not competing current instructions.
-Newest first.
+  checks.
 
 ## 2026-11-06 - Clothing-first wording and footwear cleanup
 
 - Updated home, metadata, footer and README to lead with clothing from partner factories and shared carts under DEC-010. Removed footwear kinds and sizes, replaced footwear demo products/offers and test fixtures with clothing, and added desktop/360px home copy, overflow and accessibility checks.
 - Retained the legacy SHOES enum and image fallback for stored rows, all stock types/defaults and the open DEC-005 policy. No schema, migration or existing database data changes.
-- Recorded the request in [the cleanup prompt](superpowers/prompts/cleanup-old-wording.md).
 
 ## 2026-11-06 - Final handover
 

@@ -7,7 +7,7 @@ import { flushQualityNotices } from "./quality-notices";
 import { setUserLocked } from "./auth/service";
 import { factoryScore, productFlagged, factoryFlagged } from "@/lib/quality-rules";
 import { handoffRemovedReturns, flushReturnNotices } from "./returns";
-export class QualityError extends CartError {}
+class QualityError extends CartError {}
 export async function assertQualityAdmin(adminId: string) {
   const admin = await db.user.findFirst({
     where: { id: adminId, role: "ADMIN", locked: false, adminArea: { in: ["FACTORY", "CORE"] } },

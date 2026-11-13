@@ -54,8 +54,6 @@ export async function makeVariant(price: string, available: number) {
   return p.variants[0];
 }
 
-export const variantRow = (id: string) => db.variant.findUniqueOrThrow({ where: { id } });
-
 /** A tiny JPEG upload. */
 export function slipFile() {
   return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "photo.jpg", { type: "image/jpeg" });

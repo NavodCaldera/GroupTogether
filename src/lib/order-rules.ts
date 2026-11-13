@@ -1,13 +1,13 @@
 import type { BasketStatus, OrderStatus } from "@/generated/prisma/client";
 
-export const ORDER_MOVES: Record<OrderStatus, OrderStatus[]> = {
+const ORDER_MOVES: Record<OrderStatus, OrderStatus[]> = {
   PENDING: ["PAID", "CANCELLED"],
   PAID: ["RECEIVED", "CANCELLED"],
   RECEIVED: [],
   CANCELLED: [],
 };
 
-export const BASKET_MOVES: Record<BasketStatus, BasketStatus[]> = {
+const BASKET_MOVES: Record<BasketStatus, BasketStatus[]> = {
   OPEN: ["LOCKED"],
   LOCKED: ["PACKED"],
   PACKED: ["WITH_COURIER"],

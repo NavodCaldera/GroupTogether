@@ -24,18 +24,8 @@ import { AGENTS_AREA } from "@/lib/admin-access";
 import { isBuyerRole } from "@/lib/roles";
 import { AGENT_ACCESS } from "./auth/service";
 
-export class ReturnError extends CartError {}
+class ReturnError extends CartError {}
 const decided = () => new ReturnError("This return has already been decided");
-/** LAPSED, REJECTED and COMPLETED are closed. */
-export const OPEN_RETURN_STATUSES: ReturnStatus[] = [
-  "WAITING_FACTORY",
-  "WITH_ADMIN",
-  "ACCEPTED",
-  "AWAITING_HANDOVER",
-  "HANDED_OVER",
-  "PICKED_UP",
-  "RECEIVED",
-];
 /** Open returns whose quantity is not yet in OrderLine.returnedQty. */
 const UNCOLLECTED_RETURN_STATUSES: ReturnStatus[] = [
   "WAITING_FACTORY",

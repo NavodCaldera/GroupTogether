@@ -14,7 +14,7 @@ declare global {
 }
 
 /** Leaflet is ~40 KB and only needed here, so it loads from a CDN when the map first shows. */
-export function loadLeaflet(): Promise<Leaflet> {
+function loadLeaflet(): Promise<Leaflet> {
   if (window.L) return Promise.resolve(window.L);
   return new Promise((resolve, reject) => {
     if (!document.querySelector("link[data-leaflet]")) {

@@ -11,7 +11,11 @@ import {
   splitCheckout,
 } from "./agent-money";
 
-const rates = { courierPerItem: new D("40"), agentFeePerItem: new D("20"), gatewayFeeRate: new D("0.033") };
+const rates = {
+  courierPerItem: new D("40"),
+  agentFeePerItem: new D("20"),
+  gatewayFeeRate: new D("0.033"),
+};
 const rate = new D("0.033");
 const totals = (price: string) => orderTotals([{ qty: 1, unitPrice: new D(price) }], rates);
 
@@ -51,11 +55,19 @@ describe("agent money rules", () => {
     expect(returnRefund(1, new D("1100"), new D("40"), "FACTORY").toFixed(2)).toBe("1100.00");
     expect(returnRefund(1, new D("1100"), new D("40"), "BUYER").toFixed(2)).toBe("1060.00");
     expect(missingRefund(1, new D("1100"), new D("40"), new D("20")).toFixed(2)).toBe("1160.00");
-    expect(cancelRefund({ tokensApplied: new D("300"), remainder: new D("760"), fee: new D("25.94") }).toFixed(2)).toBe("1085.94");
+    expect(
+      cancelRefund({
+        tokensApplied: new D("300"),
+        remainder: new D("760"),
+        fee: new D("25.94"),
+      }).toFixed(2),
+    ).toBe("1085.94");
   });
 
   it("deducts only GroupBasket's loss and pays the factory per kept line", () => {
-    expect(missingDeduction(1, new D("1100"), new D("1000"), new D("40"), new D("20")).toFixed(2)).toBe("160.00");
+    expect(
+      missingDeduction(1, new D("1100"), new D("1000"), new D("40"), new D("20")).toFixed(2),
+    ).toBe("160.00");
     expect(lineEarning(3, 1, 0, new D("1000")).toFixed(2)).toBe("2000.00");
     expect(lineEarning(3, 1, 1, new D("1000")).toFixed(2)).toBe("1000.00");
   });

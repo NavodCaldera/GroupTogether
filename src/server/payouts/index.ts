@@ -10,7 +10,7 @@ import { getSettings } from "../settings";
 import { post } from "../tokens";
 import { withOrderTransaction } from "../orders/locks";
 
-export class PayoutError extends CartError {}
+class PayoutError extends CartError {}
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 /** Agent fees for missed weeks are caught up this far back. */

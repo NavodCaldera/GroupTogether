@@ -1,4 +1,4 @@
-export const RETURN_STATUSES = [
+const RETURN_STATUSES = [
   "WAITING_FACTORY",
   "WITH_ADMIN",
   "ACCEPTED",
@@ -10,7 +10,7 @@ export const RETURN_STATUSES = [
   "HANDED_OVER",
   "LAPSED",
 ] as const;
-export type ReturnStatus = (typeof RETURN_STATUSES)[number];
+type ReturnStatus = (typeof RETURN_STATUSES)[number];
 const WINDOW = 48 * 60 * 60 * 1000;
 export function withinWindow(deliveredAt: Date, now: Date): boolean {
   const elapsed = now.getTime() - deliveredAt.getTime();

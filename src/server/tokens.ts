@@ -27,7 +27,7 @@ const POSITIVE_KINDS: readonly TokenKind[] = [
   "TRANSFER_IN",
 ];
 const NEGATIVE_KINDS: readonly TokenKind[] = ["HOLD", "TRANSFER_OUT"];
-export type TokenPost = {
+type TokenPost = {
   userId: string;
   amount: D;
   kind: TokenKind;

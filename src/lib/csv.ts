@@ -1,4 +1,4 @@
-export type CsvCell = string | number | null | undefined;
+type CsvCell = string | number | null | undefined;
 
 /**
  * Rows to CSV (RFC 4180, CRLF). Text that a spreadsheet would run as a formula (starting with

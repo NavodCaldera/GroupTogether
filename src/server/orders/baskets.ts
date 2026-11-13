@@ -9,7 +9,7 @@ import { CartError } from "@/server/errors";
 import { CheckoutError } from "./checkout";
 import { lockBasketSlot, withOrderTransaction } from "./locks";
 
-export class BasketError extends CartError {}
+class BasketError extends CartError {}
 
 /** Caller holds the basket slot. Moves an OPEN basket to LOCKED. */
 export async function lockBasket(

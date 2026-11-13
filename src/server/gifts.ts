@@ -5,7 +5,7 @@ import { toD } from "@/lib/decimal";
 import { notify } from "./notify";
 import { appendBrandEvent, flushBrandNotices, communicationActor } from "./brand-communications";
 
-export async function assertBrand(brandId: string) {
+async function assertBrand(brandId: string) {
   const brand = await db.user.findFirst({
     where: { id: brandId, role: "SELLER", isBrand: true, locked: false },
     select: { id: true, name: true, company: true, website: true },

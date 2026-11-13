@@ -3,7 +3,7 @@ import { D, roundMoney } from "./decimal";
 type Money = D;
 
 export type Rates = { courierPerItem: Money; agentFeePerItem: Money; gatewayFeeRate: Money };
-export type LineIn = { qty: number; unitPrice: Money };
+type LineIn = { qty: number; unitPrice: Money };
 export type OrderTotals = { items: Money; courier: Money; agentFee: Money; gross: Money };
 
 const ZERO = new D(0);
@@ -67,7 +67,12 @@ export function returnRefund(
   return roundMoney(each.times(qty));
 }
 
-export function missingRefund(qty: number, unitPrice: Money, courierEach: Money, agentFeeEach: Money): Money {
+export function missingRefund(
+  qty: number,
+  unitPrice: Money,
+  courierEach: Money,
+  agentFeeEach: Money,
+): Money {
   return roundMoney(unitPrice.plus(courierEach).plus(agentFeeEach).times(qty));
 }
 
@@ -83,6 +88,11 @@ export function missingDeduction(
 }
 
 /** The factory is never paid for returned or missing units. */
-export function lineEarning(qty: number, returnedQty: number, missingQty: number, factoryPrice: Money): Money {
+export function lineEarning(
+  qty: number,
+  returnedQty: number,
+  missingQty: number,
+  factoryPrice: Money,
+): Money {
   return roundMoney(factoryPrice.times(Math.max(qty - returnedQty - missingQty, 0)));
 }

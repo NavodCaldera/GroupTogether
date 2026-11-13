@@ -21,7 +21,7 @@ type OfferTerms = {
   expiryDate: Date | null;
   minShelfLifeDays: number | null;
 };
-export function offerSnapshot(offer: OfferTerms): Prisma.InputJsonObject {
+function offerSnapshot(offer: OfferTerms): Prisma.InputJsonObject {
   return {
     name: offer.name,
     description: offer.description,
