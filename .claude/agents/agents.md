@@ -16,9 +16,9 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `AGT-001`–`AGT-005`, `ORD-005`, `BSK-006`, `RETURN-001`, `ADMIN-002`,
 `UX-002`.
 
-Decided but not built (2026-11-14): agents earn the full 5% agent fee and pay their own couriers
-(`DEC-018`), resell buyer-fault returns privately and mark them Sold or Taken back, and cannot
-close while holding one (`DEC-017`). The code below still follows the old rules.
+Built 2026-11-15: agents earn the full 5% agent fee and pay their own couriers (`DEC-018`),
+resell buyer-fault returns privately and mark them Sold or Taken back (`markResold`,
+`markTakenBack`, `/agent/returns` To resell), and cannot close while holding one (`DEC-017`).
 
 ## Ownership and code
 
@@ -53,7 +53,9 @@ close while holding one (`DEC-017`). The code below still follows the old rules.
   the agent stays `APPROVED`; `setHours` then makes it `LIVE`.
 - Suspension and leaving lock the agent's open baskets early (`lockReason SUSPENDED`).
   `closeLeavingAgents` moves a leaving agent to `LEFT` only when nothing is left to hand over,
-  then credits the deposit minus recorded losses as `DEPOSIT_RETURN` tokens. `collectHeldReturns`
+  then credits the deposit minus recorded losses and any fee take-back still owed
+  (`clawbackOwed`, `src/server/agent-fees.ts`) as `DEPOSIT_RETURN` tokens. A `WITH_AGENT`
+  buyer-fault return keeps the agent open. `collectHeldReturns`
   lets an admin move returns stranded at a leaving or left agent onto a return courier.
 - Hours are weekly days with open and close minutes; a 23:59 close is stored as 24:00. An
   APPROVED applicant sets hours at `/agent/hours` (gate `requireAgentHours()`), and

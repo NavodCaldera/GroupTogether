@@ -16,9 +16,8 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `BSK-004`–`BSK-007`, `PAY-007`, `DATA-001`. The old cart delivery, PickMe
 provider and webhook, warehouse and two-person packing (`FUL-001`–`FUL-003`) are retired.
 
-Decided but not built (2026-11-14): the agent pays every courier from its 5% agent fee and is no
-longer repaid the booked fee; the factory pays the driver on arrival for factory-fault returns
-(`DEC-018`). The code below still follows the old rules.
+Since 2026-11-15 the agent pays every courier from its 5% agent fee and is not repaid the booked
+fee; the factory pays the driver on arrival for factory-fault returns (`DEC-018`).
 
 ## Ownership and code
 
@@ -42,7 +41,7 @@ longer repaid the booked fee; the factory pays the driver on arrival for factory
   admin books the real trip by hand; nothing calls a courier API.
 - After a failed trip Packing should record Parcel is back and the admin rebook (spec edge case,
   `BSK-005`). This is **not built**: `CourierBooking.failedAt` exists but no action sets it.
-- `markBasketReceived` credits exactly the booked fee as `COURIER_REPAY` tokens, marks orders
+- `markBasketReceived` posts no tokens (`COURIER_REPAY` is kept only for old entries), marks orders
   `RECEIVED`, sends each buyer their pickup-code notice after commit and moves returns waiting at
   the agent onto that courier.
 - A line with a pending missing report blocks Packed and is held from payouts until a Factory

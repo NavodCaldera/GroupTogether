@@ -6,6 +6,14 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-15 - Buyer-fault records and the 5% agent fee built
+
+- Built `DEC-017` and `DEC-018` from the [build plan](superpowers/plans/2026-11-14-buyer-fault-records-and-agent-fee.md). New orders charge one 5% agent fee (`agentFeeRate`, set as a percent in Settings) and no courier charge: LKR 1,000 → fee 50, PayHere 35.83, total 1,085.83. Old orders keep their stored fees.
+- The agent gets the whole fee weekly and pays every courier; `COURIER_REPAY` is no longer posted. Factory-fault returns have no courier deduction.
+- Factory-fault collection gives the buyer the item price and agent fee (not the PayHere fee) and takes the fee back from the agent (`FEE_CLAWBACK`, or from its next weekly fees; anything still owed comes off the deposit when it leaves).
+- Buyer-fault returns: six reasons, photos optional, no tokens; the Agents and orders admin accepts or refuses on Buyer returns; 2-day handover (`buyerHandoverDays`) then Not brought; the agent marks Sold or Taken back under To resell and cannot close while holding one. A Factory admin can change a factory-fault return to buyer fault. History by product for Agents and orders and Core admins.
+- Implementation status, architecture, the operating brief, specialists, spec 003 and the money review skill are updated.
+
 ## 2026-11-14 - Buyer-fault resale proposal
 
 - Owner proposed that buyer-fault returns stay with the agent for resale: 80% as tokens now, or the full amount after the agent resells. Recorded as open `DEC-017` with the BMAD, Spec Kit and Superpowers review findings. Nothing is built.

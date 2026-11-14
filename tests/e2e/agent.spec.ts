@@ -85,7 +85,13 @@ test("the agent collects a buyer's return", async ({ page }) => {
   await expect(section(page, /Returns to collect/).getByText("Sachini Gunawardena")).toHaveCount(0);
   await page.getByRole("link", { name: "Returns", exact: true }).click();
   await expect(page).toHaveURL(/\/agent\/returns$/);
-  await expect(section(page, /To send back/).getByText(/× 1/)).toBeVisible();
+  // A buyer-fault return stays with the agent to resell (DEC-017).
+  const resale = section(page, /To resell/);
+  await expect(resale.getByText(/× 1/)).toBeVisible();
+  await expect(resale.getByText("Buyer gets")).toBeVisible();
+  await resale.getByRole("button", { name: "Sold" }).click();
+  await expect(page.getByRole("status").getByText("Marked sold")).toBeVisible();
+  await expect(section(page, /To resell/).getByText(/× 1/)).toHaveCount(0);
 });
 
 test("an applicant sees the application; a buyer cannot open the agent screens", async ({

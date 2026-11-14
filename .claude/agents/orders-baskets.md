@@ -16,9 +16,8 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `ORD-001`–`ORD-005`, `RETURN-001`, `BSK-001`–`BSK-003`, `PAY-004`,
 `TOK-001`, `LOC-001`, `RATE-001`. The group-cart model (`CART-*`, `INV-001`) is retired.
 
-Decided but not built (2026-11-14): buyer-fault returns become a record with no tokens, resold
-privately by the agent (`DEC-017`), and the courier charge and agent fee become one 5% agent fee
-(`DEC-018`). The code below still follows the old rules.
+Built 2026-11-15: buyer-fault returns are a record with no tokens, resold privately by the agent
+(`DEC-017`), and the courier charge and agent fee are one 5% agent fee (`DEC-018`).
 
 ## Ownership and code
 
@@ -32,7 +31,8 @@ privately by the agent (`DEC-017`), and the courier charge and agent fee become 
 - Pickup and handover: `src/server/orders/handover.ts` (`lookupCode`, `handOver`).
 - Buyer reads: `src/server/orders/buyer.ts`; pages `/`, `src/app/orders/`, `src/app/tokens/`.
 - Returns: `src/server/returns.ts` (`fileReturn`, `factoryDecide`, `adminDecide`,
-  `collectReturn`, `lapseReturns`, `markReceived`, `escalateOverdue`).
+  `buyerFaultDecide`, `changeToBuyerFault`, `collectReturn`, `markResold`, `markTakenBack`,
+  `lapseReturns`, `markReceived`, `escalateOverdue`, `buyerFaultHistory`).
 - Locks: `src/server/orders/locks.ts`. The shared error class is `AppError` in `src/server/errors.ts`
   (`CartError` is kept as an alias until every import changes).
 - Courier and packing steps belong to [courier](courier.md); gateway and payouts to
@@ -61,10 +61,13 @@ privately by the agent (`DEC-017`), and the courier charge and agent fee become 
   both; it then re-resolves the code under the Order locks and sets `collectedAt`. Never show
   anything for a wrong code beyond "not found".
 - Returns: the window is `collectHours` from `Order.receivedAt` and requires a collected line.
-  Tokens are credited at agent collection (`collectReturn`): `qty × unitPrice` for factory fault,
-  `qty × (unitPrice − courierPerItem)` for buyer fault. A factory-fault collection records the
-  fault and a `RETURN_COURIER` payout deduction. `lapseReturns` closes unhanded accepted returns
-  after `returnHandoverDays`. Whether the agent checks condition first is open (`DEC-016`).
+  Factory fault: tokens are credited at agent collection (`collectReturn`) as
+  `factoryFaultRefund` (item price, stored courier and agent fee, never the PayHere fee); the fault
+  is recorded, no courier deduction is made, and the fee is taken back from the agent if that
+  week's fee was already paid (`takeBackFee`). Buyer fault: `BUYER_REQUESTED` → Agents and orders
+  admin → `AWAITING_HANDOVER` (`buyerHandoverDays`) → `WITH_AGENT` → `SOLD` or `TAKEN_BACK`; no
+  tokens, no `returnedQty`, never holds the payout. `lapseReturns` closes unhanded accepted
+  returns after the handover days. Whether the agent checks condition first is open (`DEC-016`).
 - Money is `Decimal(14,2)` with `D`/`toD`/`roundMoney`; never JavaScript `number`.
 
 ## Verification and coordination

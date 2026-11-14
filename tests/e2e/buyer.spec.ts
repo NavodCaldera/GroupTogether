@@ -81,7 +81,7 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   const nearest = page.getByRole("radio", { name: new RegExp(ids.agentName) });
   await expect(nearest).toBeChecked();
   await expect(page.getByText(/\d+ m away/).first()).toBeVisible();
-  for (const line of ["Item", "Courier", "Agent fee", "Tokens", "PayHere fee", "Total"])
+  for (const line of ["Item", "Agent fee", "Tokens", "PayHere fee", "Total"])
     await expect(page.getByRole("main").getByText(line, { exact: true })).toBeVisible();
   await inspect(page);
   await page.getByRole("button", { name: "Pay", exact: true }).click();

@@ -247,7 +247,7 @@ tests with likes are **parked** (hidden, not built, not deleted).
 
 ### DEC-017 - Buyer-fault returns resold by the agent
 
-**Status:** Decided **2026-11-14**, not built. The owner set the rules; Claude settled the
+**Status:** Decided **2026-11-14**, built **2026-11-15**. The owner set the rules; Claude settled the
 smaller points at the owner's request (marked _settled_). **Rules:** `RETURN-001`, `PAY-007`,
 `AGT-004`, `DATA-001`, `FAULT-001`.
 
@@ -278,7 +278,7 @@ which led to these rules:
 
 ### DEC-018 - Courier and agent fees as a percentage
 
-**Status:** Decided **2026-11-14**, not built. _Settled_ marks Claude's calls at the owner's
+**Status:** Decided **2026-11-14**, built **2026-11-15**. _Settled_ marks Claude's calls at the owner's
 request. **Rules:** `PAY-004`, `BSK-006`, `BSK-007`, `AGT-005`, `RETURN-001`, `PAY-007`.
 
 1. **One 5% agent fee.** The fixed courier charge (LKR 40) and agent fee (LKR 20) per item become
@@ -298,6 +298,8 @@ request. **Rules:** `PAY-004`, `BSK-006`, `BSK-007`, `AGT-005`, `RETURN-001`, `P
    from the agent: not credited if the weekly fee has not been paid yet, otherwise deducted from
    the agent's tokens, with any shortfall taken from its next weekly fees, since a balance can
    never go below zero (_settled_); a buyer fault returns nothing.
+5. **Leaving with a take-back owed** (_settled_ at build): any fee take-back still owed when a
+   leaving agent closes comes off the deposit returned, never below zero.
 
 ## Legacy rule references
 

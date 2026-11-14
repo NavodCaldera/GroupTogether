@@ -16,10 +16,9 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `PAY-004`–`PAY-007`, `TOK-001`–`TOK-003`, `AGT-002`, `AGT-005`, `BSK-006`,
 `BSK-007`. Bank slips and owner payment (`PAY-001`–`PAY-003`) are retired.
 
-Decided but not built (2026-11-14): one 5% agent fee replaces the courier charge and agent fee,
-`COURIER_REPAY` ends, factory-fault courier is no longer deducted, and buyer-fault returns give
-no tokens and never hold payouts (`DEC-017`, `DEC-018`). The code below still follows the old
-rules.
+Built 2026-11-15: one 5% agent fee (`agentFeeRate`) replaces the courier charge and agent fee,
+`COURIER_REPAY` is no longer posted, factory-fault courier is not deducted, and buyer-fault
+returns give no tokens and never hold payouts (`DEC-017`, `DEC-018`).
 
 ## Ownership and code
 
@@ -51,15 +50,16 @@ rules.
 - The demo pay page returns by attempt purpose (`demoReturnPath`): deposits to
   `/agent/deposit/<id>`, orders to `/checkout/return/<id>`.
 - PayHere fee: `round2(remainder / (1 − rate) − remainder)`, 0 when the remainder is 0. LKR 1,000
-  item + 40 + 20 at 0.033 gives 36.17 and a total of 1,096.17. One attempt covers all orders of a
+  item + 50 at 0.033 gives 35.83 and a total of 1,085.83. One attempt covers all orders of a
   checkout; the fee is split by remainder with the last order taking the rounding cent.
 - The ledger is append-only with a unique `eventKey`. A balance never goes below zero. Factory
   accounts and staff hold no tokens; transfers to them are refused.
-- Payouts: a line is payable `collectHours` after agent receipt with no open return and no pending
-  missing report; LAPSED returns earn again. Earning is `qty × factoryPrice` less returned
-  quantity. Deductions (`RETURN_COURIER`, `MISSING_ITEM`) wait for a week with items.
-  `Settings.payoutsBuiltThrough` marks the last built week. Agent fees are credited once per agent
-  and week. Weeks end Saturday 23:59:59 Asia/Colombo.
+- Payouts: a line is payable `collectHours` after agent receipt with no open factory-fault return and no
+  pending missing report; LAPSED returns earn again. Earning is `qty × factoryPrice` less returned
+  quantity. Deductions (`MISSING_ITEM`; `RETURN_COURIER` only on old rows) wait for a week with items.
+  `Settings.payoutsBuiltThrough` marks the last built week. Agent fees (stored `agentFeeEach` on units not missing or returned) are
+  credited once per agent and week, then owed take-backs are settled from them as `FEE_CLAWBACK`
+  (`src/server/agent-fees.ts`). Weeks end Saturday 23:59:59 Asia/Colombo.
 - The sweep runs only from cron. Production must schedule `/api/cron/sweep` with its bearer secret
   (`DEC-016`); page loads never run it.
 

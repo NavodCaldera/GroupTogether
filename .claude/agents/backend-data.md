@@ -28,7 +28,7 @@ guidance, not business policy. Verify code pointers before editing.
 - Parked gift capacity uses offer locks and non-cancelled allocations; settlement locks selected bill rows and prevents duplicate payment recording. Coordinate with [brands-rewards](brands-rewards.md).
 - Brand revisions are immutable; approved terms stay active while proposals await review. Persist communication events transactionally, with per-user reads and deduplicated notice delivery. Coordinate with [notifications](notifications.md).
 - Nullable gift metadata preserves older offers. Private photo storage never grants public access.
-- Settings is a singleton (id 1). Its defaults (`courierPerItem` 40, `agentFeePerItem` 20, `gatewayFeeRate` 0.033, `basketLockAmount` 50000, `maxWaitDays` 60, `paymentHoldMinutes` 15, `collectHours` 48, `returnHandoverDays` 7, `agentRadiusM` 1000, `agentGapM` 2000, `agentDeposit` 200000, `commissionPerPiece` 100) are implementation settings; read them, never hard-code them in services.
+- Settings is a singleton (id 1). Its defaults (`agentFeeRate` 0.05, `gatewayFeeRate` 0.033, `basketLockAmount` 50000, `maxWaitDays` 60, `paymentHoldMinutes` 15, `collectHours` 48, `returnHandoverDays` 7, `buyerHandoverDays` 2, `agentRadiusM` 1000, `agentGapM` 2000, `agentDeposit` 200000, `commissionPerPiece` 100) are implementation settings; read them, never hard-code them in services.
 - Enforce `DATA-001` in selects as well as pages. Sellers' own offer amounts/shop prices are permitted; buyer records and internal costs are restricted.
 
 ## Migrations and fixtures

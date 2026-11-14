@@ -150,8 +150,8 @@ test("owner sees an earning after the sweep runs", async ({ page }) => {
   await expect(row).toContainText(
     Number(payout.net).toLocaleString("en-US", { maximumFractionDigits: 2 }),
   );
-  // Sachini's returned blouse is still open, so its line is held.
-  await expect(page.getByText("Held", { exact: true })).toBeVisible();
+  // Sachini's return is buyer fault, so it never holds the line (DEC-017).
+  await expect(page.getByText("Held", { exact: true })).toHaveCount(0);
   await noSideScroll(page);
   await axe(page);
   await page.screenshot({ path: "test-results/factory-earnings-mobile.png", fullPage: true });

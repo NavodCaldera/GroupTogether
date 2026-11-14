@@ -20,16 +20,16 @@ The authoritative field definitions and constraints are in [schema.prisma](../pr
 | --- | --- |
 | Identity | `User` has `CUSTOMER`, `SELLER`, `ADMIN` or `AGENT` role. Admins have one `adminArea` (`PREMIUM`, `FACTORY`, `AGENTS`, `CORE`). Factory staff link to their factory owner with a `FactoryRole` (`OWNER`, `PACKING`, `SALES`). `Session` stores a hash of the cookie token; `LoginAttempt` counts failed sign-ins. |
 | Catalogue | `Product` has a factory price, commission and buyer price, one photo, taxonomy, a seller and hidden-state fields. `Variant` is unique by product, size and colour and holds `available`, `reserved` and `sold` counts. |
-| Agents | `Agent` (one per AGENT user) stores status (`APPLIED` → `APPROVED` → `LIVE`, `SUSPENDED`, `LEAVING`, `LEFT`, `REJECTED`), pin and address, private document keys, deposit and losses. `AgentHours` holds one opening window per weekday; `AgentLoss` records admin-decided losses; `PickupAttempt` counts code entries. |
+| Agents | `Agent` (one per AGENT user) stores status (`APPLIED` → `APPROVED` → `LIVE`, `SUSPENDED`, `LEAVING`, `LEFT`, `REJECTED`), pin and address, private document keys, deposit and losses. `AgentHours` holds one opening window per weekday; `AgentLoss` records admin-decided losses; `AgentFeeClawback` tracks a factory-fault return's agent fee still to be taken back (`left`); `PickupAttempt` counts code entries. |
 | Cart and orders | `CartItem` is a buyer's saved wish and holds no stock. Checkout makes one `Order` per factory for the chosen agent, with `OrderLine` price, courier and agent-fee snapshots. `Order.status` is `PENDING` → `PAID` → `RECEIVED`, or `CANCELLED`. |
 | Baskets | `Basket` groups paid orders for one agent and one factory: `OPEN` → `LOCKED` → `PACKED` → `WITH_COURIER` → `AT_AGENT`. The partial unique index `Basket_one_open` allows one OPEN basket per agent and factory. `CourierBooking` stores the hand-booked driver, vehicle and fee. |
 | Payments | `PaymentAttempt` (`ORDERS` or `DEPOSIT`) is one gateway charge; deposits also record `depositPrincipal`. `PaymentEvent` is the append-only record of verified notices, unique by `(gateway, eventId)`. `PickupCode` is one six-digit code per buyer and agent. |
 | Tokens | `TokenEntry` is the immutable signed ledger (see Token ledger below). |
-| Payouts | `FactoryPayout` is one row per factory and week ending; `PayoutItem` ties each order line to at most one payout; `PayoutDeduction` holds return-courier and missing-item deductions until a payout takes them. |
+| Payouts | `FactoryPayout` is one row per factory and week ending; `PayoutItem` ties each order line to at most one payout; `PayoutDeduction` holds missing-item deductions (and return-courier rows from before `DEC-018`) until a payout takes them. |
 | Quality and returns | `ProductRating`, `QualityReport`, `ReportPhoto`, `ReturnRequest`, `ReturnPhoto`, `ReturnMessage`, `FactoryFault`, `FaultHold`, `FaultHoldMessage`, and the `QualityNotice` / `ReturnNotice` outboxes. |
 | Factories | `FactoryApplication`, `FactoryDocument`, `FactoryInvite`, `FactoryActivation`, `FactoryProfile`, `AgreementVersion`, `AgreementAcceptance`. |
 | Parked premium brands | `StockOffer`, `GiftOrder`, `GiftSettlement`, `BrandConversation`, `BrandMessage`, `BrandConversationRead`, `BrandOfferRevision`. |
-| Configuration and notices | `Settings` is a singleton with commission, courier and agent fee per item, gateway fee rate, basket lock amount, maximum wait, payment hold, collection and return windows, agent radius and gap, deposit, and the payout watermark. `Notification` stores in-app notices and read state. |
+| Configuration and notices | `Settings` is a singleton with commission, the agent fee rate (`agentFeeRate`, 5%), gateway fee rate, basket lock amount, maximum wait, payment hold, collection, return and buyer-fault handover windows, agent radius and gap, deposit, and the payout watermark. `Notification` stores in-app notices and read state. |
 
 Legacy schema values do not define the current product scope. `SHOES` still exists in the category enum, and `Product.status`, `reviewNote`, `stockType` and `defectNotes` remain for compatibility.
 
@@ -71,14 +71,14 @@ The route tree in `src/app/` is authoritative. These are the main entry points, 
 | Buyers | `/cart`, `/checkout`, `/checkout/return/[attemptId]` | Personal cart, checkout with agent choice and tokens, and the gateway return page for orders |
 | Buyers | `/orders`, `/orders/[id]`, `/tokens` | Orders with basket progress, pickup code, cancellation, returns and ratings; token wallet and transfers |
 | Demo gateway | `/demo-pay/[attemptId]` | Stand-in hosted payment page (`PAYMENT_GATEWAY=demo`); returns a deposit to `/agent/deposit/[id]` and orders to `/checkout/return/[attemptId]` |
-| Agents and applicants | `/agents/apply`, `/agent`, `/agent/pickups`, `/agent/returns`, `/agent/tokens`, `/agent/hours`, `/agent/deposit/[id]` | Application and deposit, arriving baskets, pickup by code, held returns, tokens and leaving, opening hours, deposit return page |
+| Agents and applicants | `/agents/apply`, `/agent`, `/agent/pickups`, `/agent/returns`, `/agent/tokens`, `/agent/hours`, `/agent/deposit/[id]` | Application and deposit, arriving baskets, pickup by code, returns to collect, resell (Sold, Taken back) and send back, tokens and leaving, opening hours, deposit return page |
 | Account holders | `/account`, `/notifications`, `/dashboard` | Profile and in-app notices; `/dashboard` and `/account/location` redirect |
 | Authentication | `/sign-in`, `/sign-up`, `/factories/sign-in/[token]` | Session entry, buyer registration and factory invite sign-in |
 | Factories | `/factories/apply`, `/factories/apply/[token]`, `/seller/agreement` | Factory application and agreement |
 | Factories | `/seller`, `/seller/orders`, `/seller/baskets`, `/seller/earnings`, `/seller/products`, `/seller/new`, `/seller/insights`, `/seller/team`, `/seller/returns` | Factory workspace by job (Owner, Sales, Packing): basket tickets and packing, payouts, listings, staff, returns and fault holds; brand accounts get the parked brand dashboard |
-| Admin: Agents and orders | `/admin/agents`, `/admin/agents/applications`, `/admin/agents/deposits`, `/admin/agents/baskets`, `/admin/agents/search` | Courier to book and payment problems, applications, deposits and losses, 2-month baskets, order search |
+| Admin: Agents and orders | `/admin/agents`, `/admin/agents/applications`, `/admin/agents/deposits`, `/admin/agents/baskets`, `/admin/agents/search`, `/admin/agents/returns` | Courier to book and payment problems, applications, deposits and losses, 2-month baskets, order search, buyer-fault return requests and history |
 | Admin: Factory | `/admin/factory`, `/admin/factory/applications`, `/admin/factory/applications/[id]`, `/admin/factory/missing`, `/admin/factory/quality`, `/admin/factory/returns`, `/admin/factory/returns/[id]`, `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Factory applications, missing-item reports, quality and fault holds, returns, products and variant stock |
-| Admin: Core | `/admin/core/payouts`, `/admin/core/tokens`, `/admin/settings` | Weekly factory payouts, outstanding tokens, totals by type and lookup, settings |
+| Admin: Core | `/admin/core/payouts`, `/admin/core/tokens`, `/admin/core/returns`, `/admin/settings` | Weekly factory payouts, outstanding tokens, totals by type and lookup, buyer-fault return history, settings |
 | Admin: Premium | `/admin/brands` | Parked premium brand reviews and partnership messages |
 | Admin: shared | `/admin`, `/admin/users`, `/admin/users/[id]`, `/admin/users/new-admin`, `/admin/users/new-seller` | `/admin` redirects to the admin's area; accounts scoped to the signed-in area |
 
@@ -91,7 +91,7 @@ Protected pages and actions use the guards in [session.ts](../src/server/auth/se
 | `GET /api/photos/[id]` | Public product photo with ETag caching |
 | `GET /api/suggest` | Public product suggestions |
 | `GET /api/agent-photos/[id]` | Agents and orders admin only; private applicant documents, no-store, 404 otherwise |
-| `GET /api/return-photos/[id]`, `GET /api/report-photos/[id]` | Buyer, own factory and Factory/Core admins; private, 404 otherwise |
+| `GET /api/return-photos/[id]`, `GET /api/report-photos/[id]` | Buyer, own factory and Factory/Core admins; buyer-fault return photos go to the buyer and Agents and orders/Core admins only (and a Factory admin who changed it); private, 404 otherwise |
 | `GET /api/brand-photos/[id]`, `GET /api/partner-docs/[id]` | Scoped private brand images and factory application documents |
 | `POST /api/payments/notify` | Gateway notice: signature verified, applied once per `(gateway, eventId)` |
 | `POST /api/cron/sweep` | Bearer `CRON_SECRET` (constant-time compare; rejects empty or `CHANGE_ME`); runs `runSweep` |
@@ -186,7 +186,8 @@ releases, negative HOLD, zero SPEND. Database triggers reject entry updates and 
 line and return ids are scalar audit references, so the ledger is never rewritten or cascaded.
 
 Kinds: `RETURN`, `HOLD`, `RELEASE`, `SPEND`, `LATE_PAYMENT`, `ORDER_CANCEL`, `AGENT_FEE`,
-`COURIER_REPAY`, `MISSING_ITEM`, `DEPOSIT_RETURN`, `TRANSFER_OUT`, `TRANSFER_IN`. Unique `eventKey`
+`FEE_CLAWBACK` (negative), `COURIER_REPAY` (old entries only), `MISSING_ITEM`, `DEPOSIT_RETURN`,
+`TRANSFER_OUT`, `TRANSFER_IN`. Unique `eventKey`
 values make every credit, hold, release and spend idempotent; a replay with a different amount is
 refused. `post` locks the ledger User row last in the global order and refuses an overdraft.
 Only buyers and agents hold tokens (`assertTokenHolder`). `transferTokens` takes both user
@@ -232,20 +233,30 @@ stitching require private `ReportPhoto` rows, served only to the rater and FACTO
 
 ## Returns
 
-`ReturnRequest` belongs to an `OrderLine` and stores buyer and factory, quantity, reason, fault,
+`ReturnRequest` belongs to an `OrderLine` and stores buyer and factory, quantity, fault, a factory
+reason or a buyer-fault reason (`buyerReason`), the change-to-buyer, resold and taken-back times,
 decision actors and notes, deadlines, receipt condition and the handover agent. `ReturnPhoto`
 stores private image keys behind `/api/return-photos/[id]`. `ReturnNotice` is a durable
 after-commit outbox. No buyer names, addresses, phones or monetary figures reach the factory list.
 
 The move table is `src/lib/return-rules.ts`. A buyer files for a collected line within
-`collectHours` of the agent receiving the order. WAITING_FACTORY → ACCEPTED or WITH_ADMIN (refusal needs a reason; no answer within 24 hours
+`collectHours` of the agent receiving the order and picks the fault. Factory fault: WAITING_FACTORY → ACCEPTED or WITH_ADMIN (refusal needs a reason; no answer within 24 hours
 also escalates). WITH_ADMIN → ACCEPTED or REJECTED; REJECTED is terminal. Acceptance moves the
 return to AWAITING_HANDOVER at the order's agent with a `returnHandoverDays` deadline. The agent
-collects it (HANDED_OVER): the line's `returnedQty` grows, the buyer is credited RETURN tokens
-(`returnRefund`), and a factory fault is recorded with a RETURN_COURIER payout deduction. A return
-never handed over LAPSES without tokens. When the agent marks an arriving basket received, it can
+collects it (HANDED_OVER): the line's `returnedQty` grows, the fault is recorded, the buyer is
+credited RETURN tokens (`factoryFaultRefund`: item price, stored courier and agent fee, never the
+PayHere fee), and if that week's agent fee was already paid it is taken back (`AgentFeeClawback`,
+`FEE_CLAWBACK` now and from later weekly fees for any shortfall). There is no courier deduction;
+the factory pays the driver on arrival. A return never handed over LAPSES without tokens.
+A Factory admin may move a WITH_ADMIN return to BUYER_REQUESTED (`changeToBuyerFault`).
+
+Buyer fault (`DEC-017`): BUYER_REQUESTED → AWAITING_HANDOVER (`buyerHandoverDays`) or REJECTED,
+decided by the Agents and orders admin (`buyerFaultDecide`); the agent collects it into
+WITH_AGENT, then marks SOLD or TAKEN_BACK. No tokens, no `returnedQty`, no payout hold, and the
+factory never sees it. LAPSED shows as Not brought. `buyerFaultHistory` serves the AGENTS and
+CORE history with reason counts per product. When the agent marks an arriving basket received, it can
 send held returns back with that courier (PICKED_UP, `sentBackBasketId`); the factory's receipt
-moves them RECEIVED → COMPLETED, optionally restocking. The worn-item check before buyer-fault tokens is open in DEC-016.
+moves them RECEIVED → COMPLETED, optionally restocking. The condition check before factory-fault tokens is open in DEC-016.
 
 `ReturnMessage` holds the private admin–factory discussion. FACTORY/CORE and the own factory
 owner/SALES can read; posting requires WITH_ADMIN. Every mutation goes through `withOrderTransaction`

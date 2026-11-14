@@ -1,301 +1,232 @@
-# Buyer-fault records and the 5% agent fee: implementation plan
+# Full build plan: buyer-fault records (DEC-017) and the 5% agent fee (DEC-018)
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development
-> (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use
-> checkbox (`- [ ]`) syntax for tracking.
+> **Built 2026-11-15** on `main`. Where the build differs from this plan: owed fee take-backs come
+> off the deposit when a leaving agent closes (no `AgentLoss` row); the migration has no data move
+> (nothing was deployed); the weekly agent fee excludes `returnedQty` (only factory-fault
+> collections raise it); no extra `WITH_AGENT` or `SOLD` seed fixtures; Settings parsing lives in
+> `src/lib/agent-settings.ts`.
 
-**Goal:** Replace the LKR 40 courier charge and LKR 20 agent fee with one 5% agent fee that
-agents keep and pay couriers from, and turn buyer-fault returns into a tracked record with no
-tokens that the agent resells privately.
+## Context
 
-**Architecture:** Money stays in `src/lib/agent-money.ts` (pure, Decimal). New orders snapshot
-`courierEach = 0` and `agentFeeEach = round2(unitPrice × agentFeeRate)`, so every refund that
-reads the line snapshots keeps working for old and new orders. Buyer-fault returns reuse
-`ReturnRequest` with new statuses that no factory, payout or send-back query matches. A
-factory-fault return takes the line's agent fee back from the agent through a clawback row
-that the weekly fee credit settles.
+The owner decided two rule changes on 2026-11-14 (recorded in `docs/decisions.md` DEC-017 and
+DEC-018, and in the operating brief rules `RETURN-001`, `ORD-004`, `PAY-004`, `PAY-007`,
+`BSK-006`, `BSK-007`, `AGT-004`, `AGT-005`):
 
-**Tech Stack:** Next.js 16 server actions, Prisma 7 on PostgreSQL, Vitest unit and integration
-tests, Playwright for browser checks.
+1. **Buyer-fault returns become a tracked record with no tokens.** The buyer picks the fault when
+   filing. A buyer-fault return gets one of six reasons and a note (photos optional), goes to the
+   **Agents and orders** admin (never the factory), and on acceptance the buyer has **2 days** to
+   hand it to the order's agent. The agent then holds it and marks it **Sold** or **Taken back**.
+   It never holds the factory payout, never changes `returnedQty`, never goes back to the factory.
+   A Factory admin may change a factory-fault return (in `WITH_ADMIN`) to buyer fault. The history
+   (reasons per product) is visible to AGENTS and CORE admins only. The agent sees price and buyer
+   share (factory price) for items it holds. An agent cannot close while holding one.
+2. **One 5% agent fee replaces the LKR 40 courier charge and LKR 20 agent fee.** The agent keeps
+   all of it and pays every courier; `COURIER_REPAY` ends. Factory-fault return courier: the
+   factory pays the driver on arrival, so the `RETURN_COURIER` deduction ends. A factory-fault
+   return refunds item price **+ agent fee** (not the PayHere fee) and the fee is **taken back from
+   the agent** (tokens, else next weekly fee). Buyer fault refunds nothing. Old orders keep their
+   stored snapshots. Example: 1,000 item → fee 50, PayHere 35.83, total **1,085.83**.
 
-**Spec:** [DEC-017 and DEC-018](../../decisions.md), with the rules in the
-[operating brief](../../../.claude/agents/groupbasket.md) (`RETURN-001`, `ORD-004`, `PAY-004`,
-`PAY-007`, `BSK-006`, `BSK-007`, `AGT-004`, `AGT-005`).
+Three code-wide sweeps found everything that reads or writes these paths. This plan replaces the
+earlier six-task draft in `docs/superpowers/plans/2026-11-14-buyer-fault-records-and-agent-fee.md`
+(update that file to match once approved) and adds what the draft missed.
 
-## Global Constraints
+## Decisions settled here (owner asked Claude to settle small points)
 
-- Money uses `Decimal(14,2)` and `D`/`toD`/`roundMoney` from `src/lib/decimal.ts`; never `number`.
-- `agentFeeRate` is `Decimal(6,4)`, default `0.05`, edited by CORE only, valid `0`–`0.5`.
-- PayHere fee formula and `gatewayFeeRate` 0.033 are unchanged. Example: item 1,000 + fee 50 →
-  PayHere fee **35.83**, total **1,085.83**.
-- Orders placed before this change keep their stored `courierEach`, `agentFeeEach` and totals.
-- Lock order from AGENTS.md: user advisories (sorted) → `Order` rows → basket advisory →
-  `Basket` rows → ledger `User` rows (sorted). Notify only after commit.
-- Time rules run only in `runSweep`.
-- No explanatory text in the UI: show amounts and labels, not sentences about the rules.
-- Buyer-fault reasons and copy, exactly: Material not as expected, Size, Colour, Quality feel,
-  Changed mind, Other.
-- Agents see prices only for buyer-fault items they hold (`DATA-001` exception). Factories never
-  see buyer-fault returns.
-
-## Review Focus
-
-1. A factory-fault return collected **after** the weekly agent fee was paid, from an agent with
-   too few tokens: the balance must stop at 0 and the rest come off the next week's fee.
-2. A factory-fault return collected **before** the week's fee is credited: the fee for that unit
-   must simply not be credited, not credited then clawed back.
-3. Buyer-fault returns of any status must never hold a factory payout or appear in the agent's
-   send-back list or a courier's return pickup.
-4. An old order (courier 40, fee 20) cancelled, missing or returned after release must refund
-   from its own snapshots, not from the new rate.
-5. A leaving agent holding a buyer-fault item in `AWAITING_HANDOVER` or `WITH_AGENT` must not
-   close.
-
-Each line has its test in the owning task (marked **RF1**–**RF5**).
+- New `ReturnStatus` values: `BUYER_REQUESTED`, `WITH_AGENT`, `SOLD`, `TAKEN_BACK`. Buyer fault
+  reuses `AWAITING_HANDOVER` (2-day due), `REJECTED`, `LAPSED` (shown as "Not brought").
+- New enum `BuyerFaultReason { MATERIAL, SIZE, COLOUR, QUALITY_FEEL, CHANGED_MIND, OTHER }`; the
+  shared `ReportReason` (ratings) is untouched. `ReturnRequest.reason` becomes nullable.
+- New `TokenKind.FEE_CLAWBACK` (negative). New table `AgentFeeClawback` tracks the unpaid rest.
+- Keep `COURIER_REPAY` and `RETURN_COURIER` enum values (ledger trigger forbids edits; old rows).
+- New `OrderLine` rows store `courierEach = 0.00`, `agentFeeEach = roundMoney(unitPrice × rate)`;
+  `Order.courierTotal = 0.00`. All refund paths keep reading snapshots, so old orders stay right.
+- Settings: `agentFeeRate Decimal(6,4) @default(0.05)`, `buyerHandoverDays Int @default(2)`.
+  CORE enters the fee as a percent ("Agent fee (%)", 5) stored as `/100`; valid 0–50.
+- Agent leaving with an unpaid clawback rest: the rest is recorded as an `AgentLoss` before
+  `DEPOSIT_RETURN` (fills the DEC-018 gap; note in DEC-018).
+- Existing open BUYER-fault rows: none in production (not deployed); the seed is rewritten. The
+  migration moves any open `fault='BUYER'` rows in `WAITING_FACTORY|WITH_ADMIN` to
+  `BUYER_REQUESTED` and leaves others.
+- Labels, no explanatory sentences: buyer sees "You get LKR 900 if it sells" (amount only).
 
 ---
 
-### Task 1: Schema and settings
+## Task 1 — Schema, migration, settings, check script
 
-**Files:**
+**Files:** `prisma/schema.prisma`, new `prisma/migrations/2026111500000_buyer_fault_and_agent_fee/migration.sql`,
+`scripts/check-money.mjs:9-11`, `tests/tooling/check-money.test.mjs`, `src/app/admin/core/actions.ts:29-62`,
+`src/app/admin/settings/page.tsx:54-87`, `src/server/settings.ts` (no change, picks defaults).
 
-- Modify: `prisma/schema.prisma` (`Settings`, `ReturnRequest`, `ReturnStatus`, `TokenKind`)
-- Create: `prisma/migrations/20261115000000_buyer_fault_and_agent_fee/migration.sql`
-- Modify: `src/app/admin/core/actions.ts:34-35`, `src/app/admin/settings/page.tsx:58-62`
-- Test: `tests/integration/admin.int.test.ts`
+- Settings: drop `courierPerItem`, `agentFeePerItem`; add `agentFeeRate`, `buyerHandoverDays`.
+- Enums: `ReturnStatus` +4, `TokenKind` + `FEE_CLAWBACK`, new `BuyerFaultReason`.
+- `ReturnRequest`: `reason ReportReason?`, `buyerReason BuyerFaultReason?`, `changedToBuyerAt`,
+  `resoldAt`, `takenBackAt`, `buyerDecidedById String?`; `@@index([fault, status, createdAt])`.
+- New model `AgentFeeClawback { id, agentId, returnId @unique, amount Decimal(14,2), left Decimal(14,2), createdAt }`
+  `@@index([agentId, left])`.
+- Migration must **drop and re-add** `TokenEntry_amount_sign` (latest version in
+  `prisma/migrations/20261108160000_remove_group_carts/migration.sql:28-32`) adding `FEE_CLAWBACK`
+  to the negative list; set `agentFeeRate=0.05` on the existing row; status data move above.
+- `check-money.mjs:10`: allow `(gatewayFeeRate|agentFeeRate)` at `Decimal(6, 4)`; add tooling test case.
+- Settings action: replace the two `money()` fields with `agentFeePercent` (regex like
+  `gatewayFeeRate` at :36-39, refine ≤ 50, store `/100` via `D`) and `buyerHandoverDays: whole(1,30)`.
+- Settings page tuple list: replace rows :56-62 with `["Agent fee (%)", …]`; add
+  `["Buyer return handover (days)", "buyerHandoverDays", …]`.
+- Tests: `tests/integration/admin.int.test.ts` — CORE saves 5 → 0.0500; 60 and −1 refused;
+  FACTORY admin refused.
 
-**Interfaces:**
+## Task 2 — Money rules (`src/lib/agent-money.ts`)
 
-- Produces: `Settings.agentFeeRate: Decimal`, `Settings.buyerHandoverDays: Int` (default 2);
-  `ReturnStatus` adds `BUYER_REQUESTED`, `WITH_AGENT`, `SOLD`, `TAKEN_BACK`; `TokenKind` adds
-  `FEE_CLAWBACK`; enum `BuyerFaultReason { MATERIAL SIZE COLOUR QUALITY_FEEL CHANGED_MIND OTHER }`;
-  `ReturnRequest.buyerReason BuyerFaultReason?`, `ReturnRequest.reason ReportReason?` (nullable),
-  `ReturnRequest.changedToBuyerAt DateTime?`, `ReturnRequest.resoldAt DateTime?`,
-  `ReturnRequest.takenBackAt DateTime?`; model `AgentFeeClawback { id, agentId, returnId @unique,
-  amount Decimal(14,2), left Decimal(14,2), createdAt }` with `@@index([agentId, left])`.
-- Removes: `Settings.courierPerItem`, `Settings.agentFeePerItem`.
+- `Rates = { agentFeeRate: D; gatewayFeeRate: D }`; `OrderTotals = { items, agentFee, gross }`.
+- `agentFeeEach(unitPrice, rate) = roundMoney(unitPrice.times(rate))`.
+- `orderTotals` fee = Σ `agentFeeEach × qty`; gross = items + fee.
+- Replace `returnRefund` with `factoryFaultRefund(qty, unitPrice, courierEach, agentFeeEach)` =
+  `(unitPrice + courierEach + agentFeeEach) × qty` (old lines keep courier 40; new lines courier 0).
+- `missingRefund`, `missingDeduction`, `lineEarning`, `gatewayFee`, `splitCheckout`, `cancelRefund` unchanged (fix comments).
+- Tests (`agent-money.test.ts`, `.property.test.ts`): fee 50/gross 1050; PayHere(1050)=35.83;
+  `agentFeeEach(999.99,0.05)=50.00`; `factoryFaultRefund(1,1000,0,50)=1050`, `(1,1000,40,20)=1060`;
+  split case recompute (grosses 1050 and 493.50; total fee on 1543.50 = 52.67); missing deduction 155.
 
-- [ ] **Step 1: Write the failing test** `it("CORE saves the agent fee rate between 0 and 0.5")`:
-      saving `0.05` stores `0.0500`; `0.6` and `-0.01` throw; a FACTORY admin is refused.
-- [ ] **Step 2: Run it and see it fail.** Run: `npm run test:int -- admin.int` (PowerShell).
-      Expected: FAIL, unknown field `agentFeeRate`.
-- [ ] **Step 3: Edit the schema, then run `npx prisma migrate dev --name buyer_fault_and_agent_fee`.**
-      The migration must set `agentFeeRate` to `0.05` on the existing Settings row. Replace the two
-      Settings inputs with one "Agent fee (%)" field that stores `percent / 100`.
-- [ ] **Step 4: Run the test.** Expected: PASS. `npm run typecheck` will fail in later files;
-      Tasks 2–3 fix them.
-- [ ] **Step 5: Commit** `feat: add agent fee rate and buyer-fault return fields`.
+## Task 3 — Checkout, receipt, weekly agent fees, clawback settlement
 
-### Task 2: Money rules
+**Files:** `src/server/orders/checkout.ts:52-62,262-263,275-276`, `src/server/orders/cart.ts:41-46`,
+`src/app/cart/page.tsx:99-102`, `src/app/checkout/page.tsx:84-85`, `src/app/orders/[id]/page.tsx:165-168`,
+`src/server/orders/delivery.ts:329-333,406-412`, `src/server/payouts/index.ts:129-194`,
+`src/server/tokens.ts:18-29`, `src/server/agents/screens.ts:175-206`, `src/app/agent/tokens/page.tsx:34`,
+`src/app/admin/core/tokens/page.tsx:10-23`, `tests/integration/helpers.ts:144-189`.
 
-**Files:**
+- `ratesOf` reads `agentFeeRate`; snapshots per line as decided; `courierTotal` "0.00".
+- Cart/checkout: remove the Courier row. Order page: show Courier only when `courierTotal > 0`.
+- `markBasketReceived`: delete the `COURIER_REPAY` post (:406-412); fix doc comment.
+- `creditAgentFees`: per agent-week, run inside `withOrderTransaction([agentUserId], [], …)` (serialises
+  with `collectReturn`, which holds the agent's user advisory). Amount = Σ `agentFeeEach ×
+  (qty − missingQty − factoryFaultReturnedQty)` where factory-fault returned qty comes from
+  `ReturnRequest` rows with `fault: FACTORY` and status in `HANDED_OVER|PICKED_UP|RECEIVED|COMPLETED`
+  (not `returnedQty`, which only factory fault changes anyway but keep explicit). After posting
+  `AGENT_FEE`, call `settleClawbacks(tx, agentId, userId)`: for each `AgentFeeClawback` with
+  `left > 0` oldest first, post `FEE_CLAWBACK` for `min(balance, left)` and lower `left`.
+- `tokens.ts`: add `FEE_CLAWBACK` to `NEGATIVE_KINDS`; `COURIER_REPAY` stays listed (history).
+- Agent tokens screen: keep "Courier repaid" only when > 0 (history); show "Fees taken back".
+- Core tokens page `KIND` map: add `FEE_CLAWBACK` label (typecheck forces it).
+- `helpers.ts` `makeReceivedOrder`: params `agentFeeEach = "55"`, `courierEach = "0"`, totals follow;
+  `tokensApplied` 1155·qty.
+- Tests to update (values from sweep): `checkout.int` (1194.42, 2388.83, 1028.96, 1155/2690/−1155),
+  `baskets.int:137-149` (1188.96), `delivery.int` (no `COURIER_REPAY`; balances 0.00; 1155/155),
+  `payouts.int` (110, 55, 0/55/1155), `handover.int`, `agent-access.int`, `factory-screens.int`,
+  `admin-screens.int`, `agents.int` (1160→1155), `tests/e2e/buyer.spec.ts:84` (drop "Courier"),
+  `tests/e2e/fault-hold.spec.ts:30,34` (0/150/3150, line 0/75), `src/server/payments/demo.test.ts` (1085.83).
+- New tests: no `COURIER_REPAY` at receipt; fee excludes factory-fault returned unit; clawback
+  settles from next week's fee.
 
-- Modify: `src/lib/agent-money.ts`
-- Test: `src/lib/agent-money.test.ts`, `src/lib/agent-money.property.test.ts`
+## Task 4 — Return rules, filing, AGENTS decision, change-to-buyer, history
 
-**Interfaces:**
+**Files:** `src/lib/return-rules.ts:1-33` (+test), `src/server/returns.ts` (many sites below),
+`src/server/return-actions.ts:10-42`, `src/components/return-form.tsx`, `src/components/return-card.tsx`,
+`src/app/orders/[id]/{page,actions}.tsx`, `src/server/orders/buyer.ts:84-104` (optional WITH_AGENT row),
+`src/server/payouts/index.ts:19-24,38`, `src/server/factory-dashboard.ts:199-205,260`,
+new `src/app/admin/agents/returns/page.tsx`, new `src/app/admin/core/returns/page.tsx`,
+new shared `src/app/admin/buyer-returns.tsx`, `src/app/admin/layout.tsx:32-48`,
+`src/server/admin-queries.ts:11-39`, `src/app/admin/factory/returns/page.tsx`, `[id]/page.tsx`.
 
-- Produces:
-  - `type Rates = { agentFeeRate: D; gatewayFeeRate: D }`
-  - `agentFeeEach(unitPrice: D, rate: D): D`, which is `roundMoney(unitPrice × rate)`
-  - `orderTotals(lines, r): { items: D; agentFee: D; gross: D }`, with no `courier` field
-  - `factoryFaultRefund(qty, unitPrice, courierEach, agentFeeEach): D`, which is
-    `(unitPrice + courierEach + agentFeeEach) × qty`
-- Removes: `returnRefund`, since buyer fault now refunds nothing.
+- `MOVES`: `BUYER_REQUESTED → [AWAITING_HANDOVER, REJECTED]`; `WITH_ADMIN → +BUYER_REQUESTED`;
+  `AWAITING_HANDOVER → +WITH_AGENT`; `WITH_AGENT → [SOLD, TAKEN_BACK]`. Mirror in `RETURN_STATUSES`.
+- `fileReturn` (returns.ts:221-306): branch on fault. BUYER: require `buyerReason`, photos optional,
+  status `BUYER_REQUESTED`, `factoryDueAt = now`, **queue only `"agents"`** (no factory/"admin"
+  notice; removed-factory → WITH_ADMIN path must not apply). FACTORY: unchanged.
+- `UNCOLLECTED_RETURN_STATUSES` (:30-35): buyer-fault rows never enter `returnedQty`, so count
+  `BUYER_REQUESTED|AWAITING_HANDOVER(BUYER)|WITH_AGENT|SOLD|TAKEN_BACK` against the line too
+  (`orders/[id]/page.tsx:81,94` `left` must subtract the same).
+- `queue()` (:74-130): `"agents"` href → `/admin/agents/returns`.
+- New `buyerFaultDecide(adminId, returnId, accept, note)`: `requireAgentsAdmin`/`assertAdminArea(AGENTS)`,
+  from `BUYER_REQUESTED`; accept → `toHandover` using `buyerHandoverDays`; refuse → `REJECTED`;
+  notify buyer (+agent via `announceHandover`).
+- `toHandover` (:308-335): pick `buyerHandoverDays` when `r.fault === "BUYER"`.
+- New `changeToBuyerFault(adminId, returnId, note)`: FACTORY area, `WITH_ADMIN` only; sets
+  `fault=BUYER`, `changedToBuyerAt`, status `BUYER_REQUESTED`; no `FactoryFault`; queue `"agents"` + buyer.
+- `adminDecide` refuses `fault === "BUYER"`. `factoryDecide`/`escalateOverdue`/`handoffRemovedReturns`
+  are safe via status, add explicit `fault: "FACTORY"` filters.
+- `returnPhotoFor` (:555-587): BUYER fault → deny factory users and FACTORY admins (unless they
+  changed it); allow AGENTS and CORE admins.
+- `factoryReturns` (:588-597) and `factory-dashboard.ts:199-205` filter `fault: "FACTORY"`.
+- `PAYOUT_HOLD_RETURNS` use: `payableLines` (:38) and `factory-dashboard.ts:260` → `{ status: in, fault: "FACTORY" }`.
+- `adminReturns` (:665-676): AGENTS → factory-fault pickups **plus** all buyer-fault states; FACTORY →
+  `fault: FACTORY` only; CORE → all. New `buyerFaultHistory(adminId)` (AGENTS|CORE) returns rows +
+  per-product counts (join `orderLine → variant → product`).
+- `returnSelect` (:686-712): add `buyerReason`, new timestamps, `orderLine.unitPrice/factoryPrice`.
+- `return-actions.ts`: add ops `buyer-decide`, `change-to-buyer`, `sold`, `taken-back`; revalidate the
+  new admin and agent paths.
+- UI: `return-form.tsx` — fault choice first; Buyer → six reasons + "You get LKR {factoryPrice×qty} if it sells";
+  photos optional. `return-card.tsx` — labels for `BUYER_REQUESTED` ("Waiting for approval"),
+  `LAPSED` ("Not brought"), `WITH_AGENT` ("With agent"), `SOLD`, `TAKEN_BACK`; show `buyerReason`;
+  AGENTS viewer gets Accept/Refuse; FACTORY admin gets "Change to buyer fault" on `WITH_ADMIN`.
+  `orders/[id]/page.tsx:127-129` badge tones.
+- Admin nav `layout.tsx`: AGENTS `["/admin/agents/returns","Buyer returns",badges.buyerReturns]`;
+  CORE `["/admin/core/returns","Buyer returns",0]`. `adminBadges`: count `BUYER_REQUESTED` for AGENTS.
+  Pages use `requireAdmin("AGENTS")` / `requireAdmin("CORE")` and render `buyer-returns.tsx`.
+- Tests (`returns.int`): buyer fault files as `BUYER_REQUESTED`, no factory notice; AGENTS accept →
+  2-day due; FACTORY/CORE cannot decide; change-to-buyer path; photo access; history visibility;
+  buyer-fault never holds payout (RF3, in `payouts.int`); quantity check blocks refiling.
+  Update breaking tests: `returns.int:220`, `fault-holds.int:82`, `agent-access.int:47-53,200-203`
+  (replace `factoryDecide` on BUYER with `buyerFaultDecide`), `returns.int:350`.
+  `tests/e2e/admin-workspaces.spec.ts:55-64,84,100` tab lists and denied routes.
 
-- [ ] **Step 1: Write the failing tests.** Assert each of these:
-  - `orderTotals([{qty:1, unitPrice:1000}])` gives agentFee `50.00` and gross `1050.00`.
-  - The PayHere fee on `1050` at `0.033` is `35.83`.
-  - `agentFeeEach(999.99, 0.05)` is `50.00`.
-  - `factoryFaultRefund(2, 1000, 0, 50)` is `2100.00`.
-  - `factoryFaultRefund(1, 1000, 40, 20)` is `1060.00` (an old order, **RF4**).
+## Task 5 — Agent collection, resale, factory-fault clawback, leaving
 
-  In the property test, check that agentFee equals the sum of `agentFeeEach × qty`.
-- [ ] **Step 2: Run them and see them fail.** Run: `npx vitest run --project unit src/lib/agent-money`
-      from PowerShell. Expected: FAIL.
-- [ ] **Step 3: Implement the functions.** Delete the old `courier` assertions and the
-      `returnRefund` tests.
-- [ ] **Step 4: Run the tests.** Expected: PASS.
-- [ ] **Step 5: Commit** `feat: 5% agent fee money rules`.
+**Files:** `src/server/returns.ts:415-464` (`collectReturn`), `lapseReturns`, new `markResold`/`markTakenBack`,
+new `clawBackFee`, `src/server/agents/screens.ts` (new `resaleItems`, `returnsToCollect` fault badge),
+`src/server/agents/leave.ts:21-38,41-80`, `src/server/orders/delivery.ts:382-394` (add `fault: FACTORY`),
+`src/app/agent/returns/page.tsx`, `src/app/agent/actions.ts`, `src/app/agent/agent-forms.tsx`, `src/app/agent/page.tsx:103-124`.
 
-### Task 3: Checkout, receipt and agent fees
+- `collectReturn`: FACTORY → `returnedQty` up, `recordFault`, **no** `RETURN_COURIER` deduction,
+  credit `factoryFaultRefund` as `RETURN`; if `tokenEntry` with eventKey
+  `agentfee:<agentId>:<weekOf(order.receivedAt)>` exists, `clawBackFee(tx, agent, r, agentFeeEach×qty)`
+  (create `AgentFeeClawback`, post `FEE_CLAWBACK min(balance,left)`); else the fee simply won't be
+  credited (Task 3 excludes it). BUYER → `WITH_AGENT`, no tokens, no `returnedQty`, notice "Item with agent".
+- `markResold` / `markTakenBack`: handover agent only, from `WITH_AGENT`; set `resoldAt`/`takenBackAt`.
+- `lapseReturns`: unchanged logic; buyer notice title "Not brought".
+- `settled()` in leave.ts: add `WITH_AGENT` (and buyer-fault `AWAITING_HANDOVER`, already included).
+  `closeLeavingAgents`: sum `AgentFeeClawback.left` → create `AgentLoss` before `DEPOSIT_RETURN`.
+- `resaleItems(agentId)`: `WITH_AGENT` rows with title, size, qty, `price = unitPrice×qty`,
+  `buyerShare = factoryPrice×qty`.
+- Agent Returns page: third `Section` "To resell" with Price / Buyer gets and Sold / Taken back
+  buttons (pattern `CollectButton`, `agent-forms.tsx:121-134`). Home "Returns to collect" shows fault badge.
+- Tests: factory fault after fee week → buyer 1050, agent −50; balance 20 → 0 and 30 left, taken
+  next week (RF1); before fee week → no clawback row (RF2); buyer fault → `WITH_AGENT`, not in
+  `heldReturns`/send-back, send-back of a `WITH_AGENT` id refused (`delivery.int:229`); Sold/Taken back
+  authorisation; lapse at 2 days via sweep; leaving agent with `WITH_AGENT` does not close (RF5,
+  `agents.int`); no `RETURN_COURIER` created.
 
-**Files:**
+## Task 6 — Seed, demo accounts, browser checks, docs
 
-- Modify: `src/server/orders/checkout.ts:50-60,270-280`, `src/app/checkout/page.tsx`,
-  `src/app/cart/page.tsx`, `src/server/orders/delivery.ts:403-410`,
-  `src/server/payouts/index.ts:134-194`, `src/server/agents/screens.ts:60-95,175-205`
-- Test: `tests/integration/checkout.int.test.ts`, `delivery.int.test.ts`, `payouts.int.test.ts`,
-  `tests/integration/helpers.ts`
+- `prisma/seed.ts:535-542`: file Sachini's return as BUYER with `buyerReason: "SIZE"`, decide with
+  `buyerFaultDecide(agentsAdmin.id, …)`; add one `WITH_AGENT` and one `SOLD` fixture (new buyer/agent
+  keys in `src/lib/demo-accounts.ts:56-72`); update header comment. `tests/integration/seed.int.test.ts:119-126`.
+- E2E: `agent.spec.ts:79-89` → after Collected, item appears under "To resell", click Sold;
+  `buyer.spec.ts:122` still passes (2-day due); `factory.spec.ts:153` drop "Held" expectation for the
+  buyer-fault line; new: buyer files buyer fault and sees "You get"; AGENTS admin accepts; checkout
+  shows Agent fee 50 / 1,085.83; axe at 360 px on new screens.
+- Docs: `docs/implementation-status.md` rows 29, 34, 36, 38, 39, 44 → Implemented;
+  `docs/architecture.md` (:28, :32, :53, :74-81, :94, :133, :189, :233-254 rewrite);
+  `.claude/agents/groupbasket.md` (:28, :80, :94, :103, :108, :112, :113, :117, :120, :124, :133,
+  :134, :152 DATA-001 exception, :170 UX-002); specialists orders-baskets, payments, agents, courier,
+  notifications (:8-27 stale), frontend (:45), qa-review (:29), backend-data (:31); `.agents/skills/
+  groupbasket-money-review/SKILL.md:10`; `specs/003-area-agent-model/spec.md` (US1 :48-50, US5
+  :126-140, FR-003, FR-017–023, FR-026, FR-029, FR-030, FR-032); DEC-017/018 "built" dates;
+  `docs/CHANGES.md` entry; replace the earlier draft plan file with this plan.
 
-**Interfaces:**
+## Not in scope
 
-- Consumes: `orderTotals`, `agentFeeEach` (Task 2), `Settings.agentFeeRate` (Task 1).
-- Produces:
-  - New `OrderLine` rows store `courierEach = 0.00` and `agentFeeEach = agentFeeEach(unitPrice, rate)`.
-  - New `Order` rows store `courierTotal = 0.00`.
-  - `markBasketReceived` no longer posts `COURIER_REPAY`.
-  - `creditAgentFees` pays `agentFeeEach × (qty − missingQty − returnedQty)`, then settles the
-    open clawbacks (Task 5 adds the clawback rows).
+- Factory refusing a returned parcel (DEC-018 point 3): follow-up through the existing thread.
+- Condition check before factory-fault tokens (DEC-016 Q3).
+- PayHere switch and other DEC-016 items.
 
-- [ ] **Step 1: Write the failing tests.**
-  - `it("charges 5% agent fee and no courier at checkout")`: a 1,000 item gives amountDue
-    `1085.83` and `courierTotal` `0`.
-  - `it("receipt credits no courier repayment")`: the agent's balance is unchanged after Mark
-    received.
-  - `it("agent fee excludes factory-fault returned units")`: qty 2, returnedQty 1, fee 50 gives
-    an `AGENT_FEE` of `50.00` (**RF2**).
-  - Update the helpers so `makeReceivedOrder` takes `agentFeeEach` (default `"50"`) and
-    `courierEach` (default `"0"`).
-- [ ] **Step 2: Run them and see them fail.** Run: `npm run test:int -- checkout delivery payouts`.
-- [ ] **Step 3: Implement.** Checkout and cart show the rows Item, Agent fee, Tokens, PayHere fee
-      and Total. In `creditAgentFees`, compute each agent's amount **inside**
-      `withOrderTransaction([fee.userId], [], …)` so it serializes with `collectReturn`, which
-      already holds the agent's user advisory. The agent screen totals keep showing past
-      `COURIER_REPAY` entries.
-- [ ] **Step 4: Run the tests, then the whole suite.** Run: `npm run test:int`, then `npm run check`.
-      Expected: PASS. Update any older test that asserted 40/20 to read from its own snapshots
-      (**RF4**: one test cancels a 40/20 order and gets 1,096.17 back).
-- [ ] **Step 5: Commit** `feat: agents keep the 5% fee and pay couriers`.
+## Verification
 
-### Task 4: Buyer-fault filing and the Agents and orders decision
-
-**Files:**
-
-- Modify: `src/lib/return-rules.ts`, `src/server/returns.ts` (`fileReturn`, new functions),
-  `src/server/payouts/index.ts:19-24,34-46`, `src/app/orders/[id]/page.tsx`,
-  `src/app/orders/[id]/actions.ts`, `src/app/seller/returns/page.tsx` via `factoryReturns`
-- Create: `src/app/admin/agents/returns/page.tsx`, `src/app/admin/core/returns/page.tsx`,
-  `src/app/admin/buyer-returns.tsx` (shared list and per-product counts)
-- Test: `src/lib/return-rules.test.ts`, `tests/integration/returns.int.test.ts`
-
-**Interfaces:**
-
-- Produces:
-  - `MOVES` gains these transitions:
-    - `BUYER_REQUESTED → [AWAITING_HANDOVER, REJECTED]`
-    - `WITH_ADMIN → [..., BUYER_REQUESTED]`
-    - `AWAITING_HANDOVER → [HANDED_OVER, WITH_AGENT, LAPSED]`
-    - `WITH_AGENT → [SOLD, TAKEN_BACK]`
-  - `fileReturn(buyerId, orderLineId, input)`, where `input` is
-    `{ fault: "FACTORY"; reason: ReportReason; photos (≥1) }` or
-    `{ fault: "BUYER"; buyerReason: BuyerFaultReason; photos (optional) }`, plus `note` and `qty`.
-    A buyer-fault return starts as `BUYER_REQUESTED` with `factoryDueAt = now`, and only the
-    AGENTS admins are notified.
-  - `buyerFaultDecide(adminId, returnId, accept: boolean, note: string)`, AGENTS area only. Accept
-    goes to `AWAITING_HANDOVER` through `toHandover` with `buyerHandoverDays`. Refuse goes to
-    `REJECTED`. The buyer is notified after commit, and the agent too on accept.
-  - `changeToBuyerFault(adminId, returnId, note)`, FACTORY area, from `WITH_ADMIN` only. It sets
-    `fault = BUYER`, `changedToBuyerAt`, and status `BUYER_REQUESTED`, and notifies AGENTS admins
-    and the buyer. It records no fault.
-  - `buyerFaultHistory(adminId)` for AGENTS or CORE. It returns the rows plus
-    `{ productId, title, factory, counts: Record<BuyerFaultReason, number> }[]`.
-  - `PAYOUT_HOLD_RETURNS` applies to `fault: "FACTORY"` only, so `payableLines` filters on
-    `{ status: { in: … }, fault: "FACTORY" }`.
-  - `factoryReturns` returns `fault: "FACTORY"` only.
-
-- [ ] **Step 1: Write the failing tests.**
-  - `it("buyer fault files as BUYER_REQUESTED with a reason and no photo")`.
-  - `it("factory sees no buyer-fault return and gets no notice")`.
-  - `it("AGENTS admin accepts: 2-day handover at the order's agent; refuse closes REJECTED")`.
-  - `it("FACTORY or CORE admin cannot decide a buyer-fault return")`.
-  - `it("Factory admin changes a factory fault to buyer fault: BUYER_REQUESTED, no fault, AGENTS notified")`.
-  - `it("buyer-fault returns never hold the factory payout")`, covering each of
-    BUYER_REQUESTED, AWAITING_HANDOVER and WITH_AGENT (**RF3**).
-  - `it("history counts reasons per product for AGENTS and CORE only")`.
-  - A rule test asserts the new `MOVES`.
-- [ ] **Step 2: Run them and see them fail.**
-- [ ] **Step 3: Implement.**
-  - **Buyer form:** a fault choice (Factory fault, Buyer fault). For Buyer fault it shows the
-    six reasons and the line "You get LKR {factoryPrice × qty} if it sells", with no other text.
-  - **Admin pages:** each one calls `requireAdmin("AGENTS")` or `requireAdmin("CORE")` and renders
-    `buyer-returns.tsx`.
-  - **Accept and Refuse:** only on the AGENTS page.
-  - **Change to buyer fault:** a button on `src/app/admin/factory/returns/page.tsx` for
-    `WITH_ADMIN` rows.
-- [ ] **Step 4: Run the tests.** Run: `npm run test:int -- returns payouts`, then `npm run check`.
-      Expected: PASS.
-- [ ] **Step 5: Commit** `feat: buyer-fault returns as an Agents and orders record`.
-
-### Task 5: Agent collection, resale and the factory-fault fee clawback
-
-**Files:**
-
-- Modify: `src/server/returns.ts` (`collectReturn`, `lapseReturns`, new functions),
-  `src/server/tokens.ts:18-29,150`, `src/server/agents/screens.ts`, `src/server/agents/leave.ts:21-41`,
-  `src/app/agent/actions.ts`, `src/app/agent/returns/page.tsx`
-- Test: `tests/integration/returns.int.test.ts`, `agents.int.test.ts`, `tokens.int.test.ts`
-
-**Interfaces:**
-
-- Consumes: `factoryFaultRefund` (Task 2), statuses and `buyerFaultDecide` (Task 4).
-- Produces:
-  - `collectReturn(agentUserId, returnId, now)` handles both faults:
-    - **Factory fault:** adds to `returnedQty`, records the fault, credits
-      `factoryFaultRefund(...)` as `RETURN`, and creates no `RETURN_COURIER` deduction. If the
-      fee event `agentfee:<agentId>:<weekOf(order.receivedAt)>` already exists, it calls
-      `clawBackFee(tx, agent, r, amount)`.
-    - **Buyer fault:** moves to `WITH_AGENT` with no tokens and no `returnedQty` change.
-  - `clawBackFee(tx, agent: { id; userId }, r, amount: D)` creates an `AgentFeeClawback` with
-    `left = amount`, then posts `FEE_CLAWBACK` (a negative kind) for `min(balance, left)` and
-    lowers `left` by that amount.
-  - `settleClawbacks(tx, agentId, userId)` is called by `creditAgentFees` after it posts each
-    `AGENT_FEE`. It posts `FEE_CLAWBACK` for each row's `min(balance, left)`, oldest first.
-  - `markResold(agentUserId, returnId)` moves `WITH_AGENT → SOLD` and sets `resoldAt`.
-    `markTakenBack(agentUserId, returnId)` moves `WITH_AGENT → TAKEN_BACK` and sets
-    `takenBackAt`. Both are handover-agent only.
-  - `lapseReturns` also lapses buyer-fault `AWAITING_HANDOVER` past `handoverDueAt` into
-    `LAPSED`, which the buyer sees as "Not brought".
-  - `settled()` in leave.ts also counts buyer-fault `AWAITING_HANDOVER` and `WITH_AGENT`.
-  - `resaleItems(agentId)` returns `{ id, title, size, qty, price: unitPrice × qty,
-    buyerShare: factoryPrice × qty }[]` for `WITH_AGENT` returns.
-
-- [ ] **Step 1: Write the failing tests.**
-  - `it("factory fault after the fee week: buyer gets 1050, agent loses 50")`.
-  - `it("clawback with balance 20: balance 0, 30 left, taken from next week's fee")` (**RF1**).
-  - `it("factory fault before the fee week: no clawback row, fee excludes the unit")` (**RF2**).
-  - `it("buyer fault collect: WITH_AGENT, no tokens, not in heldReturns or send-back")` (**RF3**).
-  - `it("agent marks Sold or Taken back; others cannot")`.
-  - `it("buyer fault not brought in 2 days lapses in the sweep")`.
-  - `it("a leaving agent holding a buyer-fault item does not close")` (**RF5**).
-  - `it("factory-fault return creates no RETURN_COURIER deduction")`.
-- [ ] **Step 2: Run them and see them fail.**
-- [ ] **Step 3: Implement.** The agent Returns page gets a To resell section listing each item
-      with its title, size, Price and Buyer gets, plus Sold and Taken back buttons. Add
-      `FEE_CLAWBACK` to `NEGATIVE_KINDS`, and make the Core token report show it.
-- [ ] **Step 4: Run the tests and all checks.** Run: `npm run test:int`, then `npm run check`.
-      Expected: PASS.
-- [ ] **Step 5: Commit** `feat: agent resale records and factory-fault fee clawback`.
-
-### Task 6: Seed, browser checks and docs
-
-**Files:**
-
-- Modify: `prisma/seed.ts`, `tests/e2e/*.spec.ts` (return and checkout journeys),
-  `docs/implementation-status.md`, `docs/architecture.md`, `.claude/agents/{orders-baskets,payments,agents,courier}.md`,
-  `docs/CHANGES.md`
-- Test: Playwright desktop and 360 px
-
-- [ ] **Step 1: Seed the demo data.** Seed one buyer-fault return in each of `BUYER_REQUESTED`,
-      `WITH_AGENT` and `SOLD`, and order lines using the 5% fee.
-- [ ] **Step 2: Write the browser checks.**
-  - The buyer files a buyer-fault return and sees the "You get" amount.
-  - The AGENTS admin accepts it.
-  - The agent collects it and marks it Sold.
-  - Checkout shows Agent fee 50 and Total 1,085.83.
-  - Each screen passes axe at 360 px.
-
-  Run them with `npm run e2e` and expect PASS.
-- [ ] **Step 3: Update the docs.**
-  - Set the status rows to Implemented.
-  - Describe the new statuses, `AgentFeeClawback` and `FEE_CLAWBACK` in the architecture doc.
-  - Remove the "not built" notes from the brief and the specialists.
-  - Add a changelog entry.
-  - Run `npm run check:docs`.
-- [ ] **Step 4: Commit** `docs: buyer-fault records and 5% agent fee built`.
-
-## Not in this plan
-
-- A factory refusing a factory-fault return parcel (`DEC-018` 3). The existing admin–factory
-  return thread covers follow-up until it needs its own state.
-- The condition check before factory-fault tokens (`DEC-016` question 3).
+- After each task: `npm run check` (money check, doc links, typecheck, lint, tooling, unit).
+- Integration: `node scripts/local-db.mjs start test` then `npm run test:int` (serial, ~2 min).
+- Browser: `npm run e2e` (desktop + 360 px, axe) after Task 6; seed via `npm run db:seed`.
+- Manual run (`npm run dev`): checkout a 1,000 item → Agent fee 50, PayHere 35.83, total 1,085.83;
+  file a buyer-fault return → AGENTS admin sees it, Factory admin does not; accept → agent collects →
+  Sold; factory-fault return → buyer gets 1,050, agent's token history shows −50 or next-week fee reduced.
+- Dev DB: run `npm run db:deploy` (it also lacks `20261109100000_deposit_attempt_principal`).
+- Commit after each task, stage by path, push to `origin main`.

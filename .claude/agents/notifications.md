@@ -12,7 +12,8 @@ after commit and on overdue sweeps, with stable IDs deduplicating delivery retri
 notifies owner/SALES, decisions/booking/receipt notify the buyer or other side, escalation
 notifies FACTORY/CORE, and accepted factory-fault returns notify WAREHOUSE to book PickMe
 externally. Removal suppresses queued factory notices and sends only buyer/admin handoff
-notices. Return notices link to the buyer cart, `/seller/returns` or `/admin/factory/returns`.
+notices. Return notices link to the buyer order, `/seller/returns`, `/admin/factory/returns` or, for
+buyer-fault requests and changes to buyer fault, `/admin/agents/returns` (Agents and orders only).
 
 Automatic factory refusal/used-receipt review notifies FACTORY/CORE and the buyer after
 commit. `ReturnMessage` is private to own owner/SALES and FACTORY/CORE. Each message
