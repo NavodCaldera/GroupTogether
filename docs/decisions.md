@@ -245,6 +245,31 @@ Question 25 and legal review, are in the notes.
 (`CART-003`) and a 3-day basket lifetime (`CART-002`) were retired by the area agent model; design
 tests with likes are **parked** (hidden, not built, not deleted).
 
+### DEC-017 - Buyer-fault returns resold by the agent
+
+**Status:** Open, raised by the owner on **2026-11-14**. Nothing is built. **Rules:**
+`RETURN-001`, `PAY-006`, `PAY-007`, `TOK-001`, `TOK-003`, `AGT-004`, `DATA-001`.
+
+Owner proposal: for a buyer-fault return the buyer hands the item to the agent within 2 days. A
+buyer who wants money quickly gets 80% of the amount as tokens. A buyer who waits gets the full
+amount once the agent resells the item to someone in the agent's network. GroupBasket takes no
+commission on this.
+
+BMAD, Spec Kit and Superpowers reviews found these open points:
+
+1. **Who owns the item and carries the loss.** The item no longer goes back to the factory, so
+   the factory is owed its price. With the 80% option GroupBasket pays out before any resale and
+   loses it if the item never sells.
+2. **How the resale is made and proven.** An agent cash sale cannot be checked and needs the
+   agent to see prices (`DATA-001`); an on-platform resale needs a new listing and checkout path.
+3. **What "the amount" is:** item price, item price minus courier, or everything paid. Who keeps
+   the 20%, and whether the agent earns anything for reselling.
+4. **The 2 days and the factory decision:** whether it replaces the 7-day handover and whether
+   the factory still decides buyer-fault returns. The condition check (`DEC-016` question 3)
+   becomes essential.
+5. **Unsold items:** how long they wait, whether a waiting buyer can switch to 80%, and what
+   happens when the agent is suspended or leaves.
+
 ## Legacy rule references
 
 ### Rule IDs retired by the area agent model (2026-11-08)

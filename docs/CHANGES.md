@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-14 - Buyer-fault resale proposal
+
+- Owner proposed that buyer-fault returns stay with the agent for resale: 80% as tokens now, or the full amount after the agent resells. Recorded as open `DEC-017` with the BMAD, Spec Kit and Superpowers review findings. Nothing is built.
+
 ## 2026-11-14 - Project cleanup
 
 - Removed dead code: the unused `SizeGrid` component and `sizeGrid` helper, `endsWithin`, `timeLeft`, `mapsLink`, `notifyRole`, `OPEN_RETURN_STATUSES`, `SLIP_TYPES` and the `variantRow` test helper. Dropped `export` from 39 names used only in their own file.
