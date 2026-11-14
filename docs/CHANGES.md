@@ -15,6 +15,7 @@ Newest first.
 - Owner chose the Agents and orders admin to accept buyer-fault returns. `DEC-017` updated.
 - Owner set the resale split: the agent resells at the price paid (for example LKR 1,000), keeps the commission share (LKR 100) and gives the buyer the factory price (LKR 900); the buyer is told before filing. Agents cannot close while holding these items. `DEC-017` updated.
 - Owner asked for the courier charge and agent fee to become a percentage (5%) instead of fixed amounts. Recorded as open `DEC-018`. Nothing is built.
+- Owner chose 5% for the courier and agent fees together. `DEC-018` updated.
 
 ## 2026-11-14 - Project cleanup
 

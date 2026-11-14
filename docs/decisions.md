@@ -306,8 +306,8 @@ these items (`AGT-004`).
 `BSK-006`, `AGT-005`, `RETURN-001`, `BSK-007`.
 
 The owner wants the courier charge (LKR 40 per item) and agent fee (LKR 20 per item) replaced by
-a percentage of the item price, stated as 5%; the PayHere fee stays 3.3%. Open: whether 5% is the
-two together or each, how it splits between courier and agent, whether a minimum applies so cheap
+a percentage of the item price, stated as 5%; the PayHere fee stays 3.3%. **Decided:** 5% is the courier and agent fees together
+(LKR 50 on a LKR 1,000 item). Open: how it splits between courier and agent, whether a minimum applies so cheap
 items still cover the booked courier fee, and how refunds that return or deduct the courier
 charge change.
 
