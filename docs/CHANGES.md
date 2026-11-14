@@ -18,6 +18,7 @@ Newest first.
 - Owner chose 5% for the courier and agent fees together. `DEC-018` updated.
 - Owner decided the whole 5% goes to the agent, who pays all courier fees except for factory-fault returns going back to the factory. `DEC-018` updated.
 - Owner decided the factory pays the courier on arrival for factory-fault returns; no payout deduction. `DEC-018` updated.
+- Owner set a 2-day handover deadline for accepted buyer-fault returns; after it the return closes as Not brought. `DEC-017` updated.
 
 ## 2026-11-14 - Project cleanup
 

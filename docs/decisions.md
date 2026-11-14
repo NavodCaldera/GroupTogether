@@ -286,11 +286,12 @@ Open points, with recommendations:
    mind, other) with a short note, counted per product and factory.
 3. **Send to Factory admin** when the reason shows the listing was wrong, such as material not
    as described; the return then follows the factory-fault path.
-4. **End states** beyond Sold: refused, lapsed (not handed over), taken back by the buyer unsold,
-   and agent suspended or leaving while holding it.
-5. **Handover deadline** after acceptance, for example 2 days.
+4. **End states:** Refused, Not brought, Sold, and Taken back when the buyer collects it unsold.
+   An agent cannot close while holding one (see the resale split below).
+5. **Decided:** the buyer has 2 days after acceptance to hand the item to the agent; otherwise
+   the return closes as Not brought and the buyer keeps the item.
 6. **Factory payout:** buyer-fault returns should not hold the factory's payout for that item.
-7. **Sale price:** whether the agent records it, optionally.
+7. **Decided:** the agent resells at the price the buyer paid (see the resale split below).
 
 **Resale split (owner, 2026-11-14):** GroupBasket has already been paid the full price, for
 example LKR 1,000 including the LKR 100 commission, and the factory its LKR 900. The agent resells
