@@ -16,6 +16,9 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `PAY-004`–`PAY-007`, `TOK-001`–`TOK-003`, `AGT-002`, `AGT-005`, `BSK-006`,
 `BSK-007`. Bank slips and owner payment (`PAY-001`–`PAY-003`) are retired.
 
+Built 2026-11-15 (`DEC-019`): the agent fee is cash at pickup, so checkout charges only the item
+and PayHere fee and new orders earn no `AGENT_FEE` tokens; a factory-fault return refunds the cash
+fee as tokens and deducts it from the factory payout (`DeductionKind.AGENT_FEE`).
 Built 2026-11-15: one 5% agent fee (`agentFeeRate`) replaces the courier charge and agent fee,
 `COURIER_REPAY` is no longer posted, factory-fault courier is not deducted, and buyer-fault
 returns give no tokens and never hold payouts (`DEC-017`, `DEC-018`).
@@ -50,14 +53,15 @@ returns give no tokens and never hold payouts (`DEC-017`, `DEC-018`).
 - The demo pay page returns by attempt purpose (`demoReturnPath`): deposits to
   `/agent/deposit/<id>`, orders to `/checkout/return/<id>`.
 - PayHere fee: `round2(remainder / (1 − rate) − remainder)`, 0 when the remainder is 0. LKR 1,000
-  item + 50 at 0.033 gives 35.83 and a total of 1,085.83. One attempt covers all orders of a
+  item at 0.033 gives 34.13 and a total of 1,034.13 online (the LKR 50 agent fee is cash).
+  Older orders paid 1,085.83 (fee online). One attempt covers all orders of a
   checkout; the fee is split by remainder with the last order taking the rounding cent.
 - The ledger is append-only with a unique `eventKey`. A balance never goes below zero. Factory
   accounts and staff hold no tokens; transfers to them are refused.
 - Payouts: a line is payable `collectHours` after agent receipt with no open factory-fault return and no
   pending missing report; LAPSED returns earn again. Earning is `qty × factoryPrice` less returned
-  quantity. Deductions (`MISSING_ITEM`; `RETURN_COURIER` only on old rows) wait for a week with items.
-  `Settings.payoutsBuiltThrough` marks the last built week. Agent fees (stored `agentFeeEach` on units not missing or returned) are
+  quantity. Deductions (`MISSING_ITEM`, `AGENT_FEE` for refunded cash fees; `RETURN_COURIER` only on old rows) wait for a week with items.
+  `Settings.payoutsBuiltThrough` marks the last built week. Agent fees on older online-fee orders (stored `agentFeeEach` on units not missing or returned) are
   credited once per agent and week, then owed take-backs are settled from them as `FEE_CLAWBACK`
   (`src/server/agent-fees.ts`). Weeks end Saturday 23:59:59 Asia/Colombo.
 - The sweep runs only from cron. Production must schedule `/api/cron/sweep` with its bearer secret

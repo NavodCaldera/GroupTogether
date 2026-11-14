@@ -16,7 +16,10 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `AGT-001`–`AGT-005`, `ORD-005`, `BSK-006`, `RETURN-001`, `ADMIN-002`,
 `UX-002`.
 
-Built 2026-11-15: agents earn the full 5% agent fee and pay their own couriers (`DEC-018`),
+Built 2026-11-15: agents take the 5% agent fee in cash at handover (tick Fee received, stored
+as `cashFeePaid`, shown as Fees collected) and keep it on factory-fault returns (`DEC-019`);
+parcels uncollected after `pickupDays` become Not collected records they hold. Older orders
+still earn the weekly token fee. Agents pay their own couriers (`DEC-018`),
 resell buyer-fault returns privately and mark them Sold or Taken back (`markResold`,
 `markTakenBack`, `/agent/returns` To resell), and cannot close while holding one (`DEC-017`).
 

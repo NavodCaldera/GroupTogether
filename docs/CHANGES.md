@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-15 - Agent fee in cash at pickup built
+
+- Owner decided buyers pay the courier and agent fee in cash to the agent at pickup, and that on a factory-fault return the factory is charged the fee and the buyer gets it back with the item price. Claude settled the rest (`DEC-019`) and built it.
+- Checkout charges only the item and PayHere fee (LKR 1,000 → 1,034.13 online, plus LKR 50 at pickup). Cart, checkout, order page, home card and Ready to collect notice show the fee due.
+- The agent ticks Fee received for the shown amount before handing over; the fee is stored per line and shown as Fees collected.
+- Factory-fault returns refund the cash fee in tokens and deduct it from the factory payout (Agent fee on returns). The agent keeps the cash.
+- Parcels not collected within the pickup deadline (`pickupDays`, 14) become Not collected records held by the agent, with a reminder 3 days before.
+- Old orders keep the online fee and the weekly token fee.
+
 ## 2026-11-15 - Agent fee in cash at pickup (proposal)
 
 - Owner proposed that buyers pay the agent fee in cash to the agent at pickup instead of on the website. Recorded as open `DEC-019`. Nothing is built.

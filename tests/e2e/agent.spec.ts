@@ -65,6 +65,8 @@ test("the agent types the buyer's code and hands over", async ({ page }) => {
   const items = page.getByRole("group", { name: "Items to hand over" });
   await expect(page.getByText("Dilan Wickramasinghe")).toBeVisible();
   await expect(items.getByRole("checkbox")).toHaveCount(2);
+  // The buyer pays the agent fee in cash before anything is handed over (DEC-019).
+  await page.getByRole("checkbox", { name: /Fee received/ }).check();
   await page.getByRole("button", { name: "Hand over" }).click();
   await expect(page.getByRole("status").getByText("Handed over")).toBeVisible();
   await expect(items).toHaveCount(0);

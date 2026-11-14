@@ -29,7 +29,7 @@ The authoritative field definitions and constraints are in [schema.prisma](../pr
 | Quality and returns | `ProductRating`, `QualityReport`, `ReportPhoto`, `ReturnRequest`, `ReturnPhoto`, `ReturnMessage`, `FactoryFault`, `FaultHold`, `FaultHoldMessage`, and the `QualityNotice` / `ReturnNotice` outboxes. |
 | Factories | `FactoryApplication`, `FactoryDocument`, `FactoryInvite`, `FactoryActivation`, `FactoryProfile`, `AgreementVersion`, `AgreementAcceptance`. |
 | Parked premium brands | `StockOffer`, `GiftOrder`, `GiftSettlement`, `BrandConversation`, `BrandMessage`, `BrandConversationRead`, `BrandOfferRevision`. |
-| Configuration and notices | `Settings` is a singleton with commission, the agent fee rate (`agentFeeRate`, 5%), gateway fee rate, basket lock amount, maximum wait, payment hold, collection, return and buyer-fault handover windows, agent radius and gap, deposit, and the payout watermark. `Notification` stores in-app notices and read state. |
+| Configuration and notices | `Settings` is a singleton with commission, the agent fee rate (`agentFeeRate`, 5%, paid in cash at pickup), gateway fee rate, basket lock amount, maximum wait, payment hold, collection, return and buyer-fault handover windows, the pickup deadline (`pickupDays`), agent radius and gap, deposit, and the payout watermark. `Notification` stores in-app notices and read state. |
 
 Legacy schema values do not define the current product scope. `SHOES` still exists in the category enum, and `Product.status`, `reviewNote`, `stockType` and `defectNotes` remain for compatibility.
 
@@ -53,7 +53,7 @@ Legacy schema values do not define the current product scope. `SHOES` still exis
 | Agent marks received | `WITH_COURIER` → `AT_AGENT`; orders `PAID` → `RECEIVED` | Returns the agent sends back with this courier move to `PICKED_UP` |
 | Buyer gives pickup code | Lines get `collectedAt` | None |
 
-Missing items are reported by the factory and removed by an Agents and orders admin, refunding the buyer in tokens and queuing a `MISSING_ITEM` payout deduction. The weekly sweep builds factory payouts and credits agent fees.
+Missing items are reported by the factory and removed by an Agents and orders admin, refunding the buyer in tokens and queuing a `MISSING_ITEM` payout deduction. New order lines store the cash agent fee (`cashFeeEach`) and the amount the agent confirmed at handover (`cashFeePaid`); `agentFeeEach` is 0 for them (`DEC-019`). The weekly sweep builds factory payouts and credits agent fees for older online-fee orders.
 
 ### Consistency mechanisms
 
@@ -132,7 +132,7 @@ application schema. These tools do not add production integrations or deploy the
 - **Payments:** only the demo gateway exists (`PAYMENT_GATEWAY=demo`). The PayHere adapter, its `payment_id` capture and status lookup are not built; see DEC-016.
 - **Delivery:** there is no courier provider integration. Agents and orders admins book the courier by hand (driver, phone, vehicle, fee); factories mark baskets packed and given to the driver, and the agent marks them received.
 - **Uploads:** [storage](../src/server/storage/index.ts) uses local disk via `STORAGE_DIR`, with a 5 MB limit. Photos support JPEG/PNG/WebP. Hosting has not been selected; ephemeral/serverless storage would require another adapter.
-- **Scheduled work:** deploy an authenticated recurring call to `/api/cron/sweep`. `runSweep` is the only place time-based rules run (payment expiry, basket maximum wait, return escalation and lapse, leaving agents, weekly payouts and agent fees, fault holds, agreement reminders, notice retries); page loads do not run them, and there is no always-on worker.
+- **Scheduled work:** deploy an authenticated recurring call to `/api/cron/sweep`. `runSweep` is the only place time-based rules run (payment expiry, basket maximum wait, return escalation and lapse, pickup reminders and Not collected parcels, leaving agents, weekly payouts and agent fees, fault holds, agreement reminders, notice retries); page loads do not run them, and there is no always-on worker.
 - **Notifications:** [notify](../src/server/notify/index.ts) writes database notices. No email, SMS or WhatsApp delivery is implemented.
 - **Parked premium brands:** `src/server/gifts.ts` and `/admin/brands` keep manual gift allocation, brand dispatch, bill approval and settlement records. Gifts are not tied to orders or baskets. `/seller` renders `brand-dashboard.tsx` for brands. Brands are excluded from shop listing.
 - **Authentication and accounts:** cookie sessions use `gt_session`, hashed tokens and server-side role checks. Password reset is not implemented. Demo accounts come from the seed; their visibility is controlled by development mode or `SHOW_DEMO_LOGINS`.
@@ -244,8 +244,10 @@ The move table is `src/lib/return-rules.ts`. A buyer files for a collected line 
 also escalates). WITH_ADMIN → ACCEPTED or REJECTED; REJECTED is terminal. Acceptance moves the
 return to AWAITING_HANDOVER at the order's agent with a `returnHandoverDays` deadline. The agent
 collects it (HANDED_OVER): the line's `returnedQty` grows, the fault is recorded, the buyer is
-credited RETURN tokens (`factoryFaultRefund`: item price, stored courier and agent fee, never the
-PayHere fee), and if that week's agent fee was already paid it is taken back (`AgentFeeClawback`,
+credited RETURN tokens (`factoryFaultRefund`: item price, stored courier and online agent fee,
+and the cash fee paid at pickup, never the PayHere fee). The cash fee becomes an `AGENT_FEE`
+payout deduction for the factory; the agent keeps the cash (`DEC-019`). On older online-fee
+lines, if that week's agent fee was already paid it is taken back (`AgentFeeClawback`,
 `FEE_CLAWBACK` now and from later weekly fees for any shortfall). There is no courier deduction;
 the factory pays the driver on arrival. A return never handed over LAPSES without tokens.
 A Factory admin may move a WITH_ADMIN return to BUYER_REQUESTED (`changeToBuyerFault`).

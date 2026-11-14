@@ -303,15 +303,33 @@ request. **Rules:** `PAY-004`, `BSK-006`, `BSK-007`, `AGT-005`, `RETURN-001`, `P
 
 ### DEC-019 - Agent fee paid in cash at pickup
 
-**Status:** Open proposal (**2026-11-15**), not built. **Rules:** `PAY-004`, `AGT-005`,
-`ORD-005`, `RETURN-001`.
+**Status:** Decided **2026-11-15**, built **2026-11-15**. **Rules:** `PAY-004`, `AGT-005`,
+`ORD-005`, `RETURN-001`. Replaces the online fee of `DEC-018` for new orders.
 
-The owner proposed that buyers no longer pay the agent fee on the website; they pay it in cash
-to the agent when they collect. Checkout would charge only the item price and the PayHere fee
-(LKR 1,000 → PayHere 34.13, online 1,034.13, plus LKR 50 at pickup). Open points: whether the
-agent may hold items until the fee is paid, whether tokens can pay it, who refunds the fee on a
-factory-fault return, what happens when a parcel is never collected, and whether the agent
-records the fee as received.
+The owner decided that buyers no longer pay the courier and agent fee on the website; they pay
+it in cash to the agent when they collect. On a factory-fault return the factory is charged the
+fee and the buyer gets it back with the item price. The owner asked Claude to settle the rest:
+
+1. **The fee** stays 5% of the item price (`agentFeeRate`), rounded to the whole rupee per piece
+   because it is cash. It is stored on each order line (`cashFeeEach`).
+2. **Online payment** is the item price less tokens plus the PayHere fee. LKR 1,000 → PayHere
+   34.13, online **1,034.13**, plus **LKR 50 at pickup**. Tokens cannot pay the fee. The buyer
+   sees the amount at checkout, on the order, on the home card and in the Ready to collect notice.
+3. **Handover** needs the fee. The agent's screen shows the fee for the ticked items and the agent
+   must tick **Fee received**; the server refuses any other amount. The amount is stored on each
+   line (`cashFeePaid`) and the agent sees **Fees collected**.
+4. **Factory-fault return:** the buyer gets item price + the cash fee they paid, in tokens. The fee
+   is a payout deduction from the factory (**Agent fee on returns**); a shortfall carries over.
+   The agent keeps the cash and nothing is taken back from it. The factory still pays the return
+   driver on arrival. "Courier fee and agent fee" is read as the one 5% fee, which covers couriers.
+5. **Buyer fault, missing items and cancellations** move no fee; the buyer never paid it online.
+   The missing-item deduction is the commission only.
+6. **Never collected:** the buyer is reminded 3 days before the deadline. After `pickupDays`
+   (default 14, set in Settings) the parcel becomes a **Not collected** buyer-fault record held
+   by the agent (`DEC-017`): no tokens, no fee; the agent marks it Sold or Taken back. This pays
+   the agent for the courier it already paid. The factory is still paid for the piece.
+7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
+   take-back of `DEC-018`.
 
 ## Legacy rule references
 

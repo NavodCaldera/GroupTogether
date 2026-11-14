@@ -12,6 +12,15 @@ and its `.memlog.md`; later overrides win.
 
 ## Clarifications
 
+### Session 2026-11-15 (`DEC-019`)
+
+- Q: Where does the buyer pay the agent fee? → A: In cash to the agent at pickup. Checkout
+  charges only the item and the PayHere fee; the agent ticks Fee received before handing over.
+- Q: What does a factory-fault return give now? → A: The item price and the cash fee as tokens;
+  the factory pays the fee through a payout deduction and the agent keeps the cash.
+- Q: What if a parcel is never collected? → A: A reminder 3 days before the 14-day deadline; then
+  it becomes a Not collected record held by the agent, who sells it or gives it back.
+
 ### Session 2026-11-14 (`DEC-017`, `DEC-018`)
 
 - Q: How are the courier charge and agent fee set? → A: One agent fee of 5% of the item price
@@ -58,8 +67,8 @@ appears in the chosen agent's open basket for that factory.
    the nearest active agent is pre-selected with its distance, and they can change it to any
    active agent.
 2. **Given** a LKR 1,000 item, a 5% agent fee, no tokens and a 3.3% fee rate, **When** checkout
-   shows prices, **Then** it shows Item 1,000.00, Agent fee 50.00, PayHere fee 35.83 and Total
-   1,085.83.
+   shows prices, **Then** it shows Item 1,000.00, PayHere fee 34.13, Total 1,034.13 and Agent fee
+   at pickup 50.00 (`DEC-019`).
 3. **Given** tokens worth LKR 300, **When** the buyer applies them, **Then** the PayHere fee is
    charged only on the remainder.
 4. **Given** tokens cover the whole total, **When** the buyer confirms, **Then** no gateway payment
@@ -145,7 +154,8 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 3. **Given** an accepted return, **Then** the buyer is told which agent to hand it to, and that
    agent sees it in Returns to collect with a 7-day countdown.
 4. **Given** the agent marks a factory-fault return collected, **Then** the buyer gets the item
-   price and agent fee as tokens, not the PayHere fee, and the fee is taken back from the agent.
+   price and the cash agent fee as tokens, not the PayHere fee, and the fee is deducted from the
+   factory's next payout; the agent keeps the cash (`DEC-019`).
 5. **Given** a factory fault, **Then** the factory pays the return courier on arrival and nothing
    is deducted from its payout.
 6. **Given** 7 days pass without handover, **Then** the return is cancelled and the factory is paid
@@ -160,13 +170,13 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 
 **Acceptance Scenarios**:
 
-1. **Given** an agent marks items received, **Then** the 5% agent fee per item is credited in
-   tokens every Sunday.
+1. **Given** an agent hands items over, **Then** it takes the 5% agent fee per item in cash and
+   ticks Fee received (`DEC-019`); older online-fee orders are credited in tokens every Sunday.
 2. **Given** any user with tokens, **When** they send an amount to another user, **Then** it moves
    immediately, appears in both histories and cannot be undone.
 3. **Given** a payment arrives late or twice, **Then** the extra amount becomes the buyer's tokens.
 4. **Given** a paid item the factory cannot supply after locking, **When** a Factory admin removes
-   the line, **Then** the buyer gets the item price and agent fee as tokens, and the
+   the line, **Then** the buyer gets the item price as tokens (no cash fee is owed), and the
    cost is deducted from the factory's next payout.
 
 ---
@@ -219,8 +229,8 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
   MUST NOT reserve stock.
 - **FR-002**: Checkout MUST pre-select the nearest active agent by distance from the buyer's pin
   and allow choosing any active agent.
-- **FR-003**: Checkout MUST show Item, Courier (fixed per item, from Settings), Agent fee (per item,
-  from Settings), Tokens, PayHere fee and Total.
+- **FR-003**: Checkout MUST show Item, Tokens, PayHere fee and Total, then the Agent fee at
+  pickup (5% per item, whole rupees, paid in cash to the agent; `DEC-019`).
 - **FR-004**: The PayHere fee MUST be charged only on the part paid through the gateway, as
   `remainder / (1 − rate) − remainder`, rounded to the cent, with the rate in Settings.
 - **FR-005**: Tokens MUST apply before the gateway. A fully token-paid order MUST NOT use the
@@ -270,8 +280,9 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
   Factory admin after refusal or timeout.
 - **FR-019**: After acceptance, the buyer MUST be told which agent to hand the item to, and has 7
   days (2 for buyer fault) to do so. Otherwise the return is cancelled.
-- **FR-020**: Tokens on handover MUST be the item price and agent fee for a factory fault, taken
-  back from the agent, and nothing for a buyer fault. The PayHere fee MUST NOT be returned.
+- **FR-020**: Tokens on handover MUST be the item price and the cash agent fee for a factory
+  fault, with the fee deducted from the factory's payout (older online-fee orders take it back
+  from the agent), and nothing for a buyer fault. The PayHere fee MUST NOT be returned.
   Buyer-fault returns MUST be decided by the Agents and orders admin, resold by the agent and
   marked Sold or Taken back, with history visible to Agents and orders and Core admins only.
 - **FR-021**: Unsuppliable items MUST be deducted from the factory's payout. The factory pays the
@@ -282,8 +293,9 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 - **FR-022**: Each item MUST become payable to the factory 48 hours after agent receipt with no open
   factory-fault return. Payouts MUST total items up to Saturday 11:59 pm (Sri Lanka time) for payment every
   Sunday, recorded by Core admin with a bank reference.
-- **FR-023**: Agents MUST earn the 5% agent fee per item received, credited in tokens every Sunday,
-  and pay every courier from it.
+- **FR-023**: Agents MUST take the 5% agent fee per item in cash at handover, confirmed with Fee
+  received, and pay every courier from it (`DEC-019`). Parcels not collected within the pickup
+  deadline MUST become Not collected records held by the agent.
 - **FR-024**: Any user MUST be able to send tokens to any other user, with no reversal. Admins take
   no action on cash deals outside the platform.
 - **FR-025**: Cash MUST be paid only to factories.
@@ -312,8 +324,8 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 - **FR-031**: Factories MUST have three roles only: Owner, Sales and Packing. Planner jobs move to
   Sales.
 - **FR-032**: Settings MUST hold the agent fee rate, PayHere fee rate, lock amount,
-  maximum wait, payment hold (15 minutes), 48 hours, 7 days, 2 days, radius and gap, deposit and
-  commission.
+  maximum wait, payment hold (15 minutes), 48 hours, 7 days, 2 days, pickup deadline (14 days),
+  radius and gap, deposit and commission.
 
 **Removal**
 

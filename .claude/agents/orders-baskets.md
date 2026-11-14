@@ -17,7 +17,10 @@ Policy references: `ORD-001`–`ORD-005`, `RETURN-001`, `BSK-001`–`BSK-003`, `
 `TOK-001`, `LOC-001`, `RATE-001`. The group-cart model (`CART-*`, `INV-001`) is retired.
 
 Built 2026-11-15: buyer-fault returns are a record with no tokens, resold privately by the agent
-(`DEC-017`), and the courier charge and agent fee are one 5% agent fee (`DEC-018`).
+(`DEC-017`), and the courier charge and agent fee are one 5% agent fee (`DEC-018`), paid in cash
+at pickup (`DEC-019`): new lines store `agentFeeEach` 0 and `cashFeeEach`; `handOver` requires the
+exact fee (`FEE_NOT_TAKEN`) and stores `cashFeePaid`; `abandonUncollected` turns parcels older
+than `pickupDays` into Not collected `WITH_AGENT` records and `remindUncollected` warns 3 days before.
 
 ## Ownership and code
 
@@ -62,9 +65,10 @@ Built 2026-11-15: buyer-fault returns are a record with no tokens, resold privat
   anything for a wrong code beyond "not found".
 - Returns: the window is `collectHours` from `Order.receivedAt` and requires a collected line.
   Factory fault: tokens are credited at agent collection (`collectReturn`) as
-  `factoryFaultRefund` (item price, stored courier and agent fee, never the PayHere fee); the fault
-  is recorded, no courier deduction is made, and the fee is taken back from the agent if that
-  week's fee was already paid (`takeBackFee`). Buyer fault: `BUYER_REQUESTED` → Agents and orders
+  `factoryFaultRefund` (item price, stored courier and online agent fee, and the cash fee paid at
+  pickup, never the PayHere fee); the fault is recorded, the cash fee becomes an `AGENT_FEE`
+  payout deduction (`returnfee:<id>`), and for older online-fee lines the fee is taken back from
+  the agent if that week's fee was already paid (`takeBackFee`). Buyer fault: `BUYER_REQUESTED` → Agents and orders
   admin → `AWAITING_HANDOVER` (`buyerHandoverDays`) → `WITH_AGENT` → `SOLD` or `TAKEN_BACK`; no
   tokens, no `returnedQty`, never holds the payout. `lapseReturns` closes unhanded accepted
   returns after the handover days. Whether the agent checks condition first is open (`DEC-016`).

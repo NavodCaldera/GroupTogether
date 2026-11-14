@@ -16,7 +16,7 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `BSK-004`–`BSK-007`, `PAY-007`, `DATA-001`. The old cart delivery, PickMe
 provider and webhook, warehouse and two-person packing (`FUL-001`–`FUL-003`) are retired.
 
-Since 2026-11-15 the agent pays every courier from its 5% agent fee and is not repaid the booked
+Since 2026-11-15 the agent pays every courier from the 5% agent fee buyers pay it in cash (`DEC-019`) and is not repaid the booked
 fee; the factory pays the driver on arrival for factory-fault returns (`DEC-018`).
 
 ## Ownership and code
