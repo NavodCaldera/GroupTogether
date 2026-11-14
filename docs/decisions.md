@@ -279,9 +279,9 @@ problems such as wrongly identified material, so GroupBasket knows what happens 
 Open points, with recommendations:
 
 1. **Decided:** the Agents and orders admin accepts or refuses; the agent notice is sent
-   automatically on acceptance. Open: a read-only view of buyer-fault reasons per product for the
-   Factory admin and the factory (no buyer names), since admins cannot reach other areas
-   (`ADMIN-002`).
+   automatically on acceptance. **Decided:** the buyer-fault history (reasons and notes per
+   product) is visible to the Agents and orders admin and the Core admin only; Factory admins and
+   factories do not see it.
 2. **Decided:** the buyer picks one reason: Material not as expected, Size, Colour, Quality feel,
    Changed mind or Other, with a short note. Reasons are counted per product and factory.
 3. **Send to Factory admin** when the reason shows the listing was wrong, such as material not
