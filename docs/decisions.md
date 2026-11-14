@@ -307,9 +307,20 @@ these items (`AGT-004`).
 
 The owner wants the courier charge (LKR 40 per item) and agent fee (LKR 20 per item) replaced by
 a percentage of the item price, stated as 5%; the PayHere fee stays 3.3%. **Decided:** 5% is the courier and agent fees together
-(LKR 50 on a LKR 1,000 item). Open: how it splits between courier and agent, whether a minimum applies so cheap
-items still cover the booked courier fee, and how refunds that return or deduct the courier
-charge change.
+(LKR 50 on a LKR 1,000 item). **Decided:** there is no split. The whole 5% goes to the agent,
+and the agent pays every courier fee from it; the booked-fee repayment (`COURIER_REPAY`,
+`BSK-006`) would end. The exception is the courier for factory-fault returns going back to the
+factory, which the agent does not pay.
+
+Open points:
+
+1. **Factory-fault return courier:** who pays it and how much, today the courier charge per item
+   deducted from the factory payout.
+2. **Small baskets:** a basket shipped by the two-month rule with few items may earn the agent
+   less than the courier fee, while an admin chooses the courier and its price.
+3. **Cash out, tokens in:** agents pay drivers in cash but are paid in tokens (`PAY-006`).
+4. **Refunds:** cancellations and missing items return the 5% to the buyer; buyer-fault refunds
+   no longer exist (`DEC-017`).
 
 ## Legacy rule references
 
