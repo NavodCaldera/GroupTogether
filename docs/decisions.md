@@ -269,8 +269,26 @@ Effects and open points:
    still blame GroupBasket when an agent lets them down. Any warning belongs in the agent
    agreement, not on-screen text.
 4. Consumer rules on change-of-mind returns in Sri Lanka have not been checked.
-5. **Open:** whether the app keeps a buyer-fault return option at all. Recommended: no, returns
-   become factory fault only; a return ruled buyer fault is refused.
+5. **Decided:** the app keeps buyer-fault returns as a record only, with no tokens from GroupBasket.
+
+**Flow (owner, 2026-11-14):** the buyer requests a buyer-fault return with a reason; an admin
+accepts it; the agent is notified; only then can the buyer hand the item to the agent. When the
+item is sold, the agent marks it Sold. Purpose: a history of buyer-fault returns that shows
+problems such as wrongly identified material, so GroupBasket knows what happens to every piece.
+
+Open points, with recommendations:
+
+1. **Which admin accepts.** Recommended: the Factory admin, which already decides returns and
+   quality; the agent notice is sent automatically on acceptance.
+2. **Reasons** as fixed choices (material not as described, size, colour, quality feel, changed
+   mind, other) with a short note, counted per product and factory.
+3. **Switch to factory fault** when the reason shows the listing was wrong, such as material not
+   as described.
+4. **End states** beyond Sold: refused, lapsed (not handed over), taken back by the buyer unsold,
+   and agent suspended or leaving while holding it.
+5. **Handover deadline** after acceptance, for example 2 days.
+6. **Factory payout:** buyer-fault returns should not hold the factory's payout for that item.
+7. **Sale price:** whether the agent records it, optionally.
 
 ## Legacy rule references
 
