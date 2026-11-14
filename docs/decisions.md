@@ -292,6 +292,25 @@ Open points, with recommendations:
 6. **Factory payout:** buyer-fault returns should not hold the factory's payout for that item.
 7. **Sale price:** whether the agent records it, optionally.
 
+**Resale split (owner, 2026-11-14):** GroupBasket has already been paid the full price, for
+example LKR 1,000 including the LKR 100 commission, and the factory its LKR 900. The agent resells
+the returned item for that price, keeps the commission share (LKR 100) and gives the buyer the
+factory price (LKR 900). The buyer must be told before filing that a buyer-fault return does not
+give back the full amount. Agents therefore see the item price and the buyer's share, which
+reveals the commission per piece (an exception to `DATA-001`). An agent cannot close while holding
+these items (`AGT-004`).
+
+### DEC-018 - Courier and agent fees as a percentage
+
+**Status:** Open, raised by the owner on **2026-11-14**. Nothing is built. **Rules:** `PAY-004`,
+`BSK-006`, `AGT-005`, `RETURN-001`, `BSK-007`.
+
+The owner wants the courier charge (LKR 40 per item) and agent fee (LKR 20 per item) replaced by
+a percentage of the item price, stated as 5%; the PayHere fee stays 3.3%. Open: whether 5% is the
+two together or each, how it splits between courier and agent, whether a minimum applies so cheap
+items still cover the booked courier fee, and how refunds that return or deduct the courier
+charge change.
+
 ## Legacy rule references
 
 ### Rule IDs retired by the area agent model (2026-11-08)
