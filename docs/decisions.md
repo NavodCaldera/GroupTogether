@@ -255,20 +255,26 @@ buyer who wants money quickly gets 80% of the amount as tokens. A buyer who wait
 amount once the agent resells the item to someone in the agent's network. GroupBasket takes no
 commission on this.
 
-BMAD, Spec Kit and Superpowers reviews found these open points:
+**Revised 2026-11-14:** the owner dropped the 80% option. For a buyer-fault return the buyer
+gives the item back to the agent and waits until the agent resells it. No tokens are given before
+the resale. This removes the company's risk of paying out for an item that never sells.
 
-1. **Who owns the item and carries the loss.** The item no longer goes back to the factory, so
-   the factory is owed its price. With the 80% option GroupBasket pays out before any resale and
-   loses it if the item never sells.
-2. **How the resale is made and proven.** An agent cash sale cannot be checked and needs the
-   agent to see prices (`DATA-001`); an on-platform resale needs a new listing and checkout path.
-3. **What "the amount" is:** item price, item price minus courier, or everything paid. Who keeps
-   the 20%, and whether the agent earns anything for reselling.
-4. **The 2 days and the factory decision:** whether it replaces the 7-day handover and whether
-   the factory still decides buyer-fault returns. The condition check (`DEC-016` question 3)
-   becomes essential.
-5. **Unsold items:** how long they wait, whether a waiting buyer can switch to 80%, and what
-   happens when the agent is suspended or leaves.
+Still open:
+
+1. **Proof of the resale.** Recommended: an on-platform listing at that agent, bought through
+   checkout, so the sale and price are verified and agents still see no prices (`DATA-001`).
+2. **What the buyer receives.** Recommended: the item price as tokens once the resale payment is
+   verified; the original courier charge and agent fee are not returned (`PAY-006`).
+3. **What the new buyer pays.** No courier charge, as the item is at the agent; whether the agent
+   fee is earned again is open.
+4. **Condition check and the 2 days:** who checks the item, and whether 2 days replaces the 7-day
+   handover (`DEC-016` question 3).
+5. **Unsold items:** how long an item waits and what happens then. Recommended: after a set
+   number of days the buyer collects it back with their pickup code.
+6. **Agent suspended or leaving:** waiting items go back to their buyers before the deposit is
+   returned (`AGT-004`).
+
+The factory is paid for the original sale as normal.
 
 ## Legacy rule references
 
