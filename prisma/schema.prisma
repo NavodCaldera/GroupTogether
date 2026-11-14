@@ -419,14 +419,16 @@ model Settings {
   id                 Int     @id @default(1)
 
   // Agent model
-  courierPerItem      Decimal   @default(40) @db.Decimal(14, 2)
-  agentFeePerItem     Decimal   @default(20) @db.Decimal(14, 2)
+  /// Agent fee as a share of the item price (0.05 = 5%); the agent pays couriers from it
+  agentFeeRate        Decimal   @default(0.05) @db.Decimal(6, 4)
   gatewayFeeRate      Decimal   @default(0.033) @db.Decimal(6, 4)
   basketLockAmount    Decimal   @default(50000) @db.Decimal(14, 2)
   maxWaitDays         Int       @default(60)
   paymentHoldMinutes  Int       @default(15)
   collectHours        Int       @default(48)
   returnHandoverDays  Int       @default(7)
+  /// Days a buyer has to bring an accepted buyer-fault return to the agent
+  buyerHandoverDays   Int       @default(2)
   agentRadiusM        Int       @default(1000)
   agentGapM           Int       @default(2000)
   agentDeposit        Decimal   @default(200000) @db.Decimal(14, 2)
@@ -577,6 +579,7 @@ enum TokenKind {
   ORDER_CANCEL
   AGENT_FEE
   COURIER_REPAY
+  FEE_CLAWBACK
   MISSING_ITEM
   DEPOSIT_RETURN
   TRANSFER_OUT
@@ -678,6 +681,19 @@ enum ReturnStatus {
   AWAITING_HANDOVER
   HANDED_OVER
   LAPSED
+  BUYER_REQUESTED
+  WITH_AGENT
+  SOLD
+  TAKEN_BACK
+}
+
+enum BuyerFaultReason {
+  MATERIAL
+  SIZE
+  COLOUR
+  QUALITY_FEEL
+  CHANGED_MIND
+  OTHER
 }
 
 enum ReturnFault {
@@ -689,24 +705,29 @@ model ReturnRequest {
   factoryFault       FactoryFault?
   factoryNote        String?
   messages           ReturnMessage[]
-  id                 String          @id @default(cuid())
+  id                 String            @id @default(cuid())
   orderLineId        String
-  orderLine          OrderLine       @relation(fields: [orderLineId], references: [id], onDelete: Restrict)
+  orderLine          OrderLine         @relation(fields: [orderLineId], references: [id], onDelete: Restrict)
   handoverAgentId    String?
-  handoverAgent      Agent?          @relation("ReturnHandoverAgent", fields: [handoverAgentId], references: [id], onDelete: Restrict)
+  handoverAgent      Agent?            @relation("ReturnHandoverAgent", fields: [handoverAgentId], references: [id], onDelete: Restrict)
   handoverDueAt      DateTime?
   handedOverAt       DateTime?
   sentBackBasketId   String?
-  sentBackBasket     Basket?         @relation("ReturnSentBack", fields: [sentBackBasketId], references: [id], onDelete: Restrict)
+  sentBackBasket     Basket?           @relation("ReturnSentBack", fields: [sentBackBasketId], references: [id], onDelete: Restrict)
   buyerId            String
   factoryId          String
   qty                Int
-  reason             ReportReason
+  reason             ReportReason?
+  buyerReason        BuyerFaultReason?
+  changedToBuyerAt   DateTime?
+  buyerDecidedById   String?
+  resoldAt           DateTime?
+  takenBackAt        DateTime?
   fault              ReturnFault
   note               String
-  status             ReturnStatus    @default(WAITING_FACTORY)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  status             ReturnStatus      @default(WAITING_FACTORY)
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
   factoryDueAt       DateTime
   factoryDecidedAt   DateTime?
   factoryDecidedById String?
@@ -727,6 +748,20 @@ model ReturnRequest {
   @@index([status, factoryDueAt])
   @@index([orderLineId])
   @@index([handoverAgentId, status])
+  @@index([fault, status, createdAt])
+}
+
+/// A factory-fault return takes the agent fee back; `left` is what the agent still owes.
+model AgentFeeClawback {
+  id        String   @id @default(cuid())
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  returnId  String   @unique
+  amount    Decimal  @db.Decimal(14, 2)
+  left      Decimal  @db.Decimal(14, 2)
+  createdAt DateTime @default(now())
+
+  @@index([agentId, left])
 }
 
 model ReturnPhoto {
@@ -863,7 +898,8 @@ model Agent {
   pickupAttempts  PickupAttempt[]
   losses          AgentLoss[]
   paymentAttempts PaymentAttempt[]
-  handoverReturns ReturnRequest[]  @relation("ReturnHandoverAgent")
+  handoverReturns ReturnRequest[]    @relation("ReturnHandoverAgent")
+  feeClawbacks    AgentFeeClawback[]
 
   @@index([status])
 }

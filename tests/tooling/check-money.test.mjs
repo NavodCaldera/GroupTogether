@@ -5,6 +5,8 @@ import { checkSchemaMoney, checkSourceMoney } from "../../scripts/check-money.mj
 
 test("schema guard rejects missing or incorrect precision while allowing coordinates", () => {
   assert.equal(checkSchemaMoney("amount Decimal @db.Decimal(14, 2)\nlat Float?").length, 0);
+  assert.equal(checkSchemaMoney("agentFeeRate Decimal @default(0.05) @db.Decimal(6, 4)").length, 0);
+  assert.equal(checkSchemaMoney("otherRate Decimal @db.Decimal(6, 4)").length, 1);
   assert.equal(checkSchemaMoney("amount Decimal?\nprice Decimal @db.Decimal(10, 2)").length, 2);
 });
 

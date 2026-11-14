@@ -53,13 +53,7 @@ export default async function SettingsPage() {
               <div className="grid gap-3 sm:grid-cols-2">
                 {(
                   [
-                    [
-                      "Courier charge per item (LKR)",
-                      "courierPerItem",
-                      s.courierPerItem,
-                      "decimal",
-                    ],
-                    ["Agent fee per item (LKR)", "agentFeePerItem", s.agentFeePerItem, "decimal"],
+                    ["Agent fee (%)", "agentFeePercent", s.agentFeeRate.times(100), "decimal"],
                     ["Gateway fee rate", "gatewayFeeRate", s.gatewayFeeRate, "decimal"],
                     ["Basket lock amount (LKR)", "basketLockAmount", s.basketLockAmount, "decimal"],
                     ["Agent deposit (LKR)", "agentDeposit", s.agentDeposit, "decimal"],
@@ -75,6 +69,12 @@ export default async function SettingsPage() {
                       "Return handover (days)",
                       "returnHandoverDays",
                       s.returnHandoverDays,
+                      "numeric",
+                    ],
+                    [
+                      "Buyer return handover (days)",
+                      "buyerHandoverDays",
+                      s.buyerHandoverDays,
                       "numeric",
                     ],
                     ["Agent radius (m)", "agentRadiusM", s.agentRadiusM, "numeric"],

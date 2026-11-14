@@ -6,8 +6,8 @@ import ts from "typescript";
 export function checkSchemaMoney(schema) {
   return schema.split(/\r?\n/).flatMap((line, index) => {
     const code = line.replace(/\/\/.*$/, "");
-    // gatewayFeeRate is a rate, not money, so it keeps four decimals.
-    const rate = /^\s*gatewayFeeRate\s+Decimal\s.*@db\.Decimal\(6,\s*4\)/.test(code);
+    // Rates are not money, so they keep four decimals.
+    const rate = /^\s*(gatewayFeeRate|agentFeeRate)\s+Decimal\s.*@db\.Decimal\(6,\s*4\)/.test(code);
     return /^\s*\w+\s+Decimal\??\b/.test(code) && !/@db\.Decimal\(14,\s*2\)/.test(code) && !rate
       ? [`prisma/schema.prisma:${index + 1}: Decimal fields must use @db.Decimal(14, 2)`]
       : [];
