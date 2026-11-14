@@ -532,7 +532,14 @@ async function main() {
   const blouse = await db.orderLine.findFirstOrThrow({
     where: { order: { buyerId: sachini.id, basketId: atAgent.id } },
   });
-  await handOver(kollupitiya.user.id, sachiniCode.code, [blouse.id]);
+  // She pays the agent fee in cash at the counter (DEC-019).
+  await handOver(
+    kollupitiya.user.id,
+    sachiniCode.code,
+    [blouse.id],
+    new Date(),
+    blouse.cashFeeEach.times(blouse.qty).toFixed(2),
+  );
   const filed = await fileReturn(sachini.id, blouse.id, {
     buyerReason: "SIZE",
     fault: "BUYER",

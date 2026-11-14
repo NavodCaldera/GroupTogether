@@ -139,18 +139,21 @@ export async function makeBuyer({
   return db.user.update({ where: { id: user.id }, data: { lat, lng } });
 }
 
-/** A RECEIVED order at an agent with one line (1100 = 1000 + 100, 5% agent fee 55, no courier
- * charge, DEC-018). `collectedAt` null leaves the line uncollected. */
+/** A RECEIVED order at an agent with one line (1100 = 1000 + 100). The 5% agent fee of 55 is paid
+ * in cash at pickup (DEC-019); `onlineFee` makes an older order that paid it online (DEC-018).
+ * `collectedAt` null leaves the line uncollected and the cash fee unpaid. */
 export async function makeReceivedOrder({
   qty = 1,
   receivedAt = new Date(),
   collectedAt = receivedAt as Date | null,
+  onlineFee = false,
   factory,
   agent,
 }: {
   qty?: number;
   receivedAt?: Date;
   collectedAt?: Date | null;
+  onlineFee?: boolean;
   factory?: Awaited<ReturnType<typeof makeFactory>>;
   agent?: Awaited<ReturnType<typeof makeAgent>>;
 } = {}) {
@@ -165,8 +168,8 @@ export async function makeReceivedOrder({
       status: "RECEIVED",
       itemsTotal: String(1100 * qty),
       courierTotal: "0",
-      agentFeeTotal: String(55 * qty),
-      tokensApplied: String(1155 * qty),
+      agentFeeTotal: String(onlineFee ? 55 * qty : 0),
+      tokensApplied: String((onlineFee ? 1155 : 1100) * qty),
       amountDue: "0",
       holdUntil: receivedAt,
       paidAt: receivedAt,
@@ -178,7 +181,9 @@ export async function makeReceivedOrder({
           unitPrice: "1100",
           factoryPrice: "1000",
           courierEach: "0",
-          agentFeeEach: "55",
+          agentFeeEach: onlineFee ? "55" : "0",
+          cashFeeEach: onlineFee ? "0" : "55",
+          cashFeePaid: !onlineFee && collectedAt ? String(55 * qty) : null,
           collectedAt,
         },
       },

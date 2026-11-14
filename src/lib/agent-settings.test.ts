@@ -11,6 +11,7 @@ const form = {
   collectHours: "48",
   returnHandoverDays: "7",
   buyerHandoverDays: "2",
+  pickupDays: "14",
   agentRadiusM: "1000",
   agentGapM: "2000",
 };
@@ -20,6 +21,7 @@ describe("agent settings", () => {
     const data = parseAgentSettings(form);
     expect(data.agentFeeRate).toBe("0.0500");
     expect(data.buyerHandoverDays).toBe(2);
+    expect(data.pickupDays).toBe(14);
     expect("agentFeePercent" in data).toBe(false);
     expect(parseAgentSettings({ ...form, agentFeePercent: "2.5" }).agentFeeRate).toBe("0.0250");
   });
@@ -29,5 +31,7 @@ describe("agent settings", () => {
     expect(() => parseAgentSettings({ ...form, agentFeePercent: "-1" })).toThrow();
     expect(() => parseAgentSettings({ ...form, agentFeePercent: "5.123" })).toThrow();
     expect(() => parseAgentSettings({ ...form, buyerHandoverDays: "0" })).toThrow();
+    expect(() => parseAgentSettings({ ...form, pickupDays: "2" })).toThrow();
+    expect(() => parseAgentSettings({ ...form, pickupDays: "91" })).toThrow();
   });
 });

@@ -182,8 +182,8 @@ export default async function AgentHome() {
             <p className="text-sm text-subtle">Balance</p>
           </div>
           <div className="text-right">
-            <p className="font-semibold tabular-nums">{formatLKR(tokens.fees)}</p>
-            <p className="text-sm text-subtle">Agent fees</p>
+            <p className="font-semibold tabular-nums">{formatLKR(tokens.cashFees)}</p>
+            <p className="text-sm text-subtle">Fees collected</p>
           </div>
         </Card>
       </Section>

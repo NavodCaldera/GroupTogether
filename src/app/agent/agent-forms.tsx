@@ -1,6 +1,9 @@
 "use client";
 import { useActionState, useState } from "react";
 import { Alert, Button, Field, Input } from "@/components/ui";
+import { D } from "@/lib/decimal";
+import { formatLKR } from "@/lib/format";
+import type { PickupLine } from "@/server/orders/handover";
 import { Toast } from "@/components/toast";
 import {
   type AgentState,
@@ -47,36 +50,87 @@ export function HandOverBox() {
       </form>
       {found.error && found.code === code && <Alert>{found.error}</Alert>}
       {showLines && (
-        <form action={give} className="flex flex-col gap-2" key={found.at}>
-          <input type="hidden" name="code" value={found.code} />
-          <p className="font-semibold">{found.buyerName}</p>
-          <fieldset className="flex flex-col divide-y divide-line rounded-lg border border-line">
-            <legend className="sr-only">Items to hand over</legend>
-            {found.lines!.map((l) => (
-              <label key={l.id} className="flex min-h-11 items-center gap-3 px-3 py-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="line"
-                  value={l.id}
-                  defaultChecked
-                  className="size-5 shrink-0 accent-[var(--accent)]"
-                />
-                <span className="min-w-0 flex-1">
-                  {l.title} · {l.size}
-                  {l.colour ? ` · ${l.colour}` : ""}
-                </span>
-                <span className="tabular-nums">× {l.qty}</span>
-              </label>
-            ))}
-          </fieldset>
-          {done.error && <Alert>{done.error}</Alert>}
-          <Button type="submit" disabled={giving}>
-            Hand over
-          </Button>
-        </form>
+        <HandOverItems
+          key={found.at}
+          code={found.code!}
+          buyerName={found.buyerName ?? ""}
+          lines={found.lines!}
+          error={done.error}
+          give={give}
+          giving={giving}
+        />
       )}
       {done.ok && <Toast key={done.at}>{done.ok}</Toast>}
     </div>
+  );
+}
+
+/** The buyer's items with the cash agent fee for the ticked ones; the agent confirms the fee. */
+function HandOverItems({
+  code,
+  buyerName,
+  lines,
+  error,
+  give,
+  giving,
+}: {
+  code: string;
+  buyerName: string;
+  lines: PickupLine[];
+  error?: string;
+  give: (fd: FormData) => void;
+  giving: boolean;
+}) {
+  const [off, setOff] = useState<string[]>([]);
+  const fee = lines
+    .filter((l) => !off.includes(l.id))
+    .reduce((sum, l) => sum.plus(l.fee), new D(0));
+  return (
+    <form action={give} className="flex flex-col gap-2">
+      <input type="hidden" name="code" value={code} />
+      <input type="hidden" name="fee" value={fee.toFixed(2)} />
+      <p className="font-semibold">{buyerName}</p>
+      <fieldset className="flex flex-col divide-y divide-line rounded-lg border border-line">
+        <legend className="sr-only">Items to hand over</legend>
+        {lines.map((l) => (
+          <label key={l.id} className="flex min-h-11 items-center gap-3 px-3 py-2 text-sm">
+            <input
+              type="checkbox"
+              name="line"
+              value={l.id}
+              checked={!off.includes(l.id)}
+              onChange={(e) =>
+                setOff((ids) =>
+                  e.target.checked ? ids.filter((id) => id !== l.id) : [...ids, l.id],
+                )
+              }
+              className="size-5 shrink-0 accent-[var(--accent)]"
+            />
+            <span className="min-w-0 flex-1">
+              {l.title} · {l.size}
+              {l.colour ? ` · ${l.colour}` : ""}
+            </span>
+            <span className="tabular-nums">× {l.qty}</span>
+          </label>
+        ))}
+      </fieldset>
+      {fee.gt(0) && (
+        <label className="flex min-h-11 items-center gap-3 rounded-lg border border-line px-3 py-2 text-sm font-semibold">
+          <input
+            type="checkbox"
+            name="feeReceived"
+            required
+            className="size-5 shrink-0 accent-[var(--accent)]"
+          />
+          <span className="min-w-0 flex-1">Fee received</span>
+          <span className="tabular-nums">{formatLKR(fee)}</span>
+        </label>
+      )}
+      {error && <Alert>{error}</Alert>}
+      <Button type="submit" disabled={giving}>
+        Hand over
+      </Button>
+    </form>
   );
 }
 

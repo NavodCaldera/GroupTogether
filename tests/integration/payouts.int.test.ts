@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { markPayoutPaid } from "@/server/payouts";
 import { runSweep } from "@/server/sweep";
+import { tokenBalance } from "@/server/tokens";
 import { makeAgent, makeBuyer, makeFactory, makeReceivedOrder, makeUser, resetDb } from "./helpers";
 
 beforeEach(resetDb);
@@ -187,8 +188,8 @@ describe("weekly payouts", () => {
     expect(await db.payoutItem.count()).toBe(0);
   });
 
-  it("running the sweep twice builds one payout and one agent fee credit", async () => {
-    const r = await makeReceivedOrder({ qty: 3, receivedAt: THURSDAY });
+  it("older online-fee order: running the sweep twice builds one payout and one agent fee credit", async () => {
+    const r = await makeReceivedOrder({ qty: 3, receivedAt: THURSDAY, onlineFee: true });
     await db.orderLine.update({ where: { id: r.line.id }, data: { missingQty: 1 } });
     await runSweep(SUNDAY);
     await runSweep(SUNDAY);
@@ -204,10 +205,18 @@ describe("weekly payouts", () => {
     expect(fees[0].amount.toFixed(2)).toBe("110.00");
   });
 
-  it("credits agent fees only for orders received within the week", async () => {
+  it("credits no token fee for an order whose fee is cash at pickup", async () => {
+    const r = await makeReceivedOrder({ qty: 2, receivedAt: THURSDAY });
+    await runSweep(SUNDAY);
+    expect(await db.factoryPayout.count()).toBe(1);
+    expect(await db.tokenEntry.count({ where: { kind: "AGENT_FEE" } })).toBe(0);
+    expect((await tokenBalance(r.agentUser.id)).toFixed(2)).toBe("0.00");
+  });
+
+  it("older online-fee orders: credits agent fees only for orders received within the week", async () => {
     const a = await makeAgent();
-    await makeReceivedOrder({ agent: a, receivedAt: THURSDAY });
-    await makeReceivedOrder({ agent: a, receivedAt: lk("2026-11-16T09:00:00") });
+    await makeReceivedOrder({ agent: a, receivedAt: THURSDAY, onlineFee: true });
+    await makeReceivedOrder({ agent: a, receivedAt: lk("2026-11-16T09:00:00"), onlineFee: true });
     await runSweep(SUNDAY);
     const fees = await db.tokenEntry.findMany({ where: { kind: "AGENT_FEE" } });
     expect(fees.map((e) => e.amount.toFixed(2))).toEqual(["55.00"]);

@@ -12,6 +12,7 @@ export const metadata: Metadata = { title: "Earnings and payouts" };
 const DEDUCTION: Record<string, string> = {
   RETURN_COURIER: "Return courier",
   MISSING_ITEM: "Missing items",
+  AGENT_FEE: "Agent fee on returns",
 };
 
 /** Owner only: this week's earnings, then each Sunday payout with its deductions. */

@@ -23,6 +23,7 @@ const agentSettingsSchema = z.object({
   collectHours: whole(1, 720),
   returnHandoverDays: whole(1, 60),
   buyerHandoverDays: whole(1, 30),
+  pickupDays: whole(3, 90),
   agentRadiusM: whole(100, 50_000),
   agentGapM: whole(100, 50_000),
 });

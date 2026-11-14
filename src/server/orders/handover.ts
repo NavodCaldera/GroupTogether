@@ -1,5 +1,6 @@
 import "server-only";
 import { isPickupCode } from "@/lib/agent-rules";
+import { D, toD } from "@/lib/decimal";
 import { assertAgent } from "../auth/service";
 import { db, type Tx } from "../db";
 import { CartError } from "@/server/errors";
@@ -10,7 +11,18 @@ export class PickupBlocked extends CartError {}
 const MAX_FAILS = 5;
 const WINDOW_MS = 10 * 60 * 1000;
 
-export type PickupLine = { id: string; title: string; size: string; colour: string; qty: number };
+/** `fee` is the cash agent fee for the line, as a 2 dp string. */
+export type PickupLine = {
+  id: string;
+  title: string;
+  size: string;
+  colour: string;
+  qty: number;
+  fee: string;
+};
+
+/** The agent hands over only once the buyer has paid the cash agent fee (DEC-019). */
+export const FEE_NOT_TAKEN = "Take the agent fee first";
 
 /** A LIVE, SUSPENDED or LEAVING agent: a suspended agent still hands over parcels. */
 async function requireAgent(agentUserId: string) {
@@ -43,6 +55,7 @@ async function eligibleLines(client: Tx | typeof db, agentId: string, buyerId: s
       id: true,
       qty: true,
       missingQty: true,
+      cashFeeEach: true,
       variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
     },
     orderBy: { id: "asc" },
@@ -55,6 +68,9 @@ async function eligibleLines(client: Tx | typeof db, agentId: string, buyerId: s
       size: l.variant.size,
       colour: l.variant.colour,
       qty: l.qty - l.missingQty,
+      fee: toD(l.cashFeeEach)
+        .times(l.qty - l.missingQty)
+        .toFixed(2),
     }));
 }
 
@@ -91,17 +107,22 @@ export const HANDOVER_REFUSED = "Code or items not found";
 
 /** Marks the given lines collected. All must be in the code's current eligible lines, otherwise
  * nothing changes. A wrong code or wrong items count toward the same throttle as lookupCode.
- * The order status stays RECEIVED (no collected status exists).
+ * The order status stays RECEIVED (no collected status exists). `feeReceived` is the cash agent
+ * fee the agent confirms it took for these lines; it must equal what they owe, and is stored on
+ * each line.
  */
 export async function handOver(
   agentUserId: string,
   code: string,
   lineIds: string[],
   now: Date = new Date(),
+  feeReceived: string | null = null,
 ): Promise<number> {
   const agent = await requireAgent(agentUserId);
   const ids = [...new Set(lineIds ?? [])];
   if (ids.length === 0) throw new CartError("Choose the items to hand over");
+  if (feeReceived !== null && !/^\d{1,10}(\.\d{1,2})?$/.test(feeReceived))
+    throw new CartError(FEE_NOT_TAKEN);
 
   // Checked and recorded under the pickup lock in its own transaction, so a refusal is counted.
   const first = await db.$transaction(
@@ -136,13 +157,22 @@ export async function handOver(
     const current = (await ordersOf(tx, buyer.buyerId)).map((o) => o.id);
     if (current.length !== locked.length || current.some((id, i) => id !== locked[i]))
       throw new CartError("Busy, try again.");
-    const eligible = new Set((await eligibleLines(tx, agent.id, buyer.buyerId)).map((l) => l.id));
+    const eligible = new Map(
+      (await eligibleLines(tx, agent.id, buyer.buyerId)).map((l) => [l.id, l.fee]),
+    );
     if (ids.some((id) => !eligible.has(id))) throw new CartError(HANDOVER_REFUSED);
-    const done = await tx.orderLine.updateMany({
-      where: { id: { in: ids }, collectedAt: null },
-      data: { collectedAt: now },
-    });
-    if (done.count !== ids.length) throw new CartError(HANDOVER_REFUSED);
-    return done.count;
+    const owed = ids.reduce((sum, id) => sum.plus(eligible.get(id)!), new D(0));
+    if (owed.gt(0) && (feeReceived === null || !new D(feeReceived).eq(owed)))
+      throw new CartError(FEE_NOT_TAKEN);
+    let count = 0;
+    for (const id of [...ids].sort()) {
+      const done = await tx.orderLine.updateMany({
+        where: { id, collectedAt: null },
+        data: { collectedAt: now, cashFeePaid: eligible.get(id)! },
+      });
+      count += done.count;
+    }
+    if (count !== ids.length) throw new CartError(HANDOVER_REFUSED);
+    return count;
   });
 }

@@ -5,6 +5,7 @@ import { D, toD } from "@/lib/decimal";
 import { AGENTS_AREA } from "@/lib/admin-access";
 import { missingDeduction, missingRefund } from "@/lib/agent-money";
 import { factoryOf } from "@/lib/factory-roles";
+import { formatLKR } from "@/lib/format";
 import { canMoveBasket } from "@/lib/order-rules";
 import { validCommission } from "@/lib/price-rules";
 import { AGENT_ACCESS } from "../auth/service";
@@ -326,8 +327,30 @@ async function ensurePickupCode(tx: Tx, buyerId: string, agentId: string): Promi
   throw new DeliveryError("Busy, try again.");
 }
 
+/** The cash agent fee each buyer owes for the basket's parcels (DEC-019). */
+async function cashFeesOf(tx: Tx, basketId: string): Promise<Map<string, D>> {
+  const lines = await tx.orderLine.findMany({
+    where: { status: "ACTIVE", collectedAt: null, order: { basketId, status: "RECEIVED" } },
+    select: {
+      qty: true,
+      missingQty: true,
+      cashFeeEach: true,
+      order: { select: { buyerId: true } },
+    },
+  });
+  const fees = new Map<string, D>();
+  for (const l of lines)
+    fees.set(
+      l.order.buyerId,
+      (fees.get(l.order.buyerId) ?? new D(0)).plus(
+        toD(l.cashFeeEach).times(Math.max(l.qty - l.missingQty, 0)),
+      ),
+    );
+  return fees;
+}
+
 /** The basket's agent: WITH_COURIER -> AT_AGENT. Orders become RECEIVED (the agent pays the driver
- * from its agent fees, DEC-018), every buyer gets a pickup code and listed returns go back to the factory.
+ * from the cash agent fees, DEC-019), every buyer gets a pickup code and listed returns go back to the factory.
  * A second call on an AT_AGENT basket changes nothing. Lock order: Order rows -> basket advisory ->
  * Basket row -> ledger.
  */
@@ -367,7 +390,7 @@ export async function markBasketReceived(
         where: { agentId: agent.id, buyerId: { in: [...new Set(received.map((o) => o.buyerId))] } },
         select: { buyerId: true, code: true },
       });
-      return new Map(codes.map((c) => [c.buyerId, c.code]));
+      return { codes: new Map(codes.map((c) => [c.buyerId, c.code])), fees: new Map<string, D>() };
     }
     requireMove(basket.status, "AT_AGENT");
     if (!basket.courier) throw new DeliveryError("No courier is booked");
@@ -403,17 +426,19 @@ export async function markBasketReceived(
     for (const buyerId of [...new Set(orders.map((o) => o.buyerId))].sort())
       codes.set(buyerId, await ensurePickupCode(tx, buyerId, agent.id));
 
-    return codes;
+    return { codes, fees: await cashFeesOf(tx, basket.id) };
   });
-  for (const [buyerId, code] of ready)
+  for (const [buyerId, code] of ready.codes) {
+    const fee = ready.fees.get(buyerId);
     await notify(
       [buyerId],
       {
         title: "Ready to collect",
-        body: `Code ${code} at ${agent.user.name}`,
+        body: `Code ${code} at ${agent.user.name}${fee?.gt(0) ? ` · Agent fee ${formatLKR(fee)}` : ""}`,
         href: "/",
       },
       // notify appends the user id: the notice id is ready:<basketId>:<buyerId>.
       `ready:${basketId}`,
     );
+  }
 }

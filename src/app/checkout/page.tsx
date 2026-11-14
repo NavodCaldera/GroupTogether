@@ -81,10 +81,10 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   const total = sum((q, i) => q[i].due);
   const lines: [string, D][] = [
     ["Item", sum((q, i) => q.orders[i].items)],
-    ["Agent fee", sum((q, i) => q.orders[i].agentFee)],
     ["Tokens", usedTokens.neg()],
     ["PayHere fee", sum((q, i) => q[i].fee)],
   ];
+  const cashFee = sum((q, i) => q.orders[i].cashFee);
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
@@ -164,6 +164,12 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
                 <dd className="border-t border-line pt-2 text-right text-lg font-semibold">
                   {formatLKR(total)}
                 </dd>
+                {cashFee.gt(0) && (
+                  <>
+                    <dt className="text-sm text-subtle">Agent fee at pickup</dt>
+                    <dd className="text-right text-sm text-subtle">{formatLKR(cashFee)}</dd>
+                  </>
+                )}
               </dl>
             </Card>
           )}

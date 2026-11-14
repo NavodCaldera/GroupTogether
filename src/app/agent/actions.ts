@@ -51,7 +51,9 @@ export async function handOverAction(_prev: CodeState, fd: FormData): Promise<Co
   const user = await requireAgent();
   const code = text(fd, "code");
   const ids = fd.getAll("line").map(String);
-  const failed = await attempt(() => handOver(user.id, code, ids));
+  // The agent ticks "Fee received" for the amount shown; without it nothing is handed over.
+  const fee = fd.get("feeReceived") === "on" ? text(fd, "fee") : null;
+  const failed = await attempt(() => handOver(user.id, code, ids, new Date(), fee));
   if (failed) return failed;
   refresh();
   return { ok: "Handed over", at: Date.now() };

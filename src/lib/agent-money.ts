@@ -5,22 +5,23 @@ type Money = D;
 /** agentFeeRate is a share of the item price (0.05); the agent pays couriers from the fee. */
 export type Rates = { agentFeeRate: Money; gatewayFeeRate: Money };
 type LineIn = { qty: number; unitPrice: Money };
-export type OrderTotals = { items: Money; agentFee: Money; gross: Money };
+/** `gross` is what is paid online. `cashFee` is paid to the agent at pickup (DEC-019). */
+export type OrderTotals = { items: Money; cashFee: Money; gross: Money };
 
 const ZERO = new D(0);
 
-/** The agent fee for one piece, rounded to the cent. */
-export function agentFeeEach(unitPrice: Money, rate: Money): Money {
-  return roundMoney(unitPrice.times(rate));
+/** The agent fee for one piece, rounded to the whole rupee because it is paid in cash. */
+export function cashFeeEach(unitPrice: Money, rate: Money): Money {
+  return roundMoney(unitPrice.times(rate).toDecimalPlaces(0, D.ROUND_HALF_UP));
 }
 
 export function orderTotals(lines: LineIn[], r: Rates): OrderTotals {
   const items = lines.reduce((sum, l) => sum.plus(l.unitPrice.times(l.qty)), ZERO);
-  const agentFee = lines.reduce(
-    (sum, l) => sum.plus(agentFeeEach(l.unitPrice, r.agentFeeRate).times(l.qty)),
+  const cashFee = lines.reduce(
+    (sum, l) => sum.plus(cashFeeEach(l.unitPrice, r.agentFeeRate).times(l.qty)),
     ZERO,
   );
-  return { items, agentFee, gross: items.plus(agentFee) };
+  return { items, cashFee, gross: items };
 }
 
 /** round2(remainder / (1 - rate) - remainder); 0 when nothing is charged. */
@@ -63,15 +64,18 @@ export function cancelRefund(o: { tokensApplied: Money; remainder: Money; fee: M
   return roundMoney(o.tokensApplied.plus(o.remainder).plus(o.fee));
 }
 
-/** A factory fault returns everything but the PayHere fee. Lines from before the 5% fee also
- * return their courier charge; newer lines store it as 0. A buyer fault returns nothing. */
+/** A factory fault returns everything but the PayHere fee: the item, the fees paid online on
+ * older lines, and the cash fee the buyer paid the agent. A buyer fault returns nothing. */
 export function factoryFaultRefund(
   qty: number,
   unitPrice: Money,
   courierEach: Money,
   agentFeeEach: Money,
+  cashFeePaidEach: Money = ZERO,
 ): Money {
-  return roundMoney(unitPrice.plus(courierEach).plus(agentFeeEach).times(qty));
+  return roundMoney(
+    unitPrice.plus(courierEach).plus(agentFeeEach).plus(cashFeePaidEach).times(qty),
+  );
 }
 
 export function missingRefund(

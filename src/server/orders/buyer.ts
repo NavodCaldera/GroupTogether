@@ -48,6 +48,8 @@ const orderSelect = {
       factoryPrice: true,
       returnedQty: true,
       missingQty: true,
+      cashFeeEach: true,
+      cashFeePaid: true,
       variant: {
         select: {
           size: true,
@@ -88,7 +90,12 @@ export async function buyerHome(buyerId: string, now = new Date()) {
   const [waiting, handovers, orders, balance] = await Promise.all([
     db.orderLine.findMany({
       where: { collectedAt: null, status: "ACTIVE", order: { buyerId, status: "RECEIVED" } },
-      select: { qty: true, missingQty: true, order: { select: { agentId: true } } },
+      select: {
+        qty: true,
+        missingQty: true,
+        cashFeeEach: true,
+        order: { select: { agentId: true } },
+      },
     }),
     db.returnRequest.findMany({
       where: { buyerId, status: "AWAITING_HANDOVER" },
@@ -112,9 +119,17 @@ export async function buyerHome(buyerId: string, now = new Date()) {
     tokenBalance(buyerId),
   ]);
   const pieces = new Map<string, number>();
-  for (const l of waiting)
-    if (l.qty - l.missingQty > 0)
-      pieces.set(l.order.agentId, (pieces.get(l.order.agentId) ?? 0) + l.qty - l.missingQty);
+  // The cash agent fee the buyer brings to each agent (DEC-019).
+  const fees = new Map<string, D>();
+  for (const l of waiting) {
+    const qty = l.qty - l.missingQty;
+    if (qty <= 0) continue;
+    pieces.set(l.order.agentId, (pieces.get(l.order.agentId) ?? 0) + qty);
+    fees.set(
+      l.order.agentId,
+      (fees.get(l.order.agentId) ?? new D(0)).plus(toD(l.cashFeeEach).times(qty)),
+    );
+  }
   const agentIds = [...pieces.keys()].sort();
   const [codes, agents] = await Promise.all([
     db.pickupCode.findMany({
@@ -127,7 +142,15 @@ export async function buyerHome(buyerId: string, now = new Date()) {
     const code = codes.find((c) => c.agentId === id)?.code;
     const agent = agents.find((a) => a.id === id);
     if (!code || !agent) return [];
-    return [{ code, pieces: pieces.get(id) ?? 0, agent, open: openNow(agent.hours, now) }];
+    return [
+      {
+        code,
+        pieces: pieces.get(id) ?? 0,
+        fee: fees.get(id) ?? new D(0),
+        agent,
+        open: openNow(agent.hours, now),
+      },
+    ];
   });
   return { ready, handovers, orders, balance, lockAt: toD(settings.basketLockAmount) };
 }

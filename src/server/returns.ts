@@ -15,7 +15,8 @@ import {
 } from "@/lib/return-rules";
 import { REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
 import { factoryOf } from "@/lib/factory-roles";
-import { toD } from "@/lib/decimal";
+import { D, toD } from "@/lib/decimal";
+import { formatDate } from "@/lib/format";
 import { factoryFaultRefund } from "@/lib/agent-money";
 import { db, type Tx } from "./db";
 import { CartError } from "@/server/errors";
@@ -511,8 +512,9 @@ async function handoverAgent(tx: Tx, agentUserId: string, r: ReturnRequest) {
     throw new ReturnError("Only the handover agent can collect this return");
   return agent;
 }
-/** The handover agent takes the item from the buyer. Tokens are credited now; for a factory
- * fault the fault is recorded and the return courier waits as a payout deduction. */
+/** The handover agent takes the item from the buyer. For a factory fault the tokens are credited
+ * now, the fault is recorded, and the cash agent fee the buyer paid at pickup is refunded and
+ * charged to the factory's next payout (DEC-019). */
 export async function collectReturn(agentUserId: string, returnId: string, now = new Date()) {
   return locked(agentUserId, returnId, async (tx, r) => {
     const agent = await handoverAgent(tx, agentUserId, r);
@@ -549,15 +551,30 @@ export async function collectReturn(agentUserId: string, returnId: string, now =
     // Ledger rows in sorted order before either posting.
     await lockLedgerUsers(tx, [r.buyerId, agent.userId]);
     const fee = toD(line.agentFeeEach).times(r.qty);
+    // Only a fee the agent confirmed at handover is refunded.
+    const cashEach = line.cashFeePaid === null ? new D(0) : toD(line.cashFeeEach);
     const refund = factoryFaultRefund(
       r.qty,
       toD(line.unitPrice),
       toD(line.courierEach),
       toD(line.agentFeeEach),
+      cashEach,
     );
     await credit(tx, r.buyerId, refund, "RETURN", { returnId: r.id }, "Returned clothing item");
-    // The agent gives back the fee for that item: taken from tokens if that week's fee was paid,
-    // otherwise left out of the weekly credit, which reads returnedQty (DEC-018).
+    // The agent keeps the cash; the factory pays the fee back. The factory advisory held by
+    // `locked` fences this against the weekly payout build.
+    const cashFee = cashEach.times(r.qty);
+    if (cashFee.gt(0))
+      await tx.payoutDeduction.create({
+        data: {
+          factoryId: r.factoryId,
+          kind: "AGENT_FEE",
+          amount: cashFee.toFixed(2),
+          ref: `returnfee:${r.id}`,
+        },
+      });
+    // Older orders paid the fee online: the agent gives it back, from tokens if that week's fee
+    // was paid, otherwise it is left out of the weekly credit, which reads returnedQty (DEC-018).
     const paid = await tx.tokenEntry.findUnique({
       where: { eventKey: agentFeeKey(agent.id, line.order.receivedAt!) },
       select: { id: true },
@@ -585,6 +602,129 @@ export function markResold(agentUserId: string, returnId: string, now = new Date
 }
 export function markTakenBack(agentUserId: string, returnId: string, now = new Date()) {
   return closeResale(agentUserId, returnId, "TAKEN_BACK", now);
+}
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** The buyer is reminded this many days before the pickup deadline. */
+const PICKUP_REMINDER_DAYS = 3;
+
+function uncollectedLines(from: Date | null, to: Date) {
+  return {
+    collectedAt: null,
+    status: "ACTIVE",
+    order: { status: "RECEIVED", receivedAt: { ...(from ? { gt: from } : {}), lte: to } },
+  } satisfies Prisma.OrderLineWhereInput;
+}
+
+/** One reminder per order whose parcel is within PICKUP_REMINDER_DAYS of the pickup deadline. */
+export async function remindUncollected(now = new Date()) {
+  const { pickupDays } = await db.settings.findUniqueOrThrow({
+    where: { id: 1 },
+    select: { pickupDays: true },
+  });
+  const orders = await db.order.findMany({
+    where: {
+      lines: {
+        some: uncollectedLines(
+          new Date(now.getTime() - pickupDays * DAY_MS),
+          new Date(now.getTime() - Math.max(pickupDays - PICKUP_REMINDER_DAYS, 0) * DAY_MS),
+        ),
+      },
+    },
+    select: { id: true, buyerId: true, receivedAt: true },
+    orderBy: { id: "asc" },
+  });
+  const sent = await db.notification.findMany({
+    where: { id: { in: orders.map((o) => `pickup-reminder:${o.id}:${o.buyerId}`) } },
+    select: { id: true },
+  });
+  const done = new Set(sent.map((n) => n.id));
+  let count = 0;
+  for (const o of orders) {
+    if (done.has(`pickup-reminder:${o.id}:${o.buyerId}`)) continue;
+    await notify(
+      [o.buyerId],
+      {
+        title: "Collect your parcel",
+        body: `By ${formatDate(new Date(o.receivedAt!.getTime() + pickupDays * DAY_MS))}`,
+        href: `/orders/${o.id}`,
+      },
+      `pickup-reminder:${o.id}`,
+    );
+    count++;
+  }
+  return count;
+}
+
+/** A parcel still at the agent pickupDays after it arrived becomes a Not collected record held by
+ * the agent, like a buyer-fault return: no tokens, the agent may sell it or give it back
+ * (DEC-019). The line is marked collected so it leaves the pickup queue; no cash fee is recorded.
+ * One transaction per line: buyer and factory advisories -> Order row.
+ */
+export async function abandonUncollected(now = new Date()) {
+  const { pickupDays } = await db.settings.findUniqueOrThrow({
+    where: { id: 1 },
+    select: { pickupDays: true },
+  });
+  const cutoff = new Date(now.getTime() - pickupDays * DAY_MS);
+  const lines = await db.orderLine.findMany({
+    where: uncollectedLines(null, cutoff),
+    select: {
+      id: true,
+      order: {
+        select: {
+          id: true,
+          buyerId: true,
+          factoryId: true,
+          agent: { select: { userId: true } },
+        },
+      },
+    },
+    orderBy: { id: "asc" },
+  });
+  let count = 0;
+  for (const { id, order } of lines)
+    try {
+      const made = await withOrderTransaction(
+        [order.buyerId, order.factoryId],
+        [order.id],
+        async (tx) => {
+          const line = await tx.orderLine.findFirst({
+            where: { id, ...uncollectedLines(null, cutoff) },
+            select: { qty: true, missingQty: true, order: { select: { agentId: true } } },
+          });
+          const qty = line ? line.qty - line.missingQty : 0;
+          if (!line || qty <= 0) return false;
+          await tx.orderLine.update({ where: { id }, data: { collectedAt: now } });
+          const r = await tx.returnRequest.create({
+            data: {
+              orderLineId: id,
+              buyerId: order.buyerId,
+              factoryId: order.factoryId,
+              qty,
+              fault: "BUYER",
+              buyerReason: "NOT_COLLECTED",
+              note: "Not collected",
+              status: "WITH_AGENT",
+              factoryDueAt: now,
+              handoverAgentId: line.order.agentId,
+              handedOverAt: now,
+            },
+          });
+          await queue(tx, r, "not-collected", "Parcel not collected", "buyer");
+          return true;
+        },
+      );
+      if (!made) continue;
+      count++;
+      await notify(
+        [order.agent.userId],
+        { title: "Parcel not collected", body: "", href: "/agent/returns" },
+        `not-collected:${id}`,
+      );
+    } catch (error) {
+      console.error("Uncollected parcel will retry", id, error);
+    }
+  return count;
 }
 /** Accepted returns the buyer never handed over close without tokens; the line earns again. */
 export async function lapseReturns(now = new Date()) {

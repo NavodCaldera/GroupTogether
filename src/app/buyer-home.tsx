@@ -64,6 +64,9 @@ export async function BuyerHome({ user }: { user: SessionUser }) {
                   {r.pieces} item{r.pieces === 1 ? "" : "s"}
                 </span>
               </div>
+              {r.fee.gt(0) && (
+                <p className="text-sm font-semibold tabular-nums">Agent fee {formatLKR(r.fee)}</p>
+              )}
               <p className="text-sm">
                 {[r.agent.address, r.agent.city].filter(Boolean).join(", ")}
               </p>

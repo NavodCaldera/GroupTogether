@@ -5,7 +5,7 @@ import { ProductRatingForm } from "@/components/product-rating-form";
 import { ReturnForm } from "@/components/return-form";
 import { Alert, Badge, Button, Card, LinkButton } from "@/components/ui";
 import { mapLink } from "@/lib/agent-hours";
-import { toD } from "@/lib/decimal";
+import { D, toD } from "@/lib/decimal";
 import { formatDate, formatDateTime, formatLKR } from "@/lib/format";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
@@ -38,6 +38,19 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
     ),
   ].filter(([productId]) => !rated.has(productId));
   const due = toD(order.amountDue);
+  // The agent fee is paid in cash at pickup, so it sits outside the online total (DEC-019).
+  const live = order.status !== "CANCELLED";
+  const feeDue = order.lines.reduce(
+    (sum, l) =>
+      live && l.status === "ACTIVE" && !l.collectedAt
+        ? sum.plus(toD(l.cashFeeEach).times(Math.max(l.qty - l.missingQty, 0)))
+        : sum,
+    new D(0),
+  );
+  const feePaid = order.lines.reduce(
+    (sum, l) => (l.cashFeePaid === null ? sum : sum.plus(toD(l.cashFeePaid))),
+    new D(0),
+  );
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
@@ -186,8 +199,12 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               <dd className="text-right">{formatLKR(order.courierTotal)}</dd>
             </>
           )}
-          <dt>Agent fee</dt>
-          <dd className="text-right">{formatLKR(order.agentFeeTotal)}</dd>
+          {toD(order.agentFeeTotal).gt(0) && (
+            <>
+              <dt>Agent fee</dt>
+              <dd className="text-right">{formatLKR(order.agentFeeTotal)}</dd>
+            </>
+          )}
           <dt>Tokens</dt>
           <dd className="text-right">{formatLKR(toD(order.tokensApplied).neg())}</dd>
           <dt>PayHere fee</dt>
@@ -196,6 +213,18 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
           <dd className="border-t border-line pt-2 text-right text-base font-semibold">
             {formatLKR(due)}
           </dd>
+          {feeDue.gt(0) && (
+            <>
+              <dt className="text-subtle">Agent fee at pickup</dt>
+              <dd className="text-right text-subtle">{formatLKR(feeDue)}</dd>
+            </>
+          )}
+          {feePaid.gt(0) && (
+            <>
+              <dt className="text-subtle">Agent fee paid</dt>
+              <dd className="text-right text-subtle">{formatLKR(feePaid)}</dd>
+            </>
+          )}
         </dl>
       </Card>
 

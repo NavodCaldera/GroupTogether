@@ -443,7 +443,7 @@ describe("leaving", () => {
       "LEAVING",
     );
 
-    await handOver(a.user.id, "123456", [r.line.id]);
+    await handOver(a.user.id, "123456", [r.line.id], new Date(), "55");
     expect(await closeLeavingAgents(new Date())).toBe(1);
     expect(await closeLeavingAgents(new Date())).toBe(0);
     const left = await db.agent.findUniqueOrThrow({ where: { id: a.agent.id } });

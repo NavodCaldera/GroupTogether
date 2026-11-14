@@ -33,12 +33,14 @@ export async function BuyerReturns({ adminId, decide }: { adminId: string; decid
               <p className="text-sm text-subtle">{p.factory}</p>
             </div>
             <dl className="grid grid-cols-[1fr_auto] gap-x-4 text-sm tabular-nums">
-              {BUYER_FAULT_REASONS.filter((reason) => p.counts[reason]).map((reason) => (
-                <div key={reason} className="contents">
-                  <dt>{BUYER_FAULT_LABEL[reason]}</dt>
-                  <dd className="text-right">{p.counts[reason]}</dd>
-                </div>
-              ))}
+              {([...BUYER_FAULT_REASONS, "NOT_COLLECTED"] as const)
+                .filter((reason) => p.counts[reason])
+                .map((reason) => (
+                  <div key={reason} className="contents">
+                    <dt>{BUYER_FAULT_LABEL[reason]}</dt>
+                    <dd className="text-right">{p.counts[reason]}</dd>
+                  </div>
+                ))}
             </dl>
           </Card>
         ))}

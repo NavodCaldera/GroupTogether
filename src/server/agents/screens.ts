@@ -67,7 +67,7 @@ export async function waitingForPickup(agentId: string) {
     select: {
       qty: true,
       missingQty: true,
-      agentFeeEach: true,
+      cashFeeEach: true,
       order: {
         select: { buyerId: true, receivedAt: true, buyer: { select: { name: true } } },
       },
@@ -88,7 +88,7 @@ export async function waitingForPickup(agentId: string) {
       receivedAt: l.order.receivedAt,
     };
     row.items += qty;
-    row.fee = row.fee.plus(toD(l.agentFeeEach).times(qty));
+    row.fee = row.fee.plus(toD(l.cashFeeEach).times(qty));
     if (l.order.receivedAt && (!row.receivedAt || l.order.receivedAt < row.receivedAt))
       row.receivedAt = l.order.receivedAt;
     byBuyer.set(l.order.buyerId, row);
@@ -218,9 +218,10 @@ export async function basketsFilling(agentId: string) {
   };
 }
 
-/** The agent's token figures: balance, fee earnings, courier repayments and the deposit. */
+/** The agent's money figures: token balance, cash fees taken at handover, the token fees and
+ * courier repayments of older orders, and the deposit. */
 export async function agentTokens(agent: { id: string; userId: string }) {
-  const [balance, sums, row, entries] = await Promise.all([
+  const [balance, sums, row, entries, cash] = await Promise.all([
     tokenBalance(agent.userId),
     db.tokenEntry.groupBy({
       by: ["kind"],
@@ -237,6 +238,10 @@ export async function agentTokens(agent: { id: string; userId: string }) {
       take: 50,
       select: { id: true, amount: true, note: true, createdAt: true },
     }),
+    db.orderLine.aggregate({
+      where: { order: { agentId: agent.id }, cashFeePaid: { not: null } },
+      _sum: { cashFeePaid: true },
+    }),
   ]);
   const sum = (kind: string) => {
     const s = sums.find((x) => x.kind === kind)?._sum.amount;
@@ -244,6 +249,7 @@ export async function agentTokens(agent: { id: string; userId: string }) {
   };
   return {
     balance,
+    cashFees: cash._sum.cashFeePaid === null ? new D(0) : toD(cash._sum.cashFeePaid),
     fees: sum("AGENT_FEE"),
     courier: sum("COURIER_REPAY"),
     deposit: toD(row.depositAmount),

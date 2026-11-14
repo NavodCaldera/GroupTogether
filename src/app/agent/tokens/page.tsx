@@ -30,8 +30,9 @@ export default async function AgentTokens() {
           <p className="text-sm text-subtle">Balance</p>
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <Figure label="Agent fees" value={formatLKR(t.fees)} />
-          <Figure label="Courier repaid" value={formatLKR(t.courier)} />
+          <Figure label="Fees collected" value={formatLKR(t.cashFees)} />
+          {t.fees.gt(0) && <Figure label="Agent fees" value={formatLKR(t.fees)} />}
+          {t.courier.gt(0) && <Figure label="Courier repaid" value={formatLKR(t.courier)} />}
         </div>
       </Card>
 

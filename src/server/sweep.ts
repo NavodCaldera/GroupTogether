@@ -10,7 +10,13 @@ import { removeFactory } from "./quality";
 import { expireOrders, lockBasket } from "./orders/baskets";
 import { lockBasketSlot, withOrderTransaction } from "./orders/locks";
 import { buildWeeklyPayouts, creditAgentFees } from "./payouts";
-import { escalateOverdue, flushReturnNotices, lapseReturns } from "./returns";
+import {
+  abandonUncollected,
+  escalateOverdue,
+  flushReturnNotices,
+  lapseReturns,
+  remindUncollected,
+} from "./returns";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -116,6 +122,8 @@ export async function runSweep(now = new Date()): Promise<Record<string, number>
   await step("maxWaitLocked", () => lockWaitedBaskets(now));
   await step("escalatedReturns", () => escalateOverdue(now));
   await step("lapsedReturns", () => lapseReturns(now));
+  await step("pickupReminders", () => remindUncollected(now));
+  await step("parcelsNotCollected", () => abandonUncollected(now));
   await step("agentsClosed", () => closeLeavingAgents(now));
   await step("weekly", () => weekly(now));
   await step("faultHolds", () => sweepFaultHolds());

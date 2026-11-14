@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { D, toD } from "@/lib/decimal";
 import {
-  agentFeeEach,
+  cashFeeEach,
   orderTotals,
   splitCheckout,
   type OrderTotals,
@@ -260,9 +260,10 @@ export async function startCheckout(
           factoryId: g.factoryId,
           paymentAttemptId: attempt?.id ?? null,
           itemsTotal: g.totals.items.toFixed(2),
-          // The agent pays couriers from its fee (DEC-018); older orders keep their charge.
+          // Nothing but the item is paid online: the agent fee is cash at pickup (DEC-019).
+          // Older orders keep the charges they stored.
           courierTotal: "0.00",
-          agentFeeTotal: g.totals.agentFee.toFixed(2),
+          agentFeeTotal: "0.00",
           tokensApplied: part.tokens.toFixed(2),
           gatewayFee: part.fee.toFixed(2),
           amountDue: part.due.toFixed(2),
@@ -275,7 +276,8 @@ export async function startCheckout(
               unitPrice: l.unitPrice.toFixed(2),
               factoryPrice: l.factoryPrice!.toFixed(2),
               courierEach: "0.00",
-              agentFeeEach: agentFeeEach(l.unitPrice, toD(plan.settings.agentFeeRate)).toFixed(2),
+              agentFeeEach: "0.00",
+              cashFeeEach: cashFeeEach(l.unitPrice, toD(plan.settings.agentFeeRate)).toFixed(2),
             })),
           },
         },

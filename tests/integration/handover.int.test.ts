@@ -1,13 +1,20 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { CartError } from "@/server/errors";
-import { HANDOVER_REFUSED, handOver, lookupCode, PickupBlocked } from "@/server/orders/handover";
+import {
+  FEE_NOT_TAKEN,
+  HANDOVER_REFUSED,
+  handOver,
+  lookupCode,
+  PickupBlocked,
+} from "@/server/orders/handover";
 import { makeAgent, makeReceivedOrder, resetDb } from "./helpers";
 
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
 
-/** A RECEIVED order with two uncollected lines and the buyer's code at the agent. */
+/** A RECEIVED order with two uncollected lines and the buyer's code at the agent. The cash agent
+ * fee is 55 a piece: 110 for the first line and 55 for the second. */
 async function setup() {
   const r = await makeReceivedOrder({ collectedAt: null, qty: 2 });
   const second = await db.orderLine.create({
@@ -18,7 +25,8 @@ async function setup() {
       unitPrice: "1100",
       factoryPrice: "1000",
       courierEach: "0",
-      agentFeeEach: "55",
+      agentFeeEach: "0",
+      cashFeeEach: "55",
     },
   });
   const code = "123456";
@@ -33,9 +41,41 @@ describe("pickup by code", () => {
     expect(found?.buyerName).toBe(s.buyer.name);
     expect(found?.lines.map((l) => l.id).sort()).toEqual([...s.lineIds].sort());
     expect(found?.lines.find((l) => l.id === s.line.id)?.qty).toBe(2);
-    expect(await handOver(s.agentUser.id, s.code, s.lineIds)).toBe(2);
+    expect(found?.lines.find((l) => l.id === s.line.id)?.fee).toBe("110.00");
+    expect(await handOver(s.agentUser.id, s.code, s.lineIds, new Date(), "165")).toBe(2);
     expect(await lookupCode(s.agentUser.id, s.code)).toBeNull();
     expect(await db.orderLine.count({ where: { collectedAt: null } })).toBe(0);
+  });
+
+  it("hands over only with the cash agent fee confirmed, and records it per line", async () => {
+    const s = await setup();
+    for (const fee of [null, "0", "110", "165.01", "abc", "-165"])
+      await expect(handOver(s.agentUser.id, s.code, s.lineIds, new Date(), fee)).rejects.toThrow(
+        FEE_NOT_TAKEN,
+      );
+    expect(await db.orderLine.count({ where: { collectedAt: { not: null } } })).toBe(0);
+    // A refused fee is not a wrong code, so it does not count toward the throttle.
+    expect(await db.pickupAttempt.count({ where: { ok: false } })).toBe(0);
+
+    // One line alone owes only its own fee.
+    await handOver(s.agentUser.id, s.code, [s.lineIds[1]], new Date(), "55.00");
+    await handOver(s.agentUser.id, s.code, [s.lineIds[0]], new Date(), "110");
+    const lines = await db.orderLine.findMany({ orderBy: { qty: "desc" } });
+    expect(lines.map((l) => l.cashFeePaid?.toFixed(2))).toEqual(["110.00", "55.00"]);
+    expect(lines.every((l) => l.collectedAt)).toBe(true);
+  });
+
+  it("charges no fee for missing pieces and needs no tick when nothing is owed", async () => {
+    const s = await setup();
+    await db.orderLine.update({ where: { id: s.line.id }, data: { missingQty: 1 } });
+    await handOver(s.agentUser.id, s.code, [s.line.id], new Date(), "55");
+    await db.orderLine.update({ where: { id: s.lineIds[1] }, data: { cashFeeEach: "0" } });
+    expect(await handOver(s.agentUser.id, s.code, [s.lineIds[1]])).toBe(1);
+    expect(
+      (await db.orderLine.findUniqueOrThrow({ where: { id: s.lineIds[1] } })).cashFeePaid?.toFixed(
+        2,
+      ),
+    ).toBe("0.00");
   });
 
   it("hides lines that are fully missing", async () => {
@@ -77,8 +117,10 @@ describe("pickup by code", () => {
 
   it("refuses a line that is already collected", async () => {
     const s = await setup();
-    await handOver(s.agentUser.id, s.code, [s.lineIds[0]]);
-    await expect(handOver(s.agentUser.id, s.code, s.lineIds)).rejects.toBeInstanceOf(CartError);
+    await handOver(s.agentUser.id, s.code, [s.lineIds[0]], new Date(), "110");
+    await expect(
+      handOver(s.agentUser.id, s.code, s.lineIds, new Date(), "165"),
+    ).rejects.toBeInstanceOf(CartError);
     expect(await db.orderLine.count({ where: { collectedAt: null } })).toBe(1);
   });
 
@@ -115,6 +157,6 @@ describe("pickup by code", () => {
     await expect(lookupCode(s.agentUser.id, s.code, t0)).rejects.toBeInstanceOf(PickupBlocked);
     expect(await db.orderLine.count({ where: { collectedAt: { not: null } } })).toBe(0);
     const later = new Date(t0.getTime() + 10 * 60_000 + 1);
-    expect(await handOver(s.agentUser.id, s.code, s.lineIds, later)).toBe(2);
+    expect(await handOver(s.agentUser.id, s.code, s.lineIds, later, "165")).toBe(2);
   });
 });
