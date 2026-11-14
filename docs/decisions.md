@@ -278,12 +278,14 @@ problems such as wrongly identified material, so GroupBasket knows what happens 
 
 Open points, with recommendations:
 
-1. **Which admin accepts.** Recommended: the Factory admin, which already decides returns and
-   quality; the agent notice is sent automatically on acceptance.
+1. **Decided:** the Agents and orders admin accepts or refuses; the agent notice is sent
+   automatically on acceptance. Open: a read-only view of buyer-fault reasons per product for the
+   Factory admin and the factory (no buyer names), since admins cannot reach other areas
+   (`ADMIN-002`).
 2. **Reasons** as fixed choices (material not as described, size, colour, quality feel, changed
    mind, other) with a short note, counted per product and factory.
-3. **Switch to factory fault** when the reason shows the listing was wrong, such as material not
-   as described.
+3. **Send to Factory admin** when the reason shows the listing was wrong, such as material not
+   as described; the return then follows the factory-fault path.
 4. **End states** beyond Sold: refused, lapsed (not handed over), taken back by the buyer unsold,
    and agent suspended or leaving while holding it.
 5. **Handover deadline** after acceptance, for example 2 days.
