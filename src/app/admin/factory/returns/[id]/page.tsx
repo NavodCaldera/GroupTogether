@@ -16,7 +16,7 @@ export default async function ReturnPage({ params }: { params: Promise<{ id: str
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-2xl flex-col gap-4">
       <PageHeader title="Return" />
-      <ReturnCard request={r} viewer="admin">
+      <ReturnCard request={r} viewer="admin" canChangeFault={user.adminArea === "FACTORY"}>
         <ReturnThread id={id} messages={messages} canPost={r.status === "WITH_ADMIN"} />
       </ReturnCard>
     </div>

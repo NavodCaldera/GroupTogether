@@ -166,17 +166,3 @@ export function Count({ n, tone = "muted" }: { n: number; tone?: "muted" | "aler
     </span>
   );
 }
-
-/** Label/value pairs, label left and value right. */
-function Rows({ rows }: { rows: [string, ReactNode][] }) {
-  return (
-    <dl className="flex flex-col gap-2">
-      {rows.map(([label, value]) => (
-        <div key={label} className="flex justify-between gap-3">
-          <dt className="text-subtle">{label}</dt>
-          <dd className="text-right">{value}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}

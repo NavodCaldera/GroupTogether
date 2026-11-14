@@ -93,9 +93,9 @@ const agentsAdmin = () => makeUser("ADMIN", "AGENTS");
 /** An OPEN basket at the agent holding one PAID order, paid in full with tokens. */
 async function openBasket(agentId: string, f: Awaited<ReturnType<typeof makeFactory>>) {
   const buyer = await makeBuyer();
-  await fundTokens(buyer.id, "1160");
+  await fundTokens(buyer.id, "1155");
   await setCartItem(buyer.id, f.variant.id, 1);
-  await startCheckout(buyer.id, { agentId, tokens: "1160", requestKey: "open" });
+  await startCheckout(buyer.id, { agentId, tokens: "1155", requestKey: "open" });
   return db.basket.findFirstOrThrow({
     where: { agentId, factoryId: f.factory.id, status: "OPEN" },
   });
@@ -488,6 +488,42 @@ describe("leaving", () => {
     expect(await db.tokenEntry.count({ where: { kind: "DEPOSIT_RETURN" } })).toBe(1);
   });
 
+  it("a buyer-fault item waiting for resale keeps the agent open (DEC-017)", async () => {
+    const a = await paidAgent();
+    const r = await makeReceivedOrder({ agent: a });
+    const ret = await db.returnRequest.create({
+      data: {
+        ...returnData(r, a.agent.id),
+        reason: null,
+        buyerReason: "SIZE",
+        fault: "BUYER",
+        status: "WITH_AGENT",
+      },
+    });
+    await requestLeave(a.user.id);
+    expect(await closeLeavingAgents(new Date())).toBe(0);
+    // Not a send-back: the admin cannot collect it as a factory return.
+    expect(await collectHeldReturns((await agentsAdmin()).id, a.agent.id)).toBe(0);
+    await db.returnRequest.update({ where: { id: ret.id }, data: { status: "SOLD" } });
+    expect(await closeLeavingAgents(new Date())).toBe(1);
+  });
+
+  it("fee take-backs still owed come off the returned deposit (DEC-018)", async () => {
+    const a = await paidAgent();
+    const r = await makeReceivedOrder({ agent: a });
+    const ret = await db.returnRequest.create({ data: returnData(r, a.agent.id) });
+    await db.returnRequest.update({ where: { id: ret.id }, data: { status: "COMPLETED" } });
+    await db.agentFeeClawback.create({
+      data: { agentId: a.agent.id, returnId: ret.id, amount: "55", left: "30" },
+    });
+    await requestLeave(a.user.id);
+    expect(await closeLeavingAgents(new Date())).toBe(1);
+    expect(money(await tokenBalance(a.user.id))).toBe("199970.00");
+    expect(
+      money((await db.agentFeeClawback.findUniqueOrThrow({ where: { returnId: ret.id } })).left),
+    ).toBe("0.00");
+  });
+
   it("collectHeldReturns refuses an agent that is not leaving", async () => {
     const a = await paidAgent();
     await expect(collectHeldReturns((await agentsAdmin()).id, a.agent.id)).rejects.toThrow();
@@ -497,11 +533,11 @@ describe("leaving", () => {
     const a = await paidAgent();
     const f = await makeFactory();
     const buyer = await makeBuyer();
-    await fundTokens(buyer.id, "1160");
+    await fundTokens(buyer.id, "1155");
     await setCartItem(buyer.id, f.variant.id, 1);
     const r = await startCheckout(buyer.id, {
       agentId: a.agent.id,
-      tokens: "1160",
+      tokens: "1155",
       requestKey: "k",
     });
     await cancelOrder(buyer.id, r.orderIds[0]);

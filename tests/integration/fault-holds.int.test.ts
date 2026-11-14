@@ -2,7 +2,13 @@ import { afterAll, afterEach, beforeEach, describe, it, expect, vi } from "vites
 import * as quality from "@/server/quality";
 import { db } from "@/server/db";
 import { runSweep } from "@/server/sweep";
-import { factoryDecide, adminDecide, fileReturn, collectReturn } from "@/server/returns";
+import {
+  factoryDecide,
+  adminDecide,
+  fileReturn,
+  collectReturn,
+  buyerFaultDecide,
+} from "@/server/returns";
 import { recordFault, countedFaultUnits } from "@/server/fault-holds";
 import {
   makeAgent,
@@ -48,7 +54,8 @@ async function request(
     {
       qty,
       fault,
-      reason: "DAMAGED",
+      reason: fault === "FACTORY" ? "DAMAGED" : null,
+      buyerReason: fault === "BUYER" ? "SIZE" : null,
       note: "Seam",
       photos: fault === "FACTORY" ? [giftPhotoFile()] : [],
     },
@@ -57,7 +64,10 @@ async function request(
 }
 /** Faults are recorded when the agent collects an accepted factory-fault return. */
 async function accept(f: Awaited<ReturnType<typeof fixture>>, id: string) {
-  await factoryDecide(f.factory.id, id, true, now);
+  const r = await db.returnRequest.findUniqueOrThrow({ where: { id } });
+  if (r.fault === "BUYER")
+    await buyerFaultDecide((await makeUser("ADMIN", "AGENTS")).id, id, true, "", now);
+  else await factoryDecide(f.factory.id, id, true, now);
   await collectReturn(f.agent.user.id, id, now);
 }
 describe("factory faults", () => {

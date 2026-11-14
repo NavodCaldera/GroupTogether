@@ -28,6 +28,12 @@ describe("return rules", () => {
     ["HANDED_OVER", "PICKED_UP"],
     ["WAITING_FACTORY", "AWAITING_HANDOVER"],
     ["WITH_ADMIN", "AWAITING_HANDOVER"],
+    ["WITH_ADMIN", "BUYER_REQUESTED"],
+    ["BUYER_REQUESTED", "AWAITING_HANDOVER"],
+    ["BUYER_REQUESTED", "REJECTED"],
+    ["AWAITING_HANDOVER", "WITH_AGENT"],
+    ["WITH_AGENT", "SOLD"],
+    ["WITH_AGENT", "TAKEN_BACK"],
   ] as const)("allows %s -> %s", (from, to) => expect(canMoveReturn(from, to)).toBe(true));
   it("refuses invalid and terminal moves", () => {
     expect(canMoveReturn("REJECTED", "WITH_ADMIN")).toBe(false);
@@ -37,5 +43,11 @@ describe("return rules", () => {
     expect(canMoveReturn("ACCEPTED", "ACCEPTED")).toBe(false);
     expect(canMoveReturn("LAPSED", "HANDED_OVER")).toBe(false);
     expect(canMoveReturn("HANDED_OVER", "COMPLETED")).toBe(false);
+    // Buyer-fault items never travel to the factory and cannot be re-decided.
+    expect(canMoveReturn("WITH_AGENT", "PICKED_UP")).toBe(false);
+    expect(canMoveReturn("HANDED_OVER", "WITH_AGENT")).toBe(false);
+    expect(canMoveReturn("BUYER_REQUESTED", "WITH_ADMIN")).toBe(false);
+    expect(canMoveReturn("SOLD", "TAKEN_BACK")).toBe(false);
+    expect(canMoveReturn("WAITING_FACTORY", "BUYER_REQUESTED")).toBe(false);
   });
 });

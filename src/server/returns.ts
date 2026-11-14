@@ -6,14 +6,21 @@ import {
 } from "./private-thread";
 import "server-only";
 import type { Prisma, ReturnRequest, ReturnStatus } from "@/generated/prisma/client";
-import { canMoveReturn, factoryOverdue } from "@/lib/return-rules";
+import {
+  BUYER_FAULT_KEPT,
+  BUYER_FAULT_REASONS,
+  canMoveReturn,
+  factoryOverdue,
+  type BuyerFaultReason,
+} from "@/lib/return-rules";
 import { REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
 import { factoryOf } from "@/lib/factory-roles";
 import { toD } from "@/lib/decimal";
-import { returnRefund } from "@/lib/agent-money";
+import { factoryFaultRefund } from "@/lib/agent-money";
 import { db, type Tx } from "./db";
 import { CartError } from "@/server/errors";
-import { withOrderTransaction } from "./orders/locks";
+import { lockLedgerUsers, withOrderTransaction } from "./orders/locks";
+import { agentFeeKey, takeBackFee } from "./agent-fees";
 import { checkUpload, IMAGE_TYPES, saveUpload } from "./storage";
 import { credit } from "./tokens";
 import { assertQualityAdmin } from "./quality";
@@ -71,6 +78,12 @@ async function qualityActor(tx: Tx, id: string) {
   if (user.role !== "ADMIN" || !["FACTORY", "CORE"].includes(user.adminArea ?? ""))
     throw new ReturnError("Quality admin access required");
 }
+/** Buyer-fault returns belong to the Agents and orders admin (DEC-017). */
+async function agentsActor(tx: Tx, id: string) {
+  const user = await activeUser(tx, id);
+  if (user.role !== "ADMIN" || user.adminArea !== AGENTS_AREA)
+    throw new ReturnError("Agents and orders admin access required");
+}
 async function queue(
   tx: Tx,
   request: ReturnRequest,
@@ -114,7 +127,9 @@ async function queue(
       ? await buyerHref(tx, request)
       : side === "factory"
         ? "/seller/returns"
-        : `/admin/factory/returns/${request.id}`;
+        : side === "agents"
+          ? "/admin/agents/returns"
+          : `/admin/factory/returns/${request.id}`;
   for (const user of users)
     await tx.returnNotice.upsert({
       where: { id: `${request.id}:${event}:${user.id}` },
@@ -222,8 +237,11 @@ export async function fileReturn(
   buyerId: string,
   orderLineId: string,
   input: {
-    reason: ReportReason;
     fault: "FACTORY" | "BUYER";
+    /** Factory fault only */
+    reason?: ReportReason | null;
+    /** Buyer fault only (DEC-017) */
+    buyerReason?: BuyerFaultReason | null;
     note: string;
     photos: File[];
     qty?: number;
@@ -234,8 +252,10 @@ export async function fileReturn(
   if (
     !Number.isInteger(qty) ||
     qty < 1 ||
-    !REPORT_REASONS.includes(input.reason) ||
     !["FACTORY", "BUYER"].includes(input.fault) ||
+    (input.fault === "FACTORY" && !REPORT_REASONS.includes(input.reason as ReportReason)) ||
+    (input.fault === "BUYER" &&
+      !BUYER_FAULT_REASONS.includes(input.buyerReason as BuyerFaultReason)) ||
     !input.note.trim() ||
     input.note.length > 2000 ||
     input.photos.length > 5
@@ -268,9 +288,15 @@ export async function fileReturn(
     const elapsed = now.getTime() - line.order.receivedAt.getTime();
     if (elapsed < 0 || elapsed > collectHours * 3600000)
       throw new ReturnError(`Return within ${collectHours} hours of the agent receiving it`);
-    // Collected returns are already in returnedQty; count only those still before collection.
+    // Collected factory-fault returns are already in returnedQty; buyer-fault ones never are.
     const open = await tx.returnRequest.aggregate({
-      where: { orderLineId, status: { in: UNCOLLECTED_RETURN_STATUSES } },
+      where: {
+        orderLineId,
+        OR: [
+          { status: { in: UNCOLLECTED_RETURN_STATUSES } },
+          { fault: "BUYER", status: { in: [...BUYER_FAULT_KEPT] } },
+        ],
+      },
       _sum: { qty: true },
     });
     if (qty > line.qty - line.returnedQty - line.missingQty - (open._sum.qty ?? 0))
@@ -278,27 +304,35 @@ export async function fileReturn(
     const photos = [];
     for (const file of input.photos)
       photos.push(await saveUpload(file, "return-photos", IMAGE_TYPES));
-    const removed = !!(await tx.factoryProfile.count({
-      where: { factoryUserId: factoryId, status: "REMOVED" },
-    }));
+    const buyer = input.fault === "BUYER";
+    const removed =
+      !buyer &&
+      !!(await tx.factoryProfile.count({
+        where: { factoryUserId: factoryId, status: "REMOVED" },
+      }));
     const r = await tx.returnRequest.create({
       data: {
         orderLineId,
         buyerId,
         factoryId,
         qty,
-        reason: input.reason,
+        reason: buyer ? null : input.reason,
+        buyerReason: buyer ? input.buyerReason : null,
         fault: input.fault,
         note: input.note.trim(),
         createdAt: now,
-        factoryDueAt: new Date(now.getTime() + 24 * 3600000),
-        status: removed ? "WITH_ADMIN" : "WAITING_FACTORY",
+        // The factory never decides a buyer-fault return; its due time is unused.
+        factoryDueAt: buyer ? now : new Date(now.getTime() + 24 * 3600000),
+        status: buyer ? "BUYER_REQUESTED" : removed ? "WITH_ADMIN" : "WAITING_FACTORY",
         escalatedAt: removed ? now : null,
         photos: { create: photos },
       },
     });
-    await queue(tx, r, "filed", "Return requested", removed ? "admin" : "factory");
-    await queue(tx, r, "filed", "Return requested", "admin");
+    if (buyer) await queue(tx, r, "filed", "Buyer return requested", "agents");
+    else {
+      await queue(tx, r, "filed", "Return requested", removed ? "admin" : "factory");
+      await queue(tx, r, "filed", "Return requested", "admin");
+    }
     return r;
   });
   await flushReturnNotices();
@@ -323,14 +357,15 @@ async function toHandover(
     select: { status: true },
   });
   if (agent.status === "LEFT") throw new ReturnError("The agent for this order has closed");
-  const { returnHandoverDays } = await tx.settings.findUniqueOrThrow({
+  const { returnHandoverDays, buyerHandoverDays } = await tx.settings.findUniqueOrThrow({
     where: { id: 1 },
-    select: { returnHandoverDays: true },
+    select: { returnHandoverDays: true, buyerHandoverDays: true },
   });
+  const days = r.fault === "BUYER" ? buyerHandoverDays : returnHandoverDays;
   return move(tx, r, "AWAITING_HANDOVER", {
     ...data,
     handoverAgent: { connect: { id: line.order.agentId } },
-    handoverDueAt: new Date(now.getTime() + returnHandoverDays * 86400000),
+    handoverDueAt: new Date(now.getTime() + days * 86400000),
   });
 }
 /** After commit: the buyer learns which agent takes the item; the agent sees it coming. */
@@ -399,7 +434,8 @@ export async function adminDecide(
   if (!note.trim() || note.length > 2000) throw new ReturnError("Add a decision note");
   const after = await locked(adminId, returnId, async (tx, r) => {
     await qualityActor(tx, adminId);
-    if (r.status !== "WITH_ADMIN" || r.adminDecision !== null) throw decided();
+    if (r.status !== "WITH_ADMIN" || r.adminDecision !== null || r.fault !== "FACTORY")
+      throw decided();
     const decision = { adminId, adminDecision: accept, adminNote: note.trim() };
     await queue(tx, r, "admin-decision", "Admin decided return", "factory");
     if (accept) return toHandover(tx, r, new Date(), decision);
@@ -410,22 +446,87 @@ export async function adminDecide(
   await announceHandover(after);
   return after;
 }
+/** The Agents and orders admin accepts or refuses a buyer-fault return. Acceptance gives the
+ * buyer buyerHandoverDays to bring it to the order's agent. */
+export async function buyerFaultDecide(
+  adminId: string,
+  returnId: string,
+  accept: boolean,
+  note: string,
+  now = new Date(),
+) {
+  if (note.length > 2000) throw new ReturnError("Decision note is too long");
+  const after = await locked(adminId, returnId, async (tx, r) => {
+    await agentsActor(tx, adminId);
+    if (r.status !== "BUYER_REQUESTED" || r.fault !== "BUYER") throw decided();
+    const decision = {
+      buyerDecidedById: adminId,
+      adminId,
+      adminDecision: accept,
+      adminNote: note.trim() || null,
+    };
+    if (accept) return toHandover(tx, r, now, decision);
+    const after = await move(tx, r, "REJECTED", decision);
+    await queue(tx, after, "buyer-decision", "Return refused", "buyer");
+    return after;
+  });
+  await announceHandover(after);
+  return after;
+}
+/** A Factory admin finds a factory-fault return is really the buyer's: no fault is recorded and
+ * the Agents and orders admin decides it as a buyer-fault return (DEC-017). */
+export async function changeToBuyerFault(
+  adminId: string,
+  returnId: string,
+  note: string,
+  now = new Date(),
+) {
+  if (!note.trim() || note.length > 2000) throw new ReturnError("Add a decision note");
+  return locked(adminId, returnId, async (tx, r) => {
+    const user = await activeUser(tx, adminId);
+    if (user.role !== "ADMIN" || user.adminArea !== "FACTORY")
+      throw new ReturnError("Factory admin access required");
+    if (r.status !== "WITH_ADMIN" || r.fault !== "FACTORY" || r.adminDecision !== null)
+      throw decided();
+    const after = await move(tx, r, "BUYER_REQUESTED", {
+      fault: "BUYER",
+      changedToBuyerAt: now,
+      adminNote: note.trim(),
+    });
+    await queue(tx, after, "changed-to-buyer", "Buyer return requested", "agents");
+    await queue(tx, after, "changed-to-buyer", "Return changed to buyer fault", "buyer");
+    return after;
+  });
+}
+async function handoverAgent(tx: Tx, agentUserId: string, r: ReturnRequest) {
+  const agent = await tx.agent.findFirst({
+    where: {
+      userId: agentUserId,
+      status: { in: AGENT_ACCESS },
+      user: { locked: false, role: "AGENT" },
+    },
+    select: { id: true, userId: true },
+  });
+  if (!agent || !r.handoverAgentId || agent.id !== r.handoverAgentId)
+    throw new ReturnError("Only the handover agent can collect this return");
+  return agent;
+}
 /** The handover agent takes the item from the buyer. Tokens are credited now; for a factory
  * fault the fault is recorded and the return courier waits as a payout deduction. */
 export async function collectReturn(agentUserId: string, returnId: string, now = new Date()) {
   return locked(agentUserId, returnId, async (tx, r) => {
-    const agent = await tx.agent.findFirst({
-      where: {
-        userId: agentUserId,
-        status: { in: AGENT_ACCESS },
-        user: { locked: false, role: "AGENT" },
-      },
-      select: { id: true },
-    });
-    if (!agent || !r.handoverAgentId || agent.id !== r.handoverAgentId)
-      throw new ReturnError("Only the handover agent can collect this return");
+    const agent = await handoverAgent(tx, agentUserId, r);
     if (r.status !== "AWAITING_HANDOVER") throw decided();
-    const line = await tx.orderLine.findUniqueOrThrow({ where: { id: r.orderLineId! } });
+    if (r.fault === "BUYER") {
+      // No tokens and no returnedQty: the agent resells it privately (DEC-017).
+      const after = await move(tx, r, "WITH_AGENT", { handedOverAt: now });
+      await queue(tx, after, "collected", "Return with agent", "buyer");
+      return after;
+    }
+    const line = await tx.orderLine.findUniqueOrThrow({
+      where: { id: r.orderLineId! },
+      include: { order: { select: { receivedAt: true } } },
+    });
     const returnedQty = line.returnedQty + r.qty;
     if (returnedQty + line.missingQty > line.qty)
       throw new ReturnError("Return quantity exceeds this line");
@@ -437,30 +538,53 @@ export async function collectReturn(agentUserId: string, returnId: string, now =
       },
     });
     const after = await move(tx, r, "HANDED_OVER", { handedOverAt: now });
-    if (r.fault === "FACTORY") {
-      const byAdmin = r.adminDecision === true;
-      await recordFault(
-        tx,
-        after,
-        byAdmin ? "ADMIN" : "FACTORY",
-        (byAdmin ? r.adminId : r.factoryDecidedById) ?? r.factoryId,
-        now,
-      );
-      await tx.payoutDeduction.create({
-        data: {
-          factoryId: r.factoryId,
-          kind: "RETURN_COURIER",
-          amount: toD(line.courierEach).times(r.qty).toFixed(2),
-          ref: `retcourier:${r.id}`,
-        },
-      });
-    }
-    const refund = returnRefund(r.qty, toD(line.unitPrice), toD(line.courierEach), r.fault);
-    if (refund.gt(0))
-      await credit(tx, r.buyerId, refund, "RETURN", { returnId: r.id }, "Returned clothing item");
+    const byAdmin = r.adminDecision === true;
+    await recordFault(
+      tx,
+      after,
+      byAdmin ? "ADMIN" : "FACTORY",
+      (byAdmin ? r.adminId : r.factoryDecidedById) ?? r.factoryId,
+      now,
+    );
+    // Ledger rows in sorted order before either posting.
+    await lockLedgerUsers(tx, [r.buyerId, agent.userId]);
+    const fee = toD(line.agentFeeEach).times(r.qty);
+    const refund = factoryFaultRefund(
+      r.qty,
+      toD(line.unitPrice),
+      toD(line.courierEach),
+      toD(line.agentFeeEach),
+    );
+    await credit(tx, r.buyerId, refund, "RETURN", { returnId: r.id }, "Returned clothing item");
+    // The agent gives back the fee for that item: taken from tokens if that week's fee was paid,
+    // otherwise left out of the weekly credit, which reads returnedQty (DEC-018).
+    const paid = await tx.tokenEntry.findUnique({
+      where: { eventKey: agentFeeKey(agent.id, line.order.receivedAt!) },
+      select: { id: true },
+    });
+    if (paid) await takeBackFee(tx, agent, r.id, fee);
     await queue(tx, after, "collected", "Return tokens credited", "buyer");
     return after;
   });
+}
+/** The agent sold a buyer-fault item, or the buyer took it back unsold. */
+async function closeResale(
+  agentUserId: string,
+  returnId: string,
+  to: "SOLD" | "TAKEN_BACK",
+  now: Date,
+) {
+  return locked(agentUserId, returnId, async (tx, r) => {
+    await handoverAgent(tx, agentUserId, r);
+    if (r.status !== "WITH_AGENT") throw decided();
+    return move(tx, r, to, to === "SOLD" ? { resoldAt: now } : { takenBackAt: now });
+  });
+}
+export function markResold(agentUserId: string, returnId: string, now = new Date()) {
+  return closeResale(agentUserId, returnId, "SOLD", now);
+}
+export function markTakenBack(agentUserId: string, returnId: string, now = new Date()) {
+  return closeResale(agentUserId, returnId, "TAKEN_BACK", now);
 }
 /** Accepted returns the buyer never handed over close without tokens; the line earns again. */
 export async function lapseReturns(now = new Date()) {
@@ -475,7 +599,13 @@ export async function lapseReturns(now = new Date()) {
         if (r.status !== "AWAITING_HANDOVER" || !r.handoverDueAt || r.handoverDueAt > now) return;
         const after = await move(tx, r, "LAPSED");
         count++;
-        await queue(tx, after, "lapsed", "Return cancelled", "buyer");
+        await queue(
+          tx,
+          after,
+          "lapsed",
+          r.fault === "BUYER" ? "Return not brought" : "Return cancelled",
+          "buyer",
+        );
       });
     } catch (error) {
       console.error("Return lapse will retry", id, error);
@@ -517,7 +647,7 @@ export async function markReceived(
 }
 export async function escalateOverdue(now = new Date()) {
   const rows = await db.returnRequest.findMany({
-    where: { status: "WAITING_FACTORY", factoryDueAt: { lt: now } },
+    where: { status: "WAITING_FACTORY", fault: "FACTORY", factoryDueAt: { lt: now } },
     select: { id: true },
   });
   let count = 0;
@@ -540,7 +670,7 @@ export async function escalateOverdue(now = new Date()) {
  * Undecided returns go to admin; accepted ones keep moving through the agent. */
 export async function handoffRemovedReturns(tx: Tx, factoryId: string) {
   const rows = await tx.returnRequest.findMany({
-    where: { factoryId, status: { in: ["WAITING_FACTORY", "ACCEPTED"] } },
+    where: { factoryId, fault: "FACTORY", status: { in: ["WAITING_FACTORY", "ACCEPTED"] } },
     orderBy: { id: "asc" },
   });
   for (const r of rows) {
@@ -570,14 +700,21 @@ export async function returnPhotoFor(userId: string, photoId: string) {
     select: {
       storageKey: true,
       contentType: true,
-      request: { select: { buyerId: true, factoryId: true } },
+      request: { select: { buyerId: true, factoryId: true, fault: true, changedToBuyerAt: true } },
     },
   });
   if (!photo) return null;
   if (user.id === photo.request.buyerId && isBuyerRole(user.role))
     return { storageKey: photo.storageKey, contentType: photo.contentType };
-  if (user.role === "ADMIN" && ["FACTORY", "CORE"].includes(user.adminArea ?? ""))
-    return { storageKey: photo.storageKey, contentType: photo.contentType };
+  const file = { storageKey: photo.storageKey, contentType: photo.contentType };
+  // Buyer-fault returns are for the Agents and orders and Core admins only (DEC-017); a Factory
+  // admin keeps the photos of a return it changed to buyer fault.
+  if (photo.request.fault === "BUYER") {
+    if (user.role !== "ADMIN") return null;
+    if (user.adminArea === AGENTS_AREA || user.adminArea === "CORE") return file;
+    return user.adminArea === "FACTORY" && photo.request.changedToBuyerAt ? file : null;
+  }
+  if (user.role === "ADMIN" && ["FACTORY", "CORE"].includes(user.adminArea ?? "")) return file;
   try {
     await factoryActor(db, userId, photo.request.factoryId);
   } catch {
@@ -590,7 +727,7 @@ export async function factoryReturns(userId: string) {
     factory = factoryOf(user);
   await factoryActor(db, userId, factory.factoryId);
   return db.returnRequest.findMany({
-    where: { factoryId: factory.factoryId },
+    where: { factoryId: factory.factoryId, fault: "FACTORY" },
     select: returnSelect,
     orderBy: { createdAt: "desc" },
   });
@@ -660,19 +797,72 @@ export async function listReturnMessages(userId: string, returnId: string) {
 }
 export async function adminReturn(adminId: string, id: string) {
   await assertQualityAdmin(adminId);
-  return db.returnRequest.findUnique({ where: { id }, select: returnSelect });
+  const user = await activeUser(db, adminId);
+  return db.returnRequest.findFirst({
+    where: { id, ...(user.adminArea === "FACTORY" ? { fault: "FACTORY" } : {}) },
+    select: returnSelect,
+  });
 }
 export async function adminReturns(adminId: string) {
   const user = await activeUser(db, adminId);
   const agents = user.role === "ADMIN" && user.adminArea === AGENTS_AREA;
   if (!agents) await assertQualityAdmin(adminId);
   return db.returnRequest.findMany({
-    where: {
-      ...(agents ? { status: { in: ["AWAITING_HANDOVER", "HANDED_OVER", "PICKED_UP"] } } : {}),
-    },
+    where: agents
+      ? { fault: "FACTORY", status: { in: ["AWAITING_HANDOVER", "HANDED_OVER", "PICKED_UP"] } }
+      : user.adminArea === "FACTORY"
+        ? { fault: "FACTORY" }
+        : {},
     select: returnSelect,
     orderBy: { createdAt: "desc" },
   });
+}
+/** Buyer-fault returns and reason counts per product, for the Agents and orders and Core admins. */
+export async function buyerFaultHistory(adminId: string) {
+  const user = await activeUser(db, adminId);
+  if (user.role !== "ADMIN" || ![AGENTS_AREA, "CORE"].includes(user.adminArea ?? ""))
+    throw new ReturnError("Agents and orders or Core admin access required");
+  const rows = await db.returnRequest.findMany({
+    where: { fault: "BUYER" },
+    select: {
+      ...returnSelect,
+      orderLine: {
+        select: {
+          ...returnSelect.orderLine.select,
+          order: { select: { factory: { select: { name: true } } } },
+          variant: {
+            select: { size: true, product: { select: { id: true, title: true } } },
+          },
+        },
+      },
+    },
+    orderBy: [{ status: "asc" }, { createdAt: "asc" }],
+  });
+  const products = new Map<
+    string,
+    {
+      productId: string;
+      title: string;
+      factory: string;
+      total: number;
+      counts: Record<string, number>;
+    }
+  >();
+  for (const r of rows) {
+    const p = r.orderLine!.variant.product;
+    const entry = products.get(p.id) ?? {
+      productId: p.id,
+      title: p.title,
+      factory: r.orderLine!.order.factory.name,
+      total: 0,
+      counts: {},
+    };
+    const reason = r.buyerReason ?? "OTHER";
+    entry.counts[reason] = (entry.counts[reason] ?? 0) + r.qty;
+    entry.total += r.qty;
+    products.set(p.id, entry);
+  }
+  return { rows, products: [...products.values()].sort((a, b) => b.total - a.total) };
 }
 export async function buyerReturns(buyerId: string, orderId: string) {
   const user = await activeUser(db, buyerId);
@@ -688,6 +878,10 @@ const returnSelect = {
   orderLineId: true,
   qty: true,
   reason: true,
+  buyerReason: true,
+  changedToBuyerAt: true,
+  resoldAt: true,
+  takenBackAt: true,
   fault: true,
   note: true,
   status: true,
@@ -706,6 +900,8 @@ const returnSelect = {
   orderLine: {
     select: {
       orderId: true,
+      unitPrice: true,
+      factoryPrice: true,
       variant: { select: { size: true, product: { select: { title: true } } } },
     },
   },

@@ -11,6 +11,7 @@ import { handOver, lookupCode } from "@/server/orders/handover";
 import { markPayoutPaid } from "@/server/payouts";
 import {
   adminReturns,
+  buyerFaultDecide,
   buyerReturns,
   collectReturn,
   factoryDecide,
@@ -39,19 +40,19 @@ async function fixture() {
       qty: 1,
       unitPrice: "1100",
       factoryPrice: "1000",
-      courierEach: "40",
-      agentFeeEach: "20",
+      courierEach: "0",
+      agentFeeEach: "55",
     },
   });
   await db.pickupCode.create({ data: { buyerId: o.buyer.id, agentId: o.agent.id, code: CODE } });
   const ret = await fileReturn(
     o.buyer.id,
     o.line.id,
-    { qty: 1, fault: "BUYER", reason: "DAMAGED", note: "Too small", photos: [] },
+    { qty: 1, fault: "BUYER", buyerReason: "SIZE", note: "Too small", photos: [] },
     now,
   );
-  await factoryDecide(o.factory.id, ret.id, true, now);
   const agentsAdmin = await makeUser("ADMIN", "AGENTS");
+  await buyerFaultDecide(agentsAdmin.id, ret.id, true, "", now);
   const basket = await db.basket.create({
     data: {
       agentId: o.agent.id,
@@ -200,7 +201,7 @@ describe("buyers", () => {
     await fileReturn(
       shopper.user.id,
       o.line.id,
-      { qty: 1, fault: "BUYER", reason: "DAMAGED", note: "Too small", photos: [] },
+      { qty: 1, fault: "BUYER", buyerReason: "SIZE", note: "Too small", photos: [] },
       now,
     );
     await expect(buyerReturns(shopper.user.id, o.order.id)).resolves.toHaveLength(1);

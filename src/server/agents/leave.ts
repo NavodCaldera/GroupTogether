@@ -1,4 +1,5 @@
 import "server-only";
+import { clawbackOwed } from "../agent-fees";
 import { D, toD } from "@/lib/decimal";
 import { db, type Tx } from "../db";
 import { notify } from "../notify";
@@ -32,7 +33,11 @@ async function settled(tx: Tx, agentId: string): Promise<boolean> {
   // Checkout refuses a non-LIVE agent, so no new PENDING order can appear after this.
   if (await tx.order.count({ where: { agentId, status: "PENDING" } })) return false;
   const returns = await tx.returnRequest.count({
-    where: { handoverAgentId: agentId, status: { in: ["AWAITING_HANDOVER", "HANDED_OVER"] } },
+    // A buyer-fault item waiting for resale also keeps the agent open (DEC-017).
+    where: {
+      handoverAgentId: agentId,
+      status: { in: ["AWAITING_HANDOVER", "HANDED_OVER", "WITH_AGENT"] },
+    },
   });
   return returns === 0;
 }
@@ -53,16 +58,23 @@ export async function closeLeavingAgents(now: Date): Promise<number> {
       done = await withAgent(id, async (tx, agent) => {
         if (agent.status !== "LEAVING" || !(await settled(tx, agent.id))) return null;
         await tx.agent.update({ where: { id: agent.id }, data: { status: "LEFT", leftAt: now } });
+        // Fee take-backs still owed come off the deposit too (DEC-018).
+        const owed = await clawbackOwed(tx, agent.id);
         const back = agent.depositPaidAt
-          ? toD(agent.depositAmount).minus(toD(agent.lossAmount))
+          ? D.max(toD(agent.depositAmount).minus(toD(agent.lossAmount)).minus(owed), 0)
           : new D(0);
+        if (owed.gt(0) && agent.depositPaidAt)
+          await tx.agentFeeClawback.updateMany({
+            where: { agentId: agent.id, left: { gt: 0 } },
+            data: { left: 0 },
+          });
         if (back.gt(0))
           await post(tx, {
             userId: agent.userId,
             amount: back,
             kind: "DEPOSIT_RETURN",
             eventKey: `deposit-return:${agent.id}`,
-            note: "Deposit returned less losses",
+            note: "Deposit returned less losses and fees taken back",
           });
         return { userId: agent.userId, back, paid: !!agent.depositPaidAt };
       });

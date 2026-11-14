@@ -31,10 +31,10 @@ const COURIER = {
 
 type Factory = Awaited<ReturnType<typeof makeFactory>>;
 
-/** The buyer pays one item fully with tokens (1100 + 40 + 20); the basket locks. */
+/** The buyer pays one item fully with tokens (1100 + 55 agent fee); the basket locks. */
 async function lockedOrder(agentId: string, f: Factory, buyerId?: string, qty = 1) {
   const buyer = buyerId ?? (await makeBuyer()).id;
-  const tokens = (1160 * qty).toFixed(2);
+  const tokens = (1155 * qty).toFixed(2);
   await fundTokens(buyer, tokens);
   await setCartItem(buyer, f.variant.id, qty);
   const r = await startCheckout(buyer, { agentId, tokens, requestKey: `k${Date.now()}` });
@@ -101,8 +101,9 @@ describe("packing, courier and receipt", () => {
     const order = await db.order.findUniqueOrThrow({ where: { id: first.order.id } });
     expect(order.status).toBe("RECEIVED");
     expect(order.receivedAt).not.toBeNull();
-    expect(money(await tokenBalance(agentUser.id))).toBe("850.00");
-    expect(await db.tokenEntry.count({ where: { kind: "COURIER_REPAY" } })).toBe(1);
+    // The agent pays the driver from its fees; nothing is repaid (DEC-018).
+    expect(money(await tokenBalance(agentUser.id))).toBe("0.00");
+    expect(await db.tokenEntry.count({ where: { kind: "COURIER_REPAY" } })).toBe(0);
     expect(await db.tokenEntry.count({ where: { kind: "AGENT_FEE" } })).toBe(0);
 
     const code = await db.pickupCode.findUniqueOrThrow({
@@ -127,7 +128,7 @@ describe("packing, courier and receipt", () => {
     });
     expect(ready).toHaveLength(2);
     for (const n of ready) expect(n.body).toContain(code.code);
-    expect(money(await tokenBalance(agentUser.id))).toBe("1700.00");
+    expect(money(await tokenBalance(agentUser.id))).toBe("0.00");
   });
 
   it("a factory that does not own the basket cannot pack it", async () => {
@@ -209,7 +210,7 @@ describe("packing, courier and receipt", () => {
     expect(ready).toHaveLength(1);
     expect(ready[0].id).toBe(`ready:${basket.id}:${buyerId}`);
     expect(ready[0].body).toContain(code.code);
-    expect(await db.tokenEntry.count({ where: { kind: "COURIER_REPAY" } })).toBe(1);
+    expect(await db.tokenEntry.count({ where: { kind: "COURIER_REPAY" } })).toBe(0);
   });
 
   it("another agent cannot mark the basket received", async () => {
@@ -270,7 +271,7 @@ describe("packing, courier and receipt", () => {
 });
 
 describe("missing items", () => {
-  it("refunds the buyer 1160 tokens, queues a 160 deduction and lowers the basket total", async () => {
+  it("refunds the buyer 1155 tokens, queues a 155 deduction and lowers the basket total", async () => {
     const { agent } = await makeAgent();
     const f = await makeFactory();
     const packer = await staff(f.factory.id, "PACKING");
@@ -296,7 +297,7 @@ describe("missing items", () => {
     await expect(removeMissingLine(agentsAdmin.id, line.id)).rejects.toThrow(DeliveryError);
     await removeMissingLine(factoryAdmin.id, line.id);
 
-    expect(money(await tokenBalance(buyerId))).toBe("1160.00");
+    expect(money(await tokenBalance(buyerId))).toBe("1155.00");
     const entry = await db.tokenEntry.findUniqueOrThrow({
       where: { eventKey: `missing:${line.id}:1` },
     });
@@ -305,7 +306,7 @@ describe("missing items", () => {
       where: { kind_ref: { kind: "MISSING_ITEM", ref: `missing:${line.id}:1` } },
     });
     expect([money(deduction.amount), deduction.factoryId, deduction.payoutId]).toEqual([
-      "160.00",
+      "155.00",
       f.factory.id,
       null,
     ]);
@@ -317,7 +318,7 @@ describe("missing items", () => {
     const notice = await db.notification.findFirstOrThrow({
       where: { userId: buyerId, title: "Item removed" },
     });
-    expect(notice.body).toContain("1160");
+    expect(notice.body).toContain("1155");
 
     // Nothing left to report or remove.
     await expect(removeMissingLine(factoryAdmin.id, line.id)).rejects.toThrow(DeliveryError);
@@ -354,15 +355,15 @@ describe("missing items", () => {
       orderBy: { eventKey: "asc" },
     });
     expect(entries.map((e) => [e.eventKey, money(e.amount)])).toEqual([
-      [`missing:${line.id}:1`, "1160.00"],
-      [`missing:${line.id}:2`, "1160.00"],
+      [`missing:${line.id}:1`, "1155.00"],
+      [`missing:${line.id}:2`, "1155.00"],
     ]);
     const deductions = await db.payoutDeduction.findMany({ orderBy: { ref: "asc" } });
     expect(deductions.map((d) => [d.ref, money(d.amount)])).toEqual([
-      [`missing:${line.id}:1`, "160.00"],
-      [`missing:${line.id}:2`, "160.00"],
+      [`missing:${line.id}:1`, "155.00"],
+      [`missing:${line.id}:2`, "155.00"],
     ]);
-    expect(money(await tokenBalance(buyerId))).toBe("2320.00");
+    expect(money(await tokenBalance(buyerId))).toBe("2310.00");
   });
 
   it("only an unlocked factory admin can remove a missing line", async () => {

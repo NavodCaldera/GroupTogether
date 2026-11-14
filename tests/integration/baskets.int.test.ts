@@ -134,19 +134,19 @@ describe("cancel before lock", () => {
     const basket = await db.basket.findUniqueOrThrow({ where: { id: before.id } });
     expect([basket.status, money(basket.total)]).toEqual(["OPEN", "1100.00"]);
     expect(basket.firstOrderAt!.getTime()).toBe(secondOrder.paidAt!.getTime());
-    // 160 tokens + 1034.13 paid (1000 + 34.13 fee)
-    expect(money(await tokenBalance(first.buyer.id))).toBe("1194.13");
+    // 160 tokens + 1028.96 paid (995 + 33.96 fee)
+    expect(money(await tokenBalance(first.buyer.id))).toBe("1188.96");
     const entry = await db.tokenEntry.findUniqueOrThrow({
       where: { eventKey: `cancel:${first.orderId}` },
     });
-    expect([entry.kind, money(entry.amount)]).toEqual(["ORDER_CANCEL", "1194.13"]);
+    expect([entry.kind, money(entry.amount)]).toEqual(["ORDER_CANCEL", "1188.96"]);
     expect((await db.order.findUniqueOrThrow({ where: { id: first.orderId } })).status).toBe(
       "CANCELLED",
     );
     const v = await variant(f.variant.id);
     expect([v.available, v.reserved, v.sold]).toEqual([49, 0, 1]);
     await expect(cancelOrder(first.buyer.id, first.orderId)).rejects.toThrow(CheckoutError);
-    expect(money(await tokenBalance(first.buyer.id))).toBe("1194.13");
+    expect(money(await tokenBalance(first.buyer.id))).toBe("1188.96");
   });
 
   it("cancelling the only order clears firstOrderAt", async () => {

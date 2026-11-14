@@ -39,5 +39,3 @@ export const locationSchema = z
     ...pinFields,
   })
   .refine(pinInSriLanka, pinOutsideMessage);
-
-type Location = z.infer<typeof locationSchema>;

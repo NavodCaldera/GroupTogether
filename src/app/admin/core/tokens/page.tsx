@@ -16,6 +16,7 @@ const KIND: Record<TokenKind, string> = {
   ORDER_CANCEL: "Order cancelled",
   AGENT_FEE: "Agent fee",
   COURIER_REPAY: "Courier repaid",
+  FEE_CLAWBACK: "Fee taken back",
   MISSING_ITEM: "Missing item",
   DEPOSIT_RETURN: "Deposit returned",
   TRANSFER_OUT: "Sent",

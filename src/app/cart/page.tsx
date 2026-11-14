@@ -96,8 +96,6 @@ export default async function CartPage({ searchParams }: PageProps<"/cart">) {
               <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 border-t border-line pt-3 text-sm tabular-nums">
                 <dt>Item</dt>
                 <dd className="text-right">{formatLKR(f.totals.items)}</dd>
-                <dt>Courier</dt>
-                <dd className="text-right">{formatLKR(f.totals.courier)}</dd>
                 <dt>Agent fee</dt>
                 <dd className="text-right">{formatLKR(f.totals.agentFee)}</dd>
               </dl>

@@ -1,7 +1,13 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
 import { D, toD } from "@/lib/decimal";
-import { orderTotals, splitCheckout, type OrderTotals, type Rates } from "@/lib/agent-money";
+import {
+  agentFeeEach,
+  orderTotals,
+  splitCheckout,
+  type OrderTotals,
+  type Rates,
+} from "@/lib/agent-money";
 import { validCommission } from "@/lib/price-rules";
 import { isBuyerRole } from "@/lib/roles";
 import { db, type Tx } from "../db";
@@ -50,15 +56,10 @@ export async function assertBuyer(tx: Tx, userId: string) {
 }
 
 export function ratesOf(s: {
-  courierPerItem: { toString(): string };
-  agentFeePerItem: { toString(): string };
+  agentFeeRate: { toString(): string };
   gatewayFeeRate: { toString(): string };
 }): Rates {
-  return {
-    courierPerItem: toD(s.courierPerItem),
-    agentFeePerItem: toD(s.agentFeePerItem),
-    gatewayFeeRate: toD(s.gatewayFeeRate),
-  };
+  return { agentFeeRate: toD(s.agentFeeRate), gatewayFeeRate: toD(s.gatewayFeeRate) };
 }
 
 /** The buyer's cart grouped by factory (sorted by factory id, lines by variant id). */
@@ -259,7 +260,8 @@ export async function startCheckout(
           factoryId: g.factoryId,
           paymentAttemptId: attempt?.id ?? null,
           itemsTotal: g.totals.items.toFixed(2),
-          courierTotal: g.totals.courier.toFixed(2),
+          // The agent pays couriers from its fee (DEC-018); older orders keep their charge.
+          courierTotal: "0.00",
           agentFeeTotal: g.totals.agentFee.toFixed(2),
           tokensApplied: part.tokens.toFixed(2),
           gatewayFee: part.fee.toFixed(2),
@@ -272,8 +274,8 @@ export async function startCheckout(
               qty: l.qty,
               unitPrice: l.unitPrice.toFixed(2),
               factoryPrice: l.factoryPrice!.toFixed(2),
-              courierEach: toD(plan.settings.courierPerItem).toFixed(2),
-              agentFeeEach: toD(plan.settings.agentFeePerItem).toFixed(2),
+              courierEach: "0.00",
+              agentFeeEach: agentFeeEach(l.unitPrice, toD(plan.settings.agentFeeRate)).toFixed(2),
             })),
           },
         },

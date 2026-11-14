@@ -5,6 +5,7 @@ import { Toast } from "@/components/toast";
 import {
   type AgentState,
   type CodeState,
+  closeResaleAction,
   collectReturnAction,
   handOverAction,
   leaveAction,
@@ -130,6 +131,35 @@ export function CollectButton({ returnId }: { returnId: string }) {
         Collected
       </Button>
     </form>
+  );
+}
+
+export function ResaleButtons({ returnId }: { returnId: string }) {
+  const [sold, soldAction, soldPending] = useActionState<AgentState, FormData>(
+    closeResaleAction.bind(null, returnId, "SOLD"),
+    {},
+  );
+  const [back, backAction, backPending] = useActionState<AgentState, FormData>(
+    closeResaleAction.bind(null, returnId, "TAKEN_BACK"),
+    {},
+  );
+  const error = sold.error ?? back.error;
+  return (
+    <div className="flex flex-col gap-2">
+      {error && <Alert>{error}</Alert>}
+      <div className="flex flex-wrap gap-2">
+        <form action={soldAction}>
+          <Button type="submit" variant="secondary" disabled={soldPending || backPending}>
+            Sold
+          </Button>
+        </form>
+        <form action={backAction}>
+          <Button type="submit" variant="ghost" disabled={soldPending || backPending}>
+            Taken back
+          </Button>
+        </form>
+      </div>
+    </div>
   );
 }
 

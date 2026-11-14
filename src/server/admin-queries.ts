@@ -16,7 +16,7 @@ export async function adminBadges(adminId: string, area: OperationalAdminArea) {
       : none,
     area === "PREMIUM" ? brandRewardWork(adminId) : none,
   ]);
-  const [courier, applications, missing, payouts] = await Promise.all([
+  const [courier, applications, missing, payouts, buyerReturns] = await Promise.all([
     area === "AGENTS"
       ? db.basket.count({ where: { status: "PACKED", courier: { is: null } } })
       : none,
@@ -27,6 +27,9 @@ export async function adminBadges(adminId: string, area: OperationalAdminArea) {
         })
       : none,
     area === "CORE" ? db.factoryPayout.count({ where: { paidAt: null } }) : none,
+    area === "AGENTS"
+      ? db.returnRequest.count({ where: { fault: "BUYER", status: "BUYER_REQUESTED" } })
+      : none,
   ]);
   return {
     lowStock,
@@ -35,6 +38,7 @@ export async function adminBadges(adminId: string, area: OperationalAdminArea) {
     applications,
     missing,
     payouts,
+    buyerReturns,
   };
 }
 

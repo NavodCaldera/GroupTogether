@@ -26,11 +26,11 @@ type Factory = Awaited<ReturnType<typeof makeFactory>>;
 /** One item paid fully with tokens (1100 + 40 + 20) locks the basket. */
 async function lockedOrder(agentId: string, f: Factory) {
   const buyer = (await makeBuyer()).id;
-  await fundTokens(buyer, "1160.00");
+  await fundTokens(buyer, "1155.00");
   await setCartItem(buyer, f.variant.id, 1);
   const r = await startCheckout(buyer, {
     agentId,
-    tokens: "1160.00",
+    tokens: "1155.00",
     requestKey: `k${Date.now()}`,
   });
   const order = await db.order.findUniqueOrThrow({

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import type { ReportReason } from "@/lib/quality-rules";
+import type { BuyerFaultReason } from "@/lib/return-rules";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { CartError } from "@/server/errors";
@@ -55,8 +56,10 @@ export async function fileReturnAction(_p: State, fd: FormData): Promise<State> 
   return attempt(
     () =>
       fileReturn(user.id, str(fd, "id"), {
-        reason: str(fd, "reason") as ReportReason,
         fault: str(fd, "fault") as "FACTORY" | "BUYER",
+        reason: str(fd, "fault") === "FACTORY" ? (str(fd, "reason") as ReportReason) : null,
+        buyerReason:
+          str(fd, "fault") === "BUYER" ? (str(fd, "buyerReason") as BuyerFaultReason) : null,
         qty: Number(str(fd, "qty")),
         note: str(fd, "note"),
         photos: photos(fd),

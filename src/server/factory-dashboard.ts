@@ -200,7 +200,7 @@ export async function fillingBaskets(userId: string) {
 export async function returnsWaiting(userId: string) {
   const { factoryId } = await factoryFor(userId, ["returns"]);
   return db.returnRequest.count({
-    where: { factoryId, status: "WAITING_FACTORY" },
+    where: { factoryId, fault: "FACTORY", status: "WAITING_FACTORY" },
   });
 }
 
@@ -257,7 +257,10 @@ export async function factoryEarnings(userId: string, now = new Date()) {
         missingQty: true,
         missingReportedQty: true,
         factoryPrice: true,
-        returns: { where: { status: { in: PAYOUT_HOLD_RETURNS } }, select: { id: true } },
+        returns: {
+          where: { status: { in: PAYOUT_HOLD_RETURNS }, fault: "FACTORY" },
+          select: { id: true },
+        },
       },
     }),
     db.payoutDeduction.findMany({

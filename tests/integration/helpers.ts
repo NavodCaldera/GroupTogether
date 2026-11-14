@@ -139,8 +139,8 @@ export async function makeBuyer({
   return db.user.update({ where: { id: user.id }, data: { lat, lng } });
 }
 
-/** A RECEIVED order at an agent with one line (1100 = 1000 + 100, courier 40, agent fee 20).
- * `collectedAt` null leaves the line uncollected. */
+/** A RECEIVED order at an agent with one line (1100 = 1000 + 100, 5% agent fee 55, no courier
+ * charge, DEC-018). `collectedAt` null leaves the line uncollected. */
 export async function makeReceivedOrder({
   qty = 1,
   receivedAt = new Date(),
@@ -164,9 +164,9 @@ export async function makeReceivedOrder({
       factoryId: f.factory.id,
       status: "RECEIVED",
       itemsTotal: String(1100 * qty),
-      courierTotal: String(40 * qty),
-      agentFeeTotal: String(20 * qty),
-      tokensApplied: String(1160 * qty),
+      courierTotal: "0",
+      agentFeeTotal: String(55 * qty),
+      tokensApplied: String(1155 * qty),
       amountDue: "0",
       holdUntil: receivedAt,
       paidAt: receivedAt,
@@ -177,8 +177,8 @@ export async function makeReceivedOrder({
           qty,
           unitPrice: "1100",
           factoryPrice: "1000",
-          courierEach: "40",
-          agentFeeEach: "20",
+          courierEach: "0",
+          agentFeeEach: "55",
           collectedAt,
         },
       },

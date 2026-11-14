@@ -53,6 +53,30 @@ describe("weekly payouts", () => {
     expect(p.items[0].amount.toFixed(2)).toBe("1000.00");
   });
 
+  it("a buyer-fault return in any state never holds the factory payout (DEC-017)", async () => {
+    for (const status of ["BUYER_REQUESTED", "AWAITING_HANDOVER", "WITH_AGENT"] as const) {
+      await resetDb();
+      const r = await makeReceivedOrder({ receivedAt: THURSDAY });
+      await db.returnRequest.create({
+        data: {
+          orderLineId: r.line.id,
+          buyerId: r.buyer.id,
+          factoryId: r.factory.id,
+          qty: 1,
+          buyerReason: "SIZE",
+          fault: "BUYER",
+          note: "Too small",
+          status,
+          factoryDueAt: THURSDAY,
+          handoverAgentId: r.agent.id,
+        },
+      });
+      await runSweep(SUNDAY);
+      const [p] = await payouts();
+      expect(p.items[0].amount.toFixed(2)).toBe("1000.00");
+    }
+  });
+
   it("holds a line with an open return; once it lapses the line is paid the next week", async () => {
     const r = await makeReceivedOrder({ receivedAt: THURSDAY });
     const ret = await db.returnRequest.create({
@@ -177,7 +201,7 @@ describe("weekly payouts", () => {
       userId: r.agentUser.id,
       eventKey: `agentfee:${r.agent.id}:${WEEK_1.toISOString()}`,
     });
-    expect(fees[0].amount.toFixed(2)).toBe("40.00");
+    expect(fees[0].amount.toFixed(2)).toBe("110.00");
   });
 
   it("credits agent fees only for orders received within the week", async () => {
@@ -186,7 +210,7 @@ describe("weekly payouts", () => {
     await makeReceivedOrder({ agent: a, receivedAt: lk("2026-11-16T09:00:00") });
     await runSweep(SUNDAY);
     const fees = await db.tokenEntry.findMany({ where: { kind: "AGENT_FEE" } });
-    expect(fees.map((e) => e.amount.toFixed(2))).toEqual(["20.00"]);
+    expect(fees.map((e) => e.amount.toFixed(2))).toEqual(["55.00"]);
   });
 });
 
@@ -212,9 +236,9 @@ describe("max wait", () => {
               factoryId,
               status: "PAID",
               itemsTotal: "1100",
-              courierTotal: "40",
-              agentFeeTotal: "20",
-              amountDue: "1160",
+              courierTotal: "0",
+              agentFeeTotal: "55",
+              amountDue: "1155",
               holdUntil: at,
               paidAt: at,
             },

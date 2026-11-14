@@ -326,8 +326,8 @@ async function ensurePickupCode(tx: Tx, buyerId: string, agentId: string): Promi
   throw new DeliveryError("Busy, try again.");
 }
 
-/** The basket's agent: WITH_COURIER -> AT_AGENT. Orders become RECEIVED, the booked courier fee
- * comes back as tokens, every buyer gets a pickup code and listed returns go back to the factory.
+/** The basket's agent: WITH_COURIER -> AT_AGENT. Orders become RECEIVED (the agent pays the driver
+ * from its agent fees, DEC-018), every buyer gets a pickup code and listed returns go back to the factory.
  * A second call on an AT_AGENT basket changes nothing. Lock order: Order rows -> basket advisory ->
  * Basket row -> ledger.
  */
@@ -403,13 +403,6 @@ export async function markBasketReceived(
     for (const buyerId of [...new Set(orders.map((o) => o.buyerId))].sort())
       codes.set(buyerId, await ensurePickupCode(tx, buyerId, agent.id));
 
-    await post(tx, {
-      userId: agentUserId,
-      amount: toD(basket.courier.fee),
-      kind: "COURIER_REPAY",
-      eventKey: `courier:${basket.id}`,
-      note: "Courier fee repaid",
-    });
     return codes;
   });
   for (const [buyerId, code] of ready)

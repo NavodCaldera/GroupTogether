@@ -81,7 +81,6 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   const total = sum((q, i) => q[i].due);
   const lines: [string, D][] = [
     ["Item", sum((q, i) => q.orders[i].items)],
-    ["Courier", sum((q, i) => q.orders[i].courier)],
     ["Agent fee", sum((q, i) => q.orders[i].agentFee)],
     ["Tokens", usedTokens.neg()],
     ["PayHere fee", sum((q, i) => q[i].fee)],

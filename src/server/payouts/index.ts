@@ -1,13 +1,14 @@
 import "server-only";
 import { D, roundMoney, toD } from "@/lib/decimal";
 import { lineEarning } from "@/lib/agent-money";
-import { weekEnding } from "@/lib/agent-rules";
+import { weekEnding, weekOf } from "@/lib/agent-rules";
 import type { DeductionKind, Prisma, ReturnStatus } from "@/generated/prisma/client";
 import { assertAdminArea } from "../auth/service";
 import { CartError } from "@/server/errors";
 import { db } from "../db";
 import { getSettings } from "../settings";
 import { post } from "../tokens";
+import { agentFeeKey, settleClawbacks } from "../agent-fees";
 import { withOrderTransaction } from "../orders/locks";
 
 class PayoutError extends CartError {}
@@ -23,11 +24,7 @@ export const PAYOUT_HOLD_RETURNS: ReturnStatus[] = [
   "AWAITING_HANDOVER",
 ];
 
-/** The Saturday 23:59:59.999 Colombo that ends the week holding `t`. */
-export function weekOf(t: Date): Date {
-  const end = weekEnding(t);
-  return end.getTime() === t.getTime() ? end : new Date(end.getTime() + WEEK_MS);
-}
+export { weekOf };
 
 /** Lines payable by `end`: received at least collectHours before it, never paid, no open return
  * and no missing report waiting for an admin (its removed units must not be paid). */
@@ -35,7 +32,8 @@ export function payableLines(end: Date, collectHours: number, factoryId?: string
   return {
     payoutItems: { none: {} },
     missingReportedQty: 0,
-    returns: { none: { status: { in: PAYOUT_HOLD_RETURNS } } },
+    // Buyer-fault returns never hold the factory payout (DEC-017).
+    returns: { none: { status: { in: PAYOUT_HOLD_RETURNS }, fault: "FACTORY" } },
     order: {
       ...(factoryId ? { factoryId } : {}),
       status: { in: ["PAID", "RECEIVED"] },
@@ -126,10 +124,13 @@ export async function buildWeeklyPayouts(now: Date): Promise<number> {
   return built;
 }
 
-/** AGENT_FEE tokens for every agent, per week ending on or before weekEnding(now): Σ (qty −
- * missing) × agentFeeEach over orders received at the agent that week. Missed weeks are caught up
- * for a few weeks back; each (agent, week) is credited once (eventKey agentfee:<agentId>:<week>).
- * Returns how many credits were created.
+/** AGENT_FEE tokens for every agent, per week ending on or before weekEnding(now):
+ * Σ (qty − missing − returned) × agentFeeEach over orders received at the agent that week. Only
+ * factory-fault returns change returnedQty, and their fee is not paid (DEC-018). Each agent-week
+ * is summed inside the agent's user advisory, which collectReturn also holds, so a return
+ * collected meanwhile is either left out here or taken back there, never both. Missed weeks are
+ * caught up for FEE_CATCH_UP_WEEKS. After each credit, older fee take-backs come off.
+ * Returns how many credits were made.
  */
 export async function creditAgentFees(now: Date): Promise<number> {
   const end = weekEnding(now);
@@ -138,29 +139,15 @@ export async function creditAgentFees(now: Date): Promise<number> {
       status: "RECEIVED",
       receivedAt: { gt: new Date(end.getTime() - FEE_CATCH_UP_WEEKS * WEEK_MS), lte: end },
     },
-    select: {
-      agentId: true,
-      receivedAt: true,
-      agent: { select: { userId: true } },
-      lines: { select: { qty: true, missingQty: true, agentFeeEach: true } },
-    },
+    select: { agentId: true, receivedAt: true, agent: { select: { userId: true } } },
   });
-  const due = new Map<string, { agentId: string; userId: string; week: Date; amount: D }>();
-  for (const o of orders) {
-    const week = weekOf(o.receivedAt!);
-    const key = `agentfee:${o.agentId}:${week.toISOString()}`;
-    const entry = due.get(key) ?? {
+  const due = new Map<string, { agentId: string; userId: string; week: Date }>();
+  for (const o of orders)
+    due.set(agentFeeKey(o.agentId, o.receivedAt!), {
       agentId: o.agentId,
       userId: o.agent.userId,
-      week,
-      amount: new D(0),
-    };
-    for (const l of o.lines)
-      entry.amount = entry.amount.plus(
-        toD(l.agentFeeEach).times(Math.max(l.qty - l.missingQty, 0)),
-      );
-    due.set(key, entry);
-  }
+      week: weekOf(o.receivedAt!),
+    });
   const keys = [...due.keys()].sort();
   const done = new Set(
     (
@@ -172,18 +159,36 @@ export async function creditAgentFees(now: Date): Promise<number> {
   );
   let credited = 0;
   for (const eventKey of keys) {
+    if (done.has(eventKey)) continue;
     const fee = due.get(eventKey)!;
-    if (done.has(eventKey) || fee.amount.lte(0)) continue;
     try {
-      const result = await withOrderTransaction([], [], (tx) =>
-        post(tx, {
+      const result = await withOrderTransaction([fee.userId], [], async (tx) => {
+        const lines = await tx.orderLine.findMany({
+          where: {
+            order: {
+              agentId: fee.agentId,
+              status: "RECEIVED",
+              receivedAt: { gt: new Date(fee.week.getTime() - WEEK_MS), lte: fee.week },
+            },
+          },
+          select: { qty: true, missingQty: true, returnedQty: true, agentFeeEach: true },
+        });
+        const amount = lines.reduce(
+          (sum, l) =>
+            sum.plus(toD(l.agentFeeEach).times(Math.max(l.qty - l.missingQty - l.returnedQty, 0))),
+          new D(0),
+        );
+        if (amount.lte(0)) return "skipped" as const;
+        const posted = await post(tx, {
           userId: fee.userId,
-          amount: roundMoney(fee.amount),
+          amount: roundMoney(amount),
           kind: "AGENT_FEE",
           eventKey,
           note: "Agent fees for the week",
-        }),
-      );
+        });
+        await settleClawbacks(tx, fee.agentId, fee.userId);
+        return posted;
+      });
       if (result === "created") credited++;
     } catch (error) {
       console.error("Agent fee credit will retry", eventKey, error);

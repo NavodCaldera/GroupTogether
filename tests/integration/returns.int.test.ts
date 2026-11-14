@@ -16,11 +16,19 @@ import {
   listReturnMessages,
   adminReturn,
   adminReturns,
+  buyerFaultDecide,
+  buyerFaultHistory,
+  changeToBuyerFault,
+  markResold,
+  markTakenBack,
 } from "@/server/returns";
+import { creditAgentFees } from "@/server/payouts";
+import { agentFeeKey } from "@/server/agent-fees";
 import { markBasketReceived } from "@/server/orders/delivery";
 import { removeFactory } from "@/server/quality";
 import { tokenBalance } from "@/server/tokens";
 import { makeAgent, makeReceivedOrder, makeUser, resetDb, giftPhotoFile } from "./helpers";
+import { flushReturnNotices as flushReturnNoticesForTest } from "@/server/returns";
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
 const HOUR = 3600000;
@@ -29,7 +37,8 @@ const now = new Date("2026-11-02T10:00:00Z");
 const input = (qty = 1, fault: "FACTORY" | "BUYER" = "FACTORY") => ({
   qty,
   fault,
-  reason: "DAMAGED" as const,
+  reason: fault === "FACTORY" ? ("DAMAGED" as const) : null,
+  buyerReason: fault === "BUYER" ? ("SIZE" as const) : null,
   note: "Loose sleeve seam",
   photos: fault === "FACTORY" ? [giftPhotoFile()] : [],
 });
@@ -55,10 +64,13 @@ const credits = (id: string) => db.tokenEntry.findMany({ where: { returnId: id, 
 const deductions = () => db.payoutDeduction.findMany();
 const money = (v: { toFixed(n: number): string }) => v.toFixed(2);
 
-/** Accepted by the factory and handed to the order's agent. */
+/** Accepted (by the factory, or the Agents and orders admin for buyer fault) and handed to the
+ * order's agent. */
 async function collected(f: Fixture, qty = 1, fault: "FACTORY" | "BUYER" = "FACTORY") {
   const r = await fileReturn(f.buyer.id, f.line.id, input(qty, fault), now);
-  await factoryDecide(f.factory.id, r.id, true, now);
+  if (fault === "BUYER")
+    await buyerFaultDecide((await makeUser("ADMIN", "AGENTS")).id, r.id, true, "", now);
+  else await factoryDecide(f.factory.id, r.id, true, now);
   await collectReturn(f.agentUser.id, r.id, now);
   return r;
 }
@@ -148,7 +160,7 @@ describe("filing", () => {
       returnedQty: 3,
       status: "RETURNED",
     });
-    expect(money(await tokenBalance(f.buyer.id))).toBe("3300.00");
+    expect(money(await tokenBalance(f.buyer.id))).toBe("3465.00");
   });
   it("refuses invalid photos, quantities and missing factory photo", async () => {
     const f = await fixture();
@@ -177,7 +189,7 @@ describe("filing", () => {
 });
 
 describe("acceptance and handover", () => {
-  it("factory fault: accept tells the buyer the agent; collect gives 1100, a fault and a 40 deduction", async () => {
+  it("factory fault: accept tells the buyer the agent; collect gives 1155, a fault and no deduction", async () => {
     const f = await fixture();
     const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
     await factoryDecide(f.factory.id, r.id, true, now);
@@ -202,33 +214,37 @@ describe("acceptance and handover", () => {
     expect(done.handedOverAt).not.toBeNull();
     const tokens = await credits(r.id);
     expect(tokens.map((e) => [money(e.amount), e.eventKey])).toEqual([
-      ["1100.00", `credit:RETURN:${r.id}`],
+      ["1155.00", `credit:RETURN:${r.id}`],
     ]);
     expect(await db.factoryFault.findUniqueOrThrow({ where: { returnId: r.id } })).toMatchObject({
       units: 1,
       confirmedBy: "FACTORY",
       confirmedById: f.factory.id,
     });
-    expect(
-      (await deductions()).map((d) => [d.kind, money(d.amount), d.ref, d.factoryId, d.payoutId]),
-    ).toEqual([["RETURN_COURIER", "40.00", `retcourier:${r.id}`, f.factory.id, null]]);
+    // The factory pays the return courier on arrival (DEC-018).
+    expect(await deductions()).toHaveLength(0);
     expect(await db.orderLine.findUniqueOrThrow({ where: { id: f.line.id } })).toMatchObject({
       returnedQty: 1,
       status: "RETURNED",
     });
   });
-  it("buyer fault: collect gives 1060 and no deduction or fault", async () => {
+  it("buyer fault: collect leaves it WITH_AGENT with no tokens, deduction, fault or returnedQty", async () => {
     const f = await fixture();
     const r = await collected(f, 1, "BUYER");
-    expect((await credits(r.id)).map((e) => money(e.amount))).toEqual(["1060.00"]);
+    expect(await row(r.id)).toMatchObject({ status: "WITH_AGENT" });
+    expect(await credits(r.id)).toHaveLength(0);
+    expect(money(await tokenBalance(f.buyer.id))).toBe("0.00");
     expect(await deductions()).toHaveLength(0);
     expect(await db.factoryFault.count()).toBe(0);
+    expect((await db.orderLine.findUniqueOrThrow({ where: { id: f.line.id } })).returnedQty).toBe(
+      0,
+    );
   });
   it("multiplies refund and deduction by quantity", async () => {
     const f = await fixture(2);
     const r = await collected(f, 2);
-    expect((await credits(r.id)).map((e) => money(e.amount))).toEqual(["2200.00"]);
-    expect((await deductions()).map((d) => money(d.amount))).toEqual(["80.00"]);
+    expect((await credits(r.id)).map((e) => money(e.amount))).toEqual(["2310.00"]);
+    expect(await deductions()).toHaveLength(0);
   });
   it("wrong agent, buyer or factory cannot collect, and nothing before acceptance", async () => {
     const f = await fixture();
@@ -318,7 +334,7 @@ describe("send back and receipt", () => {
   });
   it("receipt without restock leaves stock alone", async () => {
     const f = await fixture();
-    const r = await collected(f, 1, "BUYER");
+    const r = await collected(f, 1);
     await sendBack(f, [r.id]);
     const before = await db.variant.findUniqueOrThrow({ where: { id: f.variant.id } });
     await markReceived(f.factory.id, r.id, false);
@@ -561,5 +577,185 @@ describe("messages and photos", () => {
       expect((await get(id)).status).toBe(404);
     await db.user.update({ where: { id: f.sales.id }, data: { factoryRole: "PACKING" } });
     expect(await returnPhotoFor(f.sales.id, photo.id)).toBeNull();
+  });
+});
+
+describe("buyer-fault returns (DEC-017)", () => {
+  const agentsAdmin = () => makeUser("ADMIN", "AGENTS");
+  it("files as BUYER_REQUESTED with a reason and no photo; only AGENTS admins are told", async () => {
+    const f = await fixture();
+    const agents = await agentsAdmin();
+    const r = await fileReturn(f.buyer.id, f.line.id, input(1, "BUYER"), now);
+    await flushReturnNoticesForTest();
+    expect(await row(r.id)).toMatchObject({
+      status: "BUYER_REQUESTED",
+      fault: "BUYER",
+      buyerReason: "SIZE",
+      reason: null,
+    });
+    const told = await db.notification.findMany({ select: { userId: true, href: true } });
+    expect(told).toEqual([{ userId: agents.id, href: "/admin/agents/returns" }]);
+    await expect(
+      fileReturn(f.buyer.id, f.line.id, { ...input(1, "BUYER"), buyerReason: null }, now),
+    ).rejects.toThrow();
+  });
+  it("keeps the unit out of a second return for good", async () => {
+    const f = await fixture();
+    const r = await collected(f, 1, "BUYER");
+    await markResold(f.agentUser.id, r.id, now);
+    await expect(fileReturn(f.buyer.id, f.line.id, input(1), now)).rejects.toThrow(/Quantity/);
+  });
+  it("AGENTS admin accepts with a 2-day handover; refusal closes it", async () => {
+    const f = await fixture(2);
+    const agents = await agentsAdmin();
+    const a = await fileReturn(f.buyer.id, f.line.id, input(1, "BUYER"), now);
+    await buyerFaultDecide(agents.id, a.id, true, "", now);
+    const accepted = await row(a.id);
+    expect(accepted).toMatchObject({ status: "AWAITING_HANDOVER", handoverAgentId: f.agent.id });
+    expect(accepted.handoverDueAt!.getTime() - now.getTime()).toBe(2 * 24 * HOUR);
+    expect(
+      await db.notification.count({
+        where: { userId: f.agentUser.id, title: "Return to collect" },
+      }),
+    ).toBe(1);
+    const b = await fileReturn(f.buyer.id, f.line.id, input(1, "BUYER"), now);
+    await buyerFaultDecide(agents.id, b.id, false, "Worn", now);
+    expect((await row(b.id)).status).toBe("REJECTED");
+    await expect(buyerFaultDecide(agents.id, b.id, true, "", now)).rejects.toThrow();
+  });
+  it("only an AGENTS admin decides; the factory cannot", async () => {
+    const f = await fixture();
+    const r = await fileReturn(f.buyer.id, f.line.id, input(1, "BUYER"), now);
+    for (const id of [f.admin.id, (await makeUser("ADMIN", "CORE")).id, f.buyer.id])
+      await expect(buyerFaultDecide(id, r.id, true, "", now)).rejects.toThrow();
+    await expect(factoryDecide(f.factory.id, r.id, true, now)).rejects.toThrow();
+    await expect(adminDecide(f.admin.id, r.id, true, "ok")).rejects.toThrow();
+  });
+  it("lapses as not brought after 2 days, with no tokens", async () => {
+    const f = await fixture();
+    const r = await fileReturn(f.buyer.id, f.line.id, input(1, "BUYER"), now);
+    await buyerFaultDecide((await agentsAdmin()).id, r.id, true, "", now);
+    expect(await lapseReturns(new Date(now.getTime() + 2 * 24 * HOUR - 1))).toBe(0);
+    expect(await lapseReturns(new Date(now.getTime() + 2 * 24 * HOUR))).toBe(1);
+    expect((await row(r.id)).status).toBe("LAPSED");
+    expect(await credits(r.id)).toHaveLength(0);
+  });
+  it("the handover agent marks it sold or taken back, once", async () => {
+    const f = await fixture(2);
+    const a = await collected(f, 1, "BUYER");
+    const stranger = await makeAgent();
+    await expect(markResold(stranger.user.id, a.id, now)).rejects.toThrow();
+    await markResold(f.agentUser.id, a.id, now);
+    expect(await row(a.id)).toMatchObject({ status: "SOLD" });
+    await expect(markTakenBack(f.agentUser.id, a.id, now)).rejects.toThrow();
+    const b = await collected(f, 1, "BUYER");
+    await markTakenBack(f.agentUser.id, b.id, now);
+    expect((await row(b.id)).takenBackAt).not.toBeNull();
+  });
+  it("never goes back to the factory and the factory never sees it", async () => {
+    const f = await fixture();
+    const r = await collected(f, 1, "BUYER");
+    await expect(sendBack(f, [r.id])).rejects.toThrow();
+    expect((await row(r.id)).status).toBe("WITH_AGENT");
+    const { factoryReturns } = await import("@/server/returns");
+    expect(await factoryReturns(f.factory.id)).toHaveLength(0);
+    expect(await adminReturns(f.admin.id)).toHaveLength(0);
+  });
+  it("Factory admin changes a factory fault to buyer fault: no fault, AGENTS decide", async () => {
+    const f = await fixture();
+    const agents = await agentsAdmin();
+    const r = await fileReturn(f.buyer.id, f.line.id, input(), now);
+    await factoryDecide(f.factory.id, r.id, false, now, "Worn");
+    await expect(changeToBuyerFault(agents.id, r.id, "Worn")).rejects.toThrow();
+    await changeToBuyerFault(f.admin.id, r.id, "Worn twice", now);
+    expect(await row(r.id)).toMatchObject({ status: "BUYER_REQUESTED", fault: "BUYER" });
+    expect(
+      await db.notification.count({
+        where: { userId: agents.id, title: "Buyer return requested" },
+      }),
+    ).toBe(1);
+    await buyerFaultDecide(agents.id, r.id, true, "", now);
+    await collectReturn(f.agentUser.id, r.id, now);
+    expect(await db.factoryFault.count()).toBe(0);
+    expect(await credits(r.id)).toHaveLength(0);
+  });
+  it("photos: AGENTS and CORE admins see them, the factory does not", async () => {
+    const f = await fixture();
+    const r = await fileReturn(
+      f.buyer.id,
+      f.line.id,
+      { ...input(1, "BUYER"), photos: [giftPhotoFile()] },
+      now,
+    );
+    const photo = await db.returnPhoto.findFirstOrThrow({ where: { returnId: r.id } });
+    expect(await returnPhotoFor(f.buyer.id, photo.id)).not.toBeNull();
+    expect(await returnPhotoFor((await agentsAdmin()).id, photo.id)).not.toBeNull();
+    expect(await returnPhotoFor((await makeUser("ADMIN", "CORE")).id, photo.id)).not.toBeNull();
+    expect(await returnPhotoFor(f.factory.id, photo.id)).toBeNull();
+    expect(await returnPhotoFor(f.admin.id, photo.id)).toBeNull();
+  });
+  it("history counts reasons per product for AGENTS and CORE only", async () => {
+    const f = await fixture(3);
+    for (const buyerReason of ["SIZE", "SIZE", "MATERIAL"] as const)
+      await fileReturn(f.buyer.id, f.line.id, { ...input(1, "BUYER"), buyerReason }, now);
+    const { products, rows } = await buyerFaultHistory((await agentsAdmin()).id);
+    expect(rows).toHaveLength(3);
+    expect(products).toEqual([
+      expect.objectContaining({ total: 3, counts: { SIZE: 2, MATERIAL: 1 } }),
+    ]);
+    await expect(buyerFaultHistory((await makeUser("ADMIN", "CORE")).id)).resolves.toBeTruthy();
+    for (const id of [f.admin.id, f.factory.id, f.buyer.id])
+      await expect(buyerFaultHistory(id)).rejects.toThrow();
+  });
+});
+
+describe("factory-fault agent fee take-back (DEC-018)", () => {
+  const sunday = new Date("2026-11-08T10:00:00Z");
+  it("before the fee week is paid: no take-back, the fee leaves the unit out", async () => {
+    const f = await fixture(2);
+    await collected(f, 1);
+    expect(await db.agentFeeClawback.count()).toBe(0);
+    await creditAgentFees(sunday);
+    const fee = await db.tokenEntry.findUniqueOrThrow({
+      where: { eventKey: agentFeeKey(f.agent.id, receivedAt) },
+    });
+    expect(money(fee.amount)).toBe("55.00");
+  });
+  it("after the fee week is paid: the 55 comes off the agent's tokens", async () => {
+    const f = await fixture();
+    await creditAgentFees(sunday);
+    expect(money(await tokenBalance(f.agentUser.id))).toBe("55.00");
+    const r = await collected(f, 1);
+    expect(money(await tokenBalance(f.agentUser.id))).toBe("0.00");
+    expect(
+      await db.agentFeeClawback.findUniqueOrThrow({ where: { returnId: r.id } }),
+    ).toMatchObject({ agentId: f.agent.id });
+    expect(money(await tokenBalance(f.buyer.id))).toBe("1155.00");
+  });
+  it("a short balance stops at 0 and the rest comes off the next weekly fee", async () => {
+    const f = await fixture();
+    await creditAgentFees(sunday);
+    // The agent spent most of its fee.
+    await db.tokenEntry.create({
+      data: {
+        userId: f.agentUser.id,
+        amount: "-35",
+        kind: "TRANSFER_OUT",
+        eventKey: "spent:" + f.agentUser.id,
+        note: "Sent",
+      },
+    });
+    const r = await collected(f, 1);
+    expect(money(await tokenBalance(f.agentUser.id))).toBe("0.00");
+    const row1 = await db.agentFeeClawback.findUniqueOrThrow({ where: { returnId: r.id } });
+    expect(money(row1.left)).toBe("35.00");
+    // Next week the agent receives another order and earns 55.
+    const later = new Date("2026-11-10T10:00:00Z");
+    await makeReceivedOrder({ receivedAt: later, agent: { agent: f.agent, user: f.agentUser } });
+    await creditAgentFees(new Date("2026-11-15T10:00:00Z"));
+    expect(money(await tokenBalance(f.agentUser.id))).toBe("20.00");
+    expect(
+      money((await db.agentFeeClawback.findUniqueOrThrow({ where: { returnId: r.id } })).left),
+    ).toBe("0.00");
   });
 });

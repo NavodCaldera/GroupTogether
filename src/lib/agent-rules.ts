@@ -37,6 +37,12 @@ export function weekEnding(now: Date): Date {
   return new Date(end - COLOMBO_OFFSET_MS);
 }
 
+/** The Saturday 23:59:59.999 Colombo that ends the week holding `t`. */
+export function weekOf(t: Date): Date {
+  const end = weekEnding(t);
+  return end.getTime() === t.getTime() ? end : new Date(end.getTime() + 7 * DAY_MS);
+}
+
 export function isPickupCode(s: string): boolean {
   return /^\d{6}$/.test(s);
 }

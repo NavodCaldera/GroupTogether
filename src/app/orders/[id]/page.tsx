@@ -13,10 +13,13 @@ import { buyerOrder, lineState } from "@/server/orders/buyer";
 import { buyerReturns } from "@/server/returns";
 import { BasketProgress, LineBadge, OrderBadge, factoryName } from "../order-bits";
 import { cancelOrderAction, fileReturnAction, rateAction } from "./actions";
+import { BUYER_FAULT_KEPT, returnStatusLabel } from "@/lib/return-rules";
 
 export const metadata: Metadata = { title: "Order" };
 
-const label = (s: string) => s.charAt(0) + s.slice(1).replaceAll("_", " ").toLowerCase();
+/** Units already in a return that is not in returnedQty: open factory-fault returns and every
+ * kept buyer-fault return (DEC-017). */
+const OPEN_FACTORY = ["WAITING_FACTORY", "WITH_ADMIN", "ACCEPTED", "AWAITING_HANDOVER"];
 
 export default async function OrderPage({ params, searchParams }: PageProps<"/orders/[id]">) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
@@ -78,7 +81,16 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
         <Card>
           <ul className="flex flex-col divide-y divide-line">
             {order.lines.map((l) => {
-              const left = l.qty - l.returnedQty - l.missingQty;
+              const pending = returns
+                .filter(
+                  (r) =>
+                    r.orderLineId === l.id &&
+                    (r.fault === "BUYER"
+                      ? BUYER_FAULT_KEPT.includes(r.status)
+                      : OPEN_FACTORY.includes(r.status)),
+                )
+                .reduce((n, r) => n + r.qty, 0);
+              const left = l.qty - l.returnedQty - l.missingQty - pending;
               return (
                 <li key={l.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
                   <div className="flex items-start justify-between gap-3">
@@ -100,7 +112,13 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                       <summary className="flex min-h-11 cursor-pointer items-center font-medium sm:min-h-10">
                         File return
                       </summary>
-                      <ReturnForm id={l.id} op="file" maxQty={left} action={fileReturnAction} />
+                      <ReturnForm
+                        id={l.id}
+                        op="file"
+                        maxQty={left}
+                        buyerShare={l.factoryPrice.toString()}
+                        action={fileReturnAction}
+                      />
                     </details>
                   )}
                 </li>
@@ -125,7 +143,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                   {r.orderLine?.variant.product.title} × {r.qty}
                 </p>
                 <Badge tone={r.status === "REJECTED" || r.status === "LAPSED" ? "bad" : "info"}>
-                  {label(r.status)}
+                  {returnStatusLabel(r.status, r.fault)}
                 </Badge>
               </div>
               {r.status === "AWAITING_HANDOVER" && r.handoverAgent && (
@@ -162,8 +180,12 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
         <dl className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1.5 text-sm tabular-nums">
           <dt>Item</dt>
           <dd className="text-right">{formatLKR(order.itemsTotal)}</dd>
-          <dt>Courier</dt>
-          <dd className="text-right">{formatLKR(order.courierTotal)}</dd>
+          {toD(order.courierTotal).gt(0) && (
+            <>
+              <dt>Courier</dt>
+              <dd className="text-right">{formatLKR(order.courierTotal)}</dd>
+            </>
+          )}
           <dt>Agent fee</dt>
           <dd className="text-right">{formatLKR(order.agentFeeTotal)}</dd>
           <dt>Tokens</dt>

@@ -9,7 +9,7 @@ import { setHours } from "@/server/agents/hours";
 import { requestLeave } from "@/server/agents/leave";
 import { handOver, lookupCode, type PickupLine } from "@/server/orders/handover";
 import { markBasketReceived } from "@/server/orders/delivery";
-import { collectReturn } from "@/server/returns";
+import { collectReturn, markResold, markTakenBack } from "@/server/returns";
 import { transferTokens } from "@/server/tokens";
 
 export type AgentState = { error?: string; ok?: string; at?: number };
@@ -81,6 +81,22 @@ export async function collectReturnAction(
   const failed = await attempt(() => collectReturn(user.id, returnId));
   if (failed) return failed;
   await flash("Return collected");
+  refresh();
+  return {};
+}
+
+export async function closeResaleAction(
+  returnId: string,
+  to: "SOLD" | "TAKEN_BACK",
+  _prev: AgentState,
+  _fd: FormData,
+): Promise<AgentState> {
+  const user = await requireAgent();
+  const failed = await attempt(() =>
+    to === "SOLD" ? markResold(user.id, returnId) : markTakenBack(user.id, returnId),
+  );
+  if (failed) return failed;
+  await flash(to === "SOLD" ? "Marked sold" : "Marked taken back");
   refresh();
   return {};
 }

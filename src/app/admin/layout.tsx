@@ -35,6 +35,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/agents/deposits", "Deposits", 0],
       ["/admin/agents/baskets", "2-month baskets", 0],
       ["/admin/agents/search", "Search", 0],
+      ["/admin/agents/returns", "Buyer returns", badges.buyerReturns],
       ["/admin/factory/returns", "Return pickups", 0],
       ["/admin/users", "Buyers", 0],
     ],
@@ -44,6 +45,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/settings", "Settings", 0],
       ["/admin/users", "Admins", 0],
       ["/admin/factory/returns", "Returns", 0],
+      ["/admin/core/returns", "Buyer returns", 0],
       ["/admin/factory/quality", "Quality", 0],
     ],
   };

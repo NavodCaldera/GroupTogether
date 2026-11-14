@@ -45,6 +45,7 @@ const orderSelect = {
       status: true,
       collectedAt: true,
       unitPrice: true,
+      factoryPrice: true,
       returnedQty: true,
       missingQty: true,
       variant: {

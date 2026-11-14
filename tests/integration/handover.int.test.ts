@@ -17,8 +17,8 @@ async function setup() {
       qty: 1,
       unitPrice: "1100",
       factoryPrice: "1000",
-      courierEach: "40",
-      agentFeeEach: "20",
+      courierEach: "0",
+      agentFeeEach: "55",
     },
   });
   const code = "123456";

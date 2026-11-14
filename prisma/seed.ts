@@ -48,7 +48,7 @@ import { applyAsAgent } from "../src/server/agents/apply";
 import { decideAgent } from "../src/server/agents/admin";
 import { startDeposit } from "../src/server/agents/deposit";
 import { setHours } from "../src/server/agents/hours";
-import { factoryDecide, fileReturn } from "../src/server/returns";
+import { buyerFaultDecide, fileReturn } from "../src/server/returns";
 import { handleNotice } from "../src/server/payments/notice";
 import { signNotice } from "../src/server/payments/demo";
 
@@ -524,7 +524,8 @@ async function main() {
     data: { buyerId: dilan.id, agentId: kollupitiya.id, code: DEMO_PICKUP_CODE },
   });
   await markBasketReceived(kollupitiya.user.id, atAgent.id, []);
-  // Sachini collects her blouses and returns one (too small): the factory accepts.
+  // Sachini collects her blouses and returns one (too small, buyer fault): the Agents and orders
+  // admin accepts, and she has 2 days to bring it to the agent, who resells it (DEC-017).
   const sachiniCode = await db.pickupCode.findUniqueOrThrow({
     where: { buyerId_agentId: { buyerId: sachini.id, agentId: kollupitiya.id } },
   });
@@ -533,13 +534,13 @@ async function main() {
   });
   await handOver(kollupitiya.user.id, sachiniCode.code, [blouse.id]);
   const filed = await fileReturn(sachini.id, blouse.id, {
-    reason: "SIZE",
+    buyerReason: "SIZE",
     fault: "BUYER",
     note: "Too small",
     photos: [],
     qty: 1,
   });
-  await factoryDecide(ceylon.sales.id, filed.id, true);
+  await buyerFaultDecide(agentsAdmin.id, filed.id, true, "");
 
   // ─── WITH_COURIER: Kollupitiya × Lanka. Ravindu and Ayesha; on its way to the agent ──
   await buy(ravindu.id, kollupitiya.id, [[L[0][2], 7]]);

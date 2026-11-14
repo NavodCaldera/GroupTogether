@@ -20,6 +20,7 @@ export default async function ReturnsPage() {
           request={r}
           viewer={user.adminArea === AGENTS_AREA ? "agents" : "admin"}
           threadHref={user.adminArea === AGENTS_AREA ? undefined : `/admin/factory/returns/${r.id}`}
+          canChangeFault={user.adminArea === "FACTORY"}
         />
       ))}
     </div>

@@ -58,9 +58,15 @@ describe("agent money rules", () => {
 
   it("refunds", () => {
     // A factory fault returns everything but the PayHere fee; old lines also return the courier.
-    expect(factoryFaultRefund(1, new D("1000"), new D("0"), new D("50")).toFixed(2)).toBe("1050.00");
-    expect(factoryFaultRefund(2, new D("1000"), new D("0"), new D("50")).toFixed(2)).toBe("2100.00");
-    expect(factoryFaultRefund(1, new D("1000"), new D("40"), new D("20")).toFixed(2)).toBe("1060.00");
+    expect(factoryFaultRefund(1, new D("1000"), new D("0"), new D("50")).toFixed(2)).toBe(
+      "1050.00",
+    );
+    expect(factoryFaultRefund(2, new D("1000"), new D("0"), new D("50")).toFixed(2)).toBe(
+      "2100.00",
+    );
+    expect(factoryFaultRefund(1, new D("1000"), new D("40"), new D("20")).toFixed(2)).toBe(
+      "1060.00",
+    );
     expect(missingRefund(1, new D("1100"), new D("0"), new D("55")).toFixed(2)).toBe("1155.00");
     expect(missingRefund(1, new D("1100"), new D("40"), new D("20")).toFixed(2)).toBe("1160.00");
     expect(

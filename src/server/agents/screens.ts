@@ -105,6 +105,7 @@ export async function returnsToCollect(agentId: string) {
     select: {
       id: true,
       qty: true,
+      fault: true,
       handoverDueAt: true,
       buyerId: true,
       orderLine: {
@@ -125,6 +126,7 @@ export async function returnsToCollect(agentId: string) {
   return rows.map((r) => ({
     id: r.id,
     qty: r.qty,
+    fault: r.fault,
     dueAt: r.handoverDueAt,
     buyer: nameOf.get(r.buyerId) ?? "",
     item: r.orderLine
@@ -132,6 +134,50 @@ export async function returnsToCollect(agentId: string) {
           .filter(Boolean)
           .join(" · ")
       : "Item",
+  }));
+}
+
+/** Buyer-fault items this agent holds for resale (DEC-017). The agent sells at the price the
+ * buyer paid, keeps the commission share and gives the buyer the factory price; only for these
+ * items does the agent see prices (DATA-001 exception). */
+export async function resaleItems(agentId: string) {
+  const rows = await db.returnRequest.findMany({
+    where: { handoverAgentId: agentId, status: "WITH_AGENT", fault: "BUYER" },
+    select: {
+      id: true,
+      qty: true,
+      buyerId: true,
+      handedOverAt: true,
+      orderLine: {
+        select: {
+          unitPrice: true,
+          factoryPrice: true,
+          variant: {
+            select: { size: true, colour: true, product: { select: { title: true } } },
+          },
+        },
+      },
+    },
+    orderBy: { handedOverAt: "asc" },
+  });
+  const buyers = await db.user.findMany({
+    where: { id: { in: [...new Set(rows.map((r) => r.buyerId))] } },
+    select: { id: true, name: true },
+  });
+  const nameOf = new Map(buyers.map((b) => [b.id, b.name]));
+  return rows.map((r) => ({
+    id: r.id,
+    qty: r.qty,
+    buyer: nameOf.get(r.buyerId) ?? "",
+    item: [
+      r.orderLine!.variant.product.title,
+      r.orderLine!.variant.size,
+      r.orderLine!.variant.colour,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    price: toD(r.orderLine!.unitPrice).times(r.qty),
+    buyerShare: toD(r.orderLine!.factoryPrice).times(r.qty),
   }));
 }
 

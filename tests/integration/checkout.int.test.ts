@@ -29,7 +29,7 @@ describe("cart", () => {
     expect(view.factories).toHaveLength(2);
     const fa = view.factories.find((f) => f.factoryId === a.factory.id)!;
     expect(money(fa.totals.items)).toBe("2200.00");
-    expect(money(fa.totals.gross)).toBe("2320.00");
+    expect(money(fa.totals.gross)).toBe("2310.00");
     await setCartItem(buyer.id, a.variant.id, 0);
     expect((await cartView(buyer.id)).factories).toHaveLength(1);
   });
@@ -51,30 +51,30 @@ describe("checkout", () => {
     expect(await db.cartItem.count({ where: { buyerId: buyer.id } })).toBe(0);
   });
 
-  it("amounts: a 1100 item with no tokens is due 1,199.59", async () => {
+  it("amounts: a 1100 item with no tokens is due 1,194.42 (5% agent fee, no courier)", async () => {
     const buyer = await makeBuyer();
     const { agent } = await makeAgent();
     const f = await makeFactory();
     await setCartItem(buyer.id, f.variant.id, 1);
     const quote = await quoteCheckout(buyer.id, agent.id, "0");
-    expect(money(quote[0].due)).toBe("1199.59");
+    expect(money(quote[0].due)).toBe("1194.42");
     const r = await startCheckout(buyer.id, { agentId: agent.id, tokens: "0", requestKey: "k1" });
     const order = await db.order.findUniqueOrThrow({
       where: { id: r.orderIds[0] },
       include: { lines: true },
     });
     expect(money(order.itemsTotal)).toBe("1100.00");
-    expect(money(order.courierTotal)).toBe("40.00");
-    expect(money(order.agentFeeTotal)).toBe("20.00");
-    expect(money(order.gatewayFee)).toBe("39.59");
-    expect(money(order.amountDue)).toBe("1199.59");
+    expect(money(order.courierTotal)).toBe("0.00");
+    expect(money(order.agentFeeTotal)).toBe("55.00");
+    expect(money(order.gatewayFee)).toBe("39.42");
+    expect(money(order.amountDue)).toBe("1194.42");
     expect(money(order.lines[0].unitPrice)).toBe("1100.00");
     expect(money(order.lines[0].factoryPrice)).toBe("1000.00");
-    expect(money(order.lines[0].courierEach)).toBe("40.00");
-    expect(money(order.lines[0].agentFeeEach)).toBe("20.00");
+    expect(money(order.lines[0].courierEach)).toBe("0.00");
+    expect(money(order.lines[0].agentFeeEach)).toBe("55.00");
     const attempt = await db.paymentAttempt.findUniqueOrThrow({ where: { id: r.attemptId! } });
     expect(attempt.purpose).toBe("ORDERS");
-    expect(money(attempt.amount)).toBe("1199.59");
+    expect(money(attempt.amount)).toBe("1194.42");
     expect(attempt.expiresAt.getTime()).toBe(order.holdUntil.getTime());
     expect(r.redirectUrl).toContain(`/demo-pay/${attempt.id}`);
   });
@@ -92,11 +92,11 @@ describe("checkout", () => {
     const orders = await db.order.findMany({ where: { id: { in: r.orderIds } } });
     expect(new Set(orders.map((o) => o.paymentAttemptId))).toEqual(new Set([r.attemptId]));
     expect(new Set(orders.map((o) => o.factoryId))).toEqual(new Set([a.factory.id, b.factory.id]));
-    // 2320 / 0.967 - 2320 = 79.17, charged once across both orders
+    // 2310 / 0.967 - 2310 = 78.83, charged once across both orders
     const fee = orders.reduce((s, o) => s.plus(toD(o.gatewayFee)), new D(0));
-    expect(money(fee)).toBe("79.17");
+    expect(money(fee)).toBe("78.83");
     const attempt = await db.paymentAttempt.findUniqueOrThrow({ where: { id: r.attemptId! } });
-    expect(money(attempt.amount)).toBe("2399.17");
+    expect(money(attempt.amount)).toBe("2388.83");
   });
 
   it("tokens cover all: no attempt, both orders PAID and joined to baskets", async () => {
@@ -119,7 +119,7 @@ describe("checkout", () => {
     expect(orders.map((o) => o.status)).toEqual(["PAID", "PAID"]);
     for (const o of orders) {
       expect(o.paidAt).not.toBeNull();
-      expect(money(o.tokensApplied)).toBe("1160.00");
+      expect(money(o.tokensApplied)).toBe("1155.00");
       expect(money(o.amountDue)).toBe("0.00");
       const basket = await db.basket.findUniqueOrThrow({ where: { id: o.basketId! } });
       expect([basket.status, money(basket.total), basket.agentId, basket.factoryId]).toEqual([
@@ -132,14 +132,14 @@ describe("checkout", () => {
     }
     const v = await variant(a.variant.id);
     expect([v.available, v.reserved, v.sold]).toEqual([49, 0, 1]);
-    expect(money(await tokenBalance(buyer.id))).toBe("2680.00");
+    expect(money(await tokenBalance(buyer.id))).toBe("2690.00");
     const kinds = await db.tokenEntry.findMany({
       where: { userId: buyer.id, orderId: { not: null } },
       orderBy: { eventKey: "asc" },
     });
     expect(kinds.map((k) => [k.kind, money(k.amount)]).sort()).toEqual([
-      ["HOLD", "-1160.00"],
-      ["HOLD", "-1160.00"],
+      ["HOLD", "-1155.00"],
+      ["HOLD", "-1155.00"],
       ["SPEND", "0.00"],
       ["SPEND", "0.00"],
     ]);
@@ -179,11 +179,11 @@ describe("checkout", () => {
     await setCartItem(buyer.id, f.variant.id, 1);
     const r = await startCheckout(buyer.id, { agentId: agent.id, tokens: "160", requestKey: "k" });
     const order = await db.order.findUniqueOrThrow({ where: { id: r.orderIds[0] } });
-    // 1000 / 0.967 - 1000 = 34.13
+    // 995 / 0.967 - 995 = 33.96
     expect([money(order.tokensApplied), money(order.gatewayFee), money(order.amountDue)]).toEqual([
       "160.00",
-      "34.13",
-      "1034.13",
+      "33.96",
+      "1028.96",
     ]);
     expect(money(await tokenBalance(buyer.id))).toBe("0.00");
     const hold = await db.tokenEntry.findUniqueOrThrow({ where: { eventKey: `hold:${order.id}` } });
@@ -226,7 +226,7 @@ describe("checkout", () => {
     await fundTokens(staff.id, "5000");
     await db.cartItem.create({ data: { buyerId: staff.id, variantId: f.variant.id, qty: 1 } });
     await expect(
-      startCheckout(staff.id, { agentId: agent.id, tokens: "1160", requestKey: "k" }),
+      startCheckout(staff.id, { agentId: agent.id, tokens: "1155", requestKey: "k" }),
     ).rejects.toThrow(CheckoutError);
     expect(await db.order.count()).toBe(0);
   });
@@ -271,12 +271,12 @@ describe("checkout", () => {
         tokens: "0",
         requestKey: `p${round}`,
       });
-      await fundTokens(tokenBuyer.id, "1160");
+      await fundTokens(tokenBuyer.id, "1155");
       await setCartItem(tokenBuyer.id, f.variant.id, 1);
       await Promise.all([
         startCheckout(tokenBuyer.id, {
           agentId: agent.id,
-          tokens: "1160",
+          tokens: "1155",
           requestKey: `t${round}`,
         }),
         withOrderTransaction([payer.id], pending.orderIds, (tx) =>
