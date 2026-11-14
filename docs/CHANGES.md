@@ -17,6 +17,7 @@ Newest first.
 - Owner asked for the courier charge and agent fee to become a percentage (5%) instead of fixed amounts. Recorded as open `DEC-018`. Nothing is built.
 - Owner chose 5% for the courier and agent fees together. `DEC-018` updated.
 - Owner decided the whole 5% goes to the agent, who pays all courier fees except for factory-fault returns going back to the factory. `DEC-018` updated.
+- Owner decided the factory pays the courier on arrival for factory-fault returns; no payout deduction. `DEC-018` updated.
 
 ## 2026-11-14 - Project cleanup
 

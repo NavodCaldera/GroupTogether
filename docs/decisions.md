@@ -314,8 +314,9 @@ factory, which the agent does not pay.
 
 Open points:
 
-1. **Factory-fault return courier:** who pays it and how much, today the courier charge per item
-   deducted from the factory payout.
+1. **Decided:** for a factory-fault return the factory pays the courier when the parcel reaches
+   it. Nothing is deducted from the factory payout for it. Open: what happens if the factory
+   refuses the parcel.
 2. **Small baskets:** a basket shipped by the two-month rule with few items may earn the agent
    less than the courier fee, while an admin chooses the courier and its price.
 3. **Cash out, tokens in:** agents pay drivers in cash but are paid in tokens (`PAY-006`).
