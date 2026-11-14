@@ -16,6 +16,10 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `AGT-001`–`AGT-005`, `ORD-005`, `BSK-006`, `RETURN-001`, `ADMIN-002`,
 `UX-002`.
 
+Decided but not built (2026-11-14): agents earn the full 5% agent fee and pay their own couriers
+(`DEC-018`), resell buyer-fault returns privately and mark them Sold or Taken back, and cannot
+close while holding one (`DEC-017`). The code below still follows the old rules.
+
 ## Ownership and code
 
 - Services: `src/server/agents/` — `apply.ts` (`applyAsAgent`), `admin.ts` (`decideAgent`,

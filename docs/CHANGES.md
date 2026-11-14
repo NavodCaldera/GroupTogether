@@ -21,6 +21,7 @@ Newest first.
 - Owner set a 2-day handover deadline for accepted buyer-fault returns; after it the return closes as Not brought. `DEC-017` updated.
 - Owner chose the buyer-fault reasons: Material not as expected, Size, Colour, Quality feel, Changed mind, Other, each with a short note. `DEC-017` updated.
 - Owner limited the buyer-fault history to the Agents and orders admin and the Core admin. `DEC-017` updated.
+- Owner decided the buyer chooses the fault when filing; buyer-fault returns never become factory faults, and a Factory admin can change a factory-fault return to buyer fault, notifying the Agents and orders admin. At the owner's request Claude settled the remaining points. `DEC-017` and `DEC-018` are now decided, the operating brief rules (`RETURN-001`, `ORD-004`, `PAY-004`, `PAY-007`, `BSK-006`, `BSK-007`, `AGT-004`, `AGT-005`) and the orders, payments, agents and courier specialists are updated, and implementation status marks the mismatches. Nothing is built.
 
 ## 2026-11-14 - Project cleanup
 

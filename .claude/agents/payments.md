@@ -16,6 +16,11 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `PAY-004`–`PAY-007`, `TOK-001`–`TOK-003`, `AGT-002`, `AGT-005`, `BSK-006`,
 `BSK-007`. Bank slips and owner payment (`PAY-001`–`PAY-003`) are retired.
 
+Decided but not built (2026-11-14): one 5% agent fee replaces the courier charge and agent fee,
+`COURIER_REPAY` ends, factory-fault courier is no longer deducted, and buyer-fault returns give
+no tokens and never hold payouts (`DEC-017`, `DEC-018`). The code below still follows the old
+rules.
+
 ## Ownership and code
 
 - Gateway: `src/server/payments/gateway.ts` (the `Gateway` interface and `getGateway`),

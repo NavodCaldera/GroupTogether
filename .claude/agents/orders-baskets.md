@@ -16,6 +16,10 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `ORD-001`–`ORD-005`, `RETURN-001`, `BSK-001`–`BSK-003`, `PAY-004`,
 `TOK-001`, `LOC-001`, `RATE-001`. The group-cart model (`CART-*`, `INV-001`) is retired.
 
+Decided but not built (2026-11-14): buyer-fault returns become a record with no tokens, resold
+privately by the agent (`DEC-017`), and the courier charge and agent fee become one 5% agent fee
+(`DEC-018`). The code below still follows the old rules.
+
 ## Ownership and code
 
 - Pure rules: `src/lib/agent-money.ts` (totals, PayHere fee, checkout split, cancel, return and

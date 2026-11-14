@@ -247,82 +247,54 @@ tests with likes are **parked** (hidden, not built, not deleted).
 
 ### DEC-017 - Buyer-fault returns resold by the agent
 
-**Status:** Open, raised by the owner on **2026-11-14**. Nothing is built. **Rules:**
-`RETURN-001`, `PAY-006`, `PAY-007`, `TOK-001`, `TOK-003`, `AGT-004`, `DATA-001`.
+**Status:** Decided **2026-11-14**, not built. The owner set the rules; Claude settled the
+smaller points at the owner's request (marked _settled_). **Rules:** `RETURN-001`, `PAY-007`,
+`AGT-004`, `DATA-001`, `FAULT-001`.
 
-Owner proposal: for a buyer-fault return the buyer hands the item to the agent within 2 days. A
-buyer who wants money quickly gets 80% of the amount as tokens. A buyer who waits gets the full
-amount once the agent resells the item to someone in the agent's network. GroupBasket takes no
-commission on this.
+The owner first proposed 80% tokens now or the full amount after resale, then dropped all tokens.
+BMAD, Spec Kit and Superpowers reviews found the company carried the loss when an item never sold,
+which led to these rules:
 
-**Revised again 2026-11-14:** GroupBasket takes no part in buyer-fault returns. The buyer and
-the agent arrange any resale between themselves, at any price they choose. No tokens, listing or
-price from GroupBasket. The factory is paid for the original sale as normal.
-
-Effects and open points:
-
-1. The current buyer-fault refund (item price minus courier as tokens) and its send-back path
-   would be removed from `RETURN-001`.
-2. Factory faults gain weight: a buyer-fault ruling now costs the buyer everything, so the
-   Factory admin's final decision on fault matters more. Factory-fault returns are unchanged.
-3. Private buyer–agent deals sit outside GroupBasket like other cash deals (`TOK-002`); buyers may
-   still blame GroupBasket when an agent lets them down. Any warning belongs in the agent
-   agreement, not on-screen text.
-4. Consumer rules on change-of-mind returns in Sri Lanka have not been checked.
-5. **Decided:** the app keeps buyer-fault returns as a record only, with no tokens from GroupBasket.
-
-**Flow (owner, 2026-11-14):** the buyer requests a buyer-fault return with a reason; an admin
-accepts it; the agent is notified; only then can the buyer hand the item to the agent. When the
-item is sold, the agent marks it Sold. Purpose: a history of buyer-fault returns that shows
-problems such as wrongly identified material, so GroupBasket knows what happens to every piece.
-
-Open points, with recommendations:
-
-1. **Decided:** the Agents and orders admin accepts or refuses; the agent notice is sent
-   automatically on acceptance. **Decided:** the buyer-fault history (reasons and notes per
-   product) is visible to the Agents and orders admin and the Core admin only; Factory admins and
-   factories do not see it.
-2. **Decided:** the buyer picks one reason: Material not as expected, Size, Colour, Quality feel,
-   Changed mind or Other, with a short note. Reasons are counted per product and factory.
-3. **Send to Factory admin** when the reason shows the listing was wrong, such as material not
-   as described; the return then follows the factory-fault path.
-4. **End states:** Refused, Not brought, Sold, and Taken back when the buyer collects it unsold.
-   An agent cannot close while holding one (see the resale split below).
-5. **Decided:** the buyer has 2 days after acceptance to hand the item to the agent; otherwise
-   the return closes as Not brought and the buyer keeps the item.
-6. **Factory payout:** buyer-fault returns should not hold the factory's payout for that item.
-7. **Decided:** the agent resells at the price the buyer paid (see the resale split below).
-
-**Resale split (owner, 2026-11-14):** GroupBasket has already been paid the full price, for
-example LKR 1,000 including the LKR 100 commission, and the factory its LKR 900. The agent resells
-the returned item for that price, keeps the commission share (LKR 100) and gives the buyer the
-factory price (LKR 900). The buyer must be told before filing that a buyer-fault return does not
-give back the full amount. Agents therefore see the item price and the buyer's share, which
-reveals the commission per piece (an exception to `DATA-001`). An agent cannot close while holding
-these items (`AGT-004`).
+1. **Fault chosen at filing.** The buyer marks a return factory fault or buyer fault. A buyer-fault
+   return never becomes a factory fault.
+2. **Factory fault, changed.** Factory-fault returns follow `RETURN-001`. A Factory admin who finds
+   one is really the buyer's fault changes it to buyer fault; no fault is recorded (`FAULT-001`),
+   and the Agents and orders admin is notified and decides it as a buyer-fault return.
+3. **Buyer-fault flow.** The buyer requests with one reason (Material not as expected, Size, Colour,
+   Quality feel, Changed mind, Other) and a short note; photos optional (_settled_). The Agents and
+   orders admin accepts or refuses, oldest first, with no deadline (_settled_). On acceptance the
+   agent and buyer are notified, and the buyer has 2 days to hand the item to the agent.
+4. **No company money.** GroupBasket gives no tokens. The factory is paid for the sale as normal;
+   buyer-fault returns do not hold the payout or reduce the paid quantity.
+5. **Resale.** The agent resells at the price the buyer paid (for example LKR 1,000), keeps the
+   commission share (LKR 100) and gives the buyer the factory price (LKR 900), privately between
+   them. Before filing, the buyer sees the amount they get when it sells. For its own held items
+   only, the agent sees the price and the buyer's share, an exception to `DATA-001` (_settled_).
+6. **End states.** Refused, Not brought (2 days passed, from the sweep), Sold and Taken back (the
+   buyer collected it unsold), the last two marked by the agent. An agent cannot close while
+   holding one (`AGT-004`).
+7. **History.** Reasons, notes and outcomes per product and factory are visible to the Agents and
+   orders admin and the Core admin only.
 
 ### DEC-018 - Courier and agent fees as a percentage
 
-**Status:** Open, raised by the owner on **2026-11-14**. Nothing is built. **Rules:** `PAY-004`,
-`BSK-006`, `AGT-005`, `RETURN-001`, `BSK-007`.
+**Status:** Decided **2026-11-14**, not built. _Settled_ marks Claude's calls at the owner's
+request. **Rules:** `PAY-004`, `BSK-006`, `BSK-007`, `AGT-005`, `RETURN-001`, `PAY-007`.
 
-The owner wants the courier charge (LKR 40 per item) and agent fee (LKR 20 per item) replaced by
-a percentage of the item price, stated as 5%; the PayHere fee stays 3.3%. **Decided:** 5% is the courier and agent fees together
-(LKR 50 on a LKR 1,000 item). **Decided:** there is no split. The whole 5% goes to the agent,
-and the agent pays every courier fee from it; the booked-fee repayment (`COURIER_REPAY`,
-`BSK-006`) would end. The exception is the courier for factory-fault returns going back to the
-factory, which the agent does not pay.
-
-Open points:
-
-1. **Decided:** for a factory-fault return the factory pays the courier when the parcel reaches
-   it. Nothing is deducted from the factory payout for it. Open: what happens if the factory
-   refuses the parcel.
-2. **Small baskets:** a basket shipped by the two-month rule with few items may earn the agent
-   less than the courier fee, while an admin chooses the courier and its price.
-3. **Cash out, tokens in:** agents pay drivers in cash but are paid in tokens (`PAY-006`).
-4. **Refunds:** cancellations and missing items return the 5% to the buyer; buyer-fault refunds
-   no longer exist (`DEC-017`).
+1. **One 5% agent fee.** The fixed courier charge (LKR 40) and agent fee (LKR 20) per item become
+   one agent fee of `agentFeeRate` (0.05) of the item price, rounded to 2 decimals per item and set
+   by a Core admin (_settled_). LKR 1,000 item: fee 50, PayHere fee 35.83, total **1,085.83**. The
+   PayHere fee stays 3.3%. Orders already placed keep the fees they paid (_settled_).
+2. **The agent gets all of it** as `AGENT_FEE` tokens weekly, and pays every courier from the
+   factory to the agent. Admins still book couriers; the booked-fee repayment (`COURIER_REPAY`)
+   ends. No minimum: small baskets are the agent's risk.
+3. **Factory-fault return courier:** the factory pays the driver when the parcel arrives; nothing
+   is deducted from its payout. If it refuses the parcel, the agent reports it and the Factory
+   admin follows up (_settled_).
+4. **Refunds** (_settled_): cancel before lock still returns everything paid, including the 5% fee
+   and the PayHere fee (`ORD-004`); a missing item returns the item price and the 5% fee, and
+   GroupBasket's loss (commission plus that fee) is deducted from the factory; a factory fault
+   returns the item price, not the fee the agent earned; a buyer fault returns nothing.
 
 ## Legacy rule references
 
