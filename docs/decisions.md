@@ -255,26 +255,22 @@ buyer who wants money quickly gets 80% of the amount as tokens. A buyer who wait
 amount once the agent resells the item to someone in the agent's network. GroupBasket takes no
 commission on this.
 
-**Revised 2026-11-14:** the owner dropped the 80% option. For a buyer-fault return the buyer
-gives the item back to the agent and waits until the agent resells it. No tokens are given before
-the resale. This removes the company's risk of paying out for an item that never sells.
+**Revised again 2026-11-14:** GroupBasket takes no part in buyer-fault returns. The buyer and
+the agent arrange any resale between themselves, at any price they choose. No tokens, listing or
+price from GroupBasket. The factory is paid for the original sale as normal.
 
-Still open:
+Effects and open points:
 
-1. **Proof of the resale.** Recommended: an on-platform listing at that agent, bought through
-   checkout, so the sale and price are verified and agents still see no prices (`DATA-001`).
-2. **What the buyer receives.** Recommended: the item price as tokens once the resale payment is
-   verified; the original courier charge and agent fee are not returned (`PAY-006`).
-3. **What the new buyer pays.** No courier charge, as the item is at the agent; whether the agent
-   fee is earned again is open.
-4. **Condition check and the 2 days:** who checks the item, and whether 2 days replaces the 7-day
-   handover (`DEC-016` question 3).
-5. **Unsold items:** how long an item waits and what happens then. Recommended: after a set
-   number of days the buyer collects it back with their pickup code.
-6. **Agent suspended or leaving:** waiting items go back to their buyers before the deposit is
-   returned (`AGT-004`).
-
-The factory is paid for the original sale as normal.
+1. The current buyer-fault refund (item price minus courier as tokens) and its send-back path
+   would be removed from `RETURN-001`.
+2. Factory faults gain weight: a buyer-fault ruling now costs the buyer everything, so the
+   Factory admin's final decision on fault matters more. Factory-fault returns are unchanged.
+3. Private buyer–agent deals sit outside GroupBasket like other cash deals (`TOK-002`); buyers may
+   still blame GroupBasket when an agent lets them down. Any warning belongs in the agent
+   agreement, not on-screen text.
+4. Consumer rules on change-of-mind returns in Sri Lanka have not been checked.
+5. **Open:** whether the app keeps a buyer-fault return option at all. Recommended: no, returns
+   become factory fault only; a return ruled buyer fault is refused.
 
 ## Legacy rule references
 

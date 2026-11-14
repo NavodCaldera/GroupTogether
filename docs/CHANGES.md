@@ -10,6 +10,7 @@ Newest first.
 
 - Owner proposed that buyer-fault returns stay with the agent for resale: 80% as tokens now, or the full amount after the agent resells. Recorded as open `DEC-017` with the BMAD, Spec Kit and Superpowers review findings. Nothing is built.
 - Revised the same day: the 80% option is dropped. The buyer gives the item back to the agent and gets no tokens until it resells. `DEC-017` updated. Nothing is built.
+- Revised again: GroupBasket takes no part in buyer-fault returns; the buyer and agent arrange any resale privately at any price. `DEC-017` updated. Nothing is built.
 
 ## 2026-11-14 - Project cleanup
 
