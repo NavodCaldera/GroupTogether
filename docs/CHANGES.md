@@ -6,6 +6,11 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-15 - No pickup deadline
+
+- Owner decided there is no pickup deadline. A buyer who does not collect within 2 days of the parcel reaching the agent gets no action from GroupBasket; the 48-hour return window is not extended.
+- Removed the 14-day Not collected rule, the 3-day reminder, the `pickupDays` setting and the `NOT_COLLECTED` reason (`DEC-019` rule 6).
+
 ## 2026-11-15 - Agent fee in cash at pickup built
 
 - Owner decided buyers pay the courier and agent fee in cash to the agent at pickup, and that on a factory-fault return the factory is charged the fee and the buyer gets it back with the item price. Claude settled the rest (`DEC-019`) and built it.

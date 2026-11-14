@@ -324,10 +324,11 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
    driver on arrival. "Courier fee and agent fee" is read as the one 5% fee, which covers couriers.
 5. **Buyer fault, missing items and cancellations** move no fee; the buyer never paid it online.
    The missing-item deduction is the commission only.
-6. **Never collected:** the buyer is reminded 3 days before the deadline. After `pickupDays`
-   (default 14, set in Settings) the parcel becomes a **Not collected** buyer-fault record held
-   by the agent (`DEC-017`): no tokens, no fee; the agent marks it Sold or Taken back. This pays
-   the agent for the courier it already paid. The factory is still paid for the piece.
+6. **No pickup deadline** (owner, **2026-11-15**, replacing a 14-day Not collected rule Claude
+   had built): a parcel waits at the agent until the buyer collects it. GroupBasket takes no
+   action for a buyer who does not collect within 2 days of the parcel reaching the agent; the
+   return window (`collectHours`, 48 from the agent receiving it) is not extended, so a late
+   pickup has no return. There is no reminder and nothing happens to the parcel.
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 

@@ -21,11 +21,8 @@ import {
   changeToBuyerFault,
   markResold,
   markTakenBack,
-  abandonUncollected,
-  remindUncollected,
 } from "@/server/returns";
 import { buildWeeklyPayouts, creditAgentFees } from "@/server/payouts";
-import { resaleItems } from "@/server/agents/screens";
 import { agentFeeKey } from "@/server/agent-fees";
 import { markBasketReceived } from "@/server/orders/delivery";
 import { removeFactory } from "@/server/quality";
@@ -801,54 +798,5 @@ describe("cash agent fee on a factory-fault return (DEC-019)", () => {
     await collected(f, 1);
     expect(money(await tokenBalance(f.buyer.id))).toBe("1100.00");
     expect(await deductions()).toHaveLength(0);
-  });
-});
-
-describe("a parcel never collected (DEC-019)", () => {
-  const at = (days: number) => new Date(receivedAt.getTime() + days * 24 * HOUR);
-  it("reminds the buyer once, 3 days before the 14-day deadline", async () => {
-    const f = await fixture(1, null);
-    // A collected parcel is never reminded.
-    await fixture();
-    expect(await remindUncollected(at(10.9))).toBe(0);
-    expect(await remindUncollected(at(11))).toBe(1);
-    expect(await remindUncollected(at(12))).toBe(0);
-    const notices = await db.notification.findMany({ where: { title: "Collect your parcel" } });
-    expect(notices.map((n) => [n.userId, n.href])).toEqual([[f.buyer.id, `/orders/${f.order.id}`]]);
-  });
-  it("after 14 days it is a Not collected record with the agent, with no tokens or fee", async () => {
-    const f = await fixture(2, null);
-    const kept = await fixture();
-    await db.orderLine.update({ where: { id: f.line.id }, data: { missingQty: 1 } });
-    expect(await abandonUncollected(at(13.9))).toBe(0);
-    expect(await abandonUncollected(at(14))).toBe(1);
-    expect(await abandonUncollected(at(15))).toBe(0);
-    const r = await db.returnRequest.findFirstOrThrow({ where: { orderLineId: f.line.id } });
-    expect(r).toMatchObject({
-      status: "WITH_AGENT",
-      fault: "BUYER",
-      buyerReason: "NOT_COLLECTED",
-      qty: 1,
-      buyerId: f.buyer.id,
-      factoryId: f.factory.id,
-      handoverAgentId: f.agent.id,
-    });
-    const line = await db.orderLine.findUniqueOrThrow({ where: { id: f.line.id } });
-    expect(line.collectedAt).toEqual(at(14));
-    expect([line.cashFeePaid, line.returnedQty, line.status]).toEqual([null, 0, "ACTIVE"]);
-    expect(await db.returnRequest.count({ where: { orderLineId: kept.line.id } })).toBe(0);
-    expect(money(await tokenBalance(f.buyer.id))).toBe("0.00");
-    expect(await deductions()).toHaveLength(0);
-    expect(await db.factoryFault.count()).toBe(0);
-    expect((await resaleItems(f.agent.id)).map((i) => i.id)).toEqual([r.id]);
-    await flushReturnNoticesForTest();
-    const notices = await db.notification.findMany({ where: { title: "Parcel not collected" } });
-    expect(notices.map((n) => n.userId).sort()).toEqual([f.buyer.id, f.agentUser.id].sort());
-    // The buyer cannot file a return on it, and the factory is still paid for the piece.
-    await expect(fileReturn(f.buyer.id, f.line.id, input(), at(14))).rejects.toThrow();
-    expect(await buildWeeklyPayouts(new Date("2027-01-10T10:00:00Z"))).toBe(2);
-    // The buyer comes late: the agent gives it back.
-    await markTakenBack(f.agentUser.id, r.id, at(16));
-    expect((await row(r.id)).status).toBe("TAKEN_BACK");
   });
 });

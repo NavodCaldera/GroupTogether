@@ -55,9 +55,7 @@ export const BUYER_FAULT_REASONS = [
   "OTHER",
 ] as const;
 export type BuyerFaultReason = (typeof BUYER_FAULT_REASONS)[number];
-/** NOT_COLLECTED is set by the sweep for a parcel never collected (DEC-019); a buyer cannot pick it. */
-export const BUYER_FAULT_LABEL: Record<BuyerFaultReason | "NOT_COLLECTED", string> = {
-  NOT_COLLECTED: "Not collected",
+export const BUYER_FAULT_LABEL: Record<BuyerFaultReason, string> = {
   MATERIAL: "Material not as expected",
   SIZE: "Size",
   COLOUR: "Colour",

@@ -19,8 +19,8 @@ Policy references: `ORD-001`–`ORD-005`, `RETURN-001`, `BSK-001`–`BSK-003`, `
 Built 2026-11-15: buyer-fault returns are a record with no tokens, resold privately by the agent
 (`DEC-017`), and the courier charge and agent fee are one 5% agent fee (`DEC-018`), paid in cash
 at pickup (`DEC-019`): new lines store `agentFeeEach` 0 and `cashFeeEach`; `handOver` requires the
-exact fee (`FEE_NOT_TAKEN`) and stores `cashFeePaid`; `abandonUncollected` turns parcels older
-than `pickupDays` into Not collected `WITH_AGENT` records and `remindUncollected` warns 3 days before.
+exact fee (`FEE_NOT_TAKEN`) and stores `cashFeePaid`. There is no pickup deadline; a late pickup
+gets no action and no extra return time.
 
 ## Ownership and code
 

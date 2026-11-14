@@ -429,8 +429,6 @@ model Settings {
   returnHandoverDays  Int       @default(7)
   /// Days a buyer has to bring an accepted buyer-fault return to the agent
   buyerHandoverDays   Int       @default(2)
-  /// Days a parcel waits at the agent before it becomes a Not collected record (DEC-019)
-  pickupDays          Int       @default(14)
   agentRadiusM        Int       @default(1000)
   agentGapM           Int       @default(2000)
   agentDeposit        Decimal   @default(200000) @db.Decimal(14, 2)
@@ -696,8 +694,6 @@ enum BuyerFaultReason {
   QUALITY_FEEL
   CHANGED_MIND
   OTHER
-  /// Set by the sweep for a parcel never collected (DEC-019)
-  NOT_COLLECTED
 }
 
 enum ReturnFault {

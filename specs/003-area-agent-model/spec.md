@@ -18,8 +18,9 @@ and its `.memlog.md`; later overrides win.
   charges only the item and the PayHere fee; the agent ticks Fee received before handing over.
 - Q: What does a factory-fault return give now? → A: The item price and the cash fee as tokens;
   the factory pays the fee through a payout deduction and the agent keeps the cash.
-- Q: What if a parcel is never collected? → A: A reminder 3 days before the 14-day deadline; then
-  it becomes a Not collected record held by the agent, who sells it or gives it back.
+- Q: What if a parcel is never collected? → A: There is no deadline; it waits at the agent.
+  GroupBasket takes no action for a buyer who does not collect within 2 days, and the 48-hour
+  return window is not extended.
 
 ### Session 2026-11-14 (`DEC-017`, `DEC-018`)
 
@@ -294,8 +295,7 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
   factory-fault return. Payouts MUST total items up to Saturday 11:59 pm (Sri Lanka time) for payment every
   Sunday, recorded by Core admin with a bank reference.
 - **FR-023**: Agents MUST take the 5% agent fee per item in cash at handover, confirmed with Fee
-  received, and pay every courier from it (`DEC-019`). Parcels not collected within the pickup
-  deadline MUST become Not collected records held by the agent.
+  received, and pay every courier from it (`DEC-019`).
 - **FR-024**: Any user MUST be able to send tokens to any other user, with no reversal. Admins take
   no action on cash deals outside the platform.
 - **FR-025**: Cash MUST be paid only to factories.
@@ -324,7 +324,7 @@ no open return, appear on that factory's payout. A Core admin marks it paid with
 - **FR-031**: Factories MUST have three roles only: Owner, Sales and Packing. Planner jobs move to
   Sales.
 - **FR-032**: Settings MUST hold the agent fee rate, PayHere fee rate, lock amount,
-  maximum wait, payment hold (15 minutes), 48 hours, 7 days, 2 days, pickup deadline (14 days),
+  maximum wait, payment hold (15 minutes), 48 hours, 7 days, 2 days,
   radius and gap, deposit and commission.
 
 **Removal**

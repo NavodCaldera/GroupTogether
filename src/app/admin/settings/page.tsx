@@ -77,7 +77,6 @@ export default async function SettingsPage() {
                       s.buyerHandoverDays,
                       "numeric",
                     ],
-                    ["Pickup deadline (days)", "pickupDays", s.pickupDays, "numeric"],
                     ["Agent radius (m)", "agentRadiusM", s.agentRadiusM, "numeric"],
                     ["Gap between agents (m)", "agentGapM", s.agentGapM, "numeric"],
                   ] as const
