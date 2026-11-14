@@ -301,6 +301,18 @@ request. **Rules:** `PAY-004`, `BSK-006`, `BSK-007`, `AGT-005`, `RETURN-001`, `P
 5. **Leaving with a take-back owed** (_settled_ at build): any fee take-back still owed when a
    leaving agent closes comes off the deposit returned, never below zero.
 
+### DEC-019 - Agent fee paid in cash at pickup
+
+**Status:** Open proposal (**2026-11-15**), not built. **Rules:** `PAY-004`, `AGT-005`,
+`ORD-005`, `RETURN-001`.
+
+The owner proposed that buyers no longer pay the agent fee on the website; they pay it in cash
+to the agent when they collect. Checkout would charge only the item price and the PayHere fee
+(LKR 1,000 → PayHere 34.13, online 1,034.13, plus LKR 50 at pickup). Open points: whether the
+agent may hold items until the fee is paid, whether tokens can pay it, who refunds the fee on a
+factory-fault return, what happens when a parcel is never collected, and whether the agent
+records the fee as received.
+
 ## Legacy rule references
 
 ### Rule IDs retired by the area agent model (2026-11-08)

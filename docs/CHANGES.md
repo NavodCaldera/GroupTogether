@@ -6,6 +6,10 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-15 - Agent fee in cash at pickup (proposal)
+
+- Owner proposed that buyers pay the agent fee in cash to the agent at pickup instead of on the website. Recorded as open `DEC-019`. Nothing is built.
+
 ## 2026-11-15 - Buyer-fault records and the 5% agent fee built
 
 - Built `DEC-017` and `DEC-018` from the [build plan](superpowers/plans/2026-11-14-buyer-fault-records-and-agent-fee.md). New orders charge one 5% agent fee (`agentFeeRate`, set as a percent in Settings) and no courier charge: LKR 1,000 → fee 50, PayHere 35.83, total 1,085.83. Old orders keep their stored fees.
