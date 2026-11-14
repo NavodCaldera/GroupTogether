@@ -294,7 +294,10 @@ request. **Rules:** `PAY-004`, `BSK-006`, `BSK-007`, `AGT-005`, `RETURN-001`, `P
 4. **Refunds** (_settled_): cancel before lock still returns everything paid, including the 5% fee
    and the PayHere fee (`ORD-004`); a missing item returns the item price and the 5% fee, and
    GroupBasket's loss (commission plus that fee) is deducted from the factory; a factory fault
-   returns the item price, not the fee the agent earned; a buyer fault returns nothing.
+   returns the item price and the 5% fee, not the PayHere fee (owner), and the fee is taken back
+   from the agent: not credited if the weekly fee has not been paid yet, otherwise deducted from
+   the agent's tokens, with any shortfall taken from its next weekly fees, since a balance can
+   never go below zero (_settled_); a buyer fault returns nothing.
 
 ## Legacy rule references
 
