@@ -11,6 +11,11 @@ Newest first.
 - Removed dead code: the unused `SizeGrid` component and `sizeGrid` helper, `endsWithin`, `timeLeft`, `mapsLink`, `notifyRole`, `OPEN_RETURN_STATUSES`, `SLIP_TYPES` and the `variantRow` test helper. Dropped `export` from 39 names used only in their own file.
 - Deleted the Codex hand-off prompts in `docs/superpowers/prompts/` (that workflow ended on 2026-11-07) and their links. Moved this log's intro back under the title.
 - Formatted files Prettier had missed. Cleared local caches and build output (`.next`, `fit-lab/dist`, Vite, Vitest and Playwright output, old task logs and an unused Python tool folder in `.data`). Databases and uploads in `.data` are kept.
+- Ignored `.vscode/` so personal editor settings stay out of the repository.
+
+## 2026-11-09 - Green Back button
+
+- Changed the shared Back button to use the theme's green background, contrasting text, rounded corners and horizontal padding across detail and form pages.
 
 ## 2026-11-09 - Leftover hints and architecture
 

@@ -68,7 +68,7 @@ export function BackLink({ fallback }: { fallback: string }) {
           window.history.back();
         }
       }}
-      className="mb-3 inline-flex min-h-11 items-center gap-1 text-sm font-medium text-subtle hover:text-ink sm:min-h-10"
+      className="mb-3 inline-flex min-h-11 items-center gap-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent transition hover:opacity-90 sm:min-h-10"
     >
       <span aria-hidden>←</span> Back
     </Link>
