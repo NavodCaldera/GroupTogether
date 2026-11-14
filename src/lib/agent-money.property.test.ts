@@ -1,18 +1,14 @@
 import { describe, expect, it } from "vitest";
 import fc from "fast-check";
 import { D } from "./decimal";
-import { gatewayFee, lineEarning, orderTotals, splitCheckout } from "./agent-money";
+import { agentFeeEach, gatewayFee, lineEarning, orderTotals, splitCheckout } from "./agent-money";
 
 const price = fc.integer({ min: 100, max: 5_000_000 }).map((c) => new D(c).div(100));
 const order = fc.array(fc.record({ qty: fc.integer({ min: 1, max: 20 }), unitPrice: price }), {
   minLength: 1,
   maxLength: 3,
 });
-const rates = {
-  courierPerItem: new D("40"),
-  agentFeePerItem: new D("20"),
-  gatewayFeeRate: new D("0.033"),
-};
+const rates = { agentFeeRate: new D("0.05"), gatewayFeeRate: new D("0.033") };
 const twoDp = (v: D) => v.decimalPlaces() <= 2;
 
 describe("checkout split invariants", () => {
@@ -23,6 +19,14 @@ describe("checkout split invariants", () => {
         fc.double({ min: 0, max: 1, noNaN: true }),
         (carts, share) => {
           const orders = carts.map((lines) => orderTotals(lines, rates));
+          orders.forEach((o, i) => {
+            const fee = carts[i].reduce(
+              (s, l) => s.plus(agentFeeEach(l.unitPrice, rates.agentFeeRate).times(l.qty)),
+              new D(0),
+            );
+            expect(o.agentFee.eq(fee)).toBe(true);
+            expect(o.gross.eq(o.items.plus(o.agentFee))).toBe(true);
+          });
           const gross = orders.reduce((s, o) => s.plus(o.gross), new D(0));
           const tokens = gross.times(new D(share.toFixed(6))).toDecimalPlaces(2, D.ROUND_DOWN);
           const out = splitCheckout(orders, tokens, rates.gatewayFeeRate);

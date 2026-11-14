@@ -2,18 +2,25 @@ import { D, roundMoney } from "./decimal";
 
 type Money = D;
 
-export type Rates = { courierPerItem: Money; agentFeePerItem: Money; gatewayFeeRate: Money };
+/** agentFeeRate is a share of the item price (0.05); the agent pays couriers from the fee. */
+export type Rates = { agentFeeRate: Money; gatewayFeeRate: Money };
 type LineIn = { qty: number; unitPrice: Money };
-export type OrderTotals = { items: Money; courier: Money; agentFee: Money; gross: Money };
+export type OrderTotals = { items: Money; agentFee: Money; gross: Money };
 
 const ZERO = new D(0);
 
+/** The agent fee for one piece, rounded to the cent. */
+export function agentFeeEach(unitPrice: Money, rate: Money): Money {
+  return roundMoney(unitPrice.times(rate));
+}
+
 export function orderTotals(lines: LineIn[], r: Rates): OrderTotals {
-  const qty = lines.reduce((sum, l) => sum + l.qty, 0);
   const items = lines.reduce((sum, l) => sum.plus(l.unitPrice.times(l.qty)), ZERO);
-  const courier = r.courierPerItem.times(qty);
-  const agentFee = r.agentFeePerItem.times(qty);
-  return { items, courier, agentFee, gross: items.plus(courier).plus(agentFee) };
+  const agentFee = lines.reduce(
+    (sum, l) => sum.plus(agentFeeEach(l.unitPrice, r.agentFeeRate).times(l.qty)),
+    ZERO,
+  );
+  return { items, agentFee, gross: items.plus(agentFee) };
 }
 
 /** round2(remainder / (1 - rate) - remainder); 0 when nothing is charged. */
@@ -56,15 +63,15 @@ export function cancelRefund(o: { tokensApplied: Money; remainder: Money; fee: M
   return roundMoney(o.tokensApplied.plus(o.remainder).plus(o.fee));
 }
 
-/** Factory fault refunds the full price; buyer fault keeps the courier cost. */
-export function returnRefund(
+/** A factory fault returns everything but the PayHere fee. Lines from before the 5% fee also
+ * return their courier charge; newer lines store it as 0. A buyer fault returns nothing. */
+export function factoryFaultRefund(
   qty: number,
   unitPrice: Money,
   courierEach: Money,
-  fault: "FACTORY" | "BUYER",
+  agentFeeEach: Money,
 ): Money {
-  const each = fault === "FACTORY" ? unitPrice : unitPrice.minus(courierEach);
-  return roundMoney(each.times(qty));
+  return roundMoney(unitPrice.plus(courierEach).plus(agentFeeEach).times(qty));
 }
 
 export function missingRefund(
@@ -76,7 +83,7 @@ export function missingRefund(
   return roundMoney(unitPrice.plus(courierEach).plus(agentFeeEach).times(qty));
 }
 
-/** Only GroupBasket's loss: commission, refunded courier and agent fee. */
+/** Only GroupBasket's loss: commission and the refunded agent fee (and courier, on old lines). */
 export function missingDeduction(
   qty: number,
   unitPrice: Money,
