@@ -97,6 +97,8 @@ model User {
   brandReads         BrandConversationRead[]
 
   agent                Agent?
+  bodyProfile          BodyProfile?
+  fitFeedback          FitFeedback[]
   cartItems            CartItem[]
   buyerOrders          Order[]           @relation("OrderBuyer")
   factoryOrders        Order[]           @relation("OrderFactory")
@@ -190,6 +192,27 @@ model Product {
   variants Variant[]
   /// Stock offers whose pieces went onto this product: a design test, then its bulk (2026-10-24)
   offers   StockOffer[]
+
+  // ─── Fit data (DEC-020), entered by the factory ───
+  /// Garment measurements in cm per size: { "M": { "chest": 108, "waist": 100 } }; keys are
+  /// FitRegion names in lower camel case (src/lib/fit/regions.ts)
+  sizeChart        Json?
+  /// Most the fabric stretches, percent (0 = rigid)
+  fabricStretchPct Int?
+  gsm              Int?
+  weave            String?
+  thermalMinC      Int?
+  thermalMaxC      Int?
+  /// 1 (least) to 5 (most)
+  breathability    Int?
+  careNotes        String?
+  /// An admin checked the fit data; the fit card ignores the size chart until then
+  fitApprovedAt    DateTime?
+  fitApprovedById  String?
+
+  fitAssets      FitAsset[]
+  regionTensions GarmentRegionTension[]
+  fitFeedback    FitFeedback[]
 
   @@index([status, category])
   @@index([sellerId])
@@ -1213,4 +1236,113 @@ model PayoutDeduction {
 
   @@unique([kind, ref])
   @@index([factoryId, payoutId])
+}
+
+// ─── Personalized fit (DEC-020) ─────────────────────────────────────────────
+
+enum FitRegion {
+  CHEST
+  WAIST
+  HIP
+  UPPER_ARM
+  THIGH
+  SHOULDER
+  TORSO
+}
+
+enum MotionClip {
+  WALK
+  RUN
+  REACH
+  SIT
+}
+
+enum FitFeedbackVerdict {
+  TOO_TIGHT
+  GOOD
+  TOO_LOOSE
+}
+
+/// A body shape the offline simulation ran on
+model BodyArchetype {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  /// "MEN" or "WOMEN"
+  gender    String
+  /// Body measurements in cm, keyed like the size chart
+  params    Json
+  createdAt DateTime @default(now())
+
+  profiles BodyProfile[]
+  assets   FitAsset[]
+  tensions GarmentRegionTension[]
+}
+
+/// A buyer's measurements, worked out on their phone. Photos are never uploaded.
+model BodyProfile {
+  id           String         @id @default(cuid())
+  userId       String         @unique
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  heightCm     Float
+  /// { "chest": { "value": 96, "low": 92, "high": 100, "source": "photo" | "typed" } }
+  measurements Json
+  /// "MEN" or "WOMEN", optional
+  gender       String?
+  ageBand      String?
+  archetypeId  String?
+  archetype    BodyArchetype? @relation(fields: [archetypeId], references: [id], onDelete: SetNull)
+  /// Photo checks, model used, typed corrections against the photo estimate
+  captureMeta  Json?
+  consentAt    DateTime
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+/// Simulated garment on one archetype in one motion: an animated glTF on the CDN
+model FitAsset {
+  id          String        @id @default(cuid())
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  archetypeId String
+  archetype   BodyArchetype @relation(fields: [archetypeId], references: [id], onDelete: Cascade)
+  motion      MotionClip
+  gltfUrl     String
+  createdAt   DateTime      @default(now())
+
+  @@unique([productId, archetypeId, motion])
+}
+
+/// Simulated tension of one garment size on one archetype, per body area (0 slack to 1 tight)
+model GarmentRegionTension {
+  id          String        @id @default(cuid())
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  archetypeId String
+  archetype   BodyArchetype @relation(fields: [archetypeId], references: [id], onDelete: Cascade)
+  size        String
+  region      FitRegion
+  baseTension Float
+  note        String        @default("")
+
+  @@unique([productId, archetypeId, size, region])
+  @@index([productId, archetypeId])
+}
+
+/// "How did it fit?" after collection; calibrates the fit constants
+model FitFeedback {
+  id            String             @id @default(cuid())
+  userId        String
+  user          User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId     String
+  product       Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
+  orderLineId   String             @unique
+  purchasedSize String
+  verdict       FitFeedbackVerdict
+  /// { "chest": "TOO_TIGHT" } per area, optional
+  regionNotes   Json?
+  /// The size recommended and the tensions shown when the buyer looked, if they had a profile
+  recommended   String?
+  createdAt     DateTime           @default(now())
+
+  @@index([productId])
 }

@@ -111,9 +111,11 @@ Reservations prevent overselling; they do not answer these cases. This entry nei
 
 ### DEC-006 — Measurement-based recommendations
 
-**Status:** Planned capability; details open. **Rule:** `FIT-001`.
+**Status:** Partly decided **2026-11-15** in `DEC-020`. **Rule:** `FIT-001`.
 
-Decide optional/required measurements, units, garment measurements/size charts, behavior when data is absent, and collection/visibility/editing/deletion of profile measurements. Approximate dimensions alone do not justify exact-fit promises. Personalization is not implemented.
+Still open: required versus optional measurements beyond height, how long a body profile is
+kept, and calibration targets for the tension constants. Approximate dimensions alone do not
+justify exact-fit promises.
 
 ### DEC-007 — Geographic seller insights
 
@@ -331,6 +333,29 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
    pickup has no return. There is no reminder and nothing happens to the parcel.
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
+
+### DEC-020 - Personalized fit heatmap
+
+**Status:** Decided **2026-11-15**. **Rules:** `FIT-001`, `UX-001`, `CAT-001`.
+
+The owner asked for the personalized fit heatmap (buyer photos → measurements → per-area
+tension on a 3D garment, coloured green to deep red) and chose:
+
+1. **Size charts and fabric data** (per-size garment dimensions, stretch %, gsm, weave, thermal
+   range, breathability, care) are entered by the factory on the product form and checked in
+   the existing admin product review. A product without a chart shows the no-data fallback.
+2. **Photos are processed on the buyer's phone only.** Photos never leave the device; only the
+   derived measurements with their uncertainty, height, corrections and the consent time are
+   saved. The buyer can edit or delete the profile at any time.
+3. **Fit card text:** a compact colour legend (Comfortable → Tight) and one line, _Guidance, not
+   a guarantee_, are allowed on the fit card as a recorded exception to `UX-001`. No other
+   explanatory text.
+4. **3D scope:** the Three.js viewer and heatmap shader are built now on seed data from a Python
+   pipeline (2 archetypes, 1 test garment). The real Blender cloth-simulation step is a
+   documented stub until Blender and factory garment patterns exist.
+5. **No live simulation:** tension is precomputed per garment × archetype × size × area; the
+   page adds a per-buyer adjustment from ease and fabric stretch (constants `k`, `k2` in
+   `src/lib/fit/config.ts`, to be calibrated from "How did it fit?" feedback).
 
 ## Legacy rule references
 
