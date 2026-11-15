@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-15 - Personal body mesh planned, then paused
+
+- Owner asked for the buyer's own 3D body in the fit viewer (Anny body model from the two
+  photos), a confirmation screen with sliders, shared garment drapes per body cluster and an
+  async Deep Fit Test. Owner chose that photos still stay on the phone: only body outlines and
+  joint positions are sent, then deleted. Owner then paused the work before any code; three
+  questions are open. Not built yet: `DEC-021` and
+  [the parked plan](superpowers/plans/personal-body-mesh-paused.md).
+
 ## 2026-11-15 - Realistic fit demo data
 
 - Owner asked for realistic demo data to try the buyer experience. The seed now gives eleven

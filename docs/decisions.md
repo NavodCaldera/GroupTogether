@@ -334,6 +334,19 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-021 - Personal body mesh and Deep Fit Test (paused)
+
+**Status:** Paused by the owner **2026-11-15**, before any code. **Rules:** `FIT-001`.
+
+The owner asked for the buyer's own 3D body (Anny, fitted from the two onboarding photos), shape
+clusters with cached garment drapes, and an async per-user Deep Fit Test. Only one choice is
+made: **photos still never leave the phone**; the phone sends the body outlines and joint
+positions, deleted after the buyer confirms (7-day sweep). Three questions are open: the Deep Fit
+Test engine without Blender or patterns, whether archetype mannequins also move to Anny, and
+whether the personal body file is private or on a public link. Findings, plan and questions:
+[the parked plan](superpowers/plans/personal-body-mesh-paused.md). Do not build until the owner
+resumes it.
+
 ### DEC-020 - Personalized fit heatmap
 
 **Status:** Decided **2026-11-15**, built **2026-11-15**. **Rules:** `FIT-001`, `UX-001`,
