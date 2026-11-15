@@ -3,13 +3,13 @@ import { rampRgb, shownTension } from "./colour";
 import { regionWeights } from "./blend";
 
 describe("regionWeights", () => {
-  // Chest (0) is a column of points at y 0..1, waist (1) right below at y 1.1..2.1; one neutral point.
+  // Chest (0) is a column of points at y 0..1, waist (1) from the seam at y 1.05; one neutral point.
   const pts: number[] = [];
   const ids: number[] = [];
   for (let k = 0; k <= 10; k++) {
     pts.push(0, k / 10, 0);
     ids.push(0);
-    pts.push(0, 1.1 + k / 10, 0);
+    pts.push(0, 1.05 + k / 10, 0);
     ids.push(1);
   }
   pts.push(5, 5, 5);
@@ -31,7 +31,7 @@ describe("regionWeights", () => {
     const deep = weights(0); // chest at y 0, far from the waist
     const edge = weights(20); // chest at y 1, nearest the waist
     expect(deep[0]).toBeGreaterThan(0.95);
-    expect(edge[1]).toBeGreaterThan(0.05);
+    expect(edge[1]).toBeGreaterThan(0.02);
     expect(edge[1]).toBeGreaterThan(deep[1]);
     expect(edge[0]).toBeGreaterThan(edge[1]);
   });

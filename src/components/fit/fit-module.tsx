@@ -90,7 +90,7 @@ export function FitModule({
         <div className="flex min-w-0 flex-col gap-2">
           <div
             ref={viewerBox}
-            className="relative aspect-[4/5] w-full overflow-hidden rounded-xl bg-muted sm:aspect-square"
+            className="relative aspect-square w-full overflow-hidden rounded-xl bg-muted"
           >
             {state === "loading" && (
               <div className="absolute inset-0 animate-pulse bg-muted" aria-hidden />

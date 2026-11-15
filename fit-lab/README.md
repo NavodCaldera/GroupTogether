@@ -2,7 +2,9 @@
 
 Experiment: estimate whether a buyer's body fits a garment from their known height, any
 tape measurements they know, and a front and a side photo. Standalone; not part of the
-GroupBasket app. Supports the planned `FIT-001` / open `DEC-006`. It never promises an
+GroupBasket app. The app's buyer measuring (`/account/fit`, `DEC-020`) uses a copy of the
+capture and measuring code in `src/components/fit/capture/`; changes proven here must be
+copied there. Supports the planned `FIT-001` / open `DEC-006`. It never promises an
 exact fit.
 
 ## Run

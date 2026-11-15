@@ -15,8 +15,12 @@ cp .env.example .env
 npm run db:start      # local PostgreSQL on 5546 (dev) and 5547 (test)
 npx prisma migrate deploy
 npm run db:seed       # demo data, password "password123"
+npm run fit:models    # pose models for on-phone measuring (~15 MB, once)
 npm run dev           # http://localhost:3002
 ```
+
+Fit heatmap (`DEC-020`): sign in as Dilan and open the Crew-neck cotton tee. Garment
+simulations are made offline with [tools/fit-simulation](tools/fit-simulation/README.md).
 
 Demo accounts:
 

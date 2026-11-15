@@ -6,6 +6,27 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-15 - Personalized fit heatmap built
+
+- Owner asked for the personalized fit heatmap for buyers: two phone photos → measurements →
+  per-area tension on a 3D garment, green (comfortable) to deep red (tight), changing as the
+  buyer switches sizes. Owner chose (`DEC-020`): factories enter size charts and fabric data and
+  an admin approves them; photos are processed on the phone only; the fit card may show a
+  colour legend and _Guidance, not a guarantee_ (a recorded `UX-001` exception); the 3D viewer
+  is built now on seed data, with the Blender cloth step documented but not wired.
+- Factory listings still go live without review (2026-11-03); only the fit data waits for the
+  Factory admin's approval (new **Fit** tab with a count of data to check, and how buyers said
+  products fitted).
+- Product page **Fit** section: recommended size with confidence, every size's areas at once,
+  plain-language notes, legend, three.js viewer (walk, run, reach, sit; play, speed, heatmap
+  toggle) with a continuous colour ramp and softened unsure areas; size chart and material
+  panel; fallbacks without measurements, chart or simulation.
+- **My measurements** (`/account/fit`): fit-lab's guided front and side capture brought into the
+  app, height required, typed corrections win, 80% intervals, consent, delete.
+- **How did it fit?** on collected order lines, with optional answers per area.
+- Offline pipeline in `tools/fit-simulation` (2 seed archetypes, the demo tee, analytic strain
+  engine); `db:seed` loads it and gives Dilan measurements.
+
 ## 2026-11-15 - No pickup deadline
 
 - Owner decided there is no pickup deadline. A buyer who does not collect within 2 days of the parcel reaching the agent gets no action from GroupBasket; the 48-hour return window is not extended.

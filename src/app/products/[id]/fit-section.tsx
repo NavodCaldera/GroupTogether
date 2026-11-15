@@ -101,12 +101,12 @@ function MaterialPanel({ material: m }: { material: NonNullable<FitView["materia
   return (
     <Card>
       <h3 className="mb-2 font-semibold">Material</h3>
-      <dl className="flex flex-col gap-1 text-sm">
-        {fabric.length > 0 && <dd>{fabric.join(" · ")}</dd>}
-        {(range || humid) && <dd>{[range, humid].filter(Boolean).join(", ")}</dd>}
-        {m.breathability !== null && <dd>Breathability {m.breathability} of 5</dd>}
-        {m.careNotes && <dd className="whitespace-pre-line text-subtle">{m.careNotes}</dd>}
-      </dl>
+      <ul className="flex flex-col gap-1 text-sm">
+        {fabric.length > 0 && <li>{fabric.join(" · ")}</li>}
+        {(range || humid) && <li>{[range, humid].filter(Boolean).join(", ")}</li>}
+        {m.breathability !== null && <li>Breathability {m.breathability} of 5</li>}
+        {m.careNotes && <li className="whitespace-pre-line text-subtle">{m.careNotes}</li>}
+      </ul>
     </Card>
   );
 }

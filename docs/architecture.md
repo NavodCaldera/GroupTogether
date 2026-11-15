@@ -28,6 +28,7 @@ The authoritative field definitions and constraints are in [schema.prisma](../pr
 | Payouts | `FactoryPayout` is one row per factory and week ending; `PayoutItem` ties each order line to at most one payout; `PayoutDeduction` holds missing-item deductions (and return-courier rows from before `DEC-018`) until a payout takes them. |
 | Quality and returns | `ProductRating`, `QualityReport`, `ReportPhoto`, `ReturnRequest`, `ReturnPhoto`, `ReturnMessage`, `FactoryFault`, `FaultHold`, `FaultHoldMessage`, and the `QualityNotice` / `ReturnNotice` outboxes. |
 | Factories | `FactoryApplication`, `FactoryDocument`, `FactoryInvite`, `FactoryActivation`, `FactoryProfile`, `AgreementVersion`, `AgreementAcceptance`. |
+| Fit (`DEC-020`) | `Product` carries fit data (`sizeChart` JSON per size and area in cm, `fabricStretchPct`, gsm, weave, comfort range, breathability, care, `fitApprovedAt`). `BodyProfile` (one per buyer: height, measurements with intervals, nearest `BodyArchetype`, consent time; no photos). `FitAsset` is one glTF per product × archetype × `MotionClip`; `GarmentRegionTension` one simulated tension per product × archetype × size × `FitRegion`. `FitFeedback` is one answer per collected `OrderLine`. |
 | Parked premium brands | `StockOffer`, `GiftOrder`, `GiftSettlement`, `BrandConversation`, `BrandMessage`, `BrandConversationRead`, `BrandOfferRevision`. |
 | Configuration and notices | `Settings` is a singleton with commission, the agent fee rate (`agentFeeRate`, 5%, paid in cash at pickup), gateway fee rate, basket lock amount, maximum wait, payment hold, collection, return and buyer-fault handover windows, agent radius and gap, deposit, and the payout watermark. `Notification` stores in-app notices and read state. |
 
@@ -73,11 +74,12 @@ The route tree in `src/app/` is authoritative. These are the main entry points, 
 | Demo gateway | `/demo-pay/[attemptId]` | Stand-in hosted payment page (`PAYMENT_GATEWAY=demo`); returns a deposit to `/agent/deposit/[id]` and orders to `/checkout/return/[attemptId]` |
 | Agents and applicants | `/agents/apply`, `/agent`, `/agent/pickups`, `/agent/returns`, `/agent/tokens`, `/agent/hours`, `/agent/deposit/[id]` | Application and deposit, arriving baskets, pickup by code, returns to collect, resell (Sold, Taken back) and send back, tokens and leaving, opening hours, deposit return page |
 | Account holders | `/account`, `/notifications`, `/dashboard` | Profile and in-app notices; `/dashboard` and `/account/location` redirect |
+| Buyers | `/account/fit` | My measurements: on-phone capture, corrections, consent, delete (`DEC-020`) |
 | Authentication | `/sign-in`, `/sign-up`, `/factories/sign-in/[token]` | Session entry, buyer registration and factory invite sign-in |
 | Factories | `/factories/apply`, `/factories/apply/[token]`, `/seller/agreement` | Factory application and agreement |
 | Factories | `/seller`, `/seller/orders`, `/seller/baskets`, `/seller/earnings`, `/seller/products`, `/seller/new`, `/seller/insights`, `/seller/team`, `/seller/returns` | Factory workspace by job (Owner, Sales, Packing): basket tickets and packing, payouts, listings, staff, returns and fault holds; brand accounts get the parked brand dashboard |
 | Admin: Agents and orders | `/admin/agents`, `/admin/agents/applications`, `/admin/agents/deposits`, `/admin/agents/baskets`, `/admin/agents/search`, `/admin/agents/returns` | Courier to book and payment problems, applications, deposits and losses, 2-month baskets, order search, buyer-fault return requests and history |
-| Admin: Factory | `/admin/factory`, `/admin/factory/applications`, `/admin/factory/applications/[id]`, `/admin/factory/missing`, `/admin/factory/quality`, `/admin/factory/returns`, `/admin/factory/returns/[id]`, `/admin/products`, `/admin/products/new`, `/admin/products/[id]` | Factory applications, missing-item reports, quality and fault holds, returns, products and variant stock |
+| Admin: Factory | `/admin/factory`, `/admin/factory/applications`, `/admin/factory/applications/[id]`, `/admin/factory/missing`, `/admin/factory/quality`, `/admin/factory/returns`, `/admin/factory/returns/[id]`, `/admin/products`, `/admin/products/new`, `/admin/products/[id]`, `/admin/factory/fit` | Factory applications, missing-item reports, quality and fault holds, returns, products and variant stock; fit data to approve and how products fitted |
 | Admin: Core | `/admin/core/payouts`, `/admin/core/tokens`, `/admin/core/returns`, `/admin/settings` | Weekly factory payouts, outstanding tokens, totals by type and lookup, buyer-fault return history, settings |
 | Admin: Premium | `/admin/brands` | Parked premium brand reviews and partnership messages |
 | Admin: shared | `/admin`, `/admin/users`, `/admin/users/[id]`, `/admin/users/new-admin`, `/admin/users/new-seller` | `/admin` redirects to the admin's area; accounts scoped to the signed-in area |
@@ -118,6 +120,7 @@ Paths below are relative to the repository root.
 | Parked premium brands | `src/server/brands.ts`, `brand-reviews.ts`, `brand-communications.ts`, `gifts.ts` | `tests/integration/brands.int.test.ts`, `brand-communications.int.test.ts`, `gifts.int.test.ts` |
 | Notifications | `src/server/notify/index.ts` | Through the suites above |
 | Admin areas and access | `src/lib/admin-access.ts`, `src/server/auth/`, `src/server/admin-users.ts` | `tests/integration/admin-areas.int.test.ts`, `login-lockout.int.test.ts`; `tests/e2e/admin-workspaces.spec.ts` |
+| Fit heatmap | `src/lib/fit/` (report, blend weights, colour ramp, config), `src/server/fit.ts`, `fit-actions.ts`; `src/components/fit/` (module, three.js viewer, capture copied from fit-lab); `tools/fit-simulation/` | `src/lib/fit/*.test.ts`; `tests/integration/fit.int.test.ts`; `tests/e2e/fit.spec.ts` |
 | User experience | `src/app/`, `src/components/`, `src/server/flash.ts` | `tests/e2e/buyer.spec.ts`, `agent.spec.ts`, `factory.spec.ts`, `accessibility.spec.ts` |
 
 The existence of a test file does not establish that the suite has passed in the current checkout. Use the checks appropriate to a change and report what was actually run.
@@ -136,6 +139,8 @@ application schema. These tools do not add production integrations or deploy the
 - **Notifications:** [notify](../src/server/notify/index.ts) writes database notices. No email, SMS or WhatsApp delivery is implemented.
 - **Parked premium brands:** `src/server/gifts.ts` and `/admin/brands` keep manual gift allocation, brand dispatch, bill approval and settlement records. Gifts are not tied to orders or baskets. `/seller` renders `brand-dashboard.tsx` for brands. Brands are excluded from shop listing.
 - **Authentication and accounts:** cookie sessions use `gt_session`, hashed tokens and server-side role checks. Password reset is not implemented. Demo accounts come from the seed; their visibility is controlled by development mode or `SHOW_DEMO_LOGINS`.
+
+- **Fit heatmap:** browser runtimes are served from `public/` (`/draco`, `/fit-vision` copied on install; pose models from `npm run fit:models`); a deployment must run both. Simulation assets live under `/fit-assets` with an immutable cache; an outside CDN is not set up. The CSP allows `'wasm-unsafe-eval'` and `blob:` workers for them.
 
 Configuration variable names are listed in [.env.example](../.env.example). Never copy live secrets into documentation. The main brief and its implementation-status reference own prioritization and any business decisions required to close these gaps.
 

@@ -41,7 +41,7 @@ The promise is low cost for buyers (one shared courier per basket) and fast stoc
 - **Premium-brand rewards — Parked** (FR-034): brand workspaces, gift reservations and settlement are hidden; their data is kept. The `BRAND-*` and `GIFT-*` rules below describe the parked model and must not be rebuilt on baskets without an owner decision.
 - **Design tests and likes — Parked** (FR-034): approved on 2026-11-07 but not built, then hidden by the area agent model. Factory design history (`SUP-003`) is parked with them.
 - **Preorders — Paused, not built** (`DEC-015`): the owner paused only the preorder part on 2026-11-07. It is not approved policy and must not be built until the owner resumes it and answers Question 25.
-- **Body measurements — Planned** (`FIT-001`).
+- **Body measurements — Built, uncalibrated** (`FIT-001`, `DEC-020`): personalized fit heatmap.
 
 ## 3. Scope, identity and vocabulary
 
@@ -162,11 +162,11 @@ Premium-brand rules are kept for the parked data and for any future restart. The
 - **GIFT-001 — Spending unit (Planned):** no automatic host gift. Family and individual qualification remain open (`DEC-002`).
 - **GIFT-002 — Qualification (Planned; details Open):** gift threshold, inclusive or strict comparison, tiers and overlaps remain open (`DEC-003`/`DEC-004`).
 - **GIFT-003 — Direct fulfilment:** each gift snapshots its retail value, private partner charge and recipient details; the brand ships it and records courier, delivery and issues. Customers pay separate gift delivery.
-- **FIT-001 — Measurements (Planned):** approximate height, shoulder width and other dimensions personalize size recommendations. Details remain open (`DEC-006`). Do not promise exact fit.
+- **FIT-001 — Measurements and fit heatmap (Built 2026-11-15, `DEC-020`):** buyers measure themselves on their phone (photos never leave it; only numbers, intervals and consent are saved; they can edit or delete them). Factories give a size chart and fabric details per product, approved by a Factory admin before buyers see them. The product page shows every size's per-area tension (green comfortable → deep red tight) from precomputed simulations plus a per-buyer adjustment; nothing is simulated per buyer. Do not promise exact fit: the fit card says _Guidance, not a guarantee_. Open details remain in `DEC-006`.
 
 ### Product interface
 
-- **UX-001 — Concise screens:** titles, data and actions without page descriptions or explanatory-flow text. Success uses `flash()`/`FlashToast` pop-ups; inline `Alert` is for errors. Every screen works at 360 px and by keyboard. This interface rule does not limit agent documentation clarity.
+- **UX-001 — Concise screens:** titles, data and actions without page descriptions or explanatory-flow text. Exception (`DEC-020`): the fit card's colour legend and its one _Guidance, not a guarantee_ line. Success uses `flash()`/`FlashToast` pop-ups; inline `Alert` is for errors. Every screen works at 360 px and by keyboard. This interface rule does not limit agent documentation clarity.
 - **UX-002 — Role homes, most important first:** Buyer: Ready to collect, Return to hand over, My orders with basket progress and Share basket, Tokens, Shop. Agent: Hand over, Arriving today, Waiting for pickup, Returns to collect, Open baskets, Tokens; Returns lists To collect, To resell and To send back. Factory Packing: To pack, Courier booked. Factory Sales: Filling baskets, Returns waiting, Products and stock. Factory Owner: everything plus Earnings and payouts. Admin Agents and orders: Courier to book, Payment problems, then Applications, Deposits, 2-month baskets, Search, Buyer returns. Admin Factory: existing workspace plus Missing items. Admin Core: Payouts first, then Tokens, Settings and Admins. How agents reach their own sections alongside the buyer tab bar is open (`DEC-016`).
 
 ## 7. Implementation status

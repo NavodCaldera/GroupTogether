@@ -37,6 +37,7 @@ guidance, not business policy. Verify code pointers before editing.
 - Generated client output is `src/generated/prisma`; do not edit it. The development client cache detects a regenerated Prisma client class.
 - Local Postgres uses ports 5546 (`groupbasket`) and 5547 (`groupbasket_test`), with data in `.data/pg`. Test and development database URLs must differ.
 - The main seed clears tables. Treat fixture accounts, agents, baskets in every stage and the demo pickup code as test dependencies (`src/lib/demo-accounts.ts`); inspect the seed and browser setup before changing them.
+- The seed loads the committed fit simulation in `public/fit-assets/seed-crew-tee` onto the Crew-neck tee and gives Dilan a `BodyProfile` (`DEC-020`); regenerate it with `tools/fit-simulation/pipeline.py` and keep the folder name. `BodyProfile` stores numbers only, never photos.
 - Demo products and test fixtures use clothing; the legacy SHOES schema enum remains for stored rows. Consult implementation status rather than copying historical fixture inventories.
 
 ## Verification and coordination

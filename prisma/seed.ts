@@ -33,6 +33,10 @@ import {
   DEMO_PICKUP_CODE,
 } from "../src/lib/demo-accounts";
 import { db } from "../src/server/db";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { loadFitManifest, type FitManifest } from "../tools/fit-simulation/load";
+import { saveBodyProfile as saveBodyProfileFor } from "../src/server/fit";
 import { hashPassword } from "../src/server/auth/password";
 import { setCartItem } from "../src/server/orders/cart";
 import { startCheckout } from "../src/server/orders/checkout";
@@ -698,6 +702,35 @@ async function main() {
     if (offer.status === "ACCEPTED")
       await db.stockOffer.update({ where: { id: offer.id }, data: { approvedRevision: 1 } });
   }
+
+  // Fit heatmap demo (DEC-020): the tee carries the seed simulation from tools/fit-simulation,
+  // and Dilan has measurements, so his product page shows the personalized heatmap.
+  const tee = await db.product.findFirstOrThrow({
+    where: { title: "Crew-neck cotton tee (3-pack)", sellerId: ceylon.owner.id },
+    select: { id: true },
+  });
+  const fitManifest = JSON.parse(
+    readFileSync(join(process.cwd(), "public/fit-assets/seed-crew-tee/manifest.json"), "utf8"),
+  ) as FitManifest;
+  await loadFitManifest(db, fitManifest, tee.id, {
+    baseUrl: "/fit-assets/seed-crew-tee",
+    approve: true,
+  });
+  await saveBodyProfileFor(dilan.id, {
+    heightCm: 172,
+    gender: "MEN",
+    ageBand: "30-44",
+    measurements: {
+      chest: { value: 100, low: 96, high: 104, source: "photo" },
+      waist: { value: 88, low: 84, high: 92, source: "photo" },
+      hip: { value: 98, low: 95, high: 101, source: "photo" },
+      shoulder: { value: 45, low: 43.5, high: 46.5, source: "photo" },
+      upperArm: { value: 31, low: 30, high: 32, source: "typed" },
+      torso: { value: 51, low: 49, high: 53, source: "photo" },
+    },
+    captureMeta: { seed: true },
+    consent: true,
+  });
 
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}

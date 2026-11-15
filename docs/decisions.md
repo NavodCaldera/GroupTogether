@@ -336,14 +336,17 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 
 ### DEC-020 - Personalized fit heatmap
 
-**Status:** Decided **2026-11-15**. **Rules:** `FIT-001`, `UX-001`, `CAT-001`.
+**Status:** Decided **2026-11-15**, built **2026-11-15**. **Rules:** `FIT-001`, `UX-001`,
+`CAT-001`.
 
 The owner asked for the personalized fit heatmap (buyer photos → measurements → per-area
 tension on a 3D garment, coloured green to deep red) and chose:
 
 1. **Size charts and fabric data** (per-size garment dimensions, stretch %, gsm, weave, thermal
-   range, breathability, care) are entered by the factory on the product form and checked in
-   the existing admin product review. A product without a chart shows the no-data fallback.
+   range, breathability, care) are entered by the factory on its product page and approved by a
+   Factory admin. Factory listings themselves still go live without review (2026-11-03); only
+   the fit data waits, and any factory change clears the approval. A product without an
+   approved chart shows the material panel only.
 2. **Photos are processed on the buyer's phone only.** Photos never leave the device; only the
    derived measurements with their uncertainty, height, corrections and the consent time are
    saved. The buyer can edit or delete the profile at any time.
@@ -356,6 +359,12 @@ tension on a 3D garment, coloured green to deep red) and chose:
 5. **No live simulation:** tension is precomputed per garment × archetype × size × area; the
    page adds a per-buyer adjustment from ease and fabric stretch (constants `k`, `k2` in
    `src/lib/fit/config.ts`, to be calibrated from "How did it fit?" feedback).
+
+Settled by Claude while building (open to the owner): the fit card is shown to buyers only;
+"How did it fit?" sits on the order page (not the buyer home, whose order `UX-002` fixes);
+photo intervals are 80% (±1.28 SD) and typed values ±1 cm; a top's length is compared with the
+torso plus a 12 cm hem drop; the stored simulation tension is the peak over the four motions;
+photos use MediaPipe's Full pose model (Heavy, ~30 MB, is too large for buyers' phones).
 
 ## Legacy rule references
 

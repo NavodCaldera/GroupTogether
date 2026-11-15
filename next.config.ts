@@ -8,7 +8,10 @@ const nextConfig: NextConfig = {
     const csp = [
       "default-src 'self'",
       // Next's inline bootstrap needs unsafe-inline without nonces; nonces require a proxy.
-      `script-src 'self' 'unsafe-inline' https://unpkg.com${development ? " 'unsafe-eval'" : ""}`,
+      // WebAssembly for on-phone measuring and the fit viewer's DRACO decoder (DEC-020).
+      `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' https://unpkg.com${development ? " 'unsafe-eval'" : ""}`,
+      // three.js runs the DRACO decoder in a blob: worker.
+      "worker-src 'self' blob:",
       "style-src 'self' 'unsafe-inline' https://unpkg.com",
       "img-src 'self' data: blob: https://tile.openstreetmap.org https://unpkg.com",
       "font-src 'self'",
@@ -32,6 +35,11 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // Simulated garments are named by content hash, so they never change (DEC-020).
+        source: "/fit-assets/:path*",
+        headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+      },
+      {
         // Config headers override route responses in this Next version; preserve private sandbox CSPs.
         source: "/:path((?!api/partner-docs(?:/|$)).*)",
         headers: [{ key: "Content-Security-Policy", value: csp }],
@@ -41,6 +49,11 @@ const nextConfig: NextConfig = {
   // Keep browser tests independent of the developer's running server.
   distDir: process.env.GROUPBASKET_E2E === "1" ? ".next/e2e" : ".next",
   turbopack: {
+    // OpenCV.js names fs and crypto in a branch only Node runs.
+    resolveAlias: {
+      fs: { browser: "./src/lib/empty-module.ts" },
+      crypto: { browser: "./src/lib/empty-module.ts" },
+    },
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
