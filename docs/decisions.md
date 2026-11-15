@@ -336,9 +336,10 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 
 ### DEC-021 - Personal body mesh and Deep Fit Test
 
-**Status:** Paused by the owner **2026-11-15**; resumed **2026-11-16** ("keep doing"). Fitting
-service built (`tools/body-fitting`, synthetic tests only); queue, worker, confirmation screen,
-viewer swap, clusters and the Deep Fit Test are not built. **Rules:** `FIT-001`.
+**Status:** Paused by the owner **2026-11-15**; resumed **2026-11-16** ("keep doing"). Built: fitting
+service (`tools/body-fitting`, synthetic tests only), outline upload from the phone, job queue and
+worker (`npm run fit:worker`), private body file and the "Does this look like you?" check on
+`/account/fit`. Not built: product page body swap, clusters, Deep Fit Test. **Rules:** `FIT-001`.
 
 The owner asked for the buyer's own 3D body (Anny, fitted from the two onboarding photos), shape
 clusters with cached garment drapes, and an async per-user Deep Fit Test. Only one choice is

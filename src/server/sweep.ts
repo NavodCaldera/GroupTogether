@@ -1,5 +1,6 @@
 import "server-only";
 import { weekEnding } from "@/lib/agent-rules";
+import { sweepBodyOutlines } from "./body-fit-jobs";
 import { db } from "./db";
 import { getSettings } from "./settings";
 import { closeLeavingAgents } from "./agents/leave";
@@ -119,6 +120,7 @@ export async function runSweep(now = new Date()): Promise<Record<string, number>
   await step("agentsClosed", () => closeLeavingAgents(now));
   await step("weekly", () => weekly(now));
   await step("faultHolds", () => sweepFaultHolds());
+  await step("bodyOutlines", () => sweepBodyOutlines(db, now));
   await step("agreements", async () => {
     await remindAgreements(now);
     return 0;

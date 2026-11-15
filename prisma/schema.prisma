@@ -98,6 +98,7 @@ model User {
 
   agent                Agent?
   bodyProfile          BodyProfile?
+  bodyFitJobs          BodyFitJob[]
   fitFeedback          FitFeedback[]
   cartItems            CartItem[]
   buyerOrders          Order[]           @relation("OrderBuyer")
@@ -1295,8 +1296,47 @@ model BodyProfile {
   /// Photo checks, model used, typed corrections against the photo estimate
   captureMeta  Json?
   consentAt    DateTime
+  /// The buyer's own 3D body (DEC-021): null until the phone sends outlines
+  bodyStatus   BodyModelStatus?
+  /// Private storage key of the fitted body glb, served only to its owner
+  bodyFileKey  String?
+  /// Fit result: Anny parameters, quality and measurements from the fitted body
+  bodyFit      Json?
+  bodyFitAt    DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
+}
+
+enum BodyModelStatus {
+  BUILDING
+  CHECK
+  CONFIRMED
+  FAILED
+}
+
+enum BodyFitJobStatus {
+  QUEUED
+  RUNNING
+  DONE
+  FAILED
+}
+
+/// One body build (DEC-021). `input` holds the phone's outlines and joints, never photos; it is
+/// cleared when the buyer confirms the body and swept after 7 days.
+model BodyFitJob {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    BodyFitJobStatus @default(QUEUED)
+  input     Json?
+  attempts  Int              @default(0)
+  error     String?
+  startedAt DateTime?
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }
 
 /// Simulated garment on one archetype in one motion: an animated glTF on the CDN

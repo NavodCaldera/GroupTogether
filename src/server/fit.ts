@@ -4,6 +4,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { fitClass, readBody, readChart, sizeOrder } from "@/lib/fit/data";
 import { fitReport, nearestArchetype, type Body, type FitReport } from "@/lib/fit/report";
 import { isRegion, regionFromEnum, REGIONS, type Region } from "@/lib/fit/regions";
+import { deleteBody, outlinesSchema, queueBodyFit } from "./body-fit";
 import { db } from "./db";
 import { AppError } from "./errors";
 
@@ -81,6 +82,8 @@ const profileSchema = z.object({
   measurements: z.record(z.string(), measure),
   captureMeta: z.record(z.string(), z.unknown()).nullable(),
   consent: z.literal(true, { message: "Agree to saving your measurements" }),
+  /** New photos' outlines and joints (never the photos), for the buyer's 3D body (DEC-021). */
+  outlines: outlinesSchema.nullable().optional(),
 });
 
 export type ProfileInput = z.input<typeof profileSchema>;
@@ -115,15 +118,21 @@ export async function saveBodyProfile(userId: string, input: unknown) {
     archetypeId: nearest?.id ?? null,
     consentAt: new Date(),
   };
-  return db.bodyProfile.upsert({
-    where: { userId },
-    create: { userId, ...data },
-    update: data,
+  return db.$transaction(async (tx) => {
+    const saved = await tx.bodyProfile.upsert({
+      where: { userId },
+      create: { userId, ...data },
+      update: data,
+    });
+    if (p.outlines) await queueBodyFit(tx, userId, saved, p.outlines);
+    return saved;
   });
 }
 
-export const deleteBodyProfile = (userId: string) =>
-  db.bodyProfile.deleteMany({ where: { userId } });
+export async function deleteBodyProfile(userId: string) {
+  await deleteBody(userId);
+  return db.bodyProfile.deleteMany({ where: { userId } });
+}
 
 export const getBodyProfile = (userId: string) =>
   db.bodyProfile.findUnique({

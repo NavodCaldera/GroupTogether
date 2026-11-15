@@ -20,8 +20,10 @@ python -m venv .venv && .venv/Scripts/pip install -r tools/body-fitting/requirem
 .venv/Scripts/python -m pytest tools/body-fitting/tests -q   # ~2 min
 ```
 
-Nothing here is wired into the app yet: the job queue, worker and confirmation screen are the next
-steps in the [plan](../../docs/superpowers/plans/personal-body-mesh-paused.md).
+The app runs it through a job queue: `npm run fit:worker` (set `BODY_FIT_PYTHON` to this
+environment's Python) takes queued builds, runs `fit.py - --glb <file>` and stores the body
+privately ([`src/server/body-fit-jobs.ts`](../../src/server/body-fit-jobs.ts)). `--glb` writes
+the fitted body Y-up, facing +Z, feet at y = 0 (~330 KB).
 
 ## How it fits
 

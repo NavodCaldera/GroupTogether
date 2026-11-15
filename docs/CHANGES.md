@@ -16,8 +16,12 @@ Newest first.
   synthetic bodies only: outline within ~0.15 cm, chest, waist and hip within ~1 cm.
 - Added `npm run check:licences` to `npm run check`: fails on SMPL-family, SUPR, PIFuHD, ECON,
   ICON and STAR, and on Anny's non-commercial download.
-- Not built yet: phone upload, job queue and worker, confirmation screen, viewer body swap,
-  clusters, Deep Fit Test.
+- Owner asked to build the rest faster. Built: the phone sends the outlines and joints with new
+  photos; builds queue in the database and `npm run fit:worker` runs them (CPU, one job per ~2
+  cores); the body file is private to its owner; `/account/fit` shows the 3D body with "Does
+  this look like you?", "Looks like me" (deletes every outline), Rebuild with chest, waist and
+  hip, and Delete my 3D body. Outlines are swept after 7 days.
+- Not built yet: the product page showing the buyer's own body, clusters, Deep Fit Test.
 
 ## 2026-11-15 - Personal body mesh planned, then paused
 

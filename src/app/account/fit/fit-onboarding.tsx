@@ -3,13 +3,15 @@
 /**
  * Body measurements for the fit report (DEC-020). Photos are analysed on this phone and never
  * uploaded: only height, the measurements with their uncertainty, corrections and consent are
- * sent. Typed values always win over photo estimates.
+ * sent, plus the downsampled body outlines and joints for the buyer's own 3D body (DEC-021).
+ * Typed values always win over photo estimates.
  */
 import "@/components/fit/capture/capture.css";
 import { useActionState, useMemo, useState } from "react";
 import { AdminForm } from "@/app/admin/admin-form";
 import { CaptureFlow } from "@/components/fit/capture/ui/CaptureFlow";
-import { derive, type Photos } from "@/components/fit/capture/ui/derive";
+import { outlineFor } from "@/components/fit/capture/measure/outline";
+import { derive, usable, type Photos } from "@/components/fit/capture/ui/derive";
 import { DEFAULT_MODELS } from "@/components/fit/capture/vision/mediapipe";
 import type { BodyKey } from "@/components/fit/capture/types";
 import { Alert, Button, Field, Input, Select } from "@/components/ui";
@@ -98,6 +100,18 @@ export function FitOnboarding({ profile, next }: { profile: ProfileValues | null
     }
   }
 
+  // The 3D body needs a usable front photo; the side photo sharpens the depth.
+  const outlines = useMemo(
+    () =>
+      usable(photos.front)
+        ? {
+            front: outlineFor(photos.front),
+            side: usable(photos.side) ? outlineFor(photos.side) : null,
+          }
+        : null,
+    [photos],
+  );
+
   const payload = JSON.stringify({
     heightCm: h,
     gender: gender || null,
@@ -111,6 +125,7 @@ export function FitOnboarding({ profile, next }: { profile: ProfileValues | null
       corrections,
     },
     consent,
+    outlines,
   });
 
   return (

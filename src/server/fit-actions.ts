@@ -7,6 +7,7 @@ import { FitDataError, parseFitForm, sizeOrder } from "@/lib/fit/data";
 import { BUYER_ROLES } from "@/lib/roles";
 import { sizesFor } from "@/lib/taxonomy";
 import { requireAdmin, requireFactory, requireUser } from "./auth/session";
+import { BodyFitError, confirmBody, deleteBody, rebuildBody } from "./body-fit";
 import { db } from "./db";
 import {
   deleteBodyProfile,
@@ -25,7 +26,8 @@ async function attempt(fn: () => Promise<unknown>): Promise<FitState> {
     await fn();
     return {};
   } catch (e) {
-    if (e instanceof FitError || e instanceof FitDataError) return { error: e.message };
+    if (e instanceof FitError || e instanceof FitDataError || e instanceof BodyFitError)
+      return { error: e.message };
     if (e instanceof ZodError) return { error: e.issues[0]?.message ?? "Check the form" };
     throw e;
   }
@@ -94,6 +96,7 @@ export async function setFitApprovedAction(_p: FitState, fd: FormData): Promise<
 /** The buyer's measurements from the on-phone capture (JSON in `profile`); photos never arrive. */
 export async function saveBodyProfileAction(_p: FitState, fd: FormData): Promise<FitState> {
   const user = await requireUser([...BUYER_ROLES]);
+  let building = false;
   const res = await attempt(async () => {
     let input: unknown;
     try {
@@ -102,12 +105,49 @@ export async function saveBodyProfileAction(_p: FitState, fd: FormData): Promise
       throw new FitError("Check the form");
     }
     await saveBodyProfile(user.id, input);
+    building = !!(input as { outlines?: unknown }).outlines;
   });
   if (res.error) return res;
   revalidatePath("/account/fit");
   await flash("Measurements saved");
   const next = str(fd, "next");
-  redirect(next.startsWith("/products/") ? next : "/account/fit");
+  const product = next.startsWith("/products/") ? next : "";
+  // New photos start a 3D body build: stay here to check it.
+  redirect(
+    building ? `/account/fit${product ? `?next=${product}` : ""}` : product || "/account/fit",
+  );
+}
+
+/** Rebuilds the 3D body from the kept outlines with the buyer's own chest, waist and hip. */
+export async function rebuildBodyAction(_p: FitState, fd: FormData): Promise<FitState> {
+  const user = await requireUser([...BUYER_ROLES]);
+  const res = await attempt(() =>
+    rebuildBody(user.id, {
+      chest: str(fd, "chest") || undefined,
+      waist: str(fd, "waist") || undefined,
+      hip: str(fd, "hip") || undefined,
+    }),
+  );
+  if (res.error) return res;
+  revalidatePath("/account/fit");
+  return {};
+}
+
+export async function confirmBodyAction(_p: FitState, _fd: FormData): Promise<FitState> {
+  const user = await requireUser([...BUYER_ROLES]);
+  const res = await attempt(() => confirmBody(user.id));
+  if (res.error) return res;
+  revalidatePath("/account/fit");
+  await flash("3D body saved");
+  return {};
+}
+
+export async function deleteBodyAction(_p: FitState, _fd: FormData): Promise<FitState> {
+  const user = await requireUser([...BUYER_ROLES]);
+  await deleteBody(user.id);
+  revalidatePath("/account/fit");
+  await flash("3D body deleted");
+  return {};
 }
 
 export async function deleteBodyProfileAction(_p: FitState, _fd: FormData): Promise<FitState> {

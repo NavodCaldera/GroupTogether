@@ -1,10 +1,12 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { dirname, join, resolve, sep } from "node:path";
 
 /** Photo storage. Local disk in development; swap for object storage in production. */
 export interface Storage {
   put(key: string, bytes: Uint8Array): Promise<void>;
   get(key: string): Promise<Uint8Array | null>;
+  /** Removes the file; no error when it is already gone. */
+  delete(key: string): Promise<void>;
 }
 
 export class LocalDiskStorage implements Storage {
@@ -33,6 +35,10 @@ export class LocalDiskStorage implements Storage {
       if ((e as NodeJS.ErrnoException).code === "ENOENT") return null;
       throw e;
     }
+  }
+
+  async delete(key: string): Promise<void> {
+    await rm(this.pathFor(key), { force: true });
   }
 }
 

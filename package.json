@@ -24,6 +24,7 @@
     "check": "npm run check:money && npm run check:docs && npm run check:licences && npm run typecheck && npm run lint && npm run test:tooling && npm run test",
     "postinstall": "prisma generate && node scripts/copy-fit-assets.mjs",
     "fit:models": "node scripts/fetch-fit-models.mjs",
+    "fit:worker": "tsx scripts/fit-worker.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev && prisma generate",
     "db:deploy": "prisma migrate deploy",

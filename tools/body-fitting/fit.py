@@ -1,6 +1,6 @@
 """Fit an Anny body to a buyer's outlines, joints, height and typed measurements (`DEC-021`).
 
-    python fit.py job.json            # prints the result JSON
+    python fit.py job.json [--glb body.glb]   # prints the result JSON; --glb writes the body
     python fit.py - < job.json
 
 Job:
@@ -20,10 +20,14 @@ import contextlib
 import json
 import sys
 import time
+from pathlib import Path
 from dataclasses import dataclass, field
 
 import cma
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "fit-simulation"))
+from gltf import Mesh, write_glb  # noqa: E402
 
 from body import LOCAL, PHENOTYPES, AnnyBody, Features
 from outline import Observed, View, observe
@@ -215,16 +219,40 @@ class Fitter:
         }
 
 
+def write_body(fitter: Fitter, result: dict, path: str) -> None:
+    """The fitted rest-pose body as a glb for the app's viewer: Y up, facing +Z, feet at y = 0."""
+    x = np.array(list(result["phenotype"].values()) + list(result["local"].values()))
+    local = x[N_PHENO:][None]
+    verts, _ = fitter.body.forward(x[:N_PHENO][None], local)
+    v = verts[0][:, [0, 2, 1]] * np.array([1.0, 1.0, -1.0])  # Anny: Z up, face towards -Y
+    v[:, 1] -= v[fitter.body.solid, 1].min()
+    faces = fitter.body.faces[fitter.body.solid[fitter.body.faces].all(axis=1)]
+    mesh = Mesh("body", v.astype(np.float32), faces.reshape(-1).astype(np.uint32))
+    write_glb(path, [mesh], np.zeros(0), np.zeros((0, 0)), "rest")
+
+
 def main(argv: list[str]) -> int:
-    if len(argv) != 2:
+    args = argv[1:]
+    glb = None
+    if "--glb" in args:
+        i = args.index("--glb")
+        glb = args[i + 1] if i + 1 < len(args) else None
+        args = args[:i] + args[i + 2 :]
+        if not glb:
+            print(__doc__, file=sys.stderr)
+            return 2
+    if len(args) != 1:
         print(__doc__, file=sys.stderr)
         return 2
-    src = sys.stdin if argv[1] == "-" else open(argv[1], encoding="utf-8")
+    src = sys.stdin if args[0] == "-" else open(args[0], encoding="utf-8")
     with src:
         job = Job.from_json(json.load(src))
     # Anny's Warp backend prints a banner on stdout: keep stdout for the result alone.
     with contextlib.redirect_stdout(sys.stderr):
-        result = Fitter().fit(job)
+        fitter = Fitter()
+        result = fitter.fit(job)
+        if glb and result["status"] == "ok":
+            write_body(fitter, result, glb)
     print(json.dumps(result))
     return 0
 

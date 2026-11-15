@@ -7,7 +7,12 @@ says otherwise (`DEC-021` in [decisions](../../decisions.md)).
 **Progress:** step 3 (fitting service, [`tools/body-fitting`](../../../tools/body-fitting/README.md))
 and step 8 (licence check, `scripts/check-licences.mjs`) built 2026-11-16, tested on synthetic
 bodies only. Fitting is CMA-ES on the phenotypes then Levenberg-Marquardt on phenotypes and 17
-local controls (not CMA-ES for both stages: it stopped short). Steps 1, 2, 4, 5, 6 and 7 remain.
+local controls (not CMA-ES for both stages: it stopped short). Steps 1, 2 and 4 built 2026-11-16:
+the phone sends 512-row outlines with the joints (`outline.ts`) when the front photo is usable;
+`BodyFitJob` queue (`body-fit-jobs.ts`, `FOR UPDATE SKIP LOCKED`, 3 attempts, stale after 10 min);
+`npm run fit:worker` runs `fit.py`; the body glb is private (`/api/fit-body`, owner only, no
+store); the check screen shows the body, "Looks like me" (clears all outlines), Rebuild with
+chest, waist and hip, and delete; the sweep clears outlines after 7 days. Steps 5, 6 and 7 remain.
 
 ## Request
 
