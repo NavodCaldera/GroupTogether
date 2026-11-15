@@ -29,7 +29,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "fit-simulation"))
 from gltf import Mesh, write_glb  # noqa: E402
 
-from body import LOCAL, PHENOTYPES, AnnyBody, Features
+from body import LOCAL, PHENOTYPES, AnnyBody, Features, body_parts
 from outline import Observed, View, observe
 
 SD = {
@@ -223,11 +223,13 @@ def write_body(fitter: Fitter, result: dict, path: str) -> None:
     """The fitted rest-pose body as a glb for the app's viewer: Y up, facing +Z, feet at y = 0."""
     x = np.array(list(result["phenotype"].values()) + list(result["local"].values()))
     local = x[N_PHENO:][None]
-    verts, _ = fitter.body.forward(x[:N_PHENO][None], local)
+    verts, heads = fitter.body.forward(x[:N_PHENO][None], local)
+    parts = body_parts(fitter.body, verts[0], heads[0])
     v = verts[0][:, [0, 2, 1]] * np.array([1.0, 1.0, -1.0])  # Anny: Z up, face towards -Y
     v[:, 1] -= v[fitter.body.solid, 1].min()
     faces = fitter.body.faces[fitter.body.solid[fitter.body.faces].all(axis=1)]
-    mesh = Mesh("body", v.astype(np.float32), faces.reshape(-1).astype(np.uint32))
+    mesh = Mesh("body", v.astype(np.float32), faces.reshape(-1).astype(np.uint32),
+                extra={"_BODY_PART": parts.astype(np.float32)})
     write_glb(path, [mesh], np.zeros(0), np.zeros((0, 0)), "rest")
 
 

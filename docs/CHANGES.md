@@ -21,7 +21,13 @@ Newest first.
   cores); the body file is private to its owner; `/account/fit` shows the 3D body with "Does
   this look like you?", "Looks like me" (deletes every outline), Rebuild with chest, waist and
   hip, and Delete my 3D body. Outlines are swept after 7 days.
-- Not built yet: the product page showing the buyer's own body, clusters, Deep Fit Test.
+- The product page now shows the garment on the buyer's own confirmed 3D body: tops, jackets,
+  trousers, shorts and dresses, coloured by the fit report and moving with the size picked. Drawn
+  in the browser from the size chart (no cloth simulation, no motions yet). This also gives
+  bottoms and dresses a 3D view.
+- Body clusters and the queued 5-a-day Deep Fit Test were not built: with the geometric engine the
+  view is instant on the phone, so they only matter once a real cloth simulator is added (owner
+  to confirm, `DEC-021`).
 
 ## 2026-11-15 - Personal body mesh planned, then paused
 

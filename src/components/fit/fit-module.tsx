@@ -8,6 +8,8 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { cx } from "@/components/ui";
 import { heatCss, RAMP_CSS, shownTension } from "@/lib/fit/colour";
+import type { FitClass } from "@/lib/fit/config";
+import { partGaps } from "@/lib/fit/drape";
 import { REGION_ID, REGION_LABEL } from "@/lib/fit/regions";
 import { band as bandOf, type Band, type FitReport } from "@/lib/fit/report";
 
@@ -39,9 +41,12 @@ const chip = (on: boolean) =>
 export function FitModule({
   report,
   assets,
+  personal = null,
 }: {
   report: FitReport;
   assets: { motion: Motion; url: string }[];
+  /** The buyer's own 3D body: the garment is drawn over it instead of the archetype animation. */
+  personal?: { url: string; fitClass: FitClass; short: boolean } | null;
 }) {
   const options = report.sizeOptions.filter((o) => o.regions.length);
   const [size, setSize] = useState(report.recommendedSize ?? options[0]?.size);
@@ -56,7 +61,7 @@ export function FitModule({
   // Load three.js only when the viewer scrolls into view.
   useEffect(() => {
     const el = viewerBox.current;
-    if (!el || !assets.length) return;
+    if (!el || (!assets.length && !personal)) return;
     const io = new IntersectionObserver(
       (entries) => {
         if (entries.some((e) => e.isIntersecting)) {
@@ -68,20 +73,25 @@ export function FitModule({
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [assets.length]);
+  }, [assets.length, personal]);
 
   const onError = useCallback(() => setState("failed"), []);
   const onReady = useCallback(() => setState("ready"), []);
 
   const current = options.find((o) => o.size === size) ?? options[0];
   if (!current) return null;
+  const drape = personal
+    ? { cls: personal.fitClass, short: personal.short, gaps: partGaps(current.regions) }
+    : undefined;
   const tensions = Array<number>(7).fill(0);
   const unsure = Array<number>(7).fill(0);
   for (const r of current.regions) {
     tensions[REGION_ID[r.region]] = shownTension(r);
     unsure[REGION_ID[r.region]] = r.uncertain ? 1 : 0;
   }
-  const asset = assets.find((a) => a.motion === motion) ?? assets[0];
+  const asset = personal
+    ? { motion, url: personal.url }
+    : (assets.find((a) => a.motion === motion) ?? assets[0]);
   const viewer = asset && state !== "failed";
 
   return (
@@ -103,6 +113,7 @@ export function FitModule({
                   tensions={tensions}
                   unsure={unsure}
                   heat={heat}
+                  drape={drape}
                   playing={playing}
                   speed={speed}
                   onError={onError}
@@ -112,7 +123,7 @@ export function FitModule({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Motion">
-            {MOTIONS.filter((m) => assets.some((a) => a.motion === m.id)).map((m) => (
+            {MOTIONS.filter((m) => !personal && assets.some((a) => a.motion === m.id)).map((m) => (
               <button
                 key={m.id}
                 type="button"
@@ -126,22 +137,26 @@ export function FitModule({
                 {m.label}
               </button>
             ))}
-            <button
-              type="button"
-              className={chip(false)}
-              onClick={() => setPlaying((p) => !p)}
-              aria-label={playing ? "Pause" : "Play"}
-            >
-              {playing ? "❚❚" : "▶"}
-            </button>
-            <button
-              type="button"
-              className={chip(false)}
-              onClick={() => setSpeed((s) => (s === 1 ? 0.5 : s === 0.5 ? 2 : 1))}
-              aria-label="Speed"
-            >
-              {speed}×
-            </button>
+            {!personal && (
+              <>
+                <button
+                  type="button"
+                  className={chip(false)}
+                  onClick={() => setPlaying((p) => !p)}
+                  aria-label={playing ? "Pause" : "Play"}
+                >
+                  {playing ? "❚❚" : "▶"}
+                </button>
+                <button
+                  type="button"
+                  className={chip(false)}
+                  onClick={() => setSpeed((s) => (s === 1 ? 0.5 : s === 0.5 ? 2 : 1))}
+                  aria-label="Speed"
+                >
+                  {speed}×
+                </button>
+              </>
+            )}
             <label className="ml-auto inline-flex min-h-11 items-center gap-2 text-sm sm:min-h-9">
               <input
                 type="checkbox"

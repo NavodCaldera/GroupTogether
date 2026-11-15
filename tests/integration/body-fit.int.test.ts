@@ -10,9 +10,15 @@ import {
   type FitRunner,
 } from "@/server/body-fit-jobs";
 import { db } from "@/server/db";
-import { deleteBodyProfile, saveBodyProfile } from "@/server/fit";
+import {
+  deleteBodyProfile,
+  getFitView,
+  saveBodyProfile,
+  saveFitData,
+  setFitApproved,
+} from "@/server/fit";
 import { storage } from "@/server/storage";
-import { makeBuyer, resetDb } from "./helpers";
+import { makeBuyer, makeFactory, makeUser, resetDb } from "./helpers";
 
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
@@ -151,4 +157,32 @@ it("outlines are swept after 7 days and deleting removes the 3D body", async () 
   await buildOnce();
   await deleteBodyProfile(buyer.id);
   expect(await db.bodyProfile.count()).toBe(0);
+});
+
+it("the product page draws the garment on the buyer's body only once they confirm it", async () => {
+  const { factory, variant } = await makeFactory();
+  const admin = await makeUser("ADMIN", "FACTORY");
+  await saveFitData(
+    variant.productId,
+    {
+      chart: { M: { chest: 102, waist: 98 } },
+      fabricStretchPct: 5,
+      gsm: null,
+      weave: null,
+      thermalMinC: null,
+      thermalMaxC: null,
+      breathability: null,
+      careNotes: null,
+    },
+    { sellerId: factory.id },
+  );
+  await setFitApproved(admin.id, variant.productId, true);
+  const buyer = await makeBuyer();
+  await saveBodyProfile(buyer.id, profile());
+  await buildOnce();
+  expect((await getFitView(variant.productId, buyer.id)).personal).toBeNull();
+  await confirmBody(buyer.id);
+  const view = await getFitView(variant.productId, buyer.id);
+  expect(view.personal).toMatchObject({ fitClass: "top", short: false });
+  expect(view.personal?.url).toMatch(/^\/api\/fit-body\?v=/);
 });

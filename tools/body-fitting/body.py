@@ -47,6 +47,13 @@ HIP_BAND = (-0.1, 0.25)  # around the hip line
 _GIRTH_STEP = 0.025
 
 _ARM_BONES = ("upperarm", "lowerarm", "wrist", "finger", "metacarpal")
+
+# Body part per vertex, for the garment the app's viewer drapes over the buyer's body. Same codes
+# as `PART` in src/lib/fit/drape.ts; the first six match the fit areas' `REGION_ID`.
+PART = {
+    "chest": 0, "waist": 1, "hip": 2, "upperArm": 3, "thigh": 4, "shoulder": 5,
+    "lowerArm": 6, "lowerLeg": 7, "head": 8, "end": 9, "seat": 10,
+}
 _SKIP_BONES = ("eye.",)
 
 
@@ -122,6 +129,7 @@ class AnnyBody:
         edges = np.unique(np.sort(edges, axis=1), axis=0)
         self.edges = edges[self.torso_mask[edges].all(axis=1)]
         self.bone = {n: labels.index(n) for n in ("upperarm01.L", "upperarm01.R", "upperleg01.L", "upperleg01.R")}
+        self.bone_names = names
 
     def forward(self, phenotype: np.ndarray, local: np.ndarray | None = None):
         """Rest-pose bodies for a batch. phenotype (B, 6) in [0, 1]; local (B, len(LOCAL)) in [-1, 1].
@@ -198,3 +206,39 @@ class AnnyBody:
             waist=100 * _hull_perimeter(waist),
             hip=100 * _hull_perimeter(hip),
         )
+
+
+def _hip(t: float) -> int:
+    """Hip down to the hip joints, then the seat (tops end there), then the thigh."""
+    return PART["hip"] if t < 1.0 else PART["seat"] if t < 1.2 else PART["thigh"]
+
+
+def body_parts(body: AnnyBody, verts: np.ndarray, heads: np.ndarray) -> np.ndarray:
+    """PART code per vertex: by the bone that moves it, torso split by height between the joints."""
+    j = body.joints(heads)
+    zs = (j["shoulderL"][2] + j["shoulderR"][2]) / 2
+    zh = (j["hipL"][2] + j["hipR"][2]) / 2
+    t = (zs - verts[:, 2]) / (zs - zh)  # 0 at the shoulder joints, 1 at the hip joints
+    out = np.empty(len(verts), dtype=np.int8)
+    for i, n in enumerate(body.bone_names):
+        if any(s in n for s in ("head", "neck", "eye")):
+            out[i] = PART["head"]
+        elif any(s in n for s in ("finger", "metacarpal", "wrist", "toe", "foot")):
+            out[i] = PART["end"]
+        elif "lowerarm" in n:
+            out[i] = PART["lowerArm"]
+        elif "upperarm" in n:
+            out[i] = PART["upperArm"]
+        elif "lowerleg" in n:
+            out[i] = PART["lowerLeg"]
+        elif "upperleg" in n:
+            out[i] = _hip(t[i])
+        elif t[i] < 0.12:
+            out[i] = PART["shoulder"]
+        elif t[i] < 0.5:
+            out[i] = PART["chest"]
+        elif t[i] < 0.85:
+            out[i] = PART["waist"]
+        else:
+            out[i] = _hip(t[i])
+    return out

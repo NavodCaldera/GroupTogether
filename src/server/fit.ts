@@ -1,7 +1,9 @@
 import "server-only";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
+import type { FitClass } from "@/lib/fit/config";
 import { fitClass, readBody, readChart, sizeOrder } from "@/lib/fit/data";
+import { isShort } from "@/lib/fit/drape";
 import { fitReport, nearestArchetype, type Body, type FitReport } from "@/lib/fit/report";
 import { isRegion, regionFromEnum, REGIONS, type Region } from "@/lib/fit/regions";
 import { deleteBody, outlinesSchema, queueBodyFit } from "./body-fit";
@@ -179,6 +181,8 @@ export interface FitView {
   report: FitReport | null;
   /** The simulated garment on the buyer's archetype, per motion. */
   assets: { motion: "WALK" | "RUN" | "REACH" | "SIT"; url: string }[];
+  /** The buyer's confirmed own 3D body (DEC-021): the garment is drawn over it in the browser. */
+  personal: { url: string; fitClass: FitClass; short: boolean } | null;
 }
 
 /**
@@ -210,12 +214,21 @@ export async function getFitView(productId: string, userId: string | null): Prom
             measurements: true,
             archetypeId: true,
             archetype: { select: { params: true } },
+            bodyStatus: true,
+            bodyFitAt: true,
           },
         })
       : null,
   ]);
   if (!product)
-    return { material: null, chart: null, hasProfile: !!profile, report: null, assets: [] };
+    return {
+      material: null,
+      chart: null,
+      hasProfile: !!profile,
+      report: null,
+      assets: [],
+      personal: null,
+    };
   const { sizeChart, fitApprovedAt, kind, variants, fabricStretchPct, ...rest } = product;
   const material = [fabricStretchPct, ...Object.values(rest)].some((v) => v !== null)
     ? { ...rest, stretchPct: fabricStretchPct }
@@ -232,7 +245,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
       }
     : null;
   if (!chart || !profile)
-    return { material, chart, hasProfile: !!profile, report: null, assets: [] };
+    return { material, chart, hasProfile: !!profile, report: null, assets: [], personal: null };
 
   const [tensions, assets] = profile.archetypeId
     ? await Promise.all([
@@ -265,6 +278,14 @@ export async function getFitView(productId: string, userId: string | null): Prom
     hasProfile: true,
     report,
     assets: assets.map((a) => ({ motion: a.motion, url: a.gltfUrl })),
+    personal:
+      profile.bodyStatus === "CONFIRMED"
+        ? {
+            url: `/api/fit-body?v=${profile.bodyFitAt?.getTime().toString(36) ?? "0"}`,
+            fitClass: fitClass(kind),
+            short: isShort(kind),
+          }
+        : null,
   };
 }
 

@@ -339,7 +339,8 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 **Status:** Paused by the owner **2026-11-15**; resumed **2026-11-16** ("keep doing"). Built: fitting
 service (`tools/body-fitting`, synthetic tests only), outline upload from the phone, job queue and
 worker (`npm run fit:worker`), private body file and the "Does this look like you?" check on
-`/account/fit`. Not built: product page body swap, clusters, Deep Fit Test. **Rules:** `FIT-001`.
+`/account/fit`, and the product page drawing the garment on the buyer's confirmed body. Clusters and
+a queued Deep Fit Test are not built (see below). **Rules:** `FIT-001`.
 
 The owner asked for the buyer's own 3D body (Anny, fitted from the two onboarding photos), shape
 clusters with cached garment drapes, and an async per-user Deep Fit Test. Only one choice is
@@ -352,7 +353,15 @@ whether the personal body file is private or on a public link. Findings, plan an
 On resuming, the owner did not answer the three questions; work proceeds on the recommended
 answers until the owner says otherwise: (1) the Deep Fit Test is geometric on the buyer's own
 Anny body from the size chart and fabric, (2) archetype mannequins also move to Anny, (3) the
-personal body file is private, served only to its owner. A licence check
+personal body file is private, served only to its owner.
+
+**Geometric engine runs on the phone (2026-11-16, owner to confirm).** With answer (1), the
+garment on the buyer's body is the covered body surface pushed out by each area's room from the
+size chart, coloured with the fit report's tension (`src/lib/fit/drape.ts`). It takes
+milliseconds in the browser, works for tops, outerwear, bottoms, shorts and dresses, and is
+static (no walk, run, reach or sit on the buyer's own body yet). So the body clusters (shared
+drapes) and the queued, 5-a-day Deep Fit Test are not needed for it; they come back only if a
+real cloth simulator (Blender, XRTailor) is added. A licence check
 (`npm run check:licences`, in `npm run check`) blocks the non-commercial body models.
 
 ### DEC-020 - Personalized fit heatmap

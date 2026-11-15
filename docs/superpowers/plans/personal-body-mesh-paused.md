@@ -12,7 +12,11 @@ the phone sends 512-row outlines with the joints (`outline.ts`) when the front p
 `BodyFitJob` queue (`body-fit-jobs.ts`, `FOR UPDATE SKIP LOCKED`, 3 attempts, stale after 10 min);
 `npm run fit:worker` runs `fit.py`; the body glb is private (`/api/fit-body`, owner only, no
 store); the check screen shows the body, "Looks like me" (clears all outlines), Rebuild with
-chest, waist and hip, and delete; the sweep clears outlines after 7 days. Steps 5, 6 and 7 remain.
+chest, waist and hip, and delete; the sweep clears outlines after 7 days. Step 5 built
+2026-11-16 differently from the plan: no separate garment files; the viewer draws the garment over
+the confirmed body in the browser (`src/lib/fit/drape.ts`, parts from `_BODY_PART` in the body
+file), for every garment type, static. Steps 6 (clusters) and 7 (queued Deep Fit Test) are not
+needed for the geometric engine; they wait for a cloth simulator (`DEC-021`).
 
 ## Request
 

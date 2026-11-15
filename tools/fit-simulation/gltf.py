@@ -25,6 +25,8 @@ class Mesh:
     region_ids: np.ndarray | None = None  # (n,) float32
     targets: list[np.ndarray] = field(default_factory=list)  # (n, 3) displacements
     colour: tuple[float, float, float, float] = (0.85, 0.83, 0.8, 1.0)
+    # Extra float scalar vertex attributes, e.g. {"_BODY_PART": ...}; names start with "_".
+    extra: dict[str, np.ndarray] = field(default_factory=dict)
 
 
 def normals(positions: np.ndarray, indices: np.ndarray) -> np.ndarray:
@@ -82,6 +84,8 @@ def write_glb(path: str, meshes: list[Mesh], times: np.ndarray, weights: np.ndar
         if m.region_ids is not None:
             attrs["_REGION_ID"] = b.add(m.region_ids.astype(np.float32), "SCALAR", FLOAT,
                                         ARRAY_BUFFER)
+        for name, values in m.extra.items():
+            attrs[name] = b.add(values.astype(np.float32), "SCALAR", FLOAT, ARRAY_BUFFER)
         targets = [{"POSITION": b.add(t.astype(np.float32), "VEC3", FLOAT, ARRAY_BUFFER,
                                       minmax=True)} for t in m.targets]
         small = len(pos) < 65536

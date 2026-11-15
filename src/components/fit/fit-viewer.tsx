@@ -4,6 +4,9 @@
  * 3D garment viewer with the personalized fit heatmap (DEC-020). Loaded only when the fit module
  * scrolls into view. The garment's baked `_REGION_ID` vertex attribute picks each vertex's area;
  * per-area tensions arrive as uniforms, so switching sizes recolours without reloading.
+ *
+ * With `drape`, the file is the buyer's own body (DEC-021) and the garment is drawn over it here
+ * from the size's room per area (src/lib/fit/drape.ts); a size switch moves it.
  */
 import { useEffect, useLayoutEffect, useRef } from "react";
 import * as THREE from "three";
@@ -11,6 +14,8 @@ import { OrbitControls } from "three/addons/controls/OrbitControls.js";
 import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { regionWeights, REGION_COUNT } from "@/lib/fit/blend";
+import type { FitClass } from "@/lib/fit/config";
+import { drapePositions, garmentFrom } from "@/lib/fit/drape";
 import { RAMP_GLSL } from "@/lib/fit/colour";
 
 export interface FitViewerProps {
@@ -20,6 +25,8 @@ export interface FitViewerProps {
   /** 1 for an unsure area, in `REGION_ID` order. */
   unsure: number[];
   heat: boolean;
+  /** Draw the garment over the buyer's own body: garment type and gap per body part, cm. */
+  drape?: { cls: FitClass; short?: boolean; gaps: number[] };
   playing: boolean;
   speed: number;
   onError: () => void;
@@ -124,6 +131,41 @@ export default function FitViewer(props: FitViewerProps) {
     };
     let mixer: THREE.AnimationMixer | null = null;
     const clock = new THREE.Clock();
+    // The garment over the buyer's body; its positions follow the current size's gaps.
+    let draped: { update: (gaps: number[]) => void; key: string } | null = null;
+
+    const addDrape = (body: THREE.Mesh, cls: FitClass, short: boolean) => {
+      const g = body.geometry;
+      const parts = g.getAttribute("_body_part");
+      if (!parts || !g.index) return;
+      const pos = g.getAttribute("position").array;
+      const nrm = g.getAttribute("normal").array;
+      const garment = garmentFrom(parts.array, g.index.array, cls, short);
+      if (!garment.source.length) return;
+      const geo = new THREE.BufferGeometry();
+      const flat = drapePositions(garment, pos, nrm, Array(11).fill(0));
+      const positions = new THREE.BufferAttribute(flat.slice(), 3);
+      geo.setAttribute("position", positions);
+      geo.setIndex(new THREE.BufferAttribute(garment.indices, 1));
+      const { a, b } = regionWeights(flat, garment.regionIds);
+      geo.setAttribute("heatA", new THREE.BufferAttribute(a, 4));
+      geo.setAttribute("heatB", new THREE.BufferAttribute(b, 4));
+      const material = heatMaterial(new THREE.MeshStandardMaterial({ color: 0x7d8a99 }), u);
+      material.polygonOffset = true;
+      material.polygonOffsetFactor = -1;
+      const mesh = new THREE.Mesh(geo, material);
+      mesh.frustumCulled = false;
+      body.parent?.add(mesh);
+      draped = {
+        key: "",
+        update(gaps) {
+          drapePositions(garment, pos, nrm, gaps, positions.array as Float32Array<ArrayBuffer>);
+          positions.needsUpdate = true;
+          geo.computeVertexNormals();
+          this.key = gaps.join(",");
+        },
+      };
+    };
 
     const resize = () => {
       const w = el.clientWidth;
@@ -144,6 +186,7 @@ export default function FitViewer(props: FitViewerProps) {
       .loadAsync(url)
       .then((gltf) => {
         if (disposed) return;
+        const bodies: THREE.Mesh[] = [];
         gltf.scene.traverse((o) => {
           const mesh = o as THREE.Mesh;
           if (!mesh.isMesh) return;
@@ -151,7 +194,11 @@ export default function FitViewer(props: FitViewerProps) {
           // Pipeline files leave normals out to stay small.
           if (!g.getAttribute("normal")) g.computeVertexNormals();
           const ids = g.getAttribute("_region_id");
-          if (ids) {
+          const drape = target.current.drape;
+          if (drape && g.getAttribute("_body_part")) {
+            mesh.material = new THREE.MeshLambertMaterial({ color: 0xb9b2a8 });
+            bodies.push(mesh);
+          } else if (ids) {
             const { a, b } = regionWeights(g.getAttribute("position").array, ids.array);
             g.setAttribute("heatA", new THREE.BufferAttribute(a, 4));
             g.setAttribute("heatB", new THREE.BufferAttribute(b, 4));
@@ -161,6 +208,8 @@ export default function FitViewer(props: FitViewerProps) {
           }
           mesh.frustumCulled = false;
         });
+        const drape = target.current.drape;
+        if (drape) for (const body of bodies) addDrape(body, drape.cls, !!drape.short);
         scene.add(gltf.scene);
         const bounds = new THREE.Box3().setFromObject(gltf.scene);
         const centre = bounds.getCenter(new THREE.Vector3());
@@ -188,6 +237,7 @@ export default function FitViewer(props: FitViewerProps) {
       }
       u.uHeat.value += ((t.heat ? 1 : 0) - u.uHeat.value) * ease;
       if (mixer) mixer.update(t.playing ? dt * t.speed : 0);
+      if (draped && t.drape && draped.key !== t.drape.gaps.join(",")) draped.update(t.drape.gaps);
       controls.update();
       renderer.render(scene, camera);
     });
