@@ -334,9 +334,11 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
-### DEC-021 - Personal body mesh and Deep Fit Test (paused)
+### DEC-021 - Personal body mesh and Deep Fit Test
 
-**Status:** Paused by the owner **2026-11-15**, before any code. **Rules:** `FIT-001`.
+**Status:** Paused by the owner **2026-11-15**; resumed **2026-11-16** ("keep doing"). Fitting
+service built (`tools/body-fitting`, synthetic tests only); queue, worker, confirmation screen,
+viewer swap, clusters and the Deep Fit Test are not built. **Rules:** `FIT-001`.
 
 The owner asked for the buyer's own 3D body (Anny, fitted from the two onboarding photos), shape
 clusters with cached garment drapes, and an async per-user Deep Fit Test. Only one choice is
@@ -344,8 +346,13 @@ made: **photos still never leave the phone**; the phone sends the body outlines 
 positions, deleted after the buyer confirms (7-day sweep). Three questions are open: the Deep Fit
 Test engine without Blender or patterns, whether archetype mannequins also move to Anny, and
 whether the personal body file is private or on a public link. Findings, plan and questions:
-[the parked plan](superpowers/plans/personal-body-mesh-paused.md). Do not build until the owner
-resumes it.
+[the parked plan](superpowers/plans/personal-body-mesh-paused.md).
+
+On resuming, the owner did not answer the three questions; work proceeds on the recommended
+answers until the owner says otherwise: (1) the Deep Fit Test is geometric on the buyer's own
+Anny body from the size chart and fabric, (2) archetype mannequins also move to Anny, (3) the
+personal body file is private, served only to its owner. A licence check
+(`npm run check:licences`, in `npm run check`) blocks the non-commercial body models.
 
 ### DEC-020 - Personalized fit heatmap
 

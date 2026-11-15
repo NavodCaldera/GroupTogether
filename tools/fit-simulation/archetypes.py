@@ -1,8 +1,8 @@
 """Body archetypes the simulation runs on (DEC-020).
 
 Production bodies must come from commercially safe sources: our own measurement-driven
-generator (this file) or MakeHuman (AGPL) run as an isolated build step. SMPL/SMPL-X are
-research-licensed and never used here.
+generator (this file) or MakeHuman (AGPL) run as an isolated build step. Research-licensed
+body models are never used here (`scripts/check-licences.mjs`).
 
 The seed set has 4 archetypes (2 men, 2 women); the target is 30-50 covering Sri Lankan
 adult shapes, sampled

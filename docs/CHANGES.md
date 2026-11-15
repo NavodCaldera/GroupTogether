@@ -6,6 +6,19 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-16 - Personal body mesh resumed: fitting service
+
+- Owner said "keep doing". The three open questions in `DEC-021` were not answered, so work
+  follows the recommended answers until the owner says otherwise: geometric Deep Fit Test on the
+  buyer's Anny body, archetypes move to Anny, personal body file private to its owner.
+- Built the body fitting service (`tools/body-fitting`): reads the phone's outlines and joints
+  (no photos), fits Anny on CPU (~15–26 s), scores the fit and fails bad outlines. Tested on
+  synthetic bodies only: outline within ~0.15 cm, chest, waist and hip within ~1 cm.
+- Added `npm run check:licences` to `npm run check`: fails on SMPL-family, SUPR, PIFuHD, ECON,
+  ICON and STAR, and on Anny's non-commercial download.
+- Not built yet: phone upload, job queue and worker, confirmation screen, viewer body swap,
+  clusters, Deep Fit Test.
+
 ## 2026-11-15 - Personal body mesh planned, then paused
 
 - Owner asked for the buyer's own 3D body in the fit viewer (Anny body model from the two

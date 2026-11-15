@@ -1,7 +1,13 @@
 # Personal body mesh and Deep Fit Test (paused)
 
-**Status:** paused by the owner on **2026-11-15**, before any code. Not approved policy; nothing is
-built. Resume from `DEC-021` in [decisions](../../decisions.md) and the open questions below.
+**Status:** paused by the owner on **2026-11-15**, resumed **2026-11-16** ("keep doing"). The
+open questions below were not answered; work proceeds on the recommended answers until the owner
+says otherwise (`DEC-021` in [decisions](../../decisions.md)).
+
+**Progress:** step 3 (fitting service, [`tools/body-fitting`](../../../tools/body-fitting/README.md))
+and step 8 (licence check, `scripts/check-licences.mjs`) built 2026-11-16, tested on synthetic
+bodies only. Fitting is CMA-ES on the phenotypes then Levenberg-Marquardt on phenotypes and 17
+local controls (not CMA-ES for both stages: it stopped short). Steps 1, 2, 4, 5, 6 and 7 remain.
 
 ## Request
 

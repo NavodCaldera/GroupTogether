@@ -68,3 +68,7 @@ next-env.d.ts
 
 # Python bytecode (tools/fit-simulation)
 __pycache__/
+
+# Python virtual environments and test caches (tools/body-fitting)
+.venv/
+.pytest_cache/

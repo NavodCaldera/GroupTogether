@@ -1,0 +1,6 @@
+# Body fitting worker (DEC-021). CPU only. Install plain `anny`: never its extras.
+anny==0.6.2
+cma==4.5.0
+numpy>=2.0
+torch>=2.5
+pytest>=8
