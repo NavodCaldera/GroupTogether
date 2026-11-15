@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { StockTable } from "@/components/stock-table";
-import { Button, Card, Field, Input, PageHeader, LinkButton } from "@/components/ui";
+import { Badge, Button, Card, Field, Input, PageHeader, LinkButton } from "@/components/ui";
+import { FitDataForm } from "@/components/fit-data-form";
+import { saveAdminFitAction, setFitApprovedAction } from "@/server/fit-actions";
 import { adjustStockAction, setProductHiddenAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
@@ -67,6 +69,28 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
           />
           <Card>
             <ProductForm product={product} />
+          </Card>
+          <Card className="mt-6">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="font-semibold">Fit data</h2>
+              {product.sizeChart !== null && (
+                <Badge tone={product.fitApprovedAt ? "good" : "bad"}>
+                  {product.fitApprovedAt ? "Approved" : "To check"}
+                </Badge>
+              )}
+            </div>
+            {product.sizeChart !== null && (
+              <AdminForm
+                action={setFitApprovedAction}
+                submit={product.fitApprovedAt ? "Remove approval" : "Approve fit data"}
+                variant={product.fitApprovedAt ? "secondary" : "primary"}
+                className="mb-4 flex flex-col gap-3"
+              >
+                <input type="hidden" name="productId" value={product.id} />
+                <input type="hidden" name="approve" value={product.fitApprovedAt ? "0" : "1"} />
+              </AdminForm>
+            )}
+            <FitDataForm product={product} action={saveAdminFitAction} submit="Save and approve" />
           </Card>
         </div>
         <div className="flex flex-col gap-4">

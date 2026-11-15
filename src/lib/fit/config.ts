@@ -33,6 +33,11 @@ export const FIT = {
   comfortableFrom: 0.2,
   snugFrom: 0.6,
   tightFrom: 0.75,
+  /**
+   * The body's torso is shoulder line to hip line; a top's length runs to its hem, which should
+   * fall this many cm lower. Added to the body (and archetype) torso before the ease.
+   */
+  torsoHemDrop: 12,
   /** Fabrics stretching less than this prefer the larger size when unsure. */
   lowStretchPct: 10,
 } as const;

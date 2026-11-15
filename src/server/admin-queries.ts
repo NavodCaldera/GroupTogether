@@ -1,6 +1,7 @@
 import "server-only";
 import type { OperationalAdminArea } from "@/lib/admin-access";
 import { IN_SHOP } from "./catalogue";
+import { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
 import { brandInbox } from "./brand-communications";
 
@@ -10,11 +11,15 @@ export const LOW_STOCK = 2;
 /** Counts for the admin nav badges; each area counts only its own work. */
 export async function adminBadges(adminId: string, area: OperationalAdminArea) {
   const none = Promise.resolve(0);
-  const [lowStock, brandRewards] = await Promise.all([
+  const [lowStock, brandRewards, fitToCheck] = await Promise.all([
     area === "FACTORY"
       ? db.variant.count({ where: { available: { lte: LOW_STOCK }, product: IN_SHOP } })
       : none,
     area === "PREMIUM" ? brandRewardWork(adminId) : none,
+    // Factory fit data waiting for a check (DEC-020).
+    area === "FACTORY"
+      ? db.product.count({ where: { fitApprovedAt: null, sizeChart: { not: Prisma.DbNull } } })
+      : none,
   ]);
   const [courier, applications, missing, payouts, buyerReturns] = await Promise.all([
     area === "AGENTS"
@@ -34,6 +39,7 @@ export async function adminBadges(adminId: string, area: OperationalAdminArea) {
   return {
     lowStock,
     brandRewards,
+    fitToCheck,
     courier,
     applications,
     missing,

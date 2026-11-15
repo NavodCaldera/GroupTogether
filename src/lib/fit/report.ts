@@ -91,9 +91,10 @@ export function regionTension(
   sim: { base: number; archetypeCm: number } | null,
   c: FitConfig = FIT,
 ) {
-  const own = shift(region, garmentCm - bodyCm, stretchPct, c);
+  const drop = region === "torso" ? c.torsoHemDrop : 0;
+  const own = shift(region, garmentCm - bodyCm - drop, stretchPct, c);
   const raw = sim
-    ? sim.base + own - shift(region, garmentCm - sim.archetypeCm, stretchPct, c)
+    ? sim.base + own - shift(region, garmentCm - sim.archetypeCm - drop, stretchPct, c)
     : c.neutral + own;
   return clamp(raw, c.drapeFloor, 1);
 }
@@ -157,7 +158,7 @@ export function fitReport(input: FitInput): FitReport {
         tensionHigh: round(tensionHigh),
         uncertain,
         verdict: band(tension, c),
-        ease: round(g - m.value, 1),
+        ease: round(g - m.value - (region === "torso" ? c.torsoHemDrop : 0), 1),
       });
     }
     // Unsure areas on a fabric that barely stretches are judged at their tightest.

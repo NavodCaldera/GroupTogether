@@ -1,0 +1,213 @@
+/* On-phone measuring screens (DEC-020), from fit-lab; every rule is scoped to .fit-capture. */
+
+.fit-capture {
+  --bg: #f7f7f5;
+  --line: #2e2e2c;
+  --muted: #9a9a94;
+  --accent: #1f6feb;
+  --warn: #d29922;
+  --bad: #f85149;
+  --chip-warn: #2e2410;
+  --chip-bad: #33171a;
+}
+
+.fit-capture button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  cursor: pointer;
+}
+
+.fit-capture button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.fit-capture button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.fit-capture .photo-canvas {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.fit-capture .chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fit-capture .chip {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--chip-warn);
+  color: var(--warn);
+}
+
+.fit-capture .chip.bad {
+  background: var(--chip-bad);
+  color: var(--bad);
+}
+
+.fit-capture .chip.good {
+  background: var(--chip-good);
+  color: var(--good);
+}
+
+.fit-capture .muted {
+  color: var(--muted);
+}
+
+.fit-capture .capture-head {
+  display: flex;
+  justify-content: space-between;
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  font-weight: 600;
+}
+
+.fit-capture .capture-head .muted {
+  color: #9a9a94;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.fit-capture .stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.fit-capture .stage video,
+.fit-capture .stage canvas.overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.fit-capture .stage canvas.overlay {
+  pointer-events: none;
+}
+
+.fit-capture .mirror {
+  transform: scaleX(-1);
+}
+
+.fit-capture .prompt {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  font-size: clamp(20px, 5vw, 30px);
+  font-weight: 700;
+  text-align: center;
+}
+
+.fit-capture .prompt.go {
+  background: rgba(26, 127, 55, 0.85);
+}
+
+.fit-capture .prompt .count {
+  font-size: 1.6em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.fit-capture .center,
+.fit-capture .intro {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 16px;
+  text-align: center;
+  font-size: 18px;
+}
+
+.fit-capture .intro {
+  background: rgba(0, 0, 0, 0.85);
+}
+
+.fit-capture .intro h2 {
+  color: #fff;
+  font-size: 24px;
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.fit-capture .intro ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: #cfcfca;
+  font-size: 16px;
+  line-height: 1.8;
+}
+
+.fit-capture .pictogram {
+  width: 64px;
+  height: 128px;
+  fill: none;
+  stroke: #fff;
+  stroke-width: 4;
+  stroke-linecap: round;
+}
+
+.fit-capture .review {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px;
+}
+
+.fit-capture .review canvas {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  background: transparent;
+}
+
+.fit-capture .capture .bar {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+}
+
+.fit-capture .capture .bar button {
+  min-width: 88px;
+  padding: 12px 16px;
+  background: #222;
+  border-color: #444;
+  color: #fff;
+}
+
+.fit-capture .capture .bar button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+}

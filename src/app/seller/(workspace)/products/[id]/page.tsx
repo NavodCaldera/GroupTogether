@@ -8,6 +8,8 @@ import { Badge, Card, Field, Input, PageHeader } from "@/components/ui";
 import { requireFactory } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { factoryStockAction, saveFactoryProductAction } from "@/server/seller-actions";
+import { FitDataForm } from "@/components/fit-data-form";
+import { saveFactoryFitAction } from "@/server/fit-actions";
 
 export const metadata: Metadata = { title: "Edit product" };
 
@@ -37,6 +39,17 @@ export default async function FactoryProductPage({ params }: PageProps<"/seller/
               factory={{ brand: product.brand }}
               action={saveFactoryProductAction}
             />
+          </Card>
+          <Card className="mt-6">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 className="font-semibold">Fit data</h2>
+              {product.sizeChart !== null && (
+                <Badge tone={product.fitApprovedAt ? "good" : "neutral"}>
+                  {product.fitApprovedAt ? "Approved" : "Waiting for check"}
+                </Badge>
+              )}
+            </div>
+            <FitDataForm product={product} action={saveFactoryFitAction} submit="Save fit data" />
           </Card>
         </div>
         <div className="flex flex-col gap-4">

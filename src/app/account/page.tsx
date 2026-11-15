@@ -71,6 +71,14 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
       )}
       <ProfileForm next={back} defaults={user} />
       {balance !== null && (
+        <Link
+          href="/account/fit"
+          className="flex min-h-11 items-center justify-between rounded-xl border border-line bg-paper px-4 font-medium"
+        >
+          My measurements <span aria-hidden>›</span>
+        </Link>
+      )}
+      {balance !== null && (
         <Card className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Tokens</h2>
           <p>

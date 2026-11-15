@@ -12,7 +12,9 @@ import { getProduct } from "@/server/catalogue";
 import { ratingSummaries, productRatingSummaries } from "@/server/ratings";
 import { FactoryRating } from "@/components/factory-rating";
 import { isBuyerRole } from "@/lib/roles";
+import { getFitView } from "@/server/fit";
 import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
+import { FitSection } from "./fit-section";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
   const p = await getProduct((await params).id);
@@ -27,9 +29,11 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const agent =
     typeof sp.agent === "string" && /^[a-z0-9]{1,40}$/.test(sp.agent) ? sp.agent : undefined;
   const keep = agent ? `?agent=${agent}` : "";
-  const [ratings, productScores] = await Promise.all([
+  const buyer = !!user && isBuyerRole(user.role);
+  const [ratings, productScores, fit] = await Promise.all([
     ratingSummaries([product.sellerId]),
     productRatingSummaries([product.id]),
+    getFitView(product.id, buyer && user ? user.id : null),
   ]);
 
   return (
@@ -72,7 +76,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           )}
 
           <Card>
-            {user && isBuyerRole(user.role) ? (
+            {buyer ? (
               <AddToCartForm
                 price={product.price.toString()}
                 variants={product.variants.map((v) => ({
@@ -104,6 +108,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           </Card>
         </div>
       </div>
+      <FitSection view={fit} productId={product.id} buyer={buyer} />
     </>
   );
 }

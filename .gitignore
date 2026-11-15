@@ -61,3 +61,7 @@ next-env.d.ts
 
 # editor settings
 /.vscode/
+
+# fit runtimes and models (scripts/copy-fit-assets.mjs, npm run fit:models)
+/public/draco/
+/public/fit-vision/

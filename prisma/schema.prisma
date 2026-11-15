@@ -1095,6 +1095,7 @@ model OrderLine {
 
   returns     ReturnRequest[]
   payoutItems PayoutItem[]
+  fitFeedback FitFeedback?
 
   @@index([orderId])
   @@index([variantId])
@@ -1336,6 +1337,7 @@ model FitFeedback {
   productId     String
   product       Product            @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderLineId   String             @unique
+  orderLine     OrderLine          @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
   purchasedSize String
   verdict       FitFeedbackVerdict
   /// { "chest": "TOO_TIGHT" } per area, optional

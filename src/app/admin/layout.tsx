@@ -27,6 +27,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/factory/quality", "Quality", 0],
       ["/admin/factory/returns", "Returns", 0],
       ["/admin/products", "Products", badges.lowStock, "muted"],
+      ["/admin/factory/fit", "Fit", badges.fitToCheck],
       ["/admin/users", "Users", 0],
     ],
     AGENTS: [

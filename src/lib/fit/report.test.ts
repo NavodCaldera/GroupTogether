@@ -54,6 +54,9 @@ describe("regionTension", () => {
     expect(band(rigid)).toBe("tight");
   });
 
+  it("a top's length is judged against the torso plus the hem drop", () =>
+    expect(regionTension("torso", 50 + FIT.torsoHemDrop, 50, 0, null)).toBeCloseTo(FIT.neutral));
+
   it("stretch never helps a length", () => {
     expect(regionTension("torso", 60, 64, 40, null)).toBe(regionTension("torso", 60, 64, 0, null));
   });

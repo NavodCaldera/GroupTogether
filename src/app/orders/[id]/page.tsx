@@ -14,6 +14,10 @@ import { buyerReturns } from "@/server/returns";
 import { BasketProgress, LineBadge, OrderBadge, factoryName } from "../order-bits";
 import { cancelOrderAction, fileReturnAction, rateAction } from "./actions";
 import { BUYER_FAULT_KEPT, returnStatusLabel } from "@/lib/return-rules";
+import { FitFeedbackForm } from "@/components/fit/fit-feedback-form";
+import { kindRegions } from "@/lib/fit/data";
+import { linesAwaitingFit } from "@/server/fit";
+import { fitFeedbackAction } from "@/server/fit-actions";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -27,7 +31,10 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   const found = await buyerOrder(user.id, id);
   if (!found) notFound();
   const { order, canCancel, canReturn, returnUntil, lockAt } = found;
-  const returns = await buyerReturns(user.id, order.id);
+  const [returns, fitLines] = await Promise.all([
+    buyerReturns(user.id, order.id),
+    linesAwaitingFit(user.id, { orderId: order.id }),
+  ]);
   const error = typeof sp.error === "string" ? sp.error : null;
   const rated = new Set(order.productRatings.map((r) => r.productId));
   const toRate = [
@@ -183,6 +190,26 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                 productId={productId}
                 title={title}
                 rateAction={rateAction}
+              />
+            ))}
+          </Card>
+        </section>
+      )}
+
+      {fitLines.length > 0 && (
+        <section aria-labelledby="order-fit" className="flex flex-col gap-2">
+          <h2 id="order-fit" className="text-lg font-semibold">
+            How did it fit?
+          </h2>
+          <Card className="flex flex-col gap-3">
+            {fitLines.map((l) => (
+              <FitFeedbackForm
+                key={l.id}
+                lineId={l.id}
+                title={l.variant.product.title}
+                size={l.variant.size}
+                regions={kindRegions(l.variant.product.kind)}
+                action={fitFeedbackAction}
               />
             ))}
           </Card>
