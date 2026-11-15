@@ -1,0 +1,49 @@
+{
+  "name": "oxford-shirt",
+  "title": "Oxford button-down shirt",
+  "kind": "men-shirts",
+  "audience": "MEN",
+  "simulate": true,
+  "fabric": {
+    "stretch_pct": 2,
+    "gsm": 140,
+    "weave": "Cotton oxford weave",
+    "thermal_min_c": 22,
+    "thermal_max_c": 31,
+    "breathability": 4,
+    "care_notes": "Machine wash 40°C. Iron while damp.",
+    "stretch_stiffness": 120,
+    "bend_stiffness": 1.2,
+    "shear_stiffness": 12
+  },
+  "size_chart": {
+    "S": {
+      "chest": 104,
+      "waist": 98,
+      "shoulder": 44,
+      "upperArm": 38,
+      "torso": 72
+    },
+    "M": {
+      "chest": 110,
+      "waist": 104,
+      "shoulder": 46,
+      "upperArm": 40,
+      "torso": 74
+    },
+    "L": {
+      "chest": 116,
+      "waist": 110,
+      "shoulder": 48,
+      "upperArm": 42,
+      "torso": 76
+    },
+    "XL": {
+      "chest": 124,
+      "waist": 118,
+      "shoulder": 50,
+      "upperArm": 44,
+      "torso": 78
+    }
+  }
+}

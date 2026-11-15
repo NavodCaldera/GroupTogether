@@ -40,11 +40,15 @@ def nearest_size(garment: dict, params: dict) -> str:
 
 def run(garment_path: str, out_dir: str, archetypes_path: str | None, engine: str) -> dict:
     garment = json.loads(Path(garment_path).read_text(encoding="utf-8"))
-    bodies = arch.load(archetypes_path)
+    # Men's garments run on men's archetypes, women's on women's.
+    bodies = [a for a in arch.load(archetypes_path)
+              if a["gender"] == garment.get("audience", a["gender"])]
     out = Path(out_dir)
     out.mkdir(parents=True, exist_ok=True)
     assets, rows = [], []
-    for a in bodies:
+    # A report-only garment (no 3D yet, e.g. trousers and dresses until the mesh generator
+    # covers them) ships its size chart and fabric with no assets or tensions.
+    for a in bodies if garment.get("simulate", True) else []:
         size = nearest_size(garment, a["params"])
         rows += tensions(garment, a, engine)
         (out / a["name"]).mkdir(exist_ok=True)
@@ -69,10 +73,15 @@ def run(garment_path: str, out_dir: str, archetypes_path: str | None, engine: st
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
-    ap.add_argument("garment")
-    ap.add_argument("out")
+    ap.add_argument("garment", help="garment JSON, or a folder of them with --all")
+    ap.add_argument("out", help="output folder, or with --all the folder for seed-<name>/")
     ap.add_argument("--archetypes")
     ap.add_argument("--engine", default="analytic", choices=["analytic", "blender"])
+    ap.add_argument("--all", action="store_true", help="every *.json in the garment folder")
     args = ap.parse_args()
-    m = run(args.garment, args.out, args.archetypes, args.engine)
-    print(f"{len(m['assets'])} assets, {len(m['tensions'])} tension rows -> {args.out}")
+    jobs = ([(str(g), str(Path(args.out) / f"seed-{g.stem}"))
+             for g in sorted(Path(args.garment).glob("*.json"))]
+            if args.all else [(args.garment, args.out)])
+    for garment, out in jobs:
+        m = run(garment, out, args.archetypes, args.engine)
+        print(f"{len(m['assets'])} assets, {len(m['tensions'])} tension rows -> {out}")

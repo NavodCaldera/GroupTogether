@@ -19,7 +19,8 @@ npm run fit:models    # pose models for on-phone measuring (~15 MB, once)
 npm run dev           # http://localhost:3002
 ```
 
-Fit heatmap (`DEC-020`): sign in as Dilan and open the Crew-neck cotton tee. Garment
+Fit heatmap (`DEC-020`): sign in as Dilan (men's tops in 3D) or Sachini (women's tops in 3D,
+and How did it fit? on her blouse order); Tharindu has no measurements, to try measuring. Garment
 simulations are made offline with [tools/fit-simulation](tools/fit-simulation/README.md).
 
 Demo accounts:

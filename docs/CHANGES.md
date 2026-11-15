@@ -6,6 +6,20 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-15 - Realistic fit demo data
+
+- Owner asked for realistic demo data to try the buyer experience. The seed now gives eleven
+  products factory-style size charts and fabric details: seven tops with 3D heatmaps on two men's
+  or two women's archetypes, a dress and three bottoms with a report but no 3D, Track pants
+  waiting for the Factory admin's approval, and the school shirt with no fit data. Dilan,
+  Ravindu, Sachini and Ayesha are measured; Tharindu and Nimali are not. Sachini's collected
+  blouse asks How did it fit?
+- Trying it showed the comfort curve was too simple (normal shirt room read loose, then sizes
+  drifted large). Each garment type (top, outerwear, bottom, dress) now has an ideal ease and a
+  loose distance per area (`EASE` in `src/lib/fit/config.ts`, mirrored in the simulation); on
+  low-stretch fabric a size whose unsure area could turn snug is avoided before comparing
+  comfort; the simulated motion load fades as the room grows.
+
 ## 2026-11-15 - Personalized fit heatmap built
 
 - Owner asked for the personalized fit heatmap for buyers: two phone photos → measurements →

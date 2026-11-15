@@ -148,6 +148,8 @@ export default function FitViewer(props: FitViewerProps) {
           const mesh = o as THREE.Mesh;
           if (!mesh.isMesh) return;
           const g = mesh.geometry;
+          // Pipeline files leave normals out to stay small.
+          if (!g.getAttribute("normal")) g.computeVertexNormals();
           const ids = g.getAttribute("_region_id");
           if (ids) {
             const { a, b } = regionWeights(g.getAttribute("position").array, ids.array);

@@ -1,0 +1,49 @@
+{
+  "name": "hoodie",
+  "title": "Hooded sweatshirt",
+  "kind": "men-jackets",
+  "audience": "MEN",
+  "simulate": true,
+  "fabric": {
+    "stretch_pct": 12,
+    "gsm": 320,
+    "weave": "Brushed cotton-poly fleece",
+    "thermal_min_c": 14,
+    "thermal_max_c": 24,
+    "breathability": 2,
+    "care_notes": "Machine wash cold. Tumble dry low.",
+    "stretch_stiffness": 30,
+    "bend_stiffness": 1.0,
+    "shear_stiffness": 6
+  },
+  "size_chart": {
+    "S": {
+      "chest": 108,
+      "waist": 104,
+      "shoulder": 46,
+      "upperArm": 38,
+      "torso": 68
+    },
+    "M": {
+      "chest": 114,
+      "waist": 110,
+      "shoulder": 48,
+      "upperArm": 40,
+      "torso": 70
+    },
+    "L": {
+      "chest": 120,
+      "waist": 116,
+      "shoulder": 50,
+      "upperArm": 42,
+      "torso": 72
+    },
+    "XL": {
+      "chest": 128,
+      "waist": 124,
+      "shoulder": 52,
+      "upperArm": 44,
+      "torso": 74
+    }
+  }
+}

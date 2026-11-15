@@ -1,0 +1,39 @@
+{
+  "name": "track-pants",
+  "title": "Track pants",
+  "kind": "men-trousers",
+  "audience": "MEN",
+  "simulate": false,
+  "approved": false,
+  "fabric": {
+    "stretch_pct": 15,
+    "gsm": 280,
+    "weave": "Poly-cotton loopback knit",
+    "thermal_min_c": 16,
+    "thermal_max_c": 28,
+    "breathability": 3,
+    "care_notes": "Machine wash cold."
+  },
+  "size_chart": {
+    "28": {
+      "waist": 76,
+      "hip": 100,
+      "thigh": 60
+    },
+    "30": {
+      "waist": 81,
+      "hip": 104,
+      "thigh": 62
+    },
+    "32": {
+      "waist": 86,
+      "hip": 108,
+      "thigh": 64
+    },
+    "34": {
+      "waist": 91,
+      "hip": 112,
+      "thigh": 66
+    }
+  }
+}

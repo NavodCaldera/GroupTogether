@@ -18,7 +18,7 @@ from gltf import Mesh
 CHEST, WAIST, HIP, UPPER_ARM, THIGH, SHOULDER, TORSO, NEUTRAL = 0, 1, 2, 3, 4, 5, 6, 255
 DEPTH = 0.72  # ellipse depth / width
 ARM_ANGLE = math.radians(25)  # abduction from vertical
-AROUND = 32
+AROUND = 24
 
 
 def _perimeter(a: float, b: float) -> float:
@@ -95,7 +95,7 @@ def body_mesh(p: dict) -> tuple[Mesh, dict]:
         (s.y_shoulder, p["chest"] * 0.92), (s.y_shoulder + 0.03, p["neck"] * 1.6),
     ]
     x, z = np.array([1, 0, 0], np.float32), np.array([0, 0, 1], np.float32)
-    ys = np.linspace(s.y_crotch, s.y_shoulder + 0.03, 28)
+    ys = np.linspace(s.y_crotch, s.y_shoulder + 0.03, 20)
     torso = _tube([(np.array([0, y, 0], np.float32), x, z,
                     half_width(_lerp_profile(profile, y))) for y in ys], AROUND)
     neck = _tube([(np.array([0, y, 0], np.float32), x, z, half_width(p["neck"]))
@@ -107,11 +107,11 @@ def body_mesh(p: dict) -> tuple[Mesh, dict]:
     labels = ["torso", "torso", "torso"]
     for side in (-1, 1):
         parts.append(_limb(s.shoulder_pivot(side), s.arm_axis(side), s.arm_len,
-                           half_width(p["upperArm"]), half_width(p["wrist"]), 12, 12))
+                           half_width(p["upperArm"]), half_width(p["wrist"]), 8, 10))
         labels.append(f"arm{side}")
         hip = np.array([side * half_width(p["hip"]) * 0.45, s.y_crotch + 0.02, 0], np.float32)
         parts.append(_limb(hip, np.array([0, -1, 0], np.float32), s.y_crotch,
-                           half_width(p["thigh"]), half_width(p["thigh"] * 0.45), 14, 14))
+                           half_width(p["thigh"]), half_width(p["thigh"] * 0.45), 10, 12))
         labels.append(f"leg{side}")
     pos, idx = _merge(parts)
     groups = np.concatenate([[lab] * len(pt[0]) for lab, pt in zip(labels, parts)])
@@ -132,7 +132,7 @@ def garment_mesh(p: dict, chart: dict) -> tuple[Mesh, dict]:
         (s.y_shoulder + 0.03, p["neck"] * 1.75),
     ]
     x, z = np.array([1, 0, 0], np.float32), np.array([0, 0, 1], np.float32)
-    ys = np.linspace(y_hem, s.y_shoulder + 0.03, 34)
+    ys = np.linspace(y_hem, s.y_shoulder + 0.03, 26)
     torso_pos, torso_idx = _tube([(np.array([0, y, 0], np.float32), x, z,
                                    half_width(_lerp_profile(profile, y))) for y in ys], AROUND)
     t = (torso_pos[:, 1] - y_hem) / (s.y_shoulder + 0.03 - y_hem)
@@ -143,7 +143,7 @@ def garment_mesh(p: dict, chart: dict) -> tuple[Mesh, dict]:
     for side in (-1, 1):
         sleeve = _limb(s.shoulder_pivot(side) - s.arm_axis(side) * 0.02, s.arm_axis(side),
                        0.2, half_width(roomy(chart["upperArm"], p["upperArm"])),
-                       half_width(roomy(chart["upperArm"], p["upperArm"])) * 0.95, 8, 16)
+                       half_width(roomy(chart["upperArm"], p["upperArm"])) * 0.95, 6, 12)
         parts.append(sleeve)
         region_parts.append(np.full(len(sleeve[0]), UPPER_ARM, np.float32))
         labels.append(f"arm{side}")

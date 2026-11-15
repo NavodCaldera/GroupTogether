@@ -1,10 +1,19 @@
 /** Fit data parsing and garment-kind rules (DEC-020). No database. */
 import { z } from "zod";
 import { sizesFor } from "@/lib/taxonomy";
+import type { FitClass } from "./config";
 import type { Body, Measure, SizeChart } from "./report";
 import { isRegion, REGION_LABEL, REGIONS, type Region } from "./regions";
 
 const BOTTOMS = /trousers|jeans|shorts|skirts|bottoms/;
+
+/** Which ideal-ease table a category uses (./config.ts EASE). */
+export function fitClass(kind: string | null | undefined): FitClass {
+  if (kind && BOTTOMS.test(kind)) return "bottom";
+  if (kind && /dresses/.test(kind)) return "dress";
+  if (kind && /jackets/.test(kind)) return "outer";
+  return "top";
+}
 
 /** Garment areas a factory measures for a category. */
 export function kindRegions(kind: string | null | undefined): Region[] {

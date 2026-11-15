@@ -1,0 +1,79 @@
+{
+  "garment": {
+    "name": "running-shorts",
+    "title": "Running shorts",
+    "kind": "men-shorts",
+    "audience": "MEN",
+    "simulate": false,
+    "fabric": {
+      "stretch_pct": 10,
+      "gsm": 120,
+      "weave": "Quick-dry polyester",
+      "thermal_min_c": 24,
+      "thermal_max_c": 35,
+      "breathability": 5,
+      "care_notes": "Machine wash cold. No fabric softener."
+    },
+    "size_chart": {
+      "S": {
+        "waist": 76,
+        "hip": 98,
+        "thigh": 58
+      },
+      "M": {
+        "waist": 81,
+        "hip": 102,
+        "thigh": 60
+      },
+      "L": {
+        "waist": 86,
+        "hip": 106,
+        "thigh": 62
+      },
+      "XL": {
+        "waist": 91,
+        "hip": 110,
+        "thigh": 64
+      }
+    }
+  },
+  "archetypes": [
+    {
+      "name": "men-slim-168",
+      "gender": "MEN",
+      "params": {
+        "height": 168,
+        "chest": 90,
+        "waist": 78,
+        "hip": 91,
+        "thigh": 51,
+        "upperArm": 28,
+        "shoulder": 42,
+        "torso": 50,
+        "neck": 36,
+        "wrist": 16.5,
+        "inseam": 76
+      }
+    },
+    {
+      "name": "men-broad-174",
+      "gender": "MEN",
+      "params": {
+        "height": 174,
+        "chest": 104,
+        "waist": 94,
+        "hip": 102,
+        "thigh": 58,
+        "upperArm": 33,
+        "shoulder": 46,
+        "torso": 52,
+        "neck": 40,
+        "wrist": 18,
+        "inseam": 79
+      }
+    }
+  ],
+  "assets": [],
+  "tensions": [],
+  "engine": "analytic"
+}

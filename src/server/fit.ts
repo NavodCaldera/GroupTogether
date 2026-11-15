@@ -1,7 +1,7 @@
 import "server-only";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
-import { readBody, readChart, sizeOrder } from "@/lib/fit/data";
+import { fitClass, readBody, readChart, sizeOrder } from "@/lib/fit/data";
 import { fitReport, nearestArchetype, type Body, type FitReport } from "@/lib/fit/report";
 import { isRegion, regionFromEnum, REGIONS, type Region } from "@/lib/fit/regions";
 import { db } from "./db";
@@ -246,6 +246,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
     sizes: chart.sizes,
     chart: cells,
     stretchPct: fabricStretchPct ?? 0,
+    fitClass: fitClass(kind),
     archetype: profile.archetype ? archetypeParams(profile.archetype.params) : null,
     base: tensions.length ? base : null,
   });

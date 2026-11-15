@@ -3,7 +3,7 @@
  * this buyer. Cheap arithmetic over precomputed simulation tensions; no simulation runs here.
  * Formula and constants: ./config.ts.
  */
-import { FIT, type FitConfig } from "./config";
+import { easeFor, FIT, type FitClass, type FitConfig } from "./config";
 import { IS_LENGTH, REGIONS, type Region } from "./regions";
 
 /** A body measurement in cm with its uncertainty interval. */
@@ -61,6 +61,8 @@ export interface FitInput {
   /** The archetype the simulation ran on, in cm. */
   archetype?: Partial<Record<Region, number>> | null;
   base?: BaseTension | null;
+  /** Garment type: sets the ideal ease per area (./config.ts EASE). */
+  fitClass?: FitClass;
   config?: FitConfig;
 }
 
@@ -74,12 +76,25 @@ export function band(t: number, c: FitConfig = FIT): Band {
   return "loose";
 }
 
-/** Tension shift caused by `ease` cm of room (negative ease = garment smaller than the body). */
-export function shift(region: Region, ease: number, stretchPct: number, c: FitConfig = FIT) {
+/**
+ * Tension shift from the comfortable centre caused by `ease` cm of room (negative ease = the
+ * garment is smaller than the body). See ./config.ts.
+ */
+export function shift(
+  region: Region,
+  ease: number,
+  stretchPct: number,
+  cls: FitClass = "top",
+  c: FitConfig = FIT,
+) {
+  const { ideal, looseAt } = easeFor(cls, region);
+  if (ease >= ideal) return (-(c.centre - c.comfortableFrom) * (ease - ideal)) / looseAt;
+  const zero = ideal > 0 ? c.snugAtZero - c.centre : 0;
+  if (ease >= 0) return (zero * (ideal - ease)) / ideal;
   const relief = IS_LENGTH[region]
     ? 1
     : Math.max(c.minStretchKeep, 1 - (c.stretchFactor * clamp(stretchPct, 0, 100)) / 100);
-  return c.k * Math.max(0, -ease) * relief - c.k2 * Math.max(0, ease);
+  return zero + c.k * -ease * relief;
 }
 
 /** Displayed tension for one area at one body measurement. */
@@ -89,13 +104,14 @@ export function regionTension(
   bodyCm: number,
   stretchPct: number,
   sim: { base: number; archetypeCm: number } | null,
+  cls: FitClass = "top",
   c: FitConfig = FIT,
 ) {
   const drop = region === "torso" ? c.torsoHemDrop : 0;
-  const own = shift(region, garmentCm - bodyCm - drop, stretchPct, c);
+  const own = shift(region, garmentCm - bodyCm - drop, stretchPct, cls, c);
   const raw = sim
-    ? sim.base + own - shift(region, garmentCm - sim.archetypeCm - drop, stretchPct, c)
-    : c.neutral + own;
+    ? sim.base + own - shift(region, garmentCm - sim.archetypeCm - drop, stretchPct, cls, c)
+    : c.centre + own;
   return clamp(raw, c.drapeFloor, 1);
 }
 
@@ -145,7 +161,8 @@ export function fitReport(input: FitInput): FitReport {
       const archetypeCm = input.archetype?.[region];
       const sim = base !== undefined && archetypeCm !== undefined ? { base, archetypeCm } : null;
       if (sim) simulated = true;
-      const at = (cm: number) => regionTension(region, g, cm, input.stretchPct, sim, c);
+      const at = (cm: number) =>
+        regionTension(region, g, cm, input.stretchPct, sim, input.fitClass ?? "top", c);
       const tension = at(m.value);
       // A larger body measurement means less room, so `high` gives the higher tension.
       const tensionLow = at(Math.min(m.low, m.value));
@@ -186,19 +203,24 @@ export function fitReport(input: FitInput): FitReport {
   const comfortable = (o: SizeOption) =>
     o.regions.filter((r) => r.verdict === "comfortable").length;
   const centre = (o: SizeOption) =>
-    o.regions.reduce((s, r) => s + Math.abs(r.tension - (c.comfortableFrom + c.snugFrom) / 2), 0);
+    o.regions.reduce((s, r) => s + Math.abs(r.tension - c.centre), 0);
   const unsure = (o: SizeOption) => o.regions.some((r) => r.uncertain);
   const order = (o: SizeOption) => sizes.indexOf(o.size);
 
+  // An unsure area that could turn snug or tight; on fabric that barely stretches, avoid it.
+  const tightRisk = (o: SizeOption) =>
+    o.regions.some((r) => r.uncertain && r.tensionHigh >= c.snugFrom);
   const fitting = compared.filter((o) => o.fits);
   let best: SizeOption;
   if (fitting.length) {
-    const top = Math.max(...fitting.map(comfortable));
-    const tied = fitting.filter((o) => comfortable(o) === top);
-    best =
-      lowStretch && tied.some(unsure)
-        ? tied.reduce((a, b) => (order(b) > order(a) ? b : a))
-        : tied.reduce((a, b) => (centre(b) < centre(a) - 1e-9 ? b : a));
+    const safe = lowStretch ? fitting.filter((o) => !tightRisk(o)) : fitting;
+    if (safe.length) {
+      const top = Math.max(...safe.map(comfortable));
+      const tied = safe.filter((o) => comfortable(o) === top);
+      best = tied.reduce((a, b) => (centre(b) < centre(a) - 1e-9 ? b : a));
+    } else {
+      best = fitting.reduce((a, b) => (order(b) > order(a) ? b : a));
+    }
   } else {
     // Least tight; on a tie (everything maxed out) the larger size gives more room.
     const worst = (o: SizeOption) => Math.max(...o.regions.map((r) => r.tension));

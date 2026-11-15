@@ -17,7 +17,7 @@ garment.json + archetypes ──pipeline.py──▶ OUT/<archetype>/<motion>-<h
 Needs Python 3.12 with numpy. Nothing else is installed into the app.
 
 ```sh
-python tools/fit-simulation/pipeline.py tools/fit-simulation/seed/garment-crew-tee.json out/crew-tee
+python tools/fit-simulation/pipeline.py tools/fit-simulation/seed/garments/crew-tee.json out/crew-tee
 npx tsx tools/fit-simulation/load.ts out/crew-tee --title "Crew-neck cotton tee (3-pack)" --approve
 ```
 
@@ -27,9 +27,13 @@ one transaction. With an outside CDN, upload the folder there and pass `--base-u
 `--approve` marks the fit data checked; leave it off to send it to the Factory admin's **Fit**
 tab.
 
-The seed output for the demo tee is committed in
-[`public/fit-assets/seed-crew-tee`](../../public/fit-assets/seed-crew-tee); `npm run db:seed`
-loads it and gives the demo buyer Dilan measurements. Output is deterministic, so rerunning the
+The demo garments live in [`seed/garments`](seed/garments) and their output is committed in
+`public/fit-assets/seed-<name>` (rebuild all with
+`python tools/fit-simulation/pipeline.py tools/fit-simulation/seed/garments public/fit-assets --all`).
+`npm run db:seed` loads every one onto the product with the same title and measures Dilan,
+Ravindu, Sachini and Ayesha. Tops have 3D on two archetypes of their audience; dresses and
+bottoms (`"simulate": false`) have a size chart only, until the mesh generator covers them;
+Track pants (`"approved": false`) waits for the Factory admin. Output is deterministic, so rerunning the
 pipeline on unchanged input produces the same file names.
 
 ## Files
@@ -63,7 +67,7 @@ pipeline on unchanged input produces the same file names.
 1. The factory enters the size chart and fabric on its product (Fit data); an admin checks it.
 2. Get the pattern pieces per size and the fabric's stretch, bend and shear stiffness and gsm
    from the factory (or measure the test piece we buy).
-3. Write `garment.json` like [`seed/garment-crew-tee.json`](seed/garment-crew-tee.json).
+3. Write `garment.json` like [`seed/garments/crew-tee.json`](seed/garments/crew-tee.json).
 4. Run the pipeline, then `load.ts --product <id>`.
 
 ## Licences and limits

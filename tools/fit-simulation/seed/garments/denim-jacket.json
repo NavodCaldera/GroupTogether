@@ -1,0 +1,49 @@
+{
+  "name": "denim-jacket",
+  "title": "Denim jacket",
+  "kind": "women-jackets",
+  "audience": "WOMEN",
+  "simulate": true,
+  "fabric": {
+    "stretch_pct": 1,
+    "gsm": 400,
+    "weave": "12 oz cotton denim, twill",
+    "thermal_min_c": 18,
+    "thermal_max_c": 27,
+    "breathability": 2,
+    "care_notes": "Wash inside out, cold, with dark colours.",
+    "stretch_stiffness": 200,
+    "bend_stiffness": 3.0,
+    "shear_stiffness": 20
+  },
+  "size_chart": {
+    "S": {
+      "chest": 94,
+      "waist": 88,
+      "shoulder": 39,
+      "upperArm": 31,
+      "torso": 54
+    },
+    "M": {
+      "chest": 100,
+      "waist": 94,
+      "shoulder": 40.5,
+      "upperArm": 33,
+      "torso": 55.5
+    },
+    "L": {
+      "chest": 106,
+      "waist": 100,
+      "shoulder": 42,
+      "upperArm": 35,
+      "torso": 57
+    },
+    "XL": {
+      "chest": 112,
+      "waist": 106,
+      "shoulder": 43.5,
+      "upperArm": 37,
+      "torso": 58.5
+    }
+  }
+}

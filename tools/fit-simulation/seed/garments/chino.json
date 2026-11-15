@@ -1,0 +1,38 @@
+{
+  "name": "chino",
+  "title": "Slim chino",
+  "kind": "men-trousers",
+  "audience": "MEN",
+  "simulate": false,
+  "fabric": {
+    "stretch_pct": 3,
+    "gsm": 250,
+    "weave": "Stretch cotton twill",
+    "thermal_min_c": 20,
+    "thermal_max_c": 30,
+    "breathability": 3,
+    "care_notes": "Machine wash cold. Warm iron."
+  },
+  "size_chart": {
+    "28": {
+      "waist": 74,
+      "hip": 92,
+      "thigh": 54
+    },
+    "30": {
+      "waist": 79,
+      "hip": 96,
+      "thigh": 56
+    },
+    "32": {
+      "waist": 84,
+      "hip": 100,
+      "thigh": 58
+    },
+    "34": {
+      "waist": 89,
+      "hip": 104,
+      "thigh": 60
+    }
+  }
+}

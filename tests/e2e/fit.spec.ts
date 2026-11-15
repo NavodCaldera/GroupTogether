@@ -58,7 +58,7 @@ test("a measured buyer sees the heatmap and switching size shifts the areas", as
   await fit.getByRole("button", { name: "XL", exact: true }).click();
   const large = await regions.innerText();
   expect(small).not.toEqual(large);
-  expect(small).toMatch(/Tight|Snug/);
+  expect(small).toMatch(/tight|snug/i);
 
   // The viewer loads the simulated garment and renders into a canvas.
   await expect(fit.locator("canvas")).toBeVisible({ timeout: 30_000 });
@@ -103,7 +103,8 @@ test("the factory admin approves fit data from the Fit tab", async ({ page }) =>
   await signIn(page, DEMO_ADMINS.FACTORY);
   await page.goto("/admin/factory/fit");
   await expect(page.getByRole("heading", { name: "Fit", level: 1 })).toBeVisible();
-  await expect(page.getByText("Nothing to check")).toBeVisible();
+  // The seed leaves Track pants' fit data waiting for a check.
+  await expect(page.getByRole("link", { name: /Track pants/ })).toBeVisible();
   await page.goto(`/admin/products/${tee}`);
   await expect(page.getByText("Approved", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Remove approval" }).click();

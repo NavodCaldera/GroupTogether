@@ -1,0 +1,83 @@
+{
+  "garment": {
+    "name": "linen-dress",
+    "title": "Linen summer dress",
+    "kind": "women-dresses",
+    "audience": "WOMEN",
+    "simulate": false,
+    "fabric": {
+      "stretch_pct": 2,
+      "gsm": 160,
+      "weave": "Linen-cotton blend",
+      "thermal_min_c": 24,
+      "thermal_max_c": 34,
+      "breathability": 5,
+      "care_notes": "Gentle wash cold. Dry flat in shade."
+    },
+    "size_chart": {
+      "S": {
+        "chest": 90,
+        "waist": 76,
+        "hip": 100,
+        "shoulder": 37
+      },
+      "M": {
+        "chest": 96,
+        "waist": 82,
+        "hip": 106,
+        "shoulder": 38.5
+      },
+      "L": {
+        "chest": 102,
+        "waist": 88,
+        "hip": 112,
+        "shoulder": 40
+      },
+      "XL": {
+        "chest": 108,
+        "waist": 94,
+        "hip": 118,
+        "shoulder": 41.5
+      }
+    }
+  },
+  "archetypes": [
+    {
+      "name": "women-petite-155",
+      "gender": "WOMEN",
+      "params": {
+        "height": 155,
+        "chest": 84,
+        "waist": 70,
+        "hip": 92,
+        "thigh": 52,
+        "upperArm": 26,
+        "shoulder": 37,
+        "torso": 44,
+        "neck": 32,
+        "wrist": 14.5,
+        "inseam": 70
+      }
+    },
+    {
+      "name": "women-curvy-162",
+      "gender": "WOMEN",
+      "params": {
+        "height": 162,
+        "chest": 98,
+        "waist": 84,
+        "hip": 106,
+        "thigh": 60,
+        "upperArm": 31,
+        "shoulder": 40,
+        "torso": 46,
+        "neck": 34,
+        "wrist": 15.5,
+        "inseam": 73
+      }
+    }
+  ],
+  "assets": [],
+  "tensions": [],
+  "engine": "analytic"
+}

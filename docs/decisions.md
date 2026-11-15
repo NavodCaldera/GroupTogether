@@ -364,7 +364,9 @@ Settled by Claude while building (open to the owner): the fit card is shown to b
 "How did it fit?" sits on the order page (not the buyer home, whose order `UX-002` fixes);
 photo intervals are 80% (±1.28 SD) and typed values ±1 cm; a top's length is compared with the
 torso plus a 12 cm hem drop; the stored simulation tension is the peak over the four motions;
-photos use MediaPipe's Full pose model (Heavy, ~30 MB, is too large for buyers' phones).
+photos use MediaPipe's Full pose model (Heavy, ~30 MB, is too large for buyers' phones); comfort
+is judged against an ideal ease per garment type and area (`EASE`: e.g. 10 cm at a shirt chest,
+16 cm on a hoodie, 2 cm at a trouser waist), starting values to calibrate.
 
 ## Legacy rule references
 

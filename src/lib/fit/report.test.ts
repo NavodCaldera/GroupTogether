@@ -42,20 +42,34 @@ describe("regionTension", () => {
     const roomy = regionTension("chest", 140, 90, 0, null);
     expect(roomy).toBe(FIT.drapeFloor);
     expect(band(roomy)).toBe("loose");
-    expect(regionTension("chest", 104, 100, 0, null)).toBeLessThan(FIT.neutral);
+  });
+
+  it("the ideal ease reads comfortable and no room at all reads snug", () => {
+    expect(regionTension("chest", 110, 100, 0, null)).toBeCloseTo(FIT.centre);
+    expect(regionTension("chest", 100, 100, 0, null)).toBeCloseTo(FIT.snugAtZero);
+    expect(band(regionTension("chest", 100, 100, 0, null))).toBe("snug");
+  });
+
+  it("each garment type has its own ideal room: 6 cm is comfortable on a shirt waist, loose-ish on trousers", () => {
+    const top = regionTension("waist", 86, 80, 0, null, "top");
+    const trousers = regionTension("waist", 86, 80, 0, null, "bottom");
+    expect(band(top)).toBe("comfortable");
+    expect(trousers).toBeLessThan(top);
+    expect(band(regionTension("waist", 92, 80, 0, null, "bottom"))).toBe("loose");
+    expect(band(regionTension("waist", 92, 80, 0, null, "top"))).toBe("comfortable");
   });
 
   it("a deficit on a stretch knit is milder than on rigid fabric", () => {
     const rigid = regionTension("chest", 96, 100, 0, null);
     const knit = regionTension("chest", 96, 100, 15, null);
-    expect(rigid).toBeCloseTo(FIT.neutral + FIT.k * 4);
+    expect(rigid).toBeCloseTo(FIT.snugAtZero + FIT.k * 4);
     expect(knit).toBeLessThan(rigid);
-    expect(knit).toBeCloseTo(FIT.neutral + FIT.k * 4 * (1 - 0.375));
+    expect(knit).toBeCloseTo(FIT.snugAtZero + FIT.k * 4 * (1 - 0.375));
     expect(band(rigid)).toBe("tight");
   });
 
   it("a top's length is judged against the torso plus the hem drop", () =>
-    expect(regionTension("torso", 50 + FIT.torsoHemDrop, 50, 0, null)).toBeCloseTo(FIT.neutral));
+    expect(regionTension("torso", 50 + FIT.torsoHemDrop, 50, 0, null)).toBeCloseTo(FIT.centre));
 
   it("stretch never helps a length", () => {
     expect(regionTension("torso", 60, 64, 40, null)).toBe(regionTension("torso", 60, 64, 0, null));
@@ -90,8 +104,8 @@ describe("fitReport", () => {
     expect(s.notes[0]).toBe(
       "Runs tight through the chest for your measurements — size M gives 8 cm more room",
     );
-    // L leaves the waist loose; M keeps both comfortable.
-    expect(r.recommendedSize).toBe("M");
+    // M and L both read comfortable; L sits at the ideal room (12 cm at the chest).
+    expect(r.recommendedSize).toBe("L");
   });
 
   it("flags an area whose interval crosses a band boundary and reports both ends", () => {
@@ -117,6 +131,25 @@ describe("fitReport", () => {
     // A good stretch knit judges S at the point estimate and keeps it.
     const knit = fitReport({ body, sizes, chart: c, stretchPct: 30 });
     expect(knit.sizeOptions[0].fits).toBe(true);
+  });
+
+  it("on rigid fabric a size that may turn snug loses to a safe one, even with more comfortable areas", () => {
+    // S: chest could reach snug at the top of the interval; M: everything safely comfortable,
+    // although its length is past the loose line.
+    const c: SizeChart = {
+      S: { chest: 106, torso: 70 },
+      M: { chest: 112, torso: 80 },
+    };
+    const body: Body = { chest: { value: 100, low: 96, high: 104 }, torso: exact(56) };
+    const r = fitReport({ body, sizes: ["S", "M"], chart: c, stretchPct: 0 });
+    const [s] = r.sizeOptions;
+    expect(s.regions[0].uncertain).toBe(true);
+    expect(s.regions[0].tensionHigh).toBeGreaterThanOrEqual(FIT.snugFrom);
+    expect(r.recommendedSize).toBe("M");
+    // A stretchy knit keeps S.
+    expect(fitReport({ body, sizes: ["S", "M"], chart: c, stretchPct: 20 }).recommendedSize).toBe(
+      "S",
+    );
   });
 
   it("recommends the least tight size, with low confidence, when nothing fits", () => {

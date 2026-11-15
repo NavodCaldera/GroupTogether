@@ -1,6 +1,6 @@
 """Minimal binary glTF 2.0 (.glb) writer for animated fit meshes (DEC-020).
 
-Each mesh has POSITION, NORMAL, optional _REGION_ID (float scalar; 0-6 an area, 255 neutral)
+Each mesh has POSITION (NORMAL optional; the viewer computes it), optional _REGION_ID (float scalar; 0-6 an area, 255 neutral)
 and morph targets; one animation drives every mesh's morph weights. Draco compression is a
 separate step (README: `gltf-transform draco`), so this file needs only numpy.
 """
@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-FLOAT, UINT32 = 5126, 5125
+FLOAT, UINT16, UINT32 = 5126, 5123, 5125
 ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER = 34962, 34963
 
 
@@ -69,22 +69,24 @@ class _Builder:
 
 
 def write_glb(path: str, meshes: list[Mesh], times: np.ndarray, weights: np.ndarray,
-              clip: str) -> None:
+              clip: str, with_normals: bool = False) -> None:
     """`weights` is (len(times), targets): every mesh has the same number of targets."""
     b = _Builder()
     gl_meshes, nodes, materials = [], [], []
     for i, m in enumerate(meshes):
         pos = m.positions.astype(np.float32)
-        attrs = {
-            "POSITION": b.add(pos, "VEC3", FLOAT, ARRAY_BUFFER, minmax=True),
-            "NORMAL": b.add(normals(pos, m.indices), "VEC3", FLOAT, ARRAY_BUFFER),
-        }
+        # Normals are left out to keep files small; the viewer computes them.
+        attrs = {"POSITION": b.add(pos, "VEC3", FLOAT, ARRAY_BUFFER, minmax=True)}
+        if with_normals:
+            attrs["NORMAL"] = b.add(normals(pos, m.indices), "VEC3", FLOAT, ARRAY_BUFFER)
         if m.region_ids is not None:
             attrs["_REGION_ID"] = b.add(m.region_ids.astype(np.float32), "SCALAR", FLOAT,
                                         ARRAY_BUFFER)
         targets = [{"POSITION": b.add(t.astype(np.float32), "VEC3", FLOAT, ARRAY_BUFFER,
                                       minmax=True)} for t in m.targets]
-        index = b.add(m.indices.astype(np.uint32), "SCALAR", UINT32, ELEMENT_ARRAY_BUFFER)
+        small = len(pos) < 65536
+        index = b.add(m.indices.astype(np.uint16 if small else np.uint32), "SCALAR",
+                      UINT16 if small else UINT32, ELEMENT_ARRAY_BUFFER)
         materials.append({"name": m.name, "pbrMetallicRoughness": {
             "baseColorFactor": list(m.colour), "metallicFactor": 0, "roughnessFactor": 0.9},
             "doubleSided": True})

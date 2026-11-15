@@ -33,7 +33,7 @@ import {
   DEMO_PICKUP_CODE,
 } from "../src/lib/demo-accounts";
 import { db } from "../src/server/db";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { loadFitManifest, type FitManifest } from "../tools/fit-simulation/load";
 import { saveBodyProfile as saveBodyProfileFor } from "../src/server/fit";
@@ -703,39 +703,102 @@ async function main() {
       await db.stockOffer.update({ where: { id: offer.id }, data: { approvedRevision: 1 } });
   }
 
-  // Fit heatmap demo (DEC-020): the tee carries the seed simulation from tools/fit-simulation,
-  // and Dilan has measurements, so his product page shows the personalized heatmap.
-  const tee = await db.product.findFirstOrThrow({
-    where: { title: "Crew-neck cotton tee (3-pack)", sellerId: ceylon.owner.id },
-    select: { id: true },
+  // Fit heatmap demo (DEC-020). Each garment in tools/fit-simulation/seed/garments has its
+  // pipeline output committed in public/fit-assets/seed-<name>: tops carry 3D simulations on
+  // two archetypes; dresses and bottoms carry only a size chart (report without 3D); Track
+  // pants waits for the Factory admin's approval; the school shirt has no fit data at all.
+  const fitRoot = join(process.cwd(), "public/fit-assets");
+  for (const dir of readdirSync(fitRoot).filter((d) => d.startsWith("seed-"))) {
+    const manifest = JSON.parse(
+      readFileSync(join(fitRoot, dir, "manifest.json"), "utf8"),
+    ) as FitManifest & { garment: { title: string; approved?: boolean } };
+    const product = await db.product.findFirstOrThrow({
+      where: { title: manifest.garment.title, sellerId: { in: [ceylon.owner.id, lanka.owner.id] } },
+      select: { id: true },
+    });
+    await loadFitManifest(db, manifest, product.id, {
+      baseUrl: `/fit-assets/${dir}`,
+      approve: manifest.garment.approved !== false,
+    });
+  }
+  // Measured buyers of different shapes (photo values with intervals, a few typed); Tharindu
+  // and Nimali have none, to try measuring.
+  const m = (value: number, spread: number, source: "photo" | "typed" = "photo") => ({
+    value,
+    low: value - spread,
+    high: value + spread,
+    source,
   });
-  const fitManifest = JSON.parse(
-    readFileSync(join(process.cwd(), "public/fit-assets/seed-crew-tee/manifest.json"), "utf8"),
-  ) as FitManifest;
-  await loadFitManifest(db, fitManifest, tee.id, {
-    baseUrl: "/fit-assets/seed-crew-tee",
-    approve: true,
-  });
-  await saveBodyProfileFor(dilan.id, {
-    heightCm: 172,
-    gender: "MEN",
-    ageBand: "30-44",
-    measurements: {
-      chest: { value: 100, low: 96, high: 104, source: "photo" },
-      waist: { value: 88, low: 84, high: 92, source: "photo" },
-      hip: { value: 98, low: 95, high: 101, source: "photo" },
-      shoulder: { value: 45, low: 43.5, high: 46.5, source: "photo" },
-      upperArm: { value: 31, low: 30, high: 32, source: "typed" },
-      torso: { value: 51, low: 49, high: 53, source: "photo" },
+  const fitProfiles = [
+    {
+      userId: dilan.id,
+      heightCm: 172,
+      gender: "MEN",
+      ageBand: "30-44",
+      measurements: {
+        chest: m(100, 4),
+        waist: m(88, 4),
+        hip: m(98, 3),
+        shoulder: m(45, 1.5),
+        upperArm: m(31, 1, "typed"),
+        torso: m(51, 2),
+        thigh: m(56, 1, "typed"),
+      },
     },
-    captureMeta: { seed: true },
-    consent: true,
-  });
+    {
+      userId: ravindu.id,
+      heightCm: 167,
+      gender: "MEN",
+      ageBand: "18-29",
+      measurements: {
+        chest: m(89, 3),
+        waist: m(77, 3),
+        hip: m(91, 2),
+        shoulder: m(41.5, 1),
+        upperArm: m(27.5, 1, "typed"),
+        torso: m(49, 2),
+        thigh: m(51, 2),
+      },
+    },
+    {
+      userId: sachini.id,
+      heightCm: 158,
+      gender: "WOMEN",
+      ageBand: "30-44",
+      measurements: {
+        chest: m(88, 3),
+        waist: m(73, 3),
+        hip: m(97, 3),
+        shoulder: m(38, 1),
+        upperArm: m(28, 1),
+        torso: m(45, 1.5),
+        thigh: m(55, 2),
+      },
+    },
+    {
+      userId: ayesha.id,
+      heightCm: 165,
+      gender: "WOMEN",
+      ageBand: "45-59",
+      measurements: {
+        chest: m(100, 3),
+        waist: m(86, 3),
+        hip: m(108, 3),
+        shoulder: m(40.5, 1),
+        upperArm: m(32, 1, "typed"),
+        torso: m(47, 1.5),
+        thigh: m(61, 2),
+      },
+    },
+  ];
+  for (const { userId, ...p } of fitProfiles)
+    await saveBodyProfileFor(userId, { ...p, captureMeta: { seed: true }, consent: true });
 
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}
   Return to hand over: ${DEMO_BUYERS.sachini} at ${DEMO_AGENTS.kollupitiya}
-  Tokens: ${DEMO_BUYERS.tharindu}`);
+  Tokens: ${DEMO_BUYERS.tharindu}
+  Fit heatmap: ${DEMO_BUYERS.dilan}, ${DEMO_BUYERS.sachini} (and Ravindu, Ayesha) are measured; ${DEMO_BUYERS.tharindu} is not`);
 }
 
 main()

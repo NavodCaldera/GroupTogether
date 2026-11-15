@@ -1,0 +1,42 @@
+{
+  "name": "linen-dress",
+  "title": "Linen summer dress",
+  "kind": "women-dresses",
+  "audience": "WOMEN",
+  "simulate": false,
+  "fabric": {
+    "stretch_pct": 2,
+    "gsm": 160,
+    "weave": "Linen-cotton blend",
+    "thermal_min_c": 24,
+    "thermal_max_c": 34,
+    "breathability": 5,
+    "care_notes": "Gentle wash cold. Dry flat in shade."
+  },
+  "size_chart": {
+    "S": {
+      "chest": 90,
+      "waist": 76,
+      "hip": 100,
+      "shoulder": 37
+    },
+    "M": {
+      "chest": 96,
+      "waist": 82,
+      "hip": 106,
+      "shoulder": 38.5
+    },
+    "L": {
+      "chest": 102,
+      "waist": 88,
+      "hip": 112,
+      "shoulder": 40
+    },
+    "XL": {
+      "chest": 108,
+      "waist": 94,
+      "hip": 118,
+      "shoulder": 41.5
+    }
+  }
+}

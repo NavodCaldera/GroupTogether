@@ -1,0 +1,420 @@
+{
+  "garment": {
+    "name": "hoodie",
+    "title": "Hooded sweatshirt",
+    "kind": "men-jackets",
+    "audience": "MEN",
+    "simulate": true,
+    "fabric": {
+      "stretch_pct": 12,
+      "gsm": 320,
+      "weave": "Brushed cotton-poly fleece",
+      "thermal_min_c": 14,
+      "thermal_max_c": 24,
+      "breathability": 2,
+      "care_notes": "Machine wash cold. Tumble dry low.",
+      "stretch_stiffness": 30,
+      "bend_stiffness": 1.0,
+      "shear_stiffness": 6
+    },
+    "size_chart": {
+      "S": {
+        "chest": 108,
+        "waist": 104,
+        "shoulder": 46,
+        "upperArm": 38,
+        "torso": 68
+      },
+      "M": {
+        "chest": 114,
+        "waist": 110,
+        "shoulder": 48,
+        "upperArm": 40,
+        "torso": 70
+      },
+      "L": {
+        "chest": 120,
+        "waist": 116,
+        "shoulder": 50,
+        "upperArm": 42,
+        "torso": 72
+      },
+      "XL": {
+        "chest": 128,
+        "waist": 124,
+        "shoulder": 52,
+        "upperArm": 44,
+        "torso": 74
+      }
+    }
+  },
+  "archetypes": [
+    {
+      "name": "men-slim-168",
+      "gender": "MEN",
+      "params": {
+        "height": 168,
+        "chest": 90,
+        "waist": 78,
+        "hip": 91,
+        "thigh": 51,
+        "upperArm": 28,
+        "shoulder": 42,
+        "torso": 50,
+        "neck": 36,
+        "wrist": 16.5,
+        "inseam": 76
+      }
+    },
+    {
+      "name": "men-broad-174",
+      "gender": "MEN",
+      "params": {
+        "height": 174,
+        "chest": 104,
+        "waist": 94,
+        "hip": 102,
+        "thigh": 58,
+        "upperArm": 33,
+        "shoulder": 46,
+        "torso": 52,
+        "neck": 40,
+        "wrist": 18,
+        "inseam": 79
+      }
+    }
+  ],
+  "assets": [
+    {
+      "archetype": "men-slim-168",
+      "motion": "WALK",
+      "file": "men-slim-168/walk-1b6c9625fa.glb",
+      "size": "S"
+    },
+    {
+      "archetype": "men-slim-168",
+      "motion": "RUN",
+      "file": "men-slim-168/run-89bcbd4ef8.glb",
+      "size": "S"
+    },
+    {
+      "archetype": "men-slim-168",
+      "motion": "REACH",
+      "file": "men-slim-168/reach-2f502651fe.glb",
+      "size": "S"
+    },
+    {
+      "archetype": "men-slim-168",
+      "motion": "SIT",
+      "file": "men-slim-168/sit-971c93a334.glb",
+      "size": "S"
+    },
+    {
+      "archetype": "men-broad-174",
+      "motion": "WALK",
+      "file": "men-broad-174/walk-bcefcdf3a4.glb",
+      "size": "S"
+    },
+    {
+      "archetype": "men-broad-174",
+      "motion": "RUN",
+      "file": "men-broad-174/run-1cfe61fe23.glb",
+      "size": "S"
+    },
+    {
+      "archetype": "men-broad-174",
+      "motion": "REACH",
+      "file": "men-broad-174/reach-cf4e038369.glb",
+      "size": "S"
+    },
+    {
+      "archetype": "men-broad-174",
+      "motion": "SIT",
+      "file": "men-broad-174/sit-bae68e8f22.glb",
+      "size": "S"
+    }
+  ],
+  "tensions": [
+    {
+      "archetype": "men-slim-168",
+      "size": "S",
+      "region": "chest",
+      "base": 0.375,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "S",
+      "region": "waist",
+      "base": 0.311,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.36,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "S",
+      "region": "torso",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "M",
+      "region": "chest",
+      "base": 0.3,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "M",
+      "region": "waist",
+      "base": 0.244,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.2,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.32,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "M",
+      "region": "torso",
+      "base": 0.24,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "L",
+      "region": "chest",
+      "base": 0.225,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "L",
+      "region": "waist",
+      "base": 0.178,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.12,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "L",
+      "region": "torso",
+      "base": 0.2,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.125,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.089,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.24,
+      "note": ""
+    },
+    {
+      "archetype": "men-slim-168",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.16,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "S",
+      "region": "chest",
+      "base": 0.626,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "S",
+      "region": "waist",
+      "base": 0.561,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.73,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.534,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "S",
+      "region": "torso",
+      "base": 0.32,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "M",
+      "region": "chest",
+      "base": 0.516,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "M",
+      "region": "waist",
+      "base": 0.448,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.387,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.455,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "M",
+      "region": "torso",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "L",
+      "region": "chest",
+      "base": 0.406,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "L",
+      "region": "waist",
+      "base": 0.356,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.388,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "L",
+      "region": "torso",
+      "base": 0.24,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.3,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.267,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.2,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.34,
+      "note": ""
+    },
+    {
+      "archetype": "men-broad-174",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.2,
+      "note": ""
+    }
+  ],
+  "engine": "analytic"
+}
