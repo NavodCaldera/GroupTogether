@@ -2,6 +2,7 @@ import "server-only";
 import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import { db } from "./db";
+import { deleteDeepFits } from "./deep-fit-jobs";
 import { AppError } from "./errors";
 import { storage } from "./storage";
 
@@ -148,7 +149,7 @@ export async function confirmBody(userId: string) {
   });
 }
 
-/** Removes the 3D body, its file and every outline; the measurements stay. */
+/** Removes the 3D body, its file, every outline and its Deep Fit Tests; the measurements stay. */
 export async function deleteBody(userId: string) {
   const p = await db.bodyProfile.findUnique({ where: { userId }, select: { bodyFileKey: true } });
   await db.$transaction([
@@ -159,6 +160,7 @@ export async function deleteBody(userId: string) {
     }),
   ]);
   if (p?.bodyFileKey) await storage().delete(p.bodyFileKey);
+  await deleteDeepFits(db, storage(), userId);
 }
 
 /** The owner's body file, for `/api/fit-body` only. */

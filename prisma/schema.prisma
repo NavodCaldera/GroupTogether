@@ -99,6 +99,7 @@ model User {
   agent                Agent?
   bodyProfile          BodyProfile?
   bodyFitJobs          BodyFitJob[]
+  deepFitJobs          DeepFitJob[]
   fitFeedback          FitFeedback[]
   cartItems            CartItem[]
   buyerOrders          Order[]           @relation("OrderBuyer")
@@ -214,6 +215,7 @@ model Product {
   fitAssets      FitAsset[]
   regionTensions GarmentRegionTension[]
   fitFeedback    FitFeedback[]
+  deepFitJobs    DeepFitJob[]
   /// Fabric per role from the material library (DEC-022)
   materials      ProductMaterial[]
 
@@ -1338,6 +1340,31 @@ model BodyFitJob {
   startedAt DateTime?
   createdAt DateTime         @default(now())
   updatedAt DateTime         @updatedAt
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+/// A Deep Fit Test (DEC-021): one garment cloth-simulated on the buyer's own confirmed body by the
+/// sim worker. Valid only while the body (bodyFitAt) and the product's fit data (fitDataHash) match.
+model DeepFitJob {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  status      BodyFitJobStatus @default(QUEUED)
+  attempts    Int              @default(0)
+  error       String?
+  /// The body the test ran on (BodyProfile.bodyFitAt when requested)
+  bodyFitAt   DateTime
+  /// SHA-256 of the product's size chart and fabric fields when requested
+  fitDataHash String
+  /// Per size: tension per area and the private garment file's storage key
+  result      Json?
+  startedAt   DateTime?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
 
   @@index([status, createdAt])
   @@index([userId, createdAt])

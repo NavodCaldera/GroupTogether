@@ -9,6 +9,7 @@ import { sizesFor } from "@/lib/taxonomy";
 import { requireAdmin, requireFactory, requireUser } from "./auth/session";
 import { BodyFitError, confirmBody, deleteBody, rebuildBody } from "./body-fit";
 import { db } from "./db";
+import { DeepFitError, requestDeepFit } from "./deep-fit";
 import {
   deleteBodyProfile,
   FitError,
@@ -26,7 +27,12 @@ async function attempt(fn: () => Promise<unknown>): Promise<FitState> {
     await fn();
     return {};
   } catch (e) {
-    if (e instanceof FitError || e instanceof FitDataError || e instanceof BodyFitError)
+    if (
+      e instanceof FitError ||
+      e instanceof FitDataError ||
+      e instanceof BodyFitError ||
+      e instanceof DeepFitError
+    )
       return { error: e.message };
     if (e instanceof ZodError) return { error: e.issues[0]?.message ?? "Check the form" };
     throw e;
@@ -139,6 +145,16 @@ export async function confirmBodyAction(_p: FitState, _fd: FormData): Promise<Fi
   if (res.error) return res;
   revalidatePath("/account/fit");
   await flash("3D body saved");
+  return {};
+}
+
+/** Queues a Deep Fit Test of this product on the buyer's own body (5 a day). */
+export async function requestDeepFitAction(_p: FitState, fd: FormData): Promise<FitState> {
+  const user = await requireUser([...BUYER_ROLES]);
+  const productId = str(fd, "productId");
+  const res = await attempt(() => requestDeepFit(user.id, productId));
+  if (res.error) return res;
+  revalidatePath(`/products/${productId}`);
   return {};
 }
 
