@@ -6,6 +6,29 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-16 - Cloth simulation (Phase 6): Blender installed, built with agents
+
+- Owner asked whether the whole system can run on the laptop without hosting (yes: local
+  database, `npm run dev`, `npm run fit:worker`, uploads on disk), asked why Blender is needed,
+  then said "install blender and keep doing our work" and "create agents and speed up the work".
+- Blender 4.5.10 LTS installed (winget) at `C:\Program Files\Blender Foundation\Blender 4.5`.
+  Phase 6 is built by parallel agents in separate worktrees and merged into main by the lead.
+- Task 6.5, the Deep Fit Test queue. A buyer with a confirmed 3D body can ask for a garment with
+  an approved size chart to be cloth-simulated on their own body.
+  - Limit: up to 5 tests in any 24 hours. Asking again for the same product, on the same body
+    and fit data, returns the existing test and does not count.
+  - New table `DeepFitJob`, migration `20261117120000_deep_fit_job`, applied to the dev DB.
+  - Worker: `npm run sim:worker` (needs `BLENDER_BIN`) runs `tools/cloth-sim/run.py` once per
+    job. It sends the job as JSON in and reads the last line of output as the JSON result.
+  - A crash is retried 3 times.
+  - Each size's garment is stored privately at `deep-fit/<userId>/<jobId>/<size>.glb`, and only
+    its owner can fetch it, through `/api/fit-garment`.
+  - The buyer is notified with a link to the product.
+  - A result is thrown away if the buyer rebuilt their body, or the factory changed the fit
+    data, while the test was running.
+  - Deleting the body removes the buyer's tests. The sweep removes finished tests after 90 days.
+  - The product-page button comes in Task 6.6.
+
 ## 2026-11-16 - Material Library and Material Card: plan approved
 
 - Owner pasted a full spec for a fabric **Material Library** (fibres, yarns, constructions,
