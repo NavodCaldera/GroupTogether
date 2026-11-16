@@ -90,3 +90,13 @@ def test_body_file_carries_the_skin_and_version(body, tmp_path):
     doc = read_glb(path)
     assert len(doc["skins"][0]["joints"]) == 36 and doc["asset"]["extras"]["bodyVersion"] == 2
     assert N_PHENO == 6
+
+
+def test_the_browser_names_the_same_bones_in_the_same_order():
+    import re
+
+    import skin
+
+    ts = (Path(__file__).resolve().parents[3] / "src/lib/fit/motion.ts").read_text("utf-8")
+    block = ts[ts.index("export const BONES = [") : ts.index("] as const;")]
+    assert re.findall(r'"([^"]+)"', block) == list(skin.BONES)
