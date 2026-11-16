@@ -5,7 +5,9 @@ import { assertTestDatabase } from "../../scripts/test-database.mjs";
 import { DEMO, DEMO_FACTORIES, DEMO_PASSWORD, DEMO_PICKUP_CODE } from "../../src/lib/demo-accounts";
 import { seedBrowserFixtures } from "./seed-fixtures";
 
-test.use({ viewport: { width: 360, height: 740 } });
+// Reduced motion: product pages show the 3D body, which the software-drawn test browser animates
+// too slowly (see fit.spec.ts).
+test.use({ viewport: { width: 360, height: 740 }, contextOptions: { reducedMotion: "reduce" } });
 test.describe.configure({ mode: "serial" });
 
 const ids = { product: "", agent: "", agentName: "" };
