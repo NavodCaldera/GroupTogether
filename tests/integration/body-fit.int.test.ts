@@ -3,6 +3,7 @@ import { Prisma } from "@/generated/prisma/client";
 import { bodyFileFor, confirmBody, deleteBody, getBodyModel, rebuildBody } from "@/server/body-fit";
 import {
   claimBodyFit,
+  exportBodyCase,
   MAX_ATTEMPTS,
   OUTLINE_KEEP_MS,
   runBodyFitJob,
@@ -219,4 +220,18 @@ it("a body built before the skeleton is rewritten from its stored shape, still c
   expect(await db.notification.count({ where: { userId: buyer.id } })).toBe(1); // the build's only
   // Nothing left to do.
   expect(await upgradeBodies(db, storage(), write)).toBe(0);
+});
+
+it("a volunteer's capture is exported for the accuracy test until its outlines are cleared", async () => {
+  const buyer = await makeBuyer();
+  await saveBodyProfile(buyer.id, profile());
+  const tape = { chest: 97, waist: 83.5, hip: 95 };
+  const exported = await exportBodyCase(db, buyer.email, tape);
+  expect(exported.job).toMatchObject({ heightCm: 172, front: { width: 16 } });
+  expect(exported.tape).toEqual(tape);
+  await expect(exportBodyCase(db, "nobody@example.com", tape)).rejects.toThrow("No such user");
+
+  await buildOnce();
+  await confirmBody(buyer.id);
+  await expect(exportBodyCase(db, buyer.email, tape)).rejects.toThrow("No outlines stored");
 });

@@ -195,3 +195,26 @@ export async function upgradeBodies(
   }
   return done;
 }
+
+export interface Tape {
+  chest: number;
+  waist: number;
+  hip: number;
+}
+
+/**
+ * A volunteer's newest capture with their tape measurements, for the accuracy test
+ * (tools/body-fitting/accuracy.py). Outlines are personal data: only for consenting volunteers,
+ * and only until the outlines are cleared (on confirming, or after 7 days).
+ */
+export async function exportBodyCase(db: PrismaClient, email: string, tape: Tape) {
+  const user = await db.user.findUnique({ where: { email }, select: { id: true } });
+  if (!user) throw new Error("No such user");
+  const job = await db.bodyFitJob.findFirst({
+    where: { userId: user.id },
+    orderBy: { createdAt: "desc" },
+    select: { input: true },
+  });
+  if (!job?.input) throw new Error("No outlines stored");
+  return { job: job.input, tape };
+}
