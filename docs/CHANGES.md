@@ -6,6 +6,16 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-16 - Plan for the remaining personal body work
+
+- Owner asked for "a full plan to implement all" of what `DEC-021` left unbuilt. Written as
+  [the remaining-work plan](superpowers/plans/2026-11-16-personal-body-remaining.md): six phases
+  (phone testing, accuracy on real people with a release gate, deployable worker, motions on the
+  buyer's own body, Anny mannequins, cloth simulation with clusters and the Deep Fit Test).
+  Nothing is built yet. It lists six assumptions for the owner (S3-compatible storage, the
+  feature off until the accuracy gate passes, clusters reuse `BodyArchetype`, dropping
+  `FitAsset`, Blender on CPU, 5 tests a day).
+
 ## 2026-11-16 - Personal body mesh resumed: fitting service
 
 - Owner said "keep doing". The three open questions in `DEC-021` were not answered, so work

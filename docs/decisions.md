@@ -348,7 +348,9 @@ made: **photos still never leave the phone**; the phone sends the body outlines 
 positions, deleted after the buyer confirms (7-day sweep). Three questions are open: the Deep Fit
 Test engine without Blender or patterns, whether archetype mannequins also move to Anny, and
 whether the personal body file is private or on a public link. Findings, plan and questions:
-[the parked plan](superpowers/plans/personal-body-mesh-paused.md).
+[the parked plan](superpowers/plans/personal-body-mesh-paused.md). The unbuilt parts (accuracy test, deployment, motions, Anny
+mannequins, clusters, cloth simulation) are planned, not built, in
+[the remaining-work plan](superpowers/plans/2026-11-16-personal-body-remaining.md).
 
 On resuming, the owner did not answer the three questions; work proceeds on the recommended
 answers until the owner says otherwise: (1) the Deep Fit Test is geometric on the buyer's own
