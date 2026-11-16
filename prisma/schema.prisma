@@ -1500,6 +1500,8 @@ enum FeelAxisKey {
 
 enum AxisBasis {
   MEASURED
+  /// A point from a factory-declared figure (e.g. gsm), not a lab test
+  DECLARED
   ESTIMATED
   NOT_AVAILABLE
 }

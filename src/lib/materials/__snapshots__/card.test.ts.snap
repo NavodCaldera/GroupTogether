@@ -1,0 +1,139 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`buildCard provenance > snapshots the estimated card 1`] = `
+{
+  "adjectives": {
+    "provenance": {
+      "evidenceCodes": [
+        "EV-ADJ1",
+        "EV-ADJ2",
+      ],
+      "kind": "evidence",
+    },
+    "value": [
+      "soft",
+      "smooth",
+    ],
+  },
+  "axes": [
+    {
+      "axis": "SOFT_FIRM",
+      "band": [
+        5,
+        35,
+      ],
+      "basis": "ESTIMATED",
+      "evidenceCodes": [
+        "EV-H",
+      ],
+      "measurementIds": [],
+      "rule": {
+        "code": "SOFT_EST",
+        "version": 1,
+      },
+      "text": "Softness: estimated 5–35 out of 100, where 0 is softest",
+      "value": null,
+    },
+    {
+      "axis": "LIGHT_SUBSTANTIAL",
+      "band": null,
+      "basis": "DECLARED",
+      "evidenceCodes": [],
+      "measurementIds": [],
+      "rule": {
+        "code": "WEIGHT",
+        "version": 1,
+      },
+      "text": "Weight: 25 from the factory's figure, out of 100, where 0 is lightest",
+      "value": 25,
+    },
+    {
+      "axis": "SMOOTH_TEXTURED",
+      "band": null,
+      "basis": "NOT_AVAILABLE",
+      "evidenceCodes": [],
+      "measurementIds": [],
+      "rule": null,
+      "text": "Surface: not yet measured",
+      "value": null,
+    },
+    {
+      "axis": "BREATHABLE_INSULATING",
+      "band": null,
+      "basis": "NOT_AVAILABLE",
+      "evidenceCodes": [],
+      "measurementIds": [],
+      "rule": null,
+      "text": "Breathability: not yet measured",
+      "value": null,
+    },
+  ],
+  "badge": "LIBRARY_ESTIMATE",
+  "care": {
+    "provenance": {
+      "kind": "declared",
+    },
+    "value": "Machine wash 30°C",
+  },
+  "details": {
+    "breathability": null,
+    "composition": {
+      "provenance": {
+        "kind": "declared",
+      },
+      "value": "100% organic (GOTS) upland cotton · Combed ring-spun",
+    },
+    "construction": {
+      "provenance": {
+        "evidenceCodes": [
+          "EV-STR",
+        ],
+        "kind": "evidence",
+      },
+      "value": "Single jersey knit",
+    },
+    "shrinkage": null,
+    "stretch": null,
+    "weight": {
+      "provenance": {
+        "kind": "declared",
+        "rule": {
+          "code": "WEIGHT",
+          "version": 1,
+        },
+      },
+      "value": {
+        "caption": "Light",
+        "gsm": 160,
+      },
+    },
+  },
+  "displayName": "Combed cotton jersey",
+  "feelsLike": {
+    "provenance": {
+      "evidenceCodes": [
+        "EV-FEEL",
+      ],
+      "kind": "evidence",
+    },
+    "value": "a soft everyday T-shirt",
+  },
+  "madeFor": null,
+  "onSkin": {
+    "provenance": {
+      "evidenceCodes": [
+        "EV-COT",
+      ],
+      "kind": "rule",
+      "measurementIds": [],
+      "rule": {
+        "code": "MOISTURE",
+        "version": 1,
+      },
+    },
+    "value": "Absorbs sweat",
+  },
+  "productMaterialId": "pm1",
+  "videoUrl": null,
+}
+`;
