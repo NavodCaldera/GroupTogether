@@ -214,6 +214,8 @@ model Product {
   fitAssets      FitAsset[]
   regionTensions GarmentRegionTension[]
   fitFeedback    FitFeedback[]
+  /// Fabric per role from the material library (DEC-022)
+  materials      ProductMaterial[]
 
   @@index([status, category])
   @@index([sellerId])
@@ -1284,9 +1286,9 @@ model BodyArchetype {
 
 /// A buyer's measurements, worked out on their phone. Photos are never uploaded.
 model BodyProfile {
-  id           String         @id @default(cuid())
-  userId       String         @unique
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String           @id @default(cuid())
+  userId       String           @unique
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   heightCm     Float
   /// { "chest": { "value": 96, "low": 92, "high": 100, "source": "photo" | "typed" } }
   measurements Json
@@ -1294,7 +1296,7 @@ model BodyProfile {
   gender       String?
   ageBand      String?
   archetypeId  String?
-  archetype    BodyArchetype? @relation(fields: [archetypeId], references: [id], onDelete: SetNull)
+  archetype    BodyArchetype?   @relation(fields: [archetypeId], references: [id], onDelete: SetNull)
   /// Photo checks, model used, typed corrections against the photo estimate
   captureMeta  Json?
   consentAt    DateTime
@@ -1305,8 +1307,8 @@ model BodyProfile {
   /// Fit result: Anny parameters, quality and measurements from the fitted body
   bodyFit      Json?
   bodyFitAt    DateTime?
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 }
 
 enum BodyModelStatus {
@@ -1389,4 +1391,424 @@ model FitFeedback {
   createdAt     DateTime           @default(now())
 
   @@index([productId])
+}
+
+// ─── Material library (DEC-022) ─────────────────────────────────────────────
+// Every buyer-facing value traces to a Measurement, an Evidence row (claim + Source) or a
+// versioned MethodologyRule; anything else is null and shown as "Not yet measured".
+// CHECK constraints and the MethodologyRule append-only trigger live in the migration.
+
+enum FiberFamily {
+  NATURAL_PLANT
+  NATURAL_ANIMAL
+  REGENERATED_CELLULOSIC
+  SYNTHETIC
+}
+
+enum ConstructionCategory {
+  WEFT_KNIT
+  WARP_KNIT
+  WOVEN
+  OTHER
+}
+
+enum StretchType {
+  NONE
+  MECHANICAL
+  TWO_WAY
+  FOUR_WAY
+}
+
+enum MaterialStatus {
+  DRAFT
+  PUBLISHED
+}
+
+/// A = test standard or peer-reviewed; B = university, government, institute, association;
+/// C = trade guide or blog (only when no A/B source exists; flagged for upgrade)
+enum SourceTier {
+  A
+  B
+  C
+}
+
+enum EvidenceSubject {
+  FIBER
+  YARN_PROCESS
+  FIBER_STANDARD
+  CONSTRUCTION
+  FINISH
+  MATERIAL
+  LAB
+}
+
+enum TestStandard {
+  KES_FB2_BENDING
+  KES_FB4_SURFACE
+  KES_FB3_COMPRESSION
+  AATCC_TM202
+  AATCC_TM218
+  ASTM_D1388
+  FAST2
+  ISO_3801
+  EN_12127
+  ASTM_D3776
+  ISO_9237
+  ASTM_D737
+  ISO_11092
+  AATCC_TM195
+  AATCC_TM199
+  ISO_20932_1
+  ASTM_D2594
+  ASTM_D3107
+  ISO_5077
+  AATCC_TM135
+  ISO_12945_2
+  ISO_12947_2
+  BS_5058
+  AATCC_TM128
+  AATCC_EP5_PANEL
+}
+
+enum MeasureDirection {
+  WARP
+  WEFT
+  WALE
+  COURSE
+  AVG
+}
+
+enum MaterialRole {
+  SHELL
+  LINING
+  TRIM
+  RIB_COLLAR
+}
+
+enum VerificationLevel {
+  LIBRARY_ESTIMATE
+  FACTORY_DECLARED
+  LAB_MEASURED
+}
+
+enum FeelAxisKey {
+  SOFT_FIRM
+  LIGHT_SUBSTANTIAL
+  SMOOTH_TEXTURED
+  BREATHABLE_INSULATING
+}
+
+enum AxisBasis {
+  MEASURED
+  ESTIMATED
+  NOT_AVAILABLE
+}
+
+model Fiber {
+  id                String      @id @default(cuid())
+  code              String      @unique
+  name              String
+  family            FiberFamily
+  speciesOrPolymer  String?
+  /// Numbers need an Evidence row with the same attribute name, or stay null
+  stapleLengthMmMin Float?
+  stapleLengthMmMax Float?
+  moistureRegainPct Float?
+  notes             String?
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  materials MaterialFiber[]
+}
+
+model YarnProcess {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  name        String
+  description String?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  materials   Material[]
+}
+
+model FiberStandard {
+  id             String          @id @default(cuid())
+  code           String          @unique
+  name           String
+  certifyingBody String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  fibers         MaterialFiber[]
+}
+
+model Construction {
+  id                   String               @id @default(cuid())
+  code                 String               @unique
+  name                 String
+  category             ConstructionCategory
+  structureDescription String?
+  typicalGsmMin        Int?
+  typicalGsmMax        Int?
+  typicalEndUses       String[]
+  createdAt            DateTime             @default(now())
+  updatedAt            DateTime             @updatedAt
+  materials            Material[]
+}
+
+model Finish {
+  id                String     @id @default(cuid())
+  code              String     @unique
+  name              String
+  effectDescription String?
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
+  materials         Material[]
+}
+
+/// A library fabric. Factories pick one per product; buyers see it only once PUBLISHED.
+model Material {
+  id              String         @id @default(cuid())
+  code            String         @unique
+  displayName     String
+  constructionId  String
+  construction    Construction   @relation(fields: [constructionId], references: [id])
+  yarnProcessId   String?
+  yarnProcess     YarnProcess?   @relation(fields: [yarnProcessId], references: [id])
+  finishId        String
+  finish          Finish         @relation(fields: [finishId], references: [id])
+  defaultGsmMin   Int?
+  defaultGsmMax   Int?
+  stretchType     StretchType?
+  /// Editorial buyer copy ("a soft everyday T-shirt"), reviewed against the evidence
+  feelsLikeAnchor String?
+  endUses         String[]
+  status          MaterialStatus @default(DRAFT)
+  publishedAt     DateTime?
+  publishedById   String?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  fibers       MaterialFiber[]
+  products     ProductMaterial[]
+  swatches     CalibrationSwatch[]
+  measurements Measurement[]
+
+  @@index([status])
+}
+
+/// Percentages of one material sum to 100 (checked by the service and the loader)
+model MaterialFiber {
+  id              String         @id @default(cuid())
+  materialId      String
+  material        Material       @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  fiberId         String
+  fiber           Fiber          @relation(fields: [fiberId], references: [id])
+  fiberStandardId String?
+  fiberStandard   FiberStandard? @relation(fields: [fiberStandardId], references: [id])
+  percentage      Int
+
+  @@unique([materialId, fiberId, fiberStandardId])
+}
+
+model Source {
+  id            String     @id @default(cuid())
+  /// Stable reference used by seed files, e.g. "S12"
+  code          String     @unique
+  title         String
+  publisher     String
+  url           String
+  publishedYear Int?
+  accessedOn    DateTime?  @db.Date
+  tier          SourceTier
+  notes         String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  evidence Evidence[]
+  labs     Lab[]
+}
+
+/// One sourced claim about a taxonomy row, material or lab. `subjectCode` is the subject's code.
+model Evidence {
+  id          String          @id @default(cuid())
+  code        String          @unique
+  subjectType EvidenceSubject
+  subjectCode String
+  /// e.g. "typical_gsm", "softness_relative", "moisture_regain_pct"
+  attribute   String
+  claim       String
+  valueText   String?
+  valueMin    Float?
+  valueMax    Float?
+  unit        String?
+  sourceId    String
+  source      Source          @relation(fields: [sourceId], references: [id])
+  /// Page, table or section
+  locator     String?
+  /// Short quote read from the source; null until checked (TODO(evidence))
+  excerpt     String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([subjectType, subjectCode])
+}
+
+/// A testing lab. A measurement is accredited only when its test is inside `scope`.
+model Lab {
+  id              String         @id @default(cuid())
+  code            String         @unique
+  name            String
+  city            String?
+  accreditationNo String?
+  scope           TestStandard[]
+  scopeSourceId   String?
+  scopeSource     Source?        @relation(fields: [scopeSourceId], references: [id])
+  /// When GroupBasket last checked the scope document; null = not yet verified
+  scopeVerifiedOn DateTime?      @db.Date
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  measurements Measurement[]
+}
+
+/// A lab-tested value. Belongs to exactly one of a product's material, a library material or
+/// a calibration swatch.
+model Measurement {
+  id                  String             @id @default(cuid())
+  productMaterialId   String?
+  productMaterial     ProductMaterial?   @relation(fields: [productMaterialId], references: [id], onDelete: Cascade)
+  materialId          String?
+  material            Material?          @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  calibrationSwatchId String?
+  calibrationSwatch   CalibrationSwatch? @relation(fields: [calibrationSwatchId], references: [id], onDelete: Cascade)
+  testStandard        TestStandard
+  /// e.g. "bending_rigidity", "air_permeability", "mass_per_area", "stretch", "shrinkage"
+  property            String
+  value               Float
+  unit                String
+  direction           MeasureDirection   @default(AVG)
+  labId               String?
+  lab                 Lab?               @relation(fields: [labId], references: [id])
+  labName             String
+  labAccreditationNo  String?
+  /// True only when the lab is known and the test is inside its accredited scope
+  accredited          Boolean
+  reportRef           String?
+  /// Private PDF of the lab report
+  reportKey           String?
+  reportType          String?
+  testedOn            DateTime           @db.Date
+  enteredById         String
+  createdAt           DateTime           @default(now())
+
+  @@index([productMaterialId])
+  @@index([materialId])
+  @@index([calibrationSwatchId])
+}
+
+/// A versioned GroupBasket rule. Append-only: a change is a new version.
+model MethodologyRule {
+  id               String          @id @default(cuid())
+  code             String
+  version          Int
+  attribute        String
+  ruleDescription  String
+  formula          String
+  /// Rule tables (e.g. estimated bands per construction), each row citing evidence codes
+  params           Json?
+  calibrationSetId String?
+  calibrationSet   CalibrationSet? @relation(fields: [calibrationSetId], references: [id])
+  effectiveFrom    DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+
+  @@unique([code, version])
+}
+
+/// The GroupBasket Reference Swatch Set: the fixed fabrics measured scales are ranked against
+model CalibrationSet {
+  id        String    @id @default(cuid())
+  code      String    @unique
+  name      String
+  version   Int       @default(1)
+  /// The set measured scales use; null while it is still being measured
+  activeAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  swatches CalibrationSwatch[]
+  rules    MethodologyRule[]
+}
+
+model CalibrationSwatch {
+  id         String         @id @default(cuid())
+  setId      String
+  set        CalibrationSet @relation(fields: [setId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material       @relation(fields: [materialId], references: [id])
+  label      String
+  notes      String?
+  createdAt  DateTime       @default(now())
+
+  measurements Measurement[]
+
+  @@unique([setId, label])
+}
+
+/// The fabric a product is made of, per role
+model ProductMaterial {
+  id                String            @id @default(cuid())
+  productId         String
+  product           Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  materialId        String
+  material          Material          @relation(fields: [materialId], references: [id])
+  role              MaterialRole      @default(SHELL)
+  /// Factory-declared, required
+  actualGsm         Int
+  /// Optional override of the library composition: [{ "fiber": "cotton_upland", "standard": null, "pct": 95 }]
+  actualComposition Json?
+  verificationLevel VerificationLevel @default(LIBRARY_ESTIMATE)
+  /// Set when gsm or composition is far outside the library range and the factory confirmed it
+  needsReviewAt     DateTime?
+  reviewedAt        DateTime?
+  reviewedById      String?
+  /// Optional 12 s fabric motion video
+  videoKey          String?
+  videoType         String?
+  setById           String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  measurements Measurement[]
+  feel         FeelProfile?
+
+  @@unique([productId, role])
+  @@index([materialId])
+  @@index([needsReviewAt])
+}
+
+/// Computed feel profile of one product material, rebuilt on every change
+model FeelProfile {
+  id                String          @id @default(cuid())
+  productMaterialId String          @unique
+  productMaterial   ProductMaterial @relation(fields: [productMaterialId], references: [id], onDelete: Cascade)
+  computedAt        DateTime        @default(now())
+  axes              FeelAxis[]
+}
+
+/// One slider: a point (`value`) when measured, a band when estimated, neither when not available
+model FeelAxis {
+  id             String      @id @default(cuid())
+  profileId      String
+  profile        FeelProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  axis           FeelAxisKey
+  basis          AxisBasis
+  value          Float?
+  bandMin        Float?
+  bandMax        Float?
+  ruleCode       String?
+  ruleVersion    Int?
+  evidenceCodes  String[]
+  measurementIds String[]
+
+  @@unique([profileId, axis])
 }
