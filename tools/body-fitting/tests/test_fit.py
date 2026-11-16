@@ -146,3 +146,18 @@ def test_serve_answers_several_requests_on_one_loaded_model(fitter, tmp_path):
     assert out[3]["id"] == "b" and "height" in out[3]["error"]
     assert out[4] == {"id": "c", "result": {"status": "ok", "bodyVersion": 2}}
     assert (tmp_path / "c.glb").exists()
+
+
+@pytest.mark.anny
+@pytest.mark.parametrize("gender,height,chest,waist,hip", [
+    (1, 168, 88, 70, 96), (0, 174, 104, 92, 102), (1, 155, 82, 66, 90), (0, 168, 92, 78, 92)])
+def test_fit_from_measurements_alone_matches_the_tape(fitter, gender, height, chest, waist, hip):
+    """Standard bodies have no photos: height, gender and the three girths decide the shape."""
+    result = fitter.fit_measurements(height, gender, {"chest": chest, "waist": waist, "hip": hip})
+    m = result["measurements"]
+    assert result["status"] == "ok" and result["quality"]["rows"] == 0
+    assert abs(m["height"] - height) < 0.5
+    for k, want in (("chest", chest), ("waist", waist), ("hip", hip)):
+        assert abs(m[k] - want) < 1.0, (k, m[k])
+    assert result["phenotype"]["gender"] == gender
+    assert set(result["local"]) == set(LOCAL)

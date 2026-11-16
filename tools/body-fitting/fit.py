@@ -41,10 +41,13 @@ SD = {
     "band": 0.8,
     "joint": 2.0,  # MediaPipe joints are not Anny's bone heads: loose until calibrated
     "typed": 1.0,
+    "tape": 0.3,  # a standard body is defined by its measurements: hold them tightly
     "gender": 0.1,
 }
 MISSING_BAND = 4.0  # squared-error cost when a row exists on only one side
-PASS = {"rms_cm": 1.5, "bands": 12, "height_cm": 1.5}
+PASS = {"rms_cm": 1.5, "bands": 12, "height_cm": 1.5, "tape_cm": 1.0}
+# Controls that set a girth directly, for bodies fitted from measurements alone.
+MEASURE_LOCAL = ("measure-bust-circ-incr", "measure-waist-circ-incr", "measure-hips-circ-incr")
 N_PHENO = len(PHENOTYPES)
 BODY_VERSION = 2  # 2: the body file has a skeleton (skin.py)
 # Anny's age runs newborn -1/3, baby 0, child 1/3, young adult 2/3, old 1: buyers are adults.
@@ -56,7 +59,7 @@ PRIOR = np.array([0.5, 0.75, 0.5, 0.5, 0.5, 0.5])
 @dataclass
 class Job:
     height: float
-    observed: Observed
+    observed: Observed | None  # None: a body from measurements alone
     typed: dict[str, float] = field(default_factory=dict)
     gender: float | None = None
 
@@ -173,34 +176,84 @@ class Fitter:
         return np.array(es.result.xbest)
 
     def _refine(self, job: Job, x: np.ndarray, lower, upper, iters: int = 12) -> np.ndarray:
+        return self._lm(lambda f, v: residuals(f, job, v), x, lower, upper, iters)
+
+    def _lm(self, resid, x: np.ndarray, lower, upper, iters: int = 12, free=None) -> np.ndarray:
         """Levenberg-Marquardt with a forward-difference Jacobian, one batch per step.
 
         The outline is close to linear in Anny's local controls, so a few steps beat many
         random samples. Each step evaluates the Jacobian columns and five damping trials together.
+        `resid(features, x)` gives the residuals; only the `free` indices of x move (default all).
         """
         h = 0.01
-        r = residuals(self._features(x)[0], job, x)
+        free = np.arange(len(x)) if free is None else np.asarray(free)
+        r = resid(self._features(x)[0], x)
         for _ in range(iters):
-            step = np.where(x + h <= upper, h, -h)
-            probes = x + np.diag(step)
+            step = np.where(x[free] + h <= upper[free], h, -h)
+            probes = np.tile(x, (len(free), 1))
+            probes[np.arange(len(free)), free] += step
             fs = self._features(probes)
-            jac = np.stack([(residuals(f, job, p) - r) / s for f, p, s in zip(fs, probes, step)], axis=1)
+            jac = np.stack([(resid(f, p) - r) / s for f, p, s in zip(fs, probes, step)], axis=1)
             jtj, jtr = jac.T @ jac, jac.T @ r
             trials = []
             for lam in (1e-3, 1e-2, 1e-1, 1.0, 10.0):
-                a = jtj + lam * (np.diag(np.diag(jtj)) + 1e-6 * np.eye(len(x)))
-                trials.append(np.clip(x - np.linalg.solve(a, jtr), lower, upper))
+                a = jtj + lam * (np.diag(np.diag(jtj)) + 1e-6 * np.eye(len(free)))
+                t = x.copy()
+                t[free] = np.clip(x[free] - np.linalg.solve(a, jtr), lower[free], upper[free])
+                trials.append(t)
             trials = np.array(trials)
-            costs = [float(np.sum(np.square(residuals(f, job, t)))) for f, t in zip(self._features(trials), trials)]
+            costs = [float(np.sum(np.square(resid(f, t)))) for f, t in zip(self._features(trials), trials)]
             best = int(np.argmin(costs))
             old = float(np.sum(np.square(r)))
             if costs[best] >= old:
                 break
             x = trials[best]
-            r = residuals(self._features(x)[0], job, x)
+            r = resid(self._features(x)[0], x)
             if old - costs[best] < 1e-3 * old:
                 break
         return x
+
+    def fit_measurements(self, height_cm: float, gender: int, typed: dict[str, float]) -> dict:
+        """A body from height, gender and tape girths alone (the standard bodies have no photos).
+
+        Moves weight, muscle, height and proportions and the bust, waist and hip controls; age
+        stays a young adult's. The result has the shape of `fit`'s, with no outline rows.
+        """
+        t0 = time.perf_counter()
+        self.evals = 0
+        n = len(LOCAL)
+        job = Job(float(height_cm), None, {k: float(v) for k, v in typed.items()}, float(gender))
+        x = np.concatenate([self._start(job), np.zeros(n)])
+        free = [PHENOTYPES.index(k) for k in ("muscle", "weight", "height", "proportions")]
+        free += [N_PHENO + LOCAL.index(k) for k in MEASURE_LOCAL]
+        lower = np.concatenate([LOWER, -np.ones(n)])
+        upper = np.concatenate([UPPER, np.ones(n)])
+
+        def resid(f: Features, v: np.ndarray) -> np.ndarray:
+            m = f.measurements()
+            r = [(f.height - job.height) / SD["height"]]
+            r += [(m[k] - want) / SD["tape"] for k, want in job.typed.items()]
+            r += list(np.sqrt(0.05) * (v[free[:4]] - PRIOR[free[:4]]) / 0.5)
+            r += list(np.sqrt(0.02) * v[free[4:]] / 0.6)
+            return np.asarray(r, dtype=float)
+
+        x = self._lm(resid, x, lower, upper, iters=20, free=free)
+        f = self._features(x)[0]
+        m = f.measurements()
+        worst = max([abs(f.height - job.height)] + [abs(m[k] - v) for k, v in job.typed.items()])
+        return {
+            "status": "ok" if worst <= PASS["tape_cm"] else "failed",
+            "quality": {"rmsCm": 0.0, "rows": 0, "missingRows": 0,
+                        "heightErrorCm": round(abs(f.height - job.height), 2),
+                        "worstCm": round(float(worst), 2), "pass": worst <= PASS["tape_cm"],
+                        "reasons": [] if worst <= PASS["tape_cm"] else ["measurements_mismatch"]},
+            "phenotype": {k: round(float(v), 4) for k, v in zip(PHENOTYPES, x[:N_PHENO])},
+            "local": {k: round(float(v), 4) for k, v in zip(LOCAL, x[N_PHENO:])},
+            "measurements": m,
+            "bodyVersion": BODY_VERSION,
+            "evals": self.evals,
+            "seconds": round(time.perf_counter() - t0, 1),
+        }
 
     def fit(self, job: Job, seed: int = 1) -> dict:
         t0 = time.perf_counter()
