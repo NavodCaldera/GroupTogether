@@ -87,9 +87,9 @@ it("stores only numbers and consent, matches an archetype, and deletes on reques
   const { variant } = await makeFactory();
   // The old per-motion garment files, for a standard shape without a body file.
   const motions = ["WALK", "RUN", "REACH", "SIT"].map((motion) => ({
-    archetype: "men-05",
+    archetype: "men-07",
     motion,
-    file: `men-05/${motion.toLowerCase()}-abc123.glb`,
+    file: `men-07/${motion.toLowerCase()}-abc123.glb`,
   }));
   await loadFitManifest(db, { ...manifest, assets: motions }, variant.productId, {
     baseUrl: "/fit-assets/x",
@@ -106,19 +106,19 @@ it("stores only numbers and consent, matches an archetype, and deletes on reques
   });
   expect(saved.consentAt).toBeInstanceOf(Date);
   const archetype = await db.bodyArchetype.findUnique({ where: { id: saved.archetypeId! } });
-  expect(archetype?.name).toBe("men-05");
+  expect(archetype?.name).toBe("men-07");
 
   const view = await getFitView(variant.productId, buyer.id);
   expect(view.report?.simulated).toBe(true);
   expect(view.assets.map((a) => a.motion).sort()).toEqual(["REACH", "RUN", "SIT", "WALK"]);
-  expect(view.assets[0].url).toMatch(/^\/fit-assets\/x\/men-05\//);
+  expect(view.assets[0].url).toMatch(/^\/fit-assets\/x\/men-07\//);
   // No body file for this standard shape yet: the old per-motion files are still used.
   expect(view.body).toBeNull();
 
   // With a standard body file, the garment is drawn over it and it moves like an own body.
-  await loadBodyFiles(db, { "men-05": "men-05-abc123.glb" }, "/fit-assets/bodies");
+  await loadBodyFiles(db, { "men-07": "men-07-abc123.glb" }, "/fit-assets/bodies");
   expect((await getFitView(variant.productId, buyer.id)).body).toEqual({
-    url: "/fit-assets/bodies/men-05-abc123.glb",
+    url: "/fit-assets/bodies/men-07-abc123.glb",
     fitClass: "top",
     short: false,
     animated: true,

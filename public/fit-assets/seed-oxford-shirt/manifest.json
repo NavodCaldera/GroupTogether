@@ -53,27 +53,27 @@
       "name": "men-01",
       "gender": "MEN",
       "params": {
-        "height": 148.2,
-        "chest": 82.5,
-        "waist": 67.2,
-        "hip": 81.5,
-        "torso": 40.3,
-        "thigh": 46.0,
-        "upperArm": 25.9,
-        "neck": 32.2,
-        "wrist": 14.8,
-        "shoulder": 38.1,
-        "inseam": 67.1
+        "height": 157.8,
+        "chest": 88.1,
+        "waist": 75.3,
+        "hip": 88.9,
+        "torso": 43.0,
+        "thigh": 50.2,
+        "upperArm": 27.7,
+        "neck": 34.4,
+        "wrist": 15.8,
+        "shoulder": 40.6,
+        "inseam": 71.5
       },
-      "share": 0.075,
+      "share": 0.126,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.1239,
-          "weight": 0.2033,
-          "height": 0.1153,
-          "proportions": 0.3861
+          "muscle": 0.7025,
+          "weight": 0.2088,
+          "height": 0.2038,
+          "proportions": 0.4792
         },
         "local": {}
       }
@@ -82,27 +82,27 @@
       "name": "men-02",
       "gender": "MEN",
       "params": {
-        "height": 150.6,
-        "chest": 93.7,
-        "waist": 83.8,
-        "hip": 94.7,
-        "torso": 41.1,
-        "thigh": 53.5,
-        "upperArm": 29.4,
-        "neck": 36.5,
-        "wrist": 15.1,
-        "shoulder": 38.7,
-        "inseam": 68.2
+        "height": 159.8,
+        "chest": 93.0,
+        "waist": 85.1,
+        "hip": 96.8,
+        "torso": 43.9,
+        "thigh": 54.7,
+        "upperArm": 29.2,
+        "neck": 36.3,
+        "wrist": 16.0,
+        "shoulder": 41.1,
+        "inseam": 72.4
       },
-      "share": 0.109,
+      "share": 0.121,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.4714,
-          "weight": 0.8717,
-          "height": 0.138,
-          "proportions": 0.4242
+          "muscle": 0.4316,
+          "weight": 0.6516,
+          "height": 0.2216,
+          "proportions": 0.5885
         },
         "local": {}
       }
@@ -111,27 +111,27 @@
       "name": "men-03",
       "gender": "MEN",
       "params": {
-        "height": 154.6,
-        "chest": 87.6,
-        "waist": 74.7,
-        "hip": 88.4,
-        "torso": 42.1,
-        "thigh": 49.9,
-        "upperArm": 27.5,
-        "neck": 34.2,
-        "wrist": 15.5,
-        "shoulder": 39.7,
-        "inseam": 70.0
+        "height": 160.9,
+        "chest": 102.6,
+        "waist": 91.8,
+        "hip": 101.0,
+        "torso": 44.0,
+        "thigh": 57.1,
+        "upperArm": 32.2,
+        "neck": 40.0,
+        "wrist": 16.1,
+        "shoulder": 41.4,
+        "inseam": 72.9
       },
-      "share": 0.151,
+      "share": 0.075,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.2571,
-          "weight": 0.3049,
-          "height": 0.1744,
-          "proportions": 0.467
+          "muscle": 0.852,
+          "weight": 0.9796,
+          "height": 0.1855,
+          "proportions": 0.5882
         },
         "local": {}
       }
@@ -140,27 +140,27 @@
       "name": "men-04",
       "gender": "MEN",
       "params": {
-        "height": 159.7,
-        "chest": 106.2,
-        "waist": 99.8,
-        "hip": 104.9,
-        "torso": 44.5,
-        "thigh": 59.3,
-        "upperArm": 33.3,
-        "neck": 41.4,
-        "wrist": 16.0,
-        "shoulder": 41.0,
-        "inseam": 72.3
+        "height": 165.4,
+        "chest": 85.5,
+        "waist": 67.0,
+        "hip": 84.5,
+        "torso": 44.8,
+        "thigh": 47.7,
+        "upperArm": 26.8,
+        "neck": 33.3,
+        "wrist": 16.5,
+        "shoulder": 42.5,
+        "inseam": 74.9
       },
-      "share": 0.049,
+      "share": 0.058,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.147,
-          "weight": 0.8021,
-          "height": 0.221,
-          "proportions": 0.4757
+          "muscle": 0.1926,
+          "weight": 0.0825,
+          "height": 0.2738,
+          "proportions": 0.4762
         },
         "local": {}
       }
@@ -169,27 +169,27 @@
       "name": "men-05",
       "gender": "MEN",
       "params": {
-        "height": 170.1,
-        "chest": 97.9,
-        "waist": 87.1,
-        "hip": 100.7,
-        "torso": 45.8,
-        "thigh": 56.9,
-        "upperArm": 30.7,
-        "neck": 38.2,
-        "wrist": 17.0,
-        "shoulder": 43.7,
-        "inseam": 77.1
+        "height": 165.7,
+        "chest": 109.7,
+        "waist": 103.7,
+        "hip": 108.2,
+        "torso": 46.2,
+        "thigh": 61.1,
+        "upperArm": 34.4,
+        "neck": 42.8,
+        "wrist": 16.6,
+        "shoulder": 42.6,
+        "inseam": 75.1
       },
-      "share": 0.124,
+      "share": 0.051,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.5195,
-          "weight": 0.8369,
-          "height": 0.3146,
-          "proportions": 0.4519
+          "muscle": 0.1424,
+          "weight": 0.8427,
+          "height": 0.2763,
+          "proportions": 0.4929
         },
         "local": {}
       }
@@ -198,27 +198,27 @@
       "name": "men-06",
       "gender": "MEN",
       "params": {
-        "height": 172.2,
-        "chest": 92.5,
-        "waist": 77.8,
-        "hip": 93.8,
-        "torso": 46.5,
-        "thigh": 53.0,
-        "upperArm": 29.0,
-        "neck": 36.1,
-        "wrist": 17.2,
-        "shoulder": 44.3,
-        "inseam": 78.0
+        "height": 167.1,
+        "chest": 90.2,
+        "waist": 78.2,
+        "hip": 92.4,
+        "torso": 45.2,
+        "thigh": 52.2,
+        "upperArm": 28.3,
+        "neck": 35.2,
+        "wrist": 16.7,
+        "shoulder": 42.9,
+        "inseam": 75.7
       },
-      "share": 0.145,
+      "share": 0.206,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.3017,
-          "weight": 0.2641,
-          "height": 0.3363,
-          "proportions": 0.4851
+          "muscle": 0.1375,
+          "weight": 0.3019,
+          "height": 0.2891,
+          "proportions": 0.4823
         },
         "local": {}
       }
@@ -227,27 +227,27 @@
       "name": "men-07",
       "gender": "MEN",
       "params": {
-        "height": 181.5,
-        "chest": 119.7,
-        "waist": 116.3,
-        "hip": 119.0,
-        "torso": 51.5,
-        "thigh": 67.2,
-        "upperArm": 37.6,
-        "neck": 46.7,
-        "wrist": 18.2,
-        "shoulder": 46.6,
-        "inseam": 82.2
+        "height": 168.9,
+        "chest": 96.3,
+        "waist": 86.7,
+        "hip": 100.1,
+        "torso": 46.0,
+        "thigh": 56.6,
+        "upperArm": 30.2,
+        "neck": 37.6,
+        "wrist": 16.9,
+        "shoulder": 43.4,
+        "inseam": 76.5
       },
-      "share": 0.029,
+      "share": 0.145,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.1199,
-          "weight": 0.9867,
-          "height": 0.4216,
-          "proportions": 0.7307
+          "muscle": 0.5827,
+          "weight": 0.7718,
+          "height": 0.3003,
+          "proportions": 0.5823
         },
         "local": {}
       }
@@ -256,27 +256,27 @@
       "name": "men-08",
       "gender": "MEN",
       "params": {
-        "height": 188.8,
-        "chest": 103.3,
-        "waist": 91.6,
-        "hip": 107.2,
-        "torso": 50.4,
-        "thigh": 60.6,
-        "upperArm": 32.4,
-        "neck": 40.3,
-        "wrist": 18.9,
-        "shoulder": 48.5,
-        "inseam": 85.5
+        "height": 169.5,
+        "chest": 115.7,
+        "waist": 113.2,
+        "hip": 119.9,
+        "torso": 48.6,
+        "thigh": 67.7,
+        "upperArm": 36.3,
+        "neck": 45.1,
+        "wrist": 16.9,
+        "shoulder": 43.6,
+        "inseam": 76.8
       },
-      "share": 0.127,
+      "share": 0.022,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.5172,
-          "weight": 0.8143,
-          "height": 0.4872,
-          "proportions": 0.4402
+          "muscle": 0.0172,
+          "weight": 0.8795,
+          "height": 0.3109,
+          "proportions": 0.7369
         },
         "local": {}
       }
@@ -285,27 +285,27 @@
       "name": "men-09",
       "gender": "MEN",
       "params": {
-        "height": 189.3,
-        "chest": 97.7,
-        "waist": 83.6,
-        "hip": 101.3,
-        "torso": 51.2,
-        "thigh": 57.2,
-        "upperArm": 30.7,
-        "neck": 38.1,
-        "wrist": 18.9,
-        "shoulder": 48.7,
-        "inseam": 85.8
+        "height": 173.2,
+        "chest": 103.7,
+        "waist": 93.1,
+        "hip": 103.9,
+        "torso": 47.2,
+        "thigh": 58.7,
+        "upperArm": 32.6,
+        "neck": 40.4,
+        "wrist": 17.3,
+        "shoulder": 44.5,
+        "inseam": 78.5
       },
-      "share": 0.126,
+      "share": 0.098,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.4564,
-          "weight": 0.2636,
-          "height": 0.4925,
-          "proportions": 0.6737
+          "muscle": 0.9117,
+          "weight": 0.8672,
+          "height": 0.3099,
+          "proportions": 0.6359
         },
         "local": {}
       }
@@ -314,27 +314,27 @@
       "name": "men-10",
       "gender": "MEN",
       "params": {
-        "height": 190.5,
-        "chest": 109.9,
-        "waist": 101.8,
-        "hip": 112.2,
-        "torso": 52.2,
-        "thigh": 63.4,
-        "upperArm": 34.5,
-        "neck": 42.9,
-        "wrist": 19.1,
-        "shoulder": 49.0,
-        "inseam": 86.3
+        "height": 175.4,
+        "chest": 94.2,
+        "waist": 79.0,
+        "hip": 96.6,
+        "torso": 47.0,
+        "thigh": 54.6,
+        "upperArm": 29.6,
+        "neck": 36.7,
+        "wrist": 17.5,
+        "shoulder": 45.1,
+        "inseam": 79.5
       },
-      "share": 0.064,
+      "share": 0.098,
       "anny": {
         "phenotype": {
           "gender": 0.0,
           "age": 0.75,
-          "muscle": 0.9209,
-          "weight": 0.9539,
-          "height": 0.4698,
-          "proportions": 0.8813
+          "muscle": 0.8142,
+          "weight": 0.3465,
+          "height": 0.3648,
+          "proportions": 0.3929
         },
         "local": {}
       }
@@ -346,1400 +346,1400 @@
       "archetype": "men-01",
       "size": "S",
       "region": "chest",
-      "base": 0.256,
+      "base": 0.326,
       "note": ""
     },
     {
       "archetype": "men-01",
       "size": "S",
       "region": "waist",
-      "base": 0.191,
+      "base": 0.281,
       "note": ""
     },
     {
       "archetype": "men-01",
       "size": "S",
       "region": "shoulder",
-      "base": 0.105,
+      "base": 0.23,
       "note": ""
     },
     {
       "archetype": "men-01",
       "size": "S",
       "region": "upperArm",
-      "base": 0.278,
+      "base": 0.314,
       "note": ""
     },
     {
       "archetype": "men-01",
       "size": "S",
       "region": "torso",
-      "base": 0.05,
+      "base": 0.06,
       "note": ""
     },
     {
       "archetype": "men-01",
       "size": "M",
       "region": "chest",
-      "base": 0.181,
+      "base": 0.251,
       "note": ""
     },
     {
       "archetype": "men-01",
       "size": "M",
       "region": "waist",
-      "base": 0.124,
+      "base": 0.214,
       "note": ""
     },
     {
       "archetype": "men-01",
       "size": "M",
       "region": "shoulder",
-      "base": 0.05,
+      "base": 0.13,
       "note": ""
     },
     {
       "archetype": "men-01",
       "size": "M",
       "region": "upperArm",
-      "base": 0.238,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "M",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "L",
-      "region": "chest",
-      "base": 0.106,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "L",
-      "region": "waist",
-      "base": 0.058,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.198,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "L",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "XL",
-      "region": "chest",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "XL",
-      "region": "waist",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "XL",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "XL",
-      "region": "upperArm",
-      "base": 0.158,
-      "note": ""
-    },
-    {
-      "archetype": "men-01",
-      "size": "XL",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "S",
-      "region": "chest",
-      "base": 0.403,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "S",
-      "region": "waist",
-      "base": 0.376,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "S",
-      "region": "shoulder",
-      "base": 0.135,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "S",
-      "region": "upperArm",
-      "base": 0.348,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "S",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "M",
-      "region": "chest",
-      "base": 0.321,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "M",
-      "region": "waist",
-      "base": 0.309,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "M",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "M",
-      "region": "upperArm",
-      "base": 0.308,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "M",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "L",
-      "region": "chest",
-      "base": 0.246,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "L",
-      "region": "waist",
-      "base": 0.242,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.268,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "L",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "XL",
-      "region": "chest",
-      "base": 0.146,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "XL",
-      "region": "waist",
-      "base": 0.153,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "XL",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "XL",
-      "region": "upperArm",
-      "base": 0.228,
-      "note": ""
-    },
-    {
-      "archetype": "men-02",
-      "size": "XL",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "S",
-      "region": "chest",
-      "base": 0.32,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "S",
-      "region": "waist",
       "base": 0.274,
       "note": ""
     },
     {
-      "archetype": "men-03",
+      "archetype": "men-01",
+      "size": "M",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "L",
+      "region": "chest",
+      "base": 0.176,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "L",
+      "region": "waist",
+      "base": 0.148,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.234,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "L",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.076,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.059,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.194,
+      "note": ""
+    },
+    {
+      "archetype": "men-01",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "S",
+      "region": "chest",
+      "base": 0.392,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "S",
+      "region": "waist",
+      "base": 0.398,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
       "size": "S",
       "region": "shoulder",
-      "base": 0.185,
+      "base": 0.255,
       "note": ""
     },
     {
-      "archetype": "men-03",
+      "archetype": "men-02",
       "size": "S",
       "region": "upperArm",
-      "base": 0.31,
+      "base": 0.344,
       "note": ""
     },
     {
-      "archetype": "men-03",
+      "archetype": "men-02",
       "size": "S",
+      "region": "torso",
+      "base": 0.078,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "M",
+      "region": "chest",
+      "base": 0.312,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "M",
+      "region": "waist",
+      "base": 0.323,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.155,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.304,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "M",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "L",
+      "region": "chest",
+      "base": 0.238,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "L",
+      "region": "waist",
+      "base": 0.257,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.055,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.264,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "L",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.138,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.168,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.224,
+      "note": ""
+    },
+    {
+      "archetype": "men-02",
+      "size": "XL",
       "region": "torso",
       "base": 0.05,
       "note": ""
     },
     {
       "archetype": "men-03",
-      "size": "M",
+      "size": "S",
       "region": "chest",
-      "base": 0.245,
-      "note": ""
+      "base": 0.659,
+      "note": "peak in run"
     },
     {
       "archetype": "men-03",
-      "size": "M",
+      "size": "S",
       "region": "waist",
-      "base": 0.208,
-      "note": ""
+      "base": 0.577,
+      "note": "peak in sit"
     },
     {
       "archetype": "men-03",
-      "size": "M",
+      "size": "S",
       "region": "shoulder",
-      "base": 0.085,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "M",
-      "region": "upperArm",
       "base": 0.27,
       "note": ""
     },
     {
       "archetype": "men-03",
-      "size": "M",
-      "region": "torso",
-      "base": 0.05,
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.43,
       "note": ""
     },
     {
       "archetype": "men-03",
-      "size": "L",
+      "size": "S",
+      "region": "torso",
+      "base": 0.08,
+      "note": ""
+    },
+    {
+      "archetype": "men-03",
+      "size": "M",
       "region": "chest",
+      "base": 0.484,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-03",
+      "size": "M",
+      "region": "waist",
+      "base": 0.411,
+      "note": ""
+    },
+    {
+      "archetype": "men-03",
+      "size": "M",
+      "region": "shoulder",
       "base": 0.17,
       "note": ""
     },
     {
       "archetype": "men-03",
-      "size": "L",
-      "region": "waist",
-      "base": 0.141,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.23,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "L",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "XL",
-      "region": "chest",
-      "base": 0.07,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "XL",
-      "region": "waist",
-      "base": 0.052,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "XL",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "XL",
-      "region": "upperArm",
-      "base": 0.19,
-      "note": ""
-    },
-    {
-      "archetype": "men-03",
-      "size": "XL",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "S",
-      "region": "chest",
-      "base": 0.867,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "men-04",
-      "size": "S",
-      "region": "waist",
-      "base": 0.887,
-      "note": "peak in sit"
-    },
-    {
-      "archetype": "men-04",
-      "size": "S",
-      "region": "shoulder",
-      "base": 0.25,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "S",
-      "region": "upperArm",
-      "base": 0.487,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-04",
-      "size": "S",
-      "region": "torso",
-      "base": 0.09,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "M",
-      "region": "chest",
-      "base": 0.589,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "men-04",
-      "size": "M",
-      "region": "waist",
-      "base": 0.632,
-      "note": "peak in sit"
-    },
-    {
-      "archetype": "men-04",
-      "size": "M",
-      "region": "shoulder",
-      "base": 0.15,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
       "size": "M",
       "region": "upperArm",
-      "base": 0.399,
+      "base": 0.366,
       "note": ""
     },
     {
-      "archetype": "men-04",
+      "archetype": "men-03",
       "size": "M",
       "region": "torso",
       "base": 0.05,
       "note": ""
     },
     {
-      "archetype": "men-04",
+      "archetype": "men-03",
       "size": "L",
       "region": "chest",
-      "base": 0.414,
+      "base": 0.357,
       "note": ""
     },
     {
-      "archetype": "men-04",
+      "archetype": "men-03",
       "size": "L",
-      "region": "waist",
-      "base": 0.465,
-      "note": "peak in sit"
-    },
-    {
-      "archetype": "men-04",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.346,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "L",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "XL",
-      "region": "chest",
-      "base": 0.303,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "XL",
       "region": "waist",
       "base": 0.331,
       "note": ""
     },
     {
-      "archetype": "men-04",
-      "size": "XL",
-      "region": "shoulder",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "XL",
-      "region": "upperArm",
-      "base": 0.306,
-      "note": ""
-    },
-    {
-      "archetype": "men-04",
-      "size": "XL",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "S",
-      "region": "chest",
-      "base": 0.522,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "men-05",
-      "size": "S",
-      "region": "waist",
-      "base": 0.445,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "S",
-      "region": "shoulder",
-      "base": 0.453,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-05",
-      "size": "S",
-      "region": "upperArm",
-      "base": 0.381,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "S",
-      "region": "torso",
-      "base": 0.116,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "M",
-      "region": "chest",
-      "base": 0.374,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "M",
-      "region": "waist",
-      "base": 0.346,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "M",
-      "region": "shoulder",
-      "base": 0.285,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "M",
-      "region": "upperArm",
-      "base": 0.334,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "M",
-      "region": "torso",
-      "base": 0.076,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "L",
-      "region": "chest",
-      "base": 0.299,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "L",
-      "region": "waist",
-      "base": 0.279,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
+      "archetype": "men-03",
       "size": "L",
       "region": "shoulder",
-      "base": 0.185,
+      "base": 0.07,
       "note": ""
     },
     {
-      "archetype": "men-05",
+      "archetype": "men-03",
       "size": "L",
       "region": "upperArm",
-      "base": 0.294,
+      "base": 0.324,
       "note": ""
     },
     {
-      "archetype": "men-05",
+      "archetype": "men-03",
       "size": "L",
       "region": "torso",
       "base": 0.05,
       "note": ""
     },
     {
-      "archetype": "men-05",
+      "archetype": "men-03",
       "size": "XL",
       "region": "chest",
-      "base": 0.199,
+      "base": 0.257,
       "note": ""
     },
     {
-      "archetype": "men-05",
+      "archetype": "men-03",
       "size": "XL",
-      "region": "waist",
-      "base": 0.19,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "XL",
-      "region": "shoulder",
-      "base": 0.085,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "XL",
-      "region": "upperArm",
-      "base": 0.254,
-      "note": ""
-    },
-    {
-      "archetype": "men-05",
-      "size": "XL",
-      "region": "torso",
-      "base": 0.05,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "S",
-      "region": "chest",
-      "base": 0.383,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "S",
-      "region": "waist",
-      "base": 0.309,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "S",
-      "region": "shoulder",
-      "base": 0.504,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-06",
-      "size": "S",
-      "region": "upperArm",
-      "base": 0.34,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "S",
-      "region": "torso",
-      "base": 0.13,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "M",
-      "region": "chest",
-      "base": 0.306,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "M",
       "region": "waist",
       "base": 0.242,
       "note": ""
     },
     {
-      "archetype": "men-06",
-      "size": "M",
+      "archetype": "men-03",
+      "size": "XL",
       "region": "shoulder",
-      "base": 0.327,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "M",
-      "region": "upperArm",
-      "base": 0.3,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "M",
-      "region": "torso",
-      "base": 0.09,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "L",
-      "region": "chest",
-      "base": 0.231,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "L",
-      "region": "waist",
-      "base": 0.176,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.215,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.26,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "L",
-      "region": "torso",
       "base": 0.05,
       "note": ""
     },
     {
-      "archetype": "men-06",
-      "size": "XL",
-      "region": "chest",
-      "base": 0.131,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "XL",
-      "region": "waist",
-      "base": 0.087,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
-      "size": "XL",
-      "region": "shoulder",
-      "base": 0.115,
-      "note": ""
-    },
-    {
-      "archetype": "men-06",
+      "archetype": "men-03",
       "size": "XL",
       "region": "upperArm",
-      "base": 0.22,
+      "base": 0.284,
       "note": ""
     },
     {
-      "archetype": "men-06",
+      "archetype": "men-03",
       "size": "XL",
       "region": "torso",
       "base": 0.05,
       "note": ""
     },
     {
-      "archetype": "men-07",
+      "archetype": "men-04",
       "size": "S",
       "region": "chest",
-      "base": 1.0,
-      "note": "peak in run"
+      "base": 0.294,
+      "note": ""
     },
     {
-      "archetype": "men-07",
+      "archetype": "men-04",
       "size": "S",
       "region": "waist",
-      "base": 1.0,
-      "note": "peak in sit"
+      "base": 0.189,
+      "note": ""
     },
     {
-      "archetype": "men-07",
+      "archetype": "men-04",
       "size": "S",
-      "region": "shoulder",
-      "base": 0.688,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-07",
-      "size": "S",
-      "region": "upperArm",
-      "base": 0.709,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-07",
-      "size": "S",
-      "region": "torso",
-      "base": 0.23,
-      "note": ""
-    },
-    {
-      "archetype": "men-07",
-      "size": "M",
-      "region": "chest",
-      "base": 1.0,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "men-07",
-      "size": "M",
-      "region": "waist",
-      "base": 1.0,
-      "note": "peak in sit"
-    },
-    {
-      "archetype": "men-07",
-      "size": "M",
-      "region": "shoulder",
-      "base": 0.528,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-07",
-      "size": "M",
-      "region": "upperArm",
-      "base": 0.606,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-07",
-      "size": "M",
-      "region": "torso",
-      "base": 0.19,
-      "note": ""
-    },
-    {
-      "archetype": "men-07",
-      "size": "L",
-      "region": "chest",
-      "base": 0.981,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "men-07",
-      "size": "L",
-      "region": "waist",
-      "base": 1.0,
-      "note": "peak in sit"
-    },
-    {
-      "archetype": "men-07",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.354,
-      "note": ""
-    },
-    {
-      "archetype": "men-07",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.503,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-07",
-      "size": "L",
-      "region": "torso",
-      "base": 0.15,
-      "note": ""
-    },
-    {
-      "archetype": "men-07",
-      "size": "XL",
-      "region": "chest",
-      "base": 0.575,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "men-07",
-      "size": "XL",
-      "region": "waist",
-      "base": 0.702,
-      "note": "peak in sit"
-    },
-    {
-      "archetype": "men-07",
-      "size": "XL",
-      "region": "shoulder",
-      "base": 0.23,
-      "note": ""
-    },
-    {
-      "archetype": "men-07",
-      "size": "XL",
-      "region": "upperArm",
-      "base": 0.408,
-      "note": ""
-    },
-    {
-      "archetype": "men-07",
-      "size": "XL",
-      "region": "torso",
-      "base": 0.11,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "S",
-      "region": "chest",
-      "base": 0.68,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "men-08",
-      "size": "S",
-      "region": "waist",
-      "base": 0.571,
-      "note": "peak in sit"
-    },
-    {
-      "archetype": "men-08",
-      "size": "S",
-      "region": "shoulder",
-      "base": 0.84,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-08",
-      "size": "S",
-      "region": "upperArm",
-      "base": 0.441,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "S",
-      "region": "torso",
-      "base": 0.208,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "M",
-      "region": "chest",
-      "base": 0.505,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "men-08",
-      "size": "M",
-      "region": "waist",
-      "base": 0.407,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "M",
-      "region": "shoulder",
-      "base": 0.68,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-08",
-      "size": "M",
-      "region": "upperArm",
-      "base": 0.372,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "M",
-      "region": "torso",
-      "base": 0.168,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "L",
-      "region": "chest",
-      "base": 0.366,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "L",
-      "region": "waist",
-      "base": 0.329,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.52,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-08",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.328,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "L",
-      "region": "torso",
-      "base": 0.128,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "XL",
-      "region": "chest",
-      "base": 0.266,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "XL",
-      "region": "waist",
-      "base": 0.24,
-      "note": ""
-    },
-    {
-      "archetype": "men-08",
-      "size": "XL",
       "region": "shoulder",
       "base": 0.345,
       "note": ""
     },
     {
+      "archetype": "men-04",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.296,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "S",
+      "region": "torso",
+      "base": 0.096,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "M",
+      "region": "chest",
+      "base": 0.219,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "M",
+      "region": "waist",
+      "base": 0.122,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.225,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.256,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "M",
+      "region": "torso",
+      "base": 0.056,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "L",
+      "region": "chest",
+      "base": 0.144,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "L",
+      "region": "waist",
+      "base": 0.056,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.125,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.216,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "L",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.176,
+      "note": ""
+    },
+    {
+      "archetype": "men-04",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "S",
+      "region": "chest",
+      "base": 1.0,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-05",
+      "size": "S",
+      "region": "waist",
+      "base": 1.0,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "men-05",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.354,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.544,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "men-05",
+      "size": "S",
+      "region": "torso",
+      "base": 0.124,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "M",
+      "region": "chest",
+      "base": 0.691,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-05",
+      "size": "M",
+      "region": "waist",
+      "base": 0.742,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "men-05",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.23,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.441,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "M",
+      "region": "torso",
+      "base": 0.084,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "L",
+      "region": "chest",
+      "base": 0.516,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-05",
+      "size": "L",
+      "region": "waist",
+      "base": 0.574,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "men-05",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.13,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.372,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "L",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.346,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.374,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.328,
+      "note": ""
+    },
+    {
+      "archetype": "men-05",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "S",
+      "region": "chest",
+      "base": 0.353,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "S",
+      "region": "waist",
+      "base": 0.313,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.381,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.326,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "S",
+      "region": "torso",
+      "base": 0.104,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "M",
+      "region": "chest",
+      "base": 0.278,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "M",
+      "region": "waist",
+      "base": 0.247,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.245,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.286,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "M",
+      "region": "torso",
+      "base": 0.064,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "L",
+      "region": "chest",
+      "base": 0.203,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "L",
+      "region": "waist",
+      "base": 0.18,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.145,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.246,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "L",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.103,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.091,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.206,
+      "note": ""
+    },
+    {
+      "archetype": "men-06",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "S",
+      "region": "chest",
+      "base": 0.475,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-07",
+      "size": "S",
+      "region": "waist",
+      "base": 0.434,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.426,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.366,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "S",
+      "region": "torso",
+      "base": 0.12,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "M",
+      "region": "chest",
+      "base": 0.354,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "M",
+      "region": "waist",
+      "base": 0.341,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.27,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.324,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "M",
+      "region": "torso",
+      "base": 0.08,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "L",
+      "region": "chest",
+      "base": 0.279,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "L",
+      "region": "waist",
+      "base": 0.274,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.17,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.284,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "L",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.179,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.186,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.07,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.244,
+      "note": ""
+    },
+    {
+      "archetype": "men-07",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
+      "archetype": "men-08",
+      "size": "S",
+      "region": "chest",
+      "base": 1.0,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-08",
+      "size": "S",
+      "region": "waist",
+      "base": 1.0,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "men-08",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.444,
+      "note": ""
+    },
+    {
+      "archetype": "men-08",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.642,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "men-08",
+      "size": "S",
+      "region": "torso",
+      "base": 0.172,
+      "note": ""
+    },
+    {
+      "archetype": "men-08",
+      "size": "M",
+      "region": "chest",
+      "base": 1.0,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-08",
+      "size": "M",
+      "region": "waist",
+      "base": 1.0,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "men-08",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "men-08",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.539,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "men-08",
+      "size": "M",
+      "region": "torso",
+      "base": 0.132,
+      "note": ""
+    },
+    {
+      "archetype": "men-08",
+      "size": "L",
+      "region": "chest",
+      "base": 0.691,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-08",
+      "size": "L",
+      "region": "waist",
+      "base": 0.993,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "men-08",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.18,
+      "note": ""
+    },
+    {
+      "archetype": "men-08",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.435,
+      "note": ""
+    },
+    {
+      "archetype": "men-08",
+      "size": "L",
+      "region": "torso",
+      "base": 0.092,
+      "note": ""
+    },
+    {
+      "archetype": "men-08",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.458,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "men-08",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.616,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "men-08",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.08,
+      "note": ""
+    },
+    {
       "archetype": "men-08",
       "size": "XL",
       "region": "upperArm",
-      "base": 0.288,
+      "base": 0.369,
       "note": ""
     },
     {
       "archetype": "men-08",
       "size": "XL",
       "region": "torso",
-      "base": 0.088,
+      "base": 0.052,
       "note": ""
     },
     {
       "archetype": "men-09",
       "size": "S",
       "region": "chest",
-      "base": 0.516,
+      "base": 0.691,
       "note": "peak in run"
     },
     {
       "archetype": "men-09",
       "size": "S",
       "region": "waist",
-      "base": 0.373,
-      "note": ""
+      "base": 0.613,
+      "note": "peak in sit"
     },
     {
       "archetype": "men-09",
       "size": "S",
       "region": "shoulder",
-      "base": 0.856,
+      "base": 0.52,
       "note": "peak in reach"
     },
     {
       "archetype": "men-09",
       "size": "S",
       "region": "upperArm",
-      "base": 0.381,
-      "note": ""
+      "base": 0.451,
+      "note": "peak in reach"
     },
     {
       "archetype": "men-09",
       "size": "S",
-      "region": "torso",
-      "base": 0.224,
-      "note": ""
-    },
-    {
-      "archetype": "men-09",
-      "size": "M",
-      "region": "chest",
-      "base": 0.371,
-      "note": ""
-    },
-    {
-      "archetype": "men-09",
-      "size": "M",
-      "region": "waist",
-      "base": 0.307,
-      "note": ""
-    },
-    {
-      "archetype": "men-09",
-      "size": "M",
-      "region": "shoulder",
-      "base": 0.696,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-09",
-      "size": "M",
-      "region": "upperArm",
-      "base": 0.334,
-      "note": ""
-    },
-    {
-      "archetype": "men-09",
-      "size": "M",
-      "region": "torso",
-      "base": 0.184,
-      "note": ""
-    },
-    {
-      "archetype": "men-09",
-      "size": "L",
-      "region": "chest",
-      "base": 0.296,
-      "note": ""
-    },
-    {
-      "archetype": "men-09",
-      "size": "L",
-      "region": "waist",
-      "base": 0.24,
-      "note": ""
-    },
-    {
-      "archetype": "men-09",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.536,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "men-09",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.294,
-      "note": ""
-    },
-    {
-      "archetype": "men-09",
-      "size": "L",
       "region": "torso",
       "base": 0.144,
       "note": ""
     },
     {
       "archetype": "men-09",
-      "size": "XL",
+      "size": "M",
       "region": "chest",
-      "base": 0.196,
-      "note": ""
+      "base": 0.516,
+      "note": "peak in run"
     },
     {
       "archetype": "men-09",
-      "size": "XL",
+      "size": "M",
       "region": "waist",
-      "base": 0.151,
+      "base": 0.445,
       "note": ""
     },
     {
       "archetype": "men-09",
-      "size": "XL",
+      "size": "M",
       "region": "shoulder",
-      "base": 0.363,
+      "base": 0.345,
       "note": ""
     },
     {
       "archetype": "men-09",
-      "size": "XL",
+      "size": "M",
       "region": "upperArm",
-      "base": 0.254,
+      "base": 0.378,
       "note": ""
     },
     {
       "archetype": "men-09",
-      "size": "XL",
+      "size": "M",
       "region": "torso",
       "base": 0.104,
       "note": ""
     },
     {
+      "archetype": "men-09",
+      "size": "L",
+      "region": "chest",
+      "base": 0.371,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "L",
+      "region": "waist",
+      "base": 0.346,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.225,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.332,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "L",
+      "region": "torso",
+      "base": 0.064,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.271,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.257,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.125,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.292,
+      "note": ""
+    },
+    {
+      "archetype": "men-09",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.05,
+      "note": ""
+    },
+    {
       "archetype": "men-10",
       "size": "S",
       "region": "chest",
-      "base": 1.0,
-      "note": "peak in run"
+      "base": 0.414,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "S",
       "region": "waist",
-      "base": 1.0,
-      "note": "peak in sit"
+      "base": 0.322,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "S",
       "region": "shoulder",
-      "base": 0.88,
+      "base": 0.568,
       "note": "peak in reach"
     },
     {
       "archetype": "men-10",
       "size": "S",
       "region": "upperArm",
-      "base": 0.549,
-      "note": "peak in reach"
+      "base": 0.352,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "S",
       "region": "torso",
-      "base": 0.244,
+      "base": 0.14,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "M",
       "region": "chest",
-      "base": 0.697,
-      "note": "peak in run"
+      "base": 0.328,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "M",
       "region": "waist",
-      "base": 0.688,
-      "note": "peak in sit"
+      "base": 0.256,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "M",
       "region": "shoulder",
-      "base": 0.72,
-      "note": "peak in reach"
+      "base": 0.399,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "M",
       "region": "upperArm",
-      "base": 0.446,
+      "base": 0.312,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "M",
       "region": "torso",
-      "base": 0.204,
+      "base": 0.1,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "L",
       "region": "chest",
-      "base": 0.522,
-      "note": "peak in run"
+      "base": 0.253,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "L",
       "region": "waist",
-      "base": 0.521,
-      "note": "peak in sit"
+      "base": 0.189,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "L",
       "region": "shoulder",
-      "base": 0.56,
-      "note": "peak in reach"
+      "base": 0.255,
+      "note": ""
     },
     {
       "archetype": "men-10",
       "size": "L",
       "region": "upperArm",
-      "base": 0.375,
+      "base": 0.272,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "L",
       "region": "torso",
-      "base": 0.164,
+      "base": 0.06,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "XL",
       "region": "chest",
-      "base": 0.349,
+      "base": 0.153,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "XL",
       "region": "waist",
-      "base": 0.353,
+      "base": 0.1,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "XL",
       "region": "shoulder",
-      "base": 0.39,
+      "base": 0.155,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "XL",
       "region": "upperArm",
-      "base": 0.33,
+      "base": 0.232,
       "note": ""
     },
     {
       "archetype": "men-10",
       "size": "XL",
       "region": "torso",
-      "base": 0.124,
+      "base": 0.05,
       "note": ""
     }
   ],

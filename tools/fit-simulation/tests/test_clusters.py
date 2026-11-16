@@ -48,6 +48,8 @@ def test_the_committed_clusters_are_twenty_well_apart_archetypes():
     assert {a["gender"] for a in data[:10]} == {"MEN"} and {a["gender"] for a in data[10:]} == {"WOMEN"}
     assert well_apart(data)
     for a in data:
+        mean, sd = clusters.HEIGHT_CM[a["gender"]]
+        assert abs(a["params"]["height"] - mean) <= clusters.HEIGHT_TRUNCATE_SD * sd
         assert set(a["anny"]) == {"phenotype", "local"}
         for k in ("height", "chest", "waist", "hip", "torso", "thigh", "upperArm", "shoulder",
                   "neck", "wrist", "inseam"):
@@ -78,3 +80,5 @@ def test_build_is_repeatable_with_ten_well_apart_clusters_per_gender(body):
     assert all(a["anny"]["phenotype"]["gender"] == 1.0 for a in women)
     heights = [a["params"]["height"] for a in women]
     assert heights == sorted(heights)
+    # Heights follow the women's adult distribution, not Anny's uniform range.
+    assert 148 <= sum(heights) / len(heights) <= 160 and max(heights) <= 154 + 2.5 * 6.5

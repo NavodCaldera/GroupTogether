@@ -46,27 +46,27 @@
       "name": "women-01",
       "gender": "WOMEN",
       "params": {
-        "height": 147.6,
-        "chest": 76.4,
-        "waist": 57.4,
-        "hip": 79.7,
-        "torso": 40.4,
-        "thigh": 45.1,
-        "upperArm": 23.9,
-        "neck": 27.9,
-        "wrist": 14.0,
-        "shoulder": 35.9,
-        "inseam": 66.6
+        "height": 146.2,
+        "chest": 76.8,
+        "waist": 59.6,
+        "hip": 85.0,
+        "torso": 39.8,
+        "thigh": 48.1,
+        "upperArm": 24.0,
+        "neck": 28.0,
+        "wrist": 13.9,
+        "shoulder": 35.5,
+        "inseam": 65.9
       },
-      "share": 0.073,
+      "share": 0.121,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.0698,
-          "weight": 0.2138,
-          "height": 0.2307,
-          "proportions": 0.3527
+          "muscle": 0.4183,
+          "weight": 0.2883,
+          "height": 0.2192,
+          "proportions": 0.3376
         },
         "local": {}
       }
@@ -75,27 +75,27 @@
       "name": "women-02",
       "gender": "WOMEN",
       "params": {
-        "height": 150.6,
-        "chest": 79.6,
-        "waist": 61.8,
-        "hip": 88.8,
-        "torso": 40.8,
-        "thigh": 50.3,
-        "upperArm": 24.9,
-        "neck": 29.1,
-        "wrist": 14.3,
-        "shoulder": 36.6,
-        "inseam": 67.9
+        "height": 147.3,
+        "chest": 82.2,
+        "waist": 65.2,
+        "hip": 93.5,
+        "torso": 39.7,
+        "thigh": 52.9,
+        "upperArm": 25.7,
+        "neck": 30.0,
+        "wrist": 14.0,
+        "shoulder": 35.8,
+        "inseam": 66.4
       },
-      "share": 0.142,
+      "share": 0.102,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.5882,
-          "weight": 0.4509,
-          "height": 0.2594,
-          "proportions": 0.3119
+          "muscle": 0.4826,
+          "weight": 0.8242,
+          "height": 0.2273,
+          "proportions": 0.2118
         },
         "local": {}
       }
@@ -104,27 +104,27 @@
       "name": "women-03",
       "gender": "WOMEN",
       "params": {
-        "height": 151.8,
-        "chest": 84.5,
-        "waist": 67.5,
-        "hip": 96.4,
-        "torso": 40.8,
-        "thigh": 54.6,
-        "upperArm": 26.4,
-        "neck": 30.8,
-        "wrist": 14.4,
-        "shoulder": 36.9,
-        "inseam": 68.5
+        "height": 150.0,
+        "chest": 90.5,
+        "waist": 77.6,
+        "hip": 102.2,
+        "torso": 41.4,
+        "thigh": 57.8,
+        "upperArm": 28.3,
+        "neck": 33.0,
+        "wrist": 14.2,
+        "shoulder": 36.4,
+        "inseam": 67.7
       },
-      "share": 0.108,
+      "share": 0.061,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.3198,
-          "weight": 0.6395,
-          "height": 0.2685,
-          "proportions": 0.1666
+          "muscle": 0.2135,
+          "weight": 0.8137,
+          "height": 0.2576,
+          "proportions": 0.5641
         },
         "local": {}
       }
@@ -133,27 +133,27 @@
       "name": "women-04",
       "gender": "WOMEN",
       "params": {
-        "height": 158.1,
-        "chest": 95.0,
-        "waist": 83.6,
-        "hip": 108.5,
-        "torso": 43.6,
-        "thigh": 61.4,
-        "upperArm": 29.7,
-        "neck": 34.7,
-        "wrist": 15.0,
-        "shoulder": 38.4,
-        "inseam": 71.3
+        "height": 152.4,
+        "chest": 77.1,
+        "waist": 55.1,
+        "hip": 76.5,
+        "torso": 41.3,
+        "thigh": 43.3,
+        "upperArm": 24.1,
+        "neck": 28.1,
+        "wrist": 14.5,
+        "shoulder": 37.0,
+        "inseam": 68.7
       },
-      "share": 0.044,
+      "share": 0.05,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.0113,
-          "weight": 0.7367,
-          "height": 0.3324,
-          "proportions": 0.6026
+          "muscle": 0.0482,
+          "weight": 0.1444,
+          "height": 0.273,
+          "proportions": 0.2548
         },
         "local": {}
       }
@@ -162,27 +162,27 @@
       "name": "women-05",
       "gender": "WOMEN",
       "params": {
-        "height": 165.3,
-        "chest": 89.6,
-        "waist": 71.9,
-        "hip": 102.1,
-        "torso": 44.6,
-        "thigh": 57.8,
-        "upperArm": 28.0,
-        "neck": 32.7,
-        "wrist": 15.7,
-        "shoulder": 40.2,
-        "inseam": 74.6
+        "height": 154.1,
+        "chest": 83.7,
+        "waist": 67.6,
+        "hip": 97.0,
+        "torso": 41.6,
+        "thigh": 54.9,
+        "upperArm": 26.2,
+        "neck": 30.6,
+        "wrist": 14.6,
+        "shoulder": 37.4,
+        "inseam": 69.5
       },
-      "share": 0.113,
+      "share": 0.134,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.5681,
-          "weight": 0.9869,
-          "height": 0.3878,
-          "proportions": 0.3715
+          "muscle": 0.3046,
+          "weight": 0.5885,
+          "height": 0.2908,
+          "proportions": 0.2728
         },
         "local": {}
       }
@@ -191,27 +191,27 @@
       "name": "women-06",
       "gender": "WOMEN",
       "params": {
-        "height": 169.1,
-        "chest": 83.9,
-        "waist": 66.1,
-        "hip": 92.6,
-        "torso": 46.0,
-        "thigh": 52.4,
-        "upperArm": 26.3,
-        "neck": 30.6,
-        "wrist": 16.1,
-        "shoulder": 41.1,
-        "inseam": 76.3
+        "height": 154.2,
+        "chest": 90.2,
+        "waist": 64.2,
+        "hip": 95.2,
+        "torso": 41.2,
+        "thigh": 53.9,
+        "upperArm": 28.2,
+        "neck": 32.9,
+        "wrist": 14.6,
+        "shoulder": 37.5,
+        "inseam": 69.5
       },
-      "share": 0.133,
+      "share": 0.068,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.8952,
-          "weight": 0.2497,
-          "height": 0.4328,
-          "proportions": 0.5874
+          "muscle": 0.7724,
+          "weight": 0.8423,
+          "height": 0.2667,
+          "proportions": 0.1223
         },
         "local": {}
       }
@@ -220,27 +220,27 @@
       "name": "women-07",
       "gender": "WOMEN",
       "params": {
-        "height": 184.1,
-        "chest": 87.3,
-        "waist": 70.1,
-        "hip": 97.6,
-        "torso": 49.6,
-        "thigh": 55.2,
-        "upperArm": 27.3,
-        "neck": 31.9,
-        "wrist": 17.5,
-        "shoulder": 44.7,
-        "inseam": 83.0
+        "height": 154.9,
+        "chest": 79.8,
+        "waist": 61.7,
+        "hip": 87.8,
+        "torso": 41.7,
+        "thigh": 49.7,
+        "upperArm": 25.0,
+        "neck": 29.1,
+        "wrist": 14.7,
+        "shoulder": 37.6,
+        "inseam": 69.9
       },
-      "share": 0.125,
+      "share": 0.209,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.8047,
-          "weight": 0.2094,
-          "height": 0.5703,
-          "proportions": 0.5498
+          "muscle": 0.2686,
+          "weight": 0.3097,
+          "height": 0.2973,
+          "proportions": 0.2223
         },
         "local": {}
       }
@@ -249,27 +249,27 @@
       "name": "women-08",
       "gender": "WOMEN",
       "params": {
-        "height": 186.7,
-        "chest": 106.6,
-        "waist": 94.4,
-        "hip": 118.8,
-        "torso": 50.5,
-        "thigh": 67.2,
-        "upperArm": 33.4,
-        "neck": 38.9,
-        "wrist": 17.7,
-        "shoulder": 45.4,
-        "inseam": 84.2
+        "height": 156.2,
+        "chest": 98.4,
+        "waist": 88.1,
+        "hip": 110.3,
+        "torso": 43.0,
+        "thigh": 62.4,
+        "upperArm": 30.8,
+        "neck": 35.9,
+        "wrist": 14.8,
+        "shoulder": 38.0,
+        "inseam": 70.4
       },
-      "share": 0.037,
+      "share": 0.046,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.0075,
-          "weight": 0.7869,
-          "height": 0.5945,
-          "proportions": 0.6037
+          "muscle": 0.0803,
+          "weight": 0.8795,
+          "height": 0.3151,
+          "proportions": 0.6147
         },
         "local": {}
       }
@@ -278,27 +278,27 @@
       "name": "women-09",
       "gender": "WOMEN",
       "params": {
-        "height": 189.0,
-        "chest": 92.0,
-        "waist": 74.3,
-        "hip": 104.1,
-        "torso": 51.3,
-        "thigh": 58.9,
-        "upperArm": 28.8,
-        "neck": 33.6,
-        "wrist": 18.0,
-        "shoulder": 45.9,
-        "inseam": 85.2
+        "height": 161.3,
+        "chest": 81.7,
+        "waist": 64.7,
+        "hip": 91.8,
+        "torso": 43.7,
+        "thigh": 52.0,
+        "upperArm": 25.6,
+        "neck": 29.8,
+        "wrist": 15.3,
+        "shoulder": 39.2,
+        "inseam": 72.7
       },
-      "share": 0.139,
+      "share": 0.114,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.8201,
-          "weight": 0.5479,
-          "height": 0.6167,
-          "proportions": 0.7663
+          "muscle": 0.6083,
+          "weight": 0.3765,
+          "height": 0.3594,
+          "proportions": 0.4431
         },
         "local": {}
       }
@@ -307,27 +307,27 @@
       "name": "women-10",
       "gender": "WOMEN",
       "params": {
-        "height": 190.2,
-        "chest": 98.6,
-        "waist": 80.6,
-        "hip": 111.7,
-        "torso": 50.0,
-        "thigh": 63.2,
-        "upperArm": 30.9,
-        "neck": 36.0,
-        "wrist": 18.1,
-        "shoulder": 46.2,
-        "inseam": 85.8
+        "height": 162.5,
+        "chest": 88.5,
+        "waist": 72.0,
+        "hip": 101.4,
+        "torso": 43.6,
+        "thigh": 57.4,
+        "upperArm": 27.7,
+        "neck": 32.3,
+        "wrist": 15.4,
+        "shoulder": 39.5,
+        "inseam": 73.3
       },
-      "share": 0.085,
+      "share": 0.094,
       "anny": {
         "phenotype": {
           "gender": 1.0,
           "age": 0.75,
-          "muscle": 0.2974,
-          "weight": 0.7416,
-          "height": 0.6196,
-          "proportions": 0.1224
+          "muscle": 0.2798,
+          "weight": 0.6565,
+          "height": 0.3677,
+          "proportions": 0.2318
         },
         "local": {}
       }

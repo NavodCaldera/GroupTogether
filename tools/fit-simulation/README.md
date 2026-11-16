@@ -44,11 +44,13 @@ The standard shapes (archetypes) are 10 men's and 10 women's body clusters, `men
 [`seed/clusters.json`](seed/clusters.json):
 
 ```sh
-.venv/Scripts/python tools/fit-simulation/clusters.py   # about 2 minutes
+.venv/Scripts/python tools/fit-simulation/clusters.py   # about 20 minutes
 ```
 
 It samples 4000 adult Anny bodies per gender (weight, muscle, height and proportions uniform,
-age a young adult's, heights 140-200 cm kept), measures height, chest, waist and hip like a
+age a young adult's), kept by rejection so their heights follow a normal per gender truncated at
+2.5 sd (`HEIGHT_CM`: men 166 ± 7 cm, women 154 ± 6.5 cm, approximate South Asian adult figures for
+the owner to confirm), measures height, chest, waist and hip like a
 buyer's body, and runs k-means (numpy, fixed seed) on the standardised measurements. Each shape is
 the sampled body nearest its cluster centre, so its Anny phenotype rebuilds exactly its
 measurements; `share` is the part of the sample in its cluster. Thigh, upper arm, shoulder, neck,

@@ -4,7 +4,9 @@
 
 Per gender it samples adult Anny bodies (weight, muscle, height and proportions uniform, age a
 young adult's), measures height, chest, waist and hip the way a buyer's body is measured
-(tools/body-fitting/body.py), and groups them with k-means on the standardised measurements.
+(tools/body-fitting/body.py), keeps each with a chance that makes the kept heights follow the
+gender's adult height distribution (HEIGHT_CM, normal truncated at 2.5 sd: rejection sampling,
+taking the measured heights of uniform phenotypes as flat over that range), and groups them with k-means on the standardised measurements.
 Each group's archetype is the sampled body nearest its centre, so the stored Anny phenotype
 gives exactly the measurements stored with it. Output is deterministic for a seed; names run
 men-01 .. men-10 and women-01 .. women-10, shortest first.
@@ -31,8 +33,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "body-fitting"))
 FEATURES = ("height", "chest", "waist", "hip")
 GENDERS = (("MEN", 0.0, "men"), ("WOMEN", 1.0, "women"))
 AGE = 0.75  # Anny's young adult (as tools/body-fitting/fit.py PRIOR)
-# Uniform phenotypes reach 136-245 cm: keep the adult range a buyer can enter.
-HEIGHT_CM = (140.0, 200.0)
+# Adult height (cm) per gender as (mean, sd): approximate South Asian adult figures; owner to
+# confirm. Uniform phenotypes reach 136-245 cm, so the kept bodies are drawn toward these.
+HEIGHT_CM = {"MEN": (166.0, 7.0), "WOMEN": (154.0, 6.5)}
+HEIGHT_TRUNCATE_SD = 2.5
 # Estimated measurements: (source, ratio) per gender.
 ESTIMATES = {
     "MEN": {"thigh": ("hip", 0.565), "upperArm": ("chest", 0.314), "neck": ("chest", 0.39),
@@ -69,8 +73,10 @@ def kmeans(points: np.ndarray, k: int, seed: int = 1, n_init: int = 8, iters: in
     return best[1], best[2]
 
 
-def _sample(body, gender: float, samples: int, rng: np.random.Generator, batch: int = 200):
-    """`samples` adult bodies in the height range: their phenotypes and measured features."""
+def _sample(body, gender: float, samples: int, rng: np.random.Generator, height: tuple,
+            batch: int = 200):
+    """`samples` adult bodies, heights drawn to normal(*height) truncated at 2.5 sd: their
+    phenotypes and measured features."""
     from body import PHENOTYPES
 
     xs, ms = [], []
@@ -79,11 +85,15 @@ def _sample(body, gender: float, samples: int, rng: np.random.Generator, batch: 
         ph[:, 0], ph[:, 1] = gender, AGE
         # Rounded first, so the stored phenotype rebuilds exactly the measured body.
         ph[:, 2:] = np.round(rng.random((batch, 4)), 4)
+        keep = rng.random(batch)  # drawn per batch, so the result does not depend on timing
         verts, heads = body.forward(ph)
-        for x, v, h in zip(ph, verts, heads):
+        for x, v, h, u in zip(ph, verts, heads, keep):
             f = body.features(v, h)
             m = [round(float(getattr(f, k)), 1) for k in FEATURES + ("torso",)]
-            if all(math.isfinite(t) for t in m) and HEIGHT_CM[0] <= m[0] <= HEIGHT_CM[1]:
+            if not all(math.isfinite(t) for t in m):
+                continue
+            z = (m[0] - height[0]) / height[1]
+            if abs(z) <= HEIGHT_TRUNCATE_SD and u < math.exp(-0.5 * z * z):
                 xs.append(x)
                 ms.append(m)
     return np.array(xs[:samples]), np.array(ms[:samples])
@@ -103,7 +113,7 @@ def build(per_gender: int = 10, samples: int = 4000, seed: int = 1, body=None) -
     body = body or AnnyBody()
     out = []
     for gi, (gender, g, prefix) in enumerate(GENDERS):
-        xs, ms = _sample(body, g, samples, np.random.default_rng([seed, gi]))
+        xs, ms = _sample(body, g, samples, np.random.default_rng([seed, gi]), HEIGHT_CM[gender])
         feats = ms[:, : len(FEATURES)]
         z = (feats - feats.mean(0)) / feats.std(0)
         centres, labels = kmeans(z, per_gender, seed)
