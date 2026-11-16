@@ -362,7 +362,12 @@ garment on the buyer's body is the covered body surface pushed out by each area'
 size chart, coloured with the fit report's tension (`src/lib/fit/drape.ts`). It takes
 milliseconds in the browser and works for tops, outerwear, bottoms, shorts and dresses. Since
 2026-11-16 the body file carries a skeleton, so the body and its garment walk, run, reach and
-sit (the garment follows the body; it does not swing or fold). So the body clusters (shared
+sit (the garment follows the body; it does not swing or fold).
+
+**Release gate (2026-11-16, Claude's call, owner to confirm).** The own 3D body is built only
+when `BODY_FIT_ENABLED` is `"1"`. It stays off in production until at least 10 tape-measured
+volunteers give a mean absolute error of at most 2 cm for each of chest, waist and hip, with at
+most 2 failed builds in 10 (`tools/body-fitting/accuracy.py`). No volunteers measured yet. So the body clusters (shared
 drapes) and the queued, 5-a-day Deep Fit Test are not needed for it; they come back only if a
 real cloth simulator (Blender, XRTailor) is added. A licence check
 (`npm run check:licences`, in `npm run check`) blocks the non-commercial body models.

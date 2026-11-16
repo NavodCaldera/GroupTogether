@@ -235,3 +235,16 @@ it("a volunteer's capture is exported for the accuracy test until its outlines a
   await confirmBody(buyer.id);
   await expect(exportBodyCase(db, buyer.email, tape)).rejects.toThrow("No outlines stored");
 });
+
+it("with the 3D body switched off, photos save measurements and queue no build", async () => {
+  process.env.BODY_FIT_ENABLED = "";
+  try {
+    const buyer = await makeBuyer();
+    const saved = await saveBodyProfile(buyer.id, profile());
+    expect(saved.heightCm).toBe(172);
+    expect(await db.bodyFitJob.count({ where: { userId: buyer.id } })).toBe(0);
+    expect(await getBodyModel(buyer.id)).toBeNull();
+  } finally {
+    process.env.BODY_FIT_ENABLED = "1";
+  }
+});

@@ -28,6 +28,12 @@ Newest first.
   `tools/body-fitting/accuracy.py` reports the error per measurement and sets the one correction,
   `clothingCm` in `calibration.json`. No volunteers measured yet.
 
+- Task 2.3: `BODY_FIT_ENABLED="1"` switches the buyer's own 3D body on. Without it, photos
+  still save measurements but no outlines are sent and no body is built; bodies already built
+  still show. Claude's call, owner to confirm: keep it off in production until 10 or more
+  tape-measured volunteers give a mean absolute error of at most 2 cm for chest, waist and hip
+  with at most 2 failed builds in 10. On in `.env.example` and the local `.env` for development.
+
 ## 2026-11-16 - Plan for the remaining personal body work
 
 - Owner asked for "a full plan to implement all" of what `DEC-021` left unbuilt. Written as

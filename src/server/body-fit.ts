@@ -10,6 +10,13 @@ import { storage } from "./storage";
  * confirmation step and removal. The worker side is in `body-fit-jobs.ts`.
  */
 
+/**
+ * The buyer's own 3D body is built only when BODY_FIT_ENABLED is "1". Keep it off in production
+ * until the accuracy test on real people passes (tools/body-fitting/README.md). Bodies already
+ * built still show.
+ */
+export const bodyFitEnabled = () => process.env.BODY_FIT_ENABLED === "1";
+
 export class BodyFitError extends AppError {}
 
 const outline = z.object({

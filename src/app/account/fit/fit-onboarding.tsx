@@ -49,7 +49,16 @@ function framing(m: { top: number; bottom: number } | null | undefined, h: numbe
   return m && h ? (m.bottom - m.top) / h : null;
 }
 
-export function FitOnboarding({ profile, next }: { profile: ProfileValues | null; next: string }) {
+export function FitOnboarding({
+  profile,
+  next,
+  body3d,
+}: {
+  profile: ProfileValues | null;
+  next: string;
+  /** Send the outlines for the buyer's own 3D body (off until the accuracy test passes). */
+  body3d: boolean;
+}) {
   const [height, setHeight] = useState(profile ? String(profile.heightCm) : "");
   const [gender, setGender] = useState(profile?.gender ?? "");
   const [ageBand, setAgeBand] = useState(profile?.ageBand ?? "");
@@ -103,13 +112,13 @@ export function FitOnboarding({ profile, next }: { profile: ProfileValues | null
   // The 3D body needs a usable front photo; the side photo sharpens the depth.
   const outlines = useMemo(
     () =>
-      usable(photos.front)
+      body3d && usable(photos.front)
         ? {
             front: outlineFor(photos.front),
             side: usable(photos.side) ? outlineFor(photos.side) : null,
           }
         : null,
-    [photos],
+    [photos, body3d],
   );
 
   const payload = JSON.stringify({

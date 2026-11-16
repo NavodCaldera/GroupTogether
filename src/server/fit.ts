@@ -6,7 +6,7 @@ import { fitClass, readBody, readChart, sizeOrder } from "@/lib/fit/data";
 import { isShort } from "@/lib/fit/drape";
 import { fitReport, nearestArchetype, type Body, type FitReport } from "@/lib/fit/report";
 import { isRegion, regionFromEnum, REGIONS, type Region } from "@/lib/fit/regions";
-import { deleteBody, outlinesSchema, queueBodyFit } from "./body-fit";
+import { bodyFitEnabled, deleteBody, outlinesSchema, queueBodyFit } from "./body-fit";
 import { db } from "./db";
 import { AppError } from "./errors";
 
@@ -126,7 +126,7 @@ export async function saveBodyProfile(userId: string, input: unknown) {
       create: { userId, ...data },
       update: data,
     });
-    if (p.outlines) await queueBodyFit(tx, userId, saved, p.outlines);
+    if (p.outlines && bodyFitEnabled()) await queueBodyFit(tx, userId, saved, p.outlines);
     return saved;
   });
 }

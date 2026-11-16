@@ -4,7 +4,7 @@ import { Card, PageHeader } from "@/components/ui";
 import { readBody } from "@/lib/fit/data";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
-import { getBodyModel } from "@/server/body-fit";
+import { bodyFitEnabled, getBodyModel } from "@/server/body-fit";
 import { getBodyProfile } from "@/server/fit";
 import { BodyCheck } from "./body-check";
 import { FitOnboarding, type ProfileValues } from "./fit-onboarding";
@@ -42,7 +42,7 @@ export default async function FitPage({ searchParams }: PageProps<"/account/fit"
         </Card>
       )}
       <Card>
-        <FitOnboarding profile={profile} next={next} />
+        <FitOnboarding profile={profile} next={next} body3d={bodyFitEnabled()} />
       </Card>
     </div>
   );
