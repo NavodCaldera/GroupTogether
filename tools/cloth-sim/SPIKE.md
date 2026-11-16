@@ -1,0 +1,72 @@
+# Spike: Blender cloth on a buyer's body (Task 6.1)
+
+**Verdict: GO**, with two findings for Task 6.4 below. Measured 2026-11-16 on this machine
+(16 cores, Blender 4.5.10 LTS, `-t 8`), other agents' work running alongside.
+
+## Set-up
+
+- Body: Dilan (172 cm, chest 100, waist 88, hip 98) fitted from his measurements with Anny
+  (`Fitter.fit_measurements` + `write_body`, skinned, 13 718 vertices, 36 bones). Not committed
+  (body files are private); regenerate it with the command at the end.
+- Tee: the body's covered surface (chest, waist, hip, shoulder, upper arm; 1 957 vertices) pushed
+  out by each area's room, at least 1 cm. A size smaller than the body gets its springs' rest
+  shape taken in round the body (`garment.py`), which is what puts it in tension.
+- Blender cloth: fabric of the crew tee (180 gsm, 5 % stretch, jersey), quality 5, collision
+  quality 3, self-collision off, the body a one-sided collider animated per frame. Neckline
+  pinned to the skinned tee, every other vertex pulled lightly (goal 0.2) towards it.
+- Timeline (25 fps): 30 settle frames, then WALK and REACH from `motion.ts`, 40 frames each, each
+  eased in from and out to the rest pose over 12 frames: 158 frames.
+- Sizes: fit = crew tee M (chest 102, waist 98, upper arm 36); two sizes small (90 / 86 / 32);
+  two sizes large (116 / 112 / 40).
+
+Run: `"$BLENDER_BIN" -b --factory-startup -t 8 -P tools/cloth-sim/spike.py -- dilan.glb OUT fit small2 large2`
+
+## Numbers
+
+| | small (−2) | fit | large (+2) |
+|---|---|---|---|
+| Rest scale, chest | 0.836 | 0.947 | 1.007 |
+| Cloth step in Blender, s | 125.7 | 113.7 | 66.6 |
+| Whole spike run incl. its extra checks, s | 219 | 188 | 135 |
+| `run.simulate`, one size, end to end, s | 313 † | 58.3 | 145.6 |
+| Furthest garment vertex from the body, m | 0.086 | 0.091 | 0.073 |
+| Vertices > 3 mm inside the skin, settled / worst frame | 0 % / 6.9 % | 0 % / 8.9 % | 0 % / 2.9 % |
+| Chest strain, settled | 0.070 | 0.023 | −0.003 |
+| **Mean chest strain over the motions** | **0.177** | **0.111** | **0.012** |
+| Tension (chest, waist, hip, upper arm, shoulder) | 1, 1, 0.71, 1, 1 | 1, 1, 0.35, 1, 1 | 0.71, 0.07, 0.04, 1, 1 |
+
+† Same input as the spike's 126 s cloth step; measured while other agents loaded the machine
+(its first run, during a session restart, took 752 s). The tight size is the slowest: most
+contacts.
+
+## Against the go criteria
+
+| Criterion | Result |
+|---|---|
+| One size under 3 min on 8 cores | Met: every size's cloth step 67–126 s; fit end to end 58 s. The tight size end to end ranged 126–313 s with load. |
+| No size explodes (no vertex > 0.5 m from the body) | Met: worst 0.091 m, all positions finite. |
+| Mean chest strain small > fit > large | Met: 0.177 > 0.111 > 0.012. |
+
+## Findings for Task 6.4
+
+1. **Tension saturates in motion.** Upper arm and shoulder read 1.0 for every size, and the fit
+   size's chest reads 1.0: the 95th-percentile strain over WALK is far above the 10 % capacity
+   (5 % stretch + 0.05). The shell is the skin offset outwards, so the sleeve has no slack under
+   the arm, and WALK lowers the arms 35° into the side. The settled strain is ordered and sensible
+   (0.070 / 0.023 / −0.003). Before buyers see simulated tensions, either add underarm ease to the
+   shell or calibrate the mapping (e.g. per-motion percentiles, or capacity from wear trials).
+2. **What did not work, for the record.** Shrinking rest lengths with Blender's per-vertex shrink
+   drove tight sizes through the body (up to 90 % of vertices inside) or made the tee ride up off
+   the shoulders; more substeps (15 / collision 10) did not fix it. What fixed it: a rest shape
+   taken in round the body only (lengths kept, yoke kept), a one-sided collider, the neckline
+   pinned, a soft goal everywhere, and easing into each clip (WALK's first pose drops the arms
+   35° in one frame otherwise).
+
+The production tool (Task 6.2: `run.py`, `simulate.py`, `garment.py`) uses exactly this set-up;
+the spike drives the same modules inside Blender and adds the inside-the-skin check.
+
+Regenerate the body (Anny environment):
+
+```sh
+python -c "import sys; sys.path.insert(0,'tools/body-fitting'); from fit import Fitter, write_body; f=Fitter(); write_body(f, f.fit_measurements(172, 0, {'chest':100,'waist':88,'hip':98}), 'dilan.glb')"
+```
