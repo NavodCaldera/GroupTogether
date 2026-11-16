@@ -21,7 +21,9 @@ python -m venv .venv && .venv/Scripts/pip install -r tools/body-fitting/requirem
 ```
 
 The app runs it through a job queue: `npm run fit:worker` (set `BODY_FIT_PYTHON` to this
-environment's Python) takes queued builds, runs `fit.py - --glb <file>` and stores the body
+environment's Python) takes queued builds, sends each to one long-running `fit.py --serve`
+process per job slot (the model loads once; a build then takes about 6 s on this machine) and
+stores the body
 privately ([`src/server/body-fit-jobs.ts`](../../src/server/body-fit-jobs.ts)). `--glb` writes
 the fitted body Y-up, facing +Z, feet at y = 0 (~660 KB), with a 36-bone skeleton
 ([`skin.py`](skin.py)) that the browser animates. `fit.py --rewrite params.json --glb <file>`

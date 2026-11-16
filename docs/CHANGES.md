@@ -34,6 +34,11 @@ Newest first.
   tape-measured volunteers give a mean absolute error of at most 2 cm for chest, waist and hip
   with at most 2 failed builds in 10. On in `.env.example` and the local `.env` for development.
 
+- Task 3.2: the worker keeps one Python process with the body model loaded (`fit.py --serve`,
+  `src/server/fit-server.ts`), so a build takes about 6 s after the first instead of about 40 s.
+  A stuck or crashed process is replaced on the next job. A worker whose job was taken over by
+  another after the 10-minute stale time no longer writes its late result.
+
 ## 2026-11-16 - Plan for the remaining personal body work
 
 - Owner asked for "a full plan to implement all" of what `DEC-021` left unbuilt. Written as

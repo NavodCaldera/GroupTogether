@@ -2,6 +2,7 @@
 
     python fit.py job.json [--glb body.glb]   # prints the result JSON; --glb writes the body
     python fit.py - < job.json
+    python fit.py --serve                     # many requests on one loaded model (the worker)
     python fit.py --rewrite params.json --glb body.glb   # the body file again from a stored
                                                          # {"phenotype", "local"}, no fitting
 
@@ -242,8 +243,45 @@ def write_body(fitter: Fitter, result: dict, path: str) -> None:
               extras={"bodyVersion": BODY_VERSION})
 
 
+def answer(fitter: Fitter, request: dict) -> dict:
+    """One request: `{"job", "glb"?}` fits a body; `{"params", "glb"}` writes a stored one again."""
+    glb = request.get("glb")
+    if "params" in request:
+        write_body(fitter, request["params"], glb)
+        return {"status": "ok", "bodyVersion": BODY_VERSION}
+    cal = json.loads(Path(__file__).with_name("calibration.json").read_text("utf-8"))
+    result = fitter.fit(Job.from_json(request["job"], cal))
+    if glb and result["status"] == "ok":
+        write_body(fitter, result, glb)
+    return result
+
+
+def serve() -> int:
+    """Requests as JSON lines on stdin (with an "id"), answers as JSON lines on stdout. The model
+    loads once, so a worker pays its start-up (about 20 s) once and not on every job."""
+    out = sys.stdout
+    # Anny's Warp backend prints a banner on stdout: keep stdout for the answers alone.
+    with contextlib.redirect_stdout(sys.stderr):
+        fitter = Fitter()
+        print(json.dumps({"ready": True}), file=out, flush=True)
+        for line in sys.stdin:
+            if not line.strip():
+                continue
+            rid = None
+            try:
+                request = json.loads(line)
+                rid = request.get("id")
+                reply = {"id": rid, "result": answer(fitter, request)}
+            except Exception as error:  # one bad request must not stop the worker
+                reply = {"id": rid, "error": f"{type(error).__name__}: {error}"[:500]}
+            print(json.dumps(reply), file=out, flush=True)
+    return 0
+
+
 def main(argv: list[str]) -> int:
     args = argv[1:]
+    if args == ["--serve"]:
+        return serve()
     glb = None
     if "--glb" in args:
         i = args.index("--glb")
@@ -261,18 +299,8 @@ def main(argv: list[str]) -> int:
     src = sys.stdin if args[0] == "-" else open(args[0], encoding="utf-8")
     with src:
         data = json.load(src)
-    if rewrite:
-        with contextlib.redirect_stdout(sys.stderr):
-            write_body(Fitter(), data, glb)
-        print(json.dumps({"status": "ok", "bodyVersion": BODY_VERSION}))
-        return 0
-    job = Job.from_json(data, json.loads(Path(__file__).with_name("calibration.json").read_text("utf-8")))
-    # Anny's Warp backend prints a banner on stdout: keep stdout for the result alone.
     with contextlib.redirect_stdout(sys.stderr):
-        fitter = Fitter()
-        result = fitter.fit(job)
-        if glb and result["status"] == "ok":
-            write_body(fitter, result, glb)
+        result = answer(Fitter(), {"params" if rewrite else "job": data, "glb": glb})
     print(json.dumps(result))
     return 0
 

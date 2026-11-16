@@ -9,7 +9,6 @@
  * BODY_FIT_CONCURRENCY: jobs at a time (default 1; about one per 2 CPU cores).
  */
 import "dotenv/config";
-import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -23,56 +22,38 @@ import {
   type FitResult,
   type FitRunner,
 } from "../src/server/body-fit-jobs";
+import { FitServer } from "../src/server/fit-server";
 import { LocalDiskStorage, storageDir } from "../src/server/storage/local";
 
 const PYTHON = process.env.BODY_FIT_PYTHON || "python";
 const FIT = join(process.cwd(), "tools", "body-fitting", "fit.py");
 const TIMEOUT_MS = 5 * 60 * 1000;
 
-/** Runs fit.py with JSON on stdin; resolves with its stdout. */
-const python = (args: string[], input: unknown) =>
-  new Promise<string>((resolve, reject) => {
-    const child = spawn(PYTHON, [FIT, ...args], {
-      stdio: ["pipe", "pipe", "pipe"],
-    });
-    let out = "";
-    let err = "";
-    const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
-    child.stdout.on("data", (d) => (out += d));
-    child.stderr.on("data", (d) => (err = (err + d).slice(-2000)));
-    child.on("error", reject);
-    child.on("close", (code) => {
-      clearTimeout(timer);
-      if (code === 0) resolve(out);
-      else reject(new Error(`fit.py exited ${code}: ${err.trim().split("\n").pop()}`));
-    });
-    child.stdin.end(JSON.stringify(input));
-  });
-
-const runFit: FitRunner = async (input) => {
-  const dir = await mkdtemp(join(tmpdir(), "body-fit-"));
-  const glbPath = join(dir, "body.glb");
-  try {
-    const stdout = await python(["-", "--glb", glbPath], input);
-    const result = JSON.parse(stdout.trim().split("\n").pop()!) as FitResult;
-    const glb = result.status === "ok" ? new Uint8Array(await readFile(glbPath)) : null;
-    return { result, glb };
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-};
-
-/** The body file again from stored parameters (older files gain the skeleton). */
-const writeBody: BodyWriter = async (params) => {
-  const dir = await mkdtemp(join(tmpdir(), "body-fit-"));
-  const glbPath = join(dir, "body.glb");
-  try {
-    await python(["--rewrite", "-", "--glb", glbPath], params);
-    return new Uint8Array(await readFile(glbPath));
-  } finally {
-    await rm(dir, { recursive: true, force: true });
-  }
-};
+/** One loaded fitter per job slot: the model's start-up is paid once, not on every job. */
+function fitter() {
+  const server = new FitServer(PYTHON, [FIT, "--serve"], TIMEOUT_MS);
+  const withFile = async <T>(
+    body: object,
+    read: (result: FitResult, glbPath: string) => Promise<T>,
+  ) => {
+    const dir = await mkdtemp(join(tmpdir(), "body-fit-"));
+    const glbPath = join(dir, "body.glb");
+    try {
+      return await read((await server.request({ ...body, glb: glbPath })) as FitResult, glbPath);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  };
+  const runFit: FitRunner = (input) =>
+    withFile({ job: input }, async (result, glbPath) => ({
+      result,
+      glb: result.status === "ok" ? new Uint8Array(await readFile(glbPath)) : null,
+    }));
+  /** The body file again from stored parameters (older files gain the skeleton). */
+  const writeBody: BodyWriter = (params) =>
+    withFile({ params }, async (_, glbPath) => new Uint8Array(await readFile(glbPath)));
+  return { runFit, writeBody, stop: () => server.stop() };
+}
 
 async function main() {
   const once = process.argv.includes("--once");
@@ -88,6 +69,14 @@ async function main() {
   process.on("SIGTERM", () => (stopping = true));
 
   const loop = async () => {
+    const { runFit, writeBody, stop } = fitter();
+    try {
+      await work(runFit, writeBody);
+    } finally {
+      stop();
+    }
+  };
+  const work = async (runFit: FitRunner, writeBody: BodyWriter) => {
     while (!stopping) {
       const job = await claimBodyFit(db);
       if (!job) {

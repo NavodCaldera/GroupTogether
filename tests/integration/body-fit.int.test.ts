@@ -7,6 +7,7 @@ import {
   MAX_ATTEMPTS,
   OUTLINE_KEEP_MS,
   runBodyFitJob,
+  STALE_MS,
   sweepBodyOutlines,
   upgradeBodies,
   type FitRunner,
@@ -247,4 +248,32 @@ it("with the 3D body switched off, photos save measurements and queue no build",
   } finally {
     process.env.BODY_FIT_ENABLED = "1";
   }
+});
+
+it("a worker that lost its job to another worker does not write its late result", async () => {
+  const buyer = await makeBuyer();
+  await saveBodyProfile(buyer.id, profile());
+  const first = (await claimBodyFit(db))!;
+  // The first worker hangs; after the stale time a second worker takes the same job.
+  const second = (await claimBodyFit(db, new Date(Date.now() + STALE_MS + 1000)))!;
+  expect(second.id).toBe(first.id);
+
+  expect(await runBodyFitJob(db, storage(), ok, first)).toBe("superseded");
+  expect((await getBodyModel(buyer.id))?.status).toBe("BUILDING");
+  expect(await db.notification.count({ where: { userId: buyer.id } })).toBe(0);
+  expect(await storage().get(`bodies/${buyer.id}/${first.id}.glb`)).toBeNull();
+
+  expect(await runBodyFitJob(db, storage(), ok, second)).toBe("check");
+  expect((await getBodyModel(buyer.id))?.status).toBe("CHECK");
+});
+
+it("a build finishing after the buyer saved new photos leaves the new build in charge", async () => {
+  const buyer = await makeBuyer();
+  await saveBodyProfile(buyer.id, profile());
+  const old = (await claimBodyFit(db))!;
+  await saveBodyProfile(buyer.id, profile());
+  await runBodyFitJob(db, storage(), ok, old);
+  expect((await getBodyModel(buyer.id))?.status).toBe("BUILDING");
+  expect(await storage().get(`bodies/${buyer.id}/${old.id}.glb`)).toBeNull();
+  expect(await db.notification.count({ where: { userId: buyer.id } })).toBe(0);
 });

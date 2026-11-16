@@ -118,3 +118,31 @@ def test_outline_no_body_can_match_fails(fitter):
     result = fitter.fit(Job.from_json(job))
     assert result["status"] == "failed"
     assert "outline_mismatch" in result["quality"]["reasons"]
+
+
+@pytest.mark.anny
+def test_serve_answers_several_requests_on_one_loaded_model(fitter, tmp_path):
+    """`fit.py --serve`: one JSON request per line in, one answer per line out, model loaded once."""
+    import subprocess
+
+    job, _ = _job(fitter, "man")
+    glb = tmp_path / "a.glb"
+    params = {"phenotype": {"gender": 0, "age": 0.75, "muscle": 0.5, "weight": 0.5, "height": 0.5,
+                            "proportions": 0.5}, "local": {}}
+    lines = [
+        json.dumps({"id": "a", "job": job, "glb": str(glb)}),
+        "this is not json",
+        json.dumps({"id": "b", "job": {"heightCm": 50}}),
+        json.dumps({"id": "c", "params": params, "glb": str(tmp_path / "c.glb")}),
+    ]
+    fit_py = Path(__file__).resolve().parents[1] / "fit.py"
+    done = subprocess.run([sys.executable, str(fit_py), "--serve"], input="\n".join(lines) + "\n",
+                          capture_output=True, text=True, timeout=240)
+    out = [json.loads(line) for line in done.stdout.strip().splitlines()]
+    assert done.returncode == 0, done.stderr[-500:]
+    assert out[0] == {"ready": True}
+    assert out[1]["id"] == "a" and out[1]["result"]["status"] == "ok" and glb.stat().st_size > 1000
+    assert out[2]["id"] is None and "error" in out[2]
+    assert out[3]["id"] == "b" and "height" in out[3]["error"]
+    assert out[4] == {"id": "c", "result": {"status": "ok", "bodyVersion": 2}}
+    assert (tmp_path / "c.glb").exists()

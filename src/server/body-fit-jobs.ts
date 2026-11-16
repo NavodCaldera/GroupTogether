@@ -43,6 +43,8 @@ export interface ClaimedJob {
   input: unknown;
   attempts: number;
   createdAt: Date;
+  /** When this worker took it: a later value means another worker has taken it over. */
+  startedAt: Date;
 }
 
 /** Takes the oldest queued (or stale running) job; safe with several workers. */
@@ -57,7 +59,7 @@ export async function claimBodyFit(db: PrismaClient, now = new Date()): Promise<
         AND (status = 'QUEUED' OR (status = 'RUNNING' AND "startedAt" < ${stale}))
       ORDER BY "createdAt" FOR UPDATE SKIP LOCKED LIMIT 1
     )
-    RETURNING id, "userId", input, attempts, "createdAt"`;
+    RETURNING id, "userId", input, attempts, "createdAt", "startedAt"`;
   return rows[0] ?? null;
 }
 
@@ -80,16 +82,19 @@ export async function runBodyFitJob(
   storage: Storage,
   run: FitRunner,
   job: ClaimedJob,
-): Promise<"check" | "failed" | "retry"> {
+): Promise<"check" | "failed" | "retry" | "superseded"> {
+  // Still this worker's job: not taken over by another worker after the stale time.
+  const mine = { id: job.id, status: "RUNNING" as const, startedAt: job.startedAt };
   let out: Awaited<ReturnType<FitRunner>>;
   try {
     out = await run(job.input);
   } catch (error) {
     const last = job.attempts >= MAX_ATTEMPTS;
-    await db.bodyFitJob.update({
-      where: { id: job.id },
+    const { count } = await db.bodyFitJob.updateMany({
+      where: mine,
       data: { status: last ? "FAILED" : "QUEUED", error: String(error).slice(0, 500) },
     });
+    if (!count) return "superseded";
     if (!last) return "retry";
     if (await isLatest(db, job)) {
       await db.bodyProfile.updateMany({
@@ -104,6 +109,7 @@ export async function runBodyFitJob(
     return "failed";
   }
 
+  if (!(await db.bodyFitJob.count({ where: mine }))) return "superseded";
   const ok = out.result.status === "ok" && !!out.glb;
   const latest = await isLatest(db, job);
   const key = ok ? `bodies/${job.userId}/${job.id}.glb` : null;
@@ -114,15 +120,16 @@ export async function runBodyFitJob(
         select: { bodyFileKey: true },
       })
     : null;
-  await db.$transaction(async (tx) => {
-    await tx.bodyFitJob.update({
-      where: { id: job.id },
+  const written = await db.$transaction(async (tx) => {
+    const { count } = await tx.bodyFitJob.updateMany({
+      where: mine,
       data: {
         status: ok ? "DONE" : "FAILED",
         error: ok ? null : out.result.quality.reasons.join(","),
       },
     });
-    if (!latest) return;
+    if (!count) return false; // the other worker's file has the same key: leave it
+    if (!latest) return true;
     await tx.bodyProfile.updateMany({
       where: { userId: job.userId },
       data: ok
@@ -144,7 +151,9 @@ export async function runBodyFitJob(
       data: [{ userId: job.userId, ...notice(job.id, ok) }],
       skipDuplicates: true,
     });
+    return true;
   });
+  if (!written) return "superseded";
   if (ok && latest && old?.bodyFileKey && old.bodyFileKey !== key)
     await storage.delete(old.bodyFileKey);
   return ok ? "check" : "failed";
