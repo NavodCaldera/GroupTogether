@@ -6,6 +6,21 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-16 - Material Library and Material Card: plan approved
+
+- Owner pasted a full spec for a fabric **Material Library** (fibres, yarns, constructions,
+  finishes, sources, evidence, lab measurements, versioned methodology rules, calibration
+  sets) and a buyer **Material Card** with four feel sliders. Core rule: no unsourced numbers;
+  every shown value traces to a measurement, a source or a versioned rule, otherwise "Not yet
+  measured". Owner approved the plan
+  ([design](superpowers/specs/2026-11-16-material-library-design.md)); decisions in `DEC-022`.
+- Claude's calls in the plan (owner to confirm): the new card replaces the fit card's
+  `MaterialPanel`, so "Comfortable X–Y°C" and "Breathability n of 5" stop showing; gsm moves to
+  the product's material and is mirrored into `Product.gsm` for the fit heatmap; estimated bands
+  come from declared versioned rule tables, and all 33 library materials stay draft until the
+  owner reviews and publishes them.
+- Nothing built yet at this entry.
+
 ## 2026-11-16 - Remaining personal body work: build started
 
 - Owner said "start". Built in the plan's order, skipping what needs an owner choice first

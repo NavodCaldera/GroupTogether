@@ -334,6 +334,36 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-022 - Material Library and Material Card
+
+**Status:** Plan approved **2026-11-16**; build in progress. **Rules:** `FIT-001`, `UX-001`,
+`SUP-002`. Design: [material library design](superpowers/specs/2026-11-16-material-library-design.md).
+
+The owner asked for a curated fabric library that factories pick from per product, and a buyer
+Material Card whose every value is traceable to a lab measurement, a published source or a
+versioned GroupBasket methodology rule; anything else is stored null and shown as _Not yet
+measured_. Owner's choices from the spec: four axes (Soft↔Firm, Light↔Substantial,
+Smooth↔Textured, Breathable↔Insulating); `WEIGHT_v1` maps 80–400 gsm linearly to 0–100 (a
+product decision); measured axes other than weight need a GroupBasket reference swatch set and
+stay off until it is measured; no temperature-comfort or "n of 5" breathability claim without
+ISO 9237/ASTM D737 and ISO 11092 data.
+
+Claude's calls (owner to confirm):
+
+1. The Material Card replaces the fit card's material panel. Thermal range and breathability
+   are no longer shown or entered; their columns stay unused until a later migration.
+2. gsm lives on the product's shell material and is mirrored into `Product.gsm` for the fit
+   heatmap; a change still clears the fit approval.
+3. A factory's material choice shows without approval (`SUP-002`); gsm or composition more
+   than 15% outside the library range needs a confirm tick and joins a Factory admin review list.
+4. Library admin belongs to the Factory admin area.
+5. Estimated bands come from declared, versioned rule tables (`SOFT_EST_v1`, `SURFACE_EST_v1`,
+   `BREATH_EST_v1`) whose rows cite evidence; the numbers are a product decision stated in the
+   rule text. A row without evidence makes the axis not available. All library materials stay
+   draft until the owner reviews the tables and publishes them.
+6. **Exception to `UX-001`:** the Material Card may show the verification badge, the word
+   _estimate_, _Not yet measured_ and a _How we know this_ disclosure per value.
+
 ### DEC-021 - Personal body mesh and Deep Fit Test
 
 **Status:** Paused by the owner **2026-11-15**; resumed **2026-11-16** ("keep doing"). Built: fitting
