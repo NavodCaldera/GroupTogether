@@ -1,0 +1,582 @@
+[
+  {
+    "name": "men-01",
+    "gender": "MEN",
+    "params": {
+      "height": 148.2,
+      "chest": 82.5,
+      "waist": 67.2,
+      "hip": 81.5,
+      "torso": 40.3,
+      "thigh": 46.0,
+      "upperArm": 25.9,
+      "neck": 32.2,
+      "wrist": 14.8,
+      "shoulder": 38.1,
+      "inseam": 67.1
+    },
+    "share": 0.075,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.1239,
+        "weight": 0.2033,
+        "height": 0.1153,
+        "proportions": 0.3861
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-02",
+    "gender": "MEN",
+    "params": {
+      "height": 150.6,
+      "chest": 93.7,
+      "waist": 83.8,
+      "hip": 94.7,
+      "torso": 41.1,
+      "thigh": 53.5,
+      "upperArm": 29.4,
+      "neck": 36.5,
+      "wrist": 15.1,
+      "shoulder": 38.7,
+      "inseam": 68.2
+    },
+    "share": 0.109,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.4714,
+        "weight": 0.8717,
+        "height": 0.138,
+        "proportions": 0.4242
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-03",
+    "gender": "MEN",
+    "params": {
+      "height": 154.6,
+      "chest": 87.6,
+      "waist": 74.7,
+      "hip": 88.4,
+      "torso": 42.1,
+      "thigh": 49.9,
+      "upperArm": 27.5,
+      "neck": 34.2,
+      "wrist": 15.5,
+      "shoulder": 39.7,
+      "inseam": 70.0
+    },
+    "share": 0.151,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.2571,
+        "weight": 0.3049,
+        "height": 0.1744,
+        "proportions": 0.467
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-04",
+    "gender": "MEN",
+    "params": {
+      "height": 159.7,
+      "chest": 106.2,
+      "waist": 99.8,
+      "hip": 104.9,
+      "torso": 44.5,
+      "thigh": 59.3,
+      "upperArm": 33.3,
+      "neck": 41.4,
+      "wrist": 16.0,
+      "shoulder": 41.0,
+      "inseam": 72.3
+    },
+    "share": 0.049,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.147,
+        "weight": 0.8021,
+        "height": 0.221,
+        "proportions": 0.4757
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-05",
+    "gender": "MEN",
+    "params": {
+      "height": 170.1,
+      "chest": 97.9,
+      "waist": 87.1,
+      "hip": 100.7,
+      "torso": 45.8,
+      "thigh": 56.9,
+      "upperArm": 30.7,
+      "neck": 38.2,
+      "wrist": 17.0,
+      "shoulder": 43.7,
+      "inseam": 77.1
+    },
+    "share": 0.124,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.5195,
+        "weight": 0.8369,
+        "height": 0.3146,
+        "proportions": 0.4519
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-06",
+    "gender": "MEN",
+    "params": {
+      "height": 172.2,
+      "chest": 92.5,
+      "waist": 77.8,
+      "hip": 93.8,
+      "torso": 46.5,
+      "thigh": 53.0,
+      "upperArm": 29.0,
+      "neck": 36.1,
+      "wrist": 17.2,
+      "shoulder": 44.3,
+      "inseam": 78.0
+    },
+    "share": 0.145,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.3017,
+        "weight": 0.2641,
+        "height": 0.3363,
+        "proportions": 0.4851
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-07",
+    "gender": "MEN",
+    "params": {
+      "height": 181.5,
+      "chest": 119.7,
+      "waist": 116.3,
+      "hip": 119.0,
+      "torso": 51.5,
+      "thigh": 67.2,
+      "upperArm": 37.6,
+      "neck": 46.7,
+      "wrist": 18.2,
+      "shoulder": 46.6,
+      "inseam": 82.2
+    },
+    "share": 0.029,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.1199,
+        "weight": 0.9867,
+        "height": 0.4216,
+        "proportions": 0.7307
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-08",
+    "gender": "MEN",
+    "params": {
+      "height": 188.8,
+      "chest": 103.3,
+      "waist": 91.6,
+      "hip": 107.2,
+      "torso": 50.4,
+      "thigh": 60.6,
+      "upperArm": 32.4,
+      "neck": 40.3,
+      "wrist": 18.9,
+      "shoulder": 48.5,
+      "inseam": 85.5
+    },
+    "share": 0.127,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.5172,
+        "weight": 0.8143,
+        "height": 0.4872,
+        "proportions": 0.4402
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-09",
+    "gender": "MEN",
+    "params": {
+      "height": 189.3,
+      "chest": 97.7,
+      "waist": 83.6,
+      "hip": 101.3,
+      "torso": 51.2,
+      "thigh": 57.2,
+      "upperArm": 30.7,
+      "neck": 38.1,
+      "wrist": 18.9,
+      "shoulder": 48.7,
+      "inseam": 85.8
+    },
+    "share": 0.126,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.4564,
+        "weight": 0.2636,
+        "height": 0.4925,
+        "proportions": 0.6737
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "men-10",
+    "gender": "MEN",
+    "params": {
+      "height": 190.5,
+      "chest": 109.9,
+      "waist": 101.8,
+      "hip": 112.2,
+      "torso": 52.2,
+      "thigh": 63.4,
+      "upperArm": 34.5,
+      "neck": 42.9,
+      "wrist": 19.1,
+      "shoulder": 49.0,
+      "inseam": 86.3
+    },
+    "share": 0.064,
+    "anny": {
+      "phenotype": {
+        "gender": 0.0,
+        "age": 0.75,
+        "muscle": 0.9209,
+        "weight": 0.9539,
+        "height": 0.4698,
+        "proportions": 0.8813
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-01",
+    "gender": "WOMEN",
+    "params": {
+      "height": 147.6,
+      "chest": 76.4,
+      "waist": 57.4,
+      "hip": 79.7,
+      "torso": 40.4,
+      "thigh": 45.1,
+      "upperArm": 23.9,
+      "neck": 27.9,
+      "wrist": 14.0,
+      "shoulder": 35.9,
+      "inseam": 66.6
+    },
+    "share": 0.073,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.0698,
+        "weight": 0.2138,
+        "height": 0.2307,
+        "proportions": 0.3527
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-02",
+    "gender": "WOMEN",
+    "params": {
+      "height": 150.6,
+      "chest": 79.6,
+      "waist": 61.8,
+      "hip": 88.8,
+      "torso": 40.8,
+      "thigh": 50.3,
+      "upperArm": 24.9,
+      "neck": 29.1,
+      "wrist": 14.3,
+      "shoulder": 36.6,
+      "inseam": 67.9
+    },
+    "share": 0.142,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.5882,
+        "weight": 0.4509,
+        "height": 0.2594,
+        "proportions": 0.3119
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-03",
+    "gender": "WOMEN",
+    "params": {
+      "height": 151.8,
+      "chest": 84.5,
+      "waist": 67.5,
+      "hip": 96.4,
+      "torso": 40.8,
+      "thigh": 54.6,
+      "upperArm": 26.4,
+      "neck": 30.8,
+      "wrist": 14.4,
+      "shoulder": 36.9,
+      "inseam": 68.5
+    },
+    "share": 0.108,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.3198,
+        "weight": 0.6395,
+        "height": 0.2685,
+        "proportions": 0.1666
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-04",
+    "gender": "WOMEN",
+    "params": {
+      "height": 158.1,
+      "chest": 95.0,
+      "waist": 83.6,
+      "hip": 108.5,
+      "torso": 43.6,
+      "thigh": 61.4,
+      "upperArm": 29.7,
+      "neck": 34.7,
+      "wrist": 15.0,
+      "shoulder": 38.4,
+      "inseam": 71.3
+    },
+    "share": 0.044,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.0113,
+        "weight": 0.7367,
+        "height": 0.3324,
+        "proportions": 0.6026
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-05",
+    "gender": "WOMEN",
+    "params": {
+      "height": 165.3,
+      "chest": 89.6,
+      "waist": 71.9,
+      "hip": 102.1,
+      "torso": 44.6,
+      "thigh": 57.8,
+      "upperArm": 28.0,
+      "neck": 32.7,
+      "wrist": 15.7,
+      "shoulder": 40.2,
+      "inseam": 74.6
+    },
+    "share": 0.113,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.5681,
+        "weight": 0.9869,
+        "height": 0.3878,
+        "proportions": 0.3715
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-06",
+    "gender": "WOMEN",
+    "params": {
+      "height": 169.1,
+      "chest": 83.9,
+      "waist": 66.1,
+      "hip": 92.6,
+      "torso": 46.0,
+      "thigh": 52.4,
+      "upperArm": 26.3,
+      "neck": 30.6,
+      "wrist": 16.1,
+      "shoulder": 41.1,
+      "inseam": 76.3
+    },
+    "share": 0.133,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.8952,
+        "weight": 0.2497,
+        "height": 0.4328,
+        "proportions": 0.5874
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-07",
+    "gender": "WOMEN",
+    "params": {
+      "height": 184.1,
+      "chest": 87.3,
+      "waist": 70.1,
+      "hip": 97.6,
+      "torso": 49.6,
+      "thigh": 55.2,
+      "upperArm": 27.3,
+      "neck": 31.9,
+      "wrist": 17.5,
+      "shoulder": 44.7,
+      "inseam": 83.0
+    },
+    "share": 0.125,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.8047,
+        "weight": 0.2094,
+        "height": 0.5703,
+        "proportions": 0.5498
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-08",
+    "gender": "WOMEN",
+    "params": {
+      "height": 186.7,
+      "chest": 106.6,
+      "waist": 94.4,
+      "hip": 118.8,
+      "torso": 50.5,
+      "thigh": 67.2,
+      "upperArm": 33.4,
+      "neck": 38.9,
+      "wrist": 17.7,
+      "shoulder": 45.4,
+      "inseam": 84.2
+    },
+    "share": 0.037,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.0075,
+        "weight": 0.7869,
+        "height": 0.5945,
+        "proportions": 0.6037
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-09",
+    "gender": "WOMEN",
+    "params": {
+      "height": 189.0,
+      "chest": 92.0,
+      "waist": 74.3,
+      "hip": 104.1,
+      "torso": 51.3,
+      "thigh": 58.9,
+      "upperArm": 28.8,
+      "neck": 33.6,
+      "wrist": 18.0,
+      "shoulder": 45.9,
+      "inseam": 85.2
+    },
+    "share": 0.139,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.8201,
+        "weight": 0.5479,
+        "height": 0.6167,
+        "proportions": 0.7663
+      },
+      "local": {}
+    }
+  },
+  {
+    "name": "women-10",
+    "gender": "WOMEN",
+    "params": {
+      "height": 190.2,
+      "chest": 98.6,
+      "waist": 80.6,
+      "hip": 111.7,
+      "torso": 50.0,
+      "thigh": 63.2,
+      "upperArm": 30.9,
+      "neck": 36.0,
+      "wrist": 18.1,
+      "shoulder": 46.2,
+      "inseam": 85.8
+    },
+    "share": 0.085,
+    "anny": {
+      "phenotype": {
+        "gender": 1.0,
+        "age": 0.75,
+        "muscle": 0.2974,
+        "weight": 0.7416,
+        "height": 0.6196,
+        "proportions": 0.1224
+      },
+      "local": {}
+    }
+  }
+]

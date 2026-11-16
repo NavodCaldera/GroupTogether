@@ -131,9 +131,9 @@ def test_standard_bodies_are_written_once_per_shape_with_stable_names(body, tmp_
 
     fitter = Fitter(body)
     first = anny_bodies.build(str(tmp_path), fitter=fitter)
-    assert sorted(first) == ["men-broad-174", "men-slim-168", "women-curvy-162", "women-petite-155"]
+    assert sorted(first) == [f"{g}-{i:02d}" for g in ("men", "women") for i in range(1, 11)]
     assert json.loads((tmp_path / "bodies.json").read_text()) == first
     (tmp_path / "stale-000.glb").write_bytes(b"x")
     assert anny_bodies.build(str(tmp_path), fitter=fitter) == first  # same input, same names
     assert sorted(p.name for p in tmp_path.glob("*.glb")) == sorted(first.values())
-    assert len(read_glb(tmp_path / first["women-curvy-162"])["skins"][0]["joints"]) == 36
+    assert len(read_glb(tmp_path / first["women-04"])["skins"][0]["joints"]) == 36

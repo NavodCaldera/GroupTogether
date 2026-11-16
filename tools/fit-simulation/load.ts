@@ -12,7 +12,9 @@
 import { cpSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import type { MotionClip, PrismaClient } from "../../src/generated/prisma/client";
+import { readBody } from "../../src/lib/fit/data";
 import { isRegion, REGION_ENUM } from "../../src/lib/fit/regions";
+import { closestArchetype, matchParams } from "../../src/lib/fit/report";
 
 export interface FitManifest {
   garment: {
@@ -33,6 +35,48 @@ export interface FitManifest {
 }
 
 const MOTIONS = ["WALK", "RUN", "REACH", "SIT"] as const;
+
+/**
+ * Makes the standard shapes exactly these (seed/clusters.json, clusters.py): upserts each by
+ * name, removes shapes not in the list, and re-picks the nearest shape for buyers whose shape
+ * was removed.
+ */
+export async function loadArchetypes(db: PrismaClient, archetypes: FitManifest["archetypes"]) {
+  return db.$transaction(async (tx) => {
+    for (const a of archetypes)
+      await tx.bodyArchetype.upsert({
+        where: { name: a.name },
+        create: { name: a.name, gender: a.gender, params: a.params },
+        update: { gender: a.gender, params: a.params },
+      });
+    const { count } = await tx.bodyArchetype.deleteMany({
+      where: { name: { notIn: archetypes.map((a) => a.name) } },
+    });
+    if (!count) return;
+    const shapes = (
+      await tx.bodyArchetype.findMany({ select: { id: true, gender: true, params: true } })
+    ).map((a) => ({ ...a, params: matchParams(a.params) }));
+    const lost = await tx.bodyProfile.findMany({
+      where: { archetypeId: null },
+      select: { id: true, heightCm: true, gender: true, measurements: true },
+    });
+    for (const p of lost) {
+      const body = readBody(p.measurements);
+      const near = closestArchetype(
+        {
+          height: p.heightCm,
+          chest: body.chest?.value,
+          waist: body.waist?.value,
+          hip: body.hip?.value,
+        },
+        shapes,
+        p.gender,
+      );
+      if (near)
+        await tx.bodyProfile.update({ where: { id: p.id }, data: { archetypeId: near.id } });
+    }
+  });
+}
 
 /**
  * Points standard shapes at their Anny body files (tools/fit-simulation/anny_bodies.py writes

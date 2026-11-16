@@ -1,13 +1,14 @@
 """Offline fit simulation pipeline (DEC-020).
 
     python tools/fit-simulation/pipeline.py GARMENT.json OUT_DIR [--archetypes A.json]
-        [--engine analytic|blender]
+        [--engine analytic|blender] [--no-meshes]
 
 For every archetype × motion it writes `<archetype>/<motion>-<hash>.glb` (an animated garment
 on the archetype body, with the baked `_REGION_ID` attribute), and one `manifest.json` with the
 archetypes, assets and per-size area tensions. `load.ts` copies the files to the asset host and
 inserts the database rows. Output is deterministic, so files are named by content hash and can
-be cached forever.
+be cached forever. `--no-meshes` writes only the manifest: the standard shapes have Anny body
+files (anny_bodies.py) and the viewer draws the garment over them in the browser.
 """
 
 from __future__ import annotations
@@ -38,7 +39,8 @@ def nearest_size(garment: dict, params: dict) -> str:
     return sizes[-1]
 
 
-def run(garment_path: str, out_dir: str, archetypes_path: str | None, engine: str) -> dict:
+def run(garment_path: str, out_dir: str, archetypes_path: str | None, engine: str,
+        meshes: bool = True) -> dict:
     garment = json.loads(Path(garment_path).read_text(encoding="utf-8"))
     # Men's garments run on men's archetypes, women's on women's.
     bodies = [a for a in arch.load(archetypes_path)
@@ -51,6 +53,8 @@ def run(garment_path: str, out_dir: str, archetypes_path: str | None, engine: st
     for a in bodies if garment.get("simulate", True) else []:
         size = nearest_size(garment, a["params"])
         rows += tensions(garment, a, engine)
+        if not meshes:
+            continue
         (out / a["name"]).mkdir(exist_ok=True)
         for motion in MOTIONS:
             body = body_mesh(a["params"])
@@ -78,10 +82,11 @@ if __name__ == "__main__":
     ap.add_argument("--archetypes")
     ap.add_argument("--engine", default="analytic", choices=["analytic", "blender"])
     ap.add_argument("--all", action="store_true", help="every *.json in the garment folder")
+    ap.add_argument("--no-meshes", action="store_true", help="tensions only, no garment files")
     args = ap.parse_args()
     jobs = ([(str(g), str(Path(args.out) / f"seed-{g.stem}"))
              for g in sorted(Path(args.garment).glob("*.json"))]
             if args.all else [(args.garment, args.out)])
     for garment, out in jobs:
-        m = run(garment, out, args.archetypes, args.engine)
+        m = run(garment, out, args.archetypes, args.engine, not args.no_meshes)
         print(f"{len(m['assets'])} assets, {len(m['tensions'])} tension rows -> {out}")

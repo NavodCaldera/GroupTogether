@@ -3,7 +3,7 @@ import { FIT } from "./config";
 import {
   band,
   fitReport,
-  nearestArchetype,
+  closestArchetype,
   regionTension,
   type Body,
   type SizeChart,
@@ -181,23 +181,30 @@ describe("fitReport", () => {
   });
 });
 
-describe("nearestArchetype", () => {
+describe("closestArchetype", () => {
   const list = [
-    { id: "a", gender: "MEN", params: { chest: 92, waist: 80, hip: 94 } },
-    { id: "b", gender: "MEN", params: { chest: 108, waist: 98, hip: 106 } },
-    { id: "c", gender: "WOMEN", params: { chest: 90, waist: 74, hip: 98 } },
+    { id: "a", gender: "MEN", params: { height: 165, chest: 92, waist: 80, hip: 94 } },
+    { id: "b", gender: "MEN", params: { height: 175, chest: 108, waist: 98, hip: 106 } },
+    { id: "c", gender: "MEN", params: { height: 185, chest: 94, waist: 80, hip: 95 } },
+    { id: "d", gender: "WOMEN", params: { height: 158, chest: 90, waist: 74, hip: 98 } },
   ];
-  it("matches on chest, waist and hip within the gender", () => {
-    expect(
-      nearestArchetype({ chest: exact(105), waist: exact(95), hip: exact(104) }, list, "MEN")?.id,
-    ).toBe("b");
-    expect(
-      nearestArchetype({ chest: exact(91), waist: exact(76), hip: exact(97) }, list, "WOMEN")?.id,
-    ).toBe("c");
-    expect(nearestArchetype({ chest: exact(91), waist: exact(76), hip: exact(97) }, list)?.id).toBe(
+  it("matches on height, chest, waist and hip within the gender", () => {
+    expect(closestArchetype({ chest: 105, waist: 95, hip: 104 }, list, "MEN")?.id).toBe("b");
+    expect(closestArchetype({ chest: 91, waist: 76, hip: 97 }, list, "WOMEN")?.id).toBe("d");
+    expect(closestArchetype({ chest: 91, waist: 76, hip: 97 }, list)?.id).toBe("d");
+    // Height tells the two slim shapes apart.
+    expect(closestArchetype({ height: 184, chest: 93, waist: 80, hip: 94 }, list, "MEN")?.id).toBe(
       "c",
     );
   });
-  it("returns null with nothing to compare", () =>
-    expect(nearestArchetype({ thigh: exact(50) }, list)).toBeNull());
+  it("weighs each feature by its spread among the shapes", () => {
+    // Heights differ by 30 cm, waists by 6: 5 cm of waist outweighs 10 cm of height.
+    const two = [
+      { id: "short", gender: "MEN", params: { height: 160, waist: 80 } },
+      { id: "tall", gender: "MEN", params: { height: 190, waist: 86 } },
+    ];
+    expect(closestArchetype({ height: 170, waist: 85 }, two, "MEN")?.id).toBe("tall");
+    expect(closestArchetype({ height: 170, waist: 81 }, two, "MEN")?.id).toBe("short");
+  });
+  it("returns null with nothing to compare", () => expect(closestArchetype({}, list)).toBeNull());
 });
