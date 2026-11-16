@@ -26,6 +26,7 @@
     "postinstall": "prisma generate && node scripts/copy-fit-assets.mjs",
     "fit:models": "node scripts/fetch-fit-models.mjs",
     "fit:worker": "tsx scripts/fit-worker.ts",
+    "sim:worker": "tsx scripts/sim-worker.ts",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev && prisma generate",
     "db:deploy": "prisma migrate deploy",
