@@ -14,6 +14,9 @@ Newest first.
   tested (`DEV_PHONE_HOST`, steps in `docs/development-tooling.md`). Not yet tried on a real
   phone.
 
+- Task 4.1: the body file now carries a skeleton (36 bones, four per vertex) and
+  `bodyVersion: 2`, so it can be animated (`tools/body-fitting/skin.py`, skins in `gltf.py`).
+
 ## 2026-11-16 - Plan for the remaining personal body work
 
 - Owner asked for "a full plan to implement all" of what `DEC-021` left unbuilt. Written as

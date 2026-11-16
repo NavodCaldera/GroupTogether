@@ -13,8 +13,19 @@ from dataclasses import dataclass, field
 
 import numpy as np
 
-FLOAT, UINT16, UINT32 = 5126, 5123, 5125
+FLOAT, UINT8, UINT16, UINT32 = 5126, 5121, 5123, 5125
 ARRAY_BUFFER, ELEMENT_ARRAY_BUFFER = 34962, 34963
+
+
+@dataclass
+class Skin:
+    """A skeleton and each vertex's four bones. Bones are translation-only nodes at their heads."""
+
+    names: list[str]
+    parents: list[int]  # index into names, -1 for a root; parents come before children
+    heads: np.ndarray  # (bones, 3) float32, the mesh's axes, metres
+    joints: np.ndarray  # (n, 4) uint8
+    weights: np.ndarray  # (n, 4) float32, rows sum to 1
 
 
 @dataclass
@@ -27,6 +38,7 @@ class Mesh:
     colour: tuple[float, float, float, float] = (0.85, 0.83, 0.8, 1.0)
     # Extra float scalar vertex attributes, e.g. {"_BODY_PART": ...}; names start with "_".
     extra: dict[str, np.ndarray] = field(default_factory=dict)
+    skin: Skin | None = None
 
 
 def normals(positions: np.ndarray, indices: np.ndarray) -> np.ndarray:
@@ -71,10 +83,12 @@ class _Builder:
 
 
 def write_glb(path: str, meshes: list[Mesh], times: np.ndarray, weights: np.ndarray,
-              clip: str, with_normals: bool = False) -> None:
+              clip: str, with_normals: bool = False, extras: dict | None = None) -> None:
     """`weights` is (len(times), targets): every mesh has the same number of targets."""
     b = _Builder()
     gl_meshes, nodes, materials = [], [], []
+    skins, bone_nodes, roots = [], [], []
+    first_bone = len(meshes)
     for i, m in enumerate(meshes):
         pos = m.positions.astype(np.float32)
         # Normals are left out to keep files small; the viewer computes them.
@@ -86,6 +100,10 @@ def write_glb(path: str, meshes: list[Mesh], times: np.ndarray, weights: np.ndar
                                         ARRAY_BUFFER)
         for name, values in m.extra.items():
             attrs[name] = b.add(values.astype(np.float32), "SCALAR", FLOAT, ARRAY_BUFFER)
+        if m.skin is not None:
+            attrs["JOINTS_0"] = b.add(m.skin.joints.astype(np.uint8), "VEC4", UINT8, ARRAY_BUFFER)
+            attrs["WEIGHTS_0"] = b.add(m.skin.weights.astype(np.float32), "VEC4", FLOAT,
+                                       ARRAY_BUFFER)
         targets = [{"POSITION": b.add(t.astype(np.float32), "VEC3", FLOAT, ARRAY_BUFFER,
                                       minmax=True)} for t in m.targets]
         small = len(pos) < 65536
@@ -99,7 +117,25 @@ def write_glb(path: str, meshes: list[Mesh], times: np.ndarray, weights: np.ndar
             prim["targets"] = targets
         gl_meshes.append({"name": m.name, "primitives": [prim],
                           **({"weights": [0.0] * len(targets)} if targets else {})})
-        nodes.append({"name": m.name, "mesh": i})
+        node = {"name": m.name, "mesh": i}
+        if m.skin is not None:
+            node["skin"] = len(skins)
+            base = first_bone + len(bone_nodes)
+            heads = m.skin.heads.astype(np.float64)
+            inverse = np.tile(np.eye(4, dtype=np.float32), (len(heads), 1, 1))
+            inverse[:, 3, :3] = -heads  # column-major: the translation is the last column
+            for j, (name, parent) in enumerate(zip(m.skin.names, m.skin.parents)):
+                offset = heads[j] - (heads[parent] if parent >= 0 else 0)
+                bone = {"name": name, "translation": [float(v) for v in offset]}
+                kids = [base + k for k, q in enumerate(m.skin.parents) if q == j]
+                if kids:
+                    bone["children"] = kids
+                if parent < 0:
+                    roots.append(base + j)
+                bone_nodes.append(bone)
+            skins.append({"joints": [base + j for j in range(len(heads))],
+                          "inverseBindMatrices": b.add(inverse, "MAT4", FLOAT)})
+        nodes.append(node)
 
     animations = []
     if weights.size:
@@ -112,11 +148,14 @@ def write_glb(path: str, meshes: list[Mesh], times: np.ndarray, weights: np.ndar
                          for i, m in enumerate(meshes) if m.targets],
         })
 
+    asset = {"version": "2.0", "generator": "groupbasket fit-simulation"}
+    if extras:
+        asset["extras"] = extras
     doc = {
-        "asset": {"version": "2.0", "generator": "groupbasket fit-simulation"},
+        "asset": asset,
         "scene": 0,
-        "scenes": [{"nodes": list(range(len(nodes)))}],
-        "nodes": nodes,
+        "scenes": [{"nodes": list(range(len(nodes))) + roots}],
+        "nodes": nodes + bone_nodes,
         "meshes": gl_meshes,
         "materials": materials,
         "accessors": b.accessors,
@@ -124,6 +163,8 @@ def write_glb(path: str, meshes: list[Mesh], times: np.ndarray, weights: np.ndar
         "buffers": [{"byteLength": len(b.blob)}],
         "animations": animations,
     }
+    if skins:
+        doc["skins"] = skins
     js = json.dumps(doc, separators=(",", ":")).encode()
     js += b" " * (-len(js) % 4)
     bin_ = bytes(b.blob) + b"\0" * (-len(b.blob) % 4)

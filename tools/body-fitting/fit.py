@@ -31,6 +31,7 @@ from gltf import Mesh, write_glb  # noqa: E402
 
 from body import LOCAL, PHENOTYPES, AnnyBody, Features, body_parts
 from outline import Observed, View, observe
+from skin import skin_for, to_file_axes
 
 SD = {
     "height": 0.5,
@@ -42,6 +43,7 @@ SD = {
 MISSING_BAND = 4.0  # squared-error cost when a row exists on only one side
 PASS = {"rms_cm": 1.5, "bands": 12, "height_cm": 1.5}
 N_PHENO = len(PHENOTYPES)
+BODY_VERSION = 2  # 2: the body file has a skeleton (skin.py)
 # Anny's age runs newborn -1/3, baby 0, child 1/3, young adult 2/3, old 1: buyers are adults.
 LOWER = np.array([0.0, 0.6, 0.0, 0.0, 0.0, 0.0])
 UPPER = np.ones(N_PHENO)
@@ -225,12 +227,14 @@ def write_body(fitter: Fitter, result: dict, path: str) -> None:
     local = x[N_PHENO:][None]
     verts, heads = fitter.body.forward(x[:N_PHENO][None], local)
     parts = body_parts(fitter.body, verts[0], heads[0])
-    v = verts[0][:, [0, 2, 1]] * np.array([1.0, 1.0, -1.0])  # Anny: Z up, face towards -Y
-    v[:, 1] -= v[fitter.body.solid, 1].min()
+    floor = float(verts[0][fitter.body.solid, 2].min())
+    v = to_file_axes(verts[0], floor)
     faces = fitter.body.faces[fitter.body.solid[fitter.body.faces].all(axis=1)]
     mesh = Mesh("body", v.astype(np.float32), faces.reshape(-1).astype(np.uint32),
-                extra={"_BODY_PART": parts.astype(np.float32)})
-    write_glb(path, [mesh], np.zeros(0), np.zeros((0, 0)), "rest")
+                extra={"_BODY_PART": parts.astype(np.float32)},
+                skin=skin_for(fitter.body, heads[0], floor))
+    write_glb(path, [mesh], np.zeros(0), np.zeros((0, 0)), "rest",
+              extras={"bodyVersion": BODY_VERSION})
 
 
 def main(argv: list[str]) -> int:
