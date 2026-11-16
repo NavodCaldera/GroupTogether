@@ -17,7 +17,7 @@ import {
   type SimInput,
   type SimRunner,
 } from "@/server/deep-fit-jobs";
-import { saveBodyProfile, saveFitData, setFitApproved } from "@/server/fit";
+import { getFitView, saveBodyProfile, saveFitData, setFitApproved } from "@/server/fit";
 import { storage } from "@/server/storage";
 import { runSweep } from "@/server/sweep";
 import { makeBuyer, makeFactory, makeUser, resetDb } from "./helpers";
@@ -119,8 +119,13 @@ it("a test runs on the buyer's own body and shows its tensions and garments", as
   const buyer = await confirmedBuyer();
   const productId = await fittedProduct();
   expect(await getDeepFit(buyer.id, productId)).toBeNull();
+  expect((await getFitView(productId, buyer.id)).deepFit).toEqual({ status: "none", left: 5 });
+  const formula = (await getFitView(productId, buyer.id)).report!;
   const { jobId } = await requestDeepFit(buyer.id, productId);
   expect(await getDeepFit(buyer.id, productId)).toMatchObject({ status: "QUEUED" });
+  let view = await getFitView(productId, buyer.id);
+  expect(view.deepFit).toEqual({ status: "queued", left: 4 });
+  expect(view.body?.garments).toBeNull();
 
   seen.length = 0;
   expect(await runOnce()).toBe("done");
@@ -141,6 +146,19 @@ it("a test runs on the buyer's own body and shows its tensions and garments", as
     },
   });
   expect([...(await storage().get(garmentKey(buyer.id, jobId, "M")))!]).toEqual([1, 2, 3, 4]);
+  // The product page draws the buyer's own simulated garments and reports the simulated waist.
+  view = await getFitView(productId, buyer.id);
+  expect(view.deepFit).toEqual({ status: "done", left: 4 });
+  expect(view.body?.garments).toEqual({
+    S: `/api/fit-garment?job=${jobId}&size=S`,
+    M: `/api/fit-garment?job=${jobId}&size=M`,
+  });
+  const waist = (r: typeof formula, size: string) =>
+    r.sizeOptions.find((o) => o.size === size)?.regions.find((x) => x.region === "waist")?.tension;
+  expect(waist(view.report!, "S")).toBe(0.7);
+  expect(waist(view.report!, "M")).toBe(0.2);
+  expect(waist(formula, "M")).not.toBe(0.2);
+  expect(view.report?.simulated).toBe(true);
   const notices = await db.notification.findMany({ where: { userId: buyer.id } });
   expect(notices.find((n) => n.id === `deep-fit:${jobId}`)?.href).toBe(`/products/${productId}`);
 

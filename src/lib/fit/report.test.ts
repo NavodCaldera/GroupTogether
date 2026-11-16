@@ -108,6 +108,32 @@ describe("fitReport", () => {
     expect(r.recommendedSize).toBe("L");
   });
 
+  it("a Deep Fit Test's simulated tension replaces the formula's for that size and area only", () => {
+    const input = {
+      body: { chest: { value: 96, low: 92, high: 100 }, waist: exact(84) },
+      sizes: ["S", "M", "L"],
+      chart,
+      stretchPct: 0,
+      archetype,
+      base,
+    };
+    const plain = fitReport(input);
+    const r = fitReport({ ...input, simulated: { M: { chest: 0.9 } } });
+    const m = r.sizeOptions.find((o) => o.size === "M")!;
+    const chest = m.regions.find((x) => x.region === "chest")!;
+    expect(chest).toMatchObject({ tension: 0.9, tensionLow: 0.9, tensionHigh: 0.9 });
+    expect(chest.uncertain).toBe(false);
+    expect(chest.verdict).toBe("tight");
+    const before = plain.sizeOptions.find((o) => o.size === "M")!;
+    expect(m.regions.find((x) => x.region === "waist")).toEqual(
+      before.regions.find((x) => x.region === "waist"),
+    );
+    expect(r.sizeOptions.find((o) => o.size === "L")).toEqual(
+      plain.sizeOptions.find((o) => o.size === "L"),
+    );
+    expect(r.recommendedSize).not.toBe("M");
+  });
+
   it("flags an area whose interval crosses a band boundary and reports both ends", () => {
     // chest 96 ± 6 on M (104): tension spans comfortable to snug.
     const body: Body = { chest: { value: 96, low: 90, high: 102 }, waist: exact(84) };

@@ -25,7 +25,13 @@ export function FitSection({
       </h2>
       {chart && fitted && (
         <Card>
-          <FitModule report={fitted} assets={view.assets} body={view.body} />
+          <FitModule
+            report={fitted}
+            assets={view.assets}
+            body={view.body}
+            deepFit={view.deepFit}
+            productId={productId}
+          />
         </Card>
       )}
       {chart && !fitted && buyer && (
