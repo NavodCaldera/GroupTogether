@@ -23,6 +23,11 @@ Newest first.
   they stay confirmed and nobody is notified. Checked in the browser on Dilan's body (shirt,
   chino, shorts) under software rendering only, not on a phone.
 
+- Tasks 2.1 and 2.2: tools for the real-person accuracy test. `scripts/export-body-case.ts`
+  saves a consenting volunteer's capture with their tape measurements (git-ignored);
+  `tools/body-fitting/accuracy.py` reports the error per measurement and sets the one correction,
+  `clothingCm` in `calibration.json`. No volunteers measured yet.
+
 ## 2026-11-16 - Plan for the remaining personal body work
 
 - Owner asked for "a full plan to implement all" of what `DEC-021` left unbuilt. Written as

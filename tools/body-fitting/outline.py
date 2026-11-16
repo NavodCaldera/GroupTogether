@@ -111,15 +111,18 @@ class _Frame:
         return np.array(out, dtype=float)
 
 
-def observe(front: View, side: View | None, height_cm: float) -> Observed:
+def observe(front: View, side: View | None, height_cm: float, cal: dict | None = None) -> Observed:
+    """`cal`: calibration.json. `clothingCm` comes off each side of every width and depth."""
     f = _Frame(front, height_cm)
     lm = front.landmarks
+    worn = 2 * float((cal or {}).get("clothingCm", 0.0))
     depth = _Frame(side, height_cm).widths() if side is not None else np.full(len(BANDS), np.nan)
+    depth = depth - worn
     return Observed(
         torso=f.torso_px * f.cm,
         leg=(f.bottom - f.hip[1]) * f.cm,
         shoulder_joints=abs(lm[L_SHOULDER, 0] - lm[R_SHOULDER, 0]) * f.cm,
         hip_joints=abs(lm[L_HIP, 0] - lm[R_HIP, 0]) * f.cm,
-        width=f.widths(),
+        width=f.widths() - worn,
         depth=depth,
     )

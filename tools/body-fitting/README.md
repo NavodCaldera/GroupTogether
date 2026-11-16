@@ -17,7 +17,7 @@ Python 3.12. Install into a virtual environment (Anny downloads ~1.4 GB of model
 ```sh
 python -m venv .venv && .venv/Scripts/pip install -r tools/body-fitting/requirements.txt
 .venv/Scripts/python tools/body-fitting/fit.py job.json      # or: fit.py - < job.json
-.venv/Scripts/python -m pytest tools/body-fitting/tests -q   # ~2 min
+.venv/Scripts/python -m pytest tools/body-fitting/tests -q   # ~5 min
 ```
 
 The app runs it through a job queue: `npm run fit:worker` (set `BODY_FIT_PYTHON` to this
@@ -77,6 +77,22 @@ the outline, and the side photo's arm can hide the back. Measure that bias with 
 volunteers (the same accuracy test as
 [`src/components/fit/capture/calibration.ts`](../../src/components/fit/capture/calibration.ts))
 before showing anyone a fitted body as theirs.
+
+### Measuring it on real people
+
+1. Tape-measure a volunteer's chest, waist and hip in fitted clothes. They sign in, take both
+   photos on **Account → My measurements** and save, but do **not** press "Looks like me" yet
+   (that clears the outlines).
+2. `npx tsx scripts/export-body-case.ts <email> --name <label> --chest <cm> --waist <cm> --hip <cm>`
+   writes `cases/<label>.json`. Cases are personal data and are git-ignored.
+3. With at least 5 cases (aim for 10 or more, both genders):
+   `python accuracy.py cases/ --calibrate` fits every case, sets `clothingCm` in
+   [`calibration.json`](calibration.json) (what clothing adds to each side of the outline, taken
+   off before fitting) and prints the mean error, mean absolute error and spread per measurement.
+4. **Gate:** mean absolute error at most 2 cm for each of chest, waist and hip and at most 2
+   failed builds in 10 (`"pass": true`). Until then keep `BODY_FIT_ENABLED` off in production.
+
+Results so far: none (no volunteers measured yet).
 
 ## Licences
 

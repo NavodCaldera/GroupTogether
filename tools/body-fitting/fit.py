@@ -60,7 +60,7 @@ class Job:
     gender: float | None = None
 
     @staticmethod
-    def from_json(d: dict) -> "Job":
+    def from_json(d: dict, cal: dict | None = None) -> "Job":
         height = float(d["heightCm"])
         if not 120 <= height <= 220:
             raise ValueError("height out of range")
@@ -68,7 +68,7 @@ class Job:
         side = View.from_json(d["side"]) if d.get("side") else None
         typed = {k: float(v) for k, v in (d.get("typed") or {}).items() if k in ("chest", "waist", "hip")}
         gender = d.get("gender")
-        return Job(height, observe(front, side, height), typed, None if gender is None else float(gender))
+        return Job(height, observe(front, side, height, cal), typed, None if gender is None else float(gender))
 
 
 def _bands(pred: np.ndarray, obs: np.ndarray) -> tuple[np.ndarray, int]:
@@ -266,7 +266,7 @@ def main(argv: list[str]) -> int:
             write_body(Fitter(), data, glb)
         print(json.dumps({"status": "ok", "bodyVersion": BODY_VERSION}))
         return 0
-    job = Job.from_json(data)
+    job = Job.from_json(data, json.loads(Path(__file__).with_name("calibration.json").read_text("utf-8")))
     # Anny's Warp backend prints a banner on stdout: keep stdout for the result alone.
     with contextlib.redirect_stdout(sys.stderr):
         fitter = Fitter()

@@ -83,3 +83,17 @@ def make_job(body: AnnyBody, phenotype, local=None, typed: tuple[str, ...] = ())
         "typed": {k: truth[k] for k in typed},
     }
     return job, truth
+
+
+def widened_case(body: AnnyBody, phenotype, clothing_px: int) -> dict:
+    """An accuracy case for a known body whose outlines are `clothing_px` wider on each side, as
+    clothes make them; `tape` is the body's true measurements. `clothingCm` records the widening.
+    """
+    job, truth = make_job(body, [phenotype])
+    job["gender"] = round(phenotype[0])
+    for view in (job["front"], job["side"]):
+        w = view["width"]
+        view["spans"] = [[y, max(0, a - clothing_px), min(w - 1, b + clothing_px)] for y, a, b in view["spans"]]
+    rows = {y for y, _, _ in job["front"]["spans"]}
+    return {"job": job, "tape": {k: truth[k] for k in ("chest", "waist", "hip")},
+            "clothingCm": clothing_px * truth["height"] / len(rows)}
