@@ -46,7 +46,7 @@ export function FitModule({
   report: FitReport;
   assets: { motion: Motion; url: string }[];
   /** The buyer's own 3D body: the garment is drawn over it instead of the archetype animation. */
-  personal?: { url: string; fitClass: FitClass; short: boolean } | null;
+  personal?: { url: string; fitClass: FitClass; short: boolean; animated: boolean } | null;
 }) {
   const options = report.sizeOptions.filter((o) => o.regions.length);
   const [size, setSize] = useState(report.recommendedSize ?? options[0]?.size);
@@ -114,6 +114,7 @@ export function FitModule({
                   unsure={unsure}
                   heat={heat}
                   drape={drape}
+                  motion={personal?.animated ? motion : undefined}
                   playing={playing}
                   speed={speed}
                   onError={onError}
@@ -123,21 +124,24 @@ export function FitModule({
             )}
           </div>
           <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Motion">
-            {MOTIONS.filter((m) => !personal && assets.some((a) => a.motion === m.id)).map((m) => (
+            {MOTIONS.filter((m) =>
+              personal ? personal.animated : assets.some((a) => a.motion === m.id),
+            ).map((m) => (
               <button
                 key={m.id}
                 type="button"
                 className={chip(m.id === motion)}
                 aria-pressed={m.id === motion}
                 onClick={() => {
-                  setState("loading");
+                  // An own body moves in place; other bodies load one file per motion.
+                  if (!personal) setState("loading");
                   setMotion(m.id);
                 }}
               >
                 {m.label}
               </button>
             ))}
-            {!personal && (
+            {(!personal || personal.animated) && (
               <>
                 <button
                   type="button"

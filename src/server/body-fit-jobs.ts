@@ -21,7 +21,18 @@ export interface FitResult {
   phenotype: Record<string, number>;
   local: Record<string, number>;
   measurements: Record<string, number>;
+  /** 2 and up: the body file has a skeleton and can be shown moving. */
+  bodyVersion?: number;
 }
+
+/** The body file's current format: 2 has a skeleton (tools/body-fitting/fit.py `BODY_VERSION`). */
+export const BODY_VERSION = 2;
+
+/** Writes the body file again from stored Anny parameters, without fitting. */
+export type BodyWriter = (params: {
+  phenotype: Record<string, number>;
+  local: Record<string, number>;
+}) => Promise<Uint8Array>;
 
 /** Runs the Python fitter on one job input; the glb is null when the fit failed. */
 export type FitRunner = (input: unknown) => Promise<{ result: FitResult; glb: Uint8Array | null }>;
@@ -123,6 +134,7 @@ export async function runBodyFitJob(
               measurements: out.result.measurements,
               phenotype: out.result.phenotype,
               local: out.result.local,
+              bodyVersion: out.result.bodyVersion ?? 1,
             } as Prisma.InputJsonValue,
             bodyFitAt: new Date(),
           }
@@ -148,4 +160,38 @@ export async function sweepBodyOutlines(db: PrismaClient, now = new Date()) {
     data: { input: Prisma.DbNull },
   });
   return count;
+}
+
+/**
+ * Brings body files in an older format up to date from their stored shape. The buyer's check and
+ * confirmation stand: status and fit time are unchanged and nobody is notified.
+ */
+export async function upgradeBodies(
+  db: PrismaClient,
+  storage: Storage,
+  write: BodyWriter,
+  limit = 20,
+): Promise<number> {
+  const rows = await db.$queryRaw<{ userId: string; bodyFileKey: string; bodyFit: unknown }[]>`
+    SELECT "userId", "bodyFileKey", "bodyFit" FROM "BodyProfile"
+    WHERE "bodyFileKey" IS NOT NULL AND "bodyFit" ? 'phenotype'
+      AND COALESCE(("bodyFit"->>'bodyVersion')::int, 1) < ${BODY_VERSION}
+    ORDER BY "bodyFitAt" LIMIT ${limit}`;
+  let done = 0;
+  for (const row of rows) {
+    const fit = row.bodyFit as Parameters<BodyWriter>[0] & Record<string, unknown>;
+    const key = row.bodyFileKey.replace(/(-v\d+)?\.glb$/, `-v${BODY_VERSION}.glb`);
+    await storage.put(key, await write({ phenotype: fit.phenotype, local: fit.local ?? {} }));
+    // Only if the buyer has not rebuilt or deleted the body meanwhile.
+    const { count } = await db.bodyProfile.updateMany({
+      where: { userId: row.userId, bodyFileKey: row.bodyFileKey },
+      data: {
+        bodyFileKey: key,
+        bodyFit: { ...fit, bodyVersion: BODY_VERSION } as Prisma.InputJsonValue,
+      },
+    });
+    await storage.delete(count ? row.bodyFileKey : key);
+    done += count;
+  }
+  return done;
 }

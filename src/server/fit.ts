@@ -182,7 +182,7 @@ export interface FitView {
   /** The simulated garment on the buyer's archetype, per motion. */
   assets: { motion: "WALK" | "RUN" | "REACH" | "SIT"; url: string }[];
   /** The buyer's confirmed own 3D body (DEC-021): the garment is drawn over it in the browser. */
-  personal: { url: string; fitClass: FitClass; short: boolean } | null;
+  personal: { url: string; fitClass: FitClass; short: boolean; animated: boolean } | null;
 }
 
 /**
@@ -215,6 +215,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
             archetypeId: true,
             archetype: { select: { params: true } },
             bodyStatus: true,
+            bodyFit: true,
             bodyFitAt: true,
           },
         })
@@ -284,6 +285,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
             url: `/api/fit-body?v=${profile.bodyFitAt?.getTime().toString(36) ?? "0"}`,
             fitClass: fitClass(kind),
             short: isShort(kind),
+            animated: ((profile.bodyFit as { bodyVersion?: number } | null)?.bodyVersion ?? 1) >= 2,
           }
         : null,
   };

@@ -145,6 +145,23 @@ export function garmentFrom(
   };
 }
 
+/** The body's four bones and weights per garment vertex, so the garment moves with the body. */
+export function garmentSkin(
+  g: Garment,
+  joints: ArrayLike<number>,
+  weights: ArrayLike<number>,
+): { skinIndex: Uint16Array; skinWeight: Float32Array } {
+  const skinIndex = new Uint16Array(g.source.length * 4);
+  const skinWeight = new Float32Array(g.source.length * 4);
+  g.source.forEach((v, i) => {
+    for (let c = 0; c < 4; c++) {
+      skinIndex[i * 4 + c] = joints[v * 4 + c];
+      skinWeight[i * 4 + c] = weights[v * 4 + c];
+    }
+  });
+  return { skinIndex, skinWeight };
+}
+
 /**
  * Garment vertex positions: each body vertex moved out along its normal by its part's gap,
  * smoothed so neighbouring parts with different room meet without a step. Metres.

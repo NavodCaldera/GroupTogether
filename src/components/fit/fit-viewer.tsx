@@ -15,7 +15,8 @@ import { DRACOLoader } from "three/addons/loaders/DRACOLoader.js";
 import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { regionWeights, REGION_COUNT } from "@/lib/fit/blend";
 import type { FitClass } from "@/lib/fit/config";
-import { drapePositions, garmentFrom } from "@/lib/fit/drape";
+import { drapePositions, garmentFrom, garmentSkin } from "@/lib/fit/drape";
+import { clipFor, type Motion } from "@/lib/fit/motion";
 import { RAMP_GLSL } from "@/lib/fit/colour";
 
 export interface FitViewerProps {
@@ -27,6 +28,8 @@ export interface FitViewerProps {
   heat: boolean;
   /** Draw the garment over the buyer's own body: garment type and gap per body part, cm. */
   drape?: { cls: FitClass; short?: boolean; gaps: number[] };
+  /** Played on a body file that has a skeleton; other files carry their own animation. */
+  motion?: Motion;
   playing: boolean;
   speed: number;
   onError: () => void;
@@ -132,6 +135,8 @@ export default function FitViewer(props: FitViewerProps) {
     let mixer: THREE.AnimationMixer | null = null;
     const clock = new THREE.Clock();
     // The garment over the buyer's body; its positions follow the current size's gaps.
+    // A body with a skeleton: the clip follows the chosen motion without reloading the file.
+    let rig: { motion: Motion | null; play: (next: Motion) => void } | null = null;
     let draped: { update: (gaps: number[]) => void; key: string } | null = null;
 
     const addDrape = (body: THREE.Mesh, cls: FitClass, short: boolean) => {
@@ -153,7 +158,20 @@ export default function FitViewer(props: FitViewerProps) {
       const material = heatMaterial(new THREE.MeshStandardMaterial({ color: 0x7d8a99 }), u);
       material.polygonOffset = true;
       material.polygonOffsetFactor = -1;
-      const mesh = new THREE.Mesh(geo, material);
+      const skinned = body as THREE.SkinnedMesh;
+      let mesh: THREE.Mesh;
+      if (skinned.isSkinnedMesh && g.getAttribute("skinIndex")) {
+        const skin = garmentSkin(
+          garment,
+          g.getAttribute("skinIndex").array,
+          g.getAttribute("skinWeight").array,
+        );
+        geo.setAttribute("skinIndex", new THREE.BufferAttribute(skin.skinIndex, 4));
+        geo.setAttribute("skinWeight", new THREE.BufferAttribute(skin.skinWeight, 4));
+        const moving = new THREE.SkinnedMesh(geo, material);
+        moving.bind(skinned.skeleton, skinned.bindMatrix);
+        mesh = moving;
+      } else mesh = new THREE.Mesh(geo, material);
       mesh.frustumCulled = false;
       body.parent?.add(mesh);
       draped = {
@@ -219,9 +237,34 @@ export default function FitViewer(props: FitViewerProps) {
         controls.target.copy(centre);
         controls.minDistance = dist * 0.5;
         controls.maxDistance = dist * 2;
+        const moving = bodies.find((b) => (b as THREE.SkinnedMesh).isSkinnedMesh) as
+          THREE.SkinnedMesh | undefined;
+        const bone = (name: string) =>
+          moving?.skeleton.bones.find(
+            (b) => b.name === THREE.PropertyBinding.sanitizeNodeName(name),
+          );
+        const [root, hip, knee] = [bone("root"), bone("upperleg01.L"), bone("lowerleg01.L")];
         if (gltf.animations[0]) {
           mixer = new THREE.AnimationMixer(gltf.scene);
           mixer.clipAction(gltf.animations[0]).play();
+        } else if (root && hip && knee) {
+          gltf.scene.updateMatrixWorld(true);
+          const rest = {
+            root: root.position.toArray(),
+            thigh: hip
+              .getWorldPosition(new THREE.Vector3())
+              .distanceTo(knee.getWorldPosition(new THREE.Vector3())),
+          };
+          const m = new THREE.AnimationMixer(gltf.scene);
+          mixer = m;
+          rig = {
+            motion: null,
+            play(next) {
+              m.stopAllAction();
+              m.clipAction(clipFor(THREE, next, rest)).play();
+              this.motion = next;
+            },
+          };
         }
         onReady();
       })
@@ -236,6 +279,7 @@ export default function FitViewer(props: FitViewerProps) {
         u.uUnsure.value[i] += ((t.unsure[i] ?? 0) - u.uUnsure.value[i]) * ease;
       }
       u.uHeat.value += ((t.heat ? 1 : 0) - u.uHeat.value) * ease;
+      if (rig && t.motion && rig.motion !== t.motion) rig.play(t.motion);
       if (mixer) mixer.update(t.playing ? dt * t.speed : 0);
       if (draped && t.drape && draped.key !== t.drape.gaps.join(",")) draped.update(t.drape.gaps);
       controls.update();

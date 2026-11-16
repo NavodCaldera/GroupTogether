@@ -3,6 +3,7 @@ import { NEUTRAL } from "./blend";
 import {
   drapePositions,
   garmentFrom,
+  garmentSkin,
   isShort,
   MAX_GAP_CM,
   MIN_GAP_CM,
@@ -58,6 +59,19 @@ describe("garmentFrom and drapePositions", () => {
     expect(step[2 * 3 + 2]).toBeCloseTo(0.03);
     expect(smooth[2 + 0]).toBeGreaterThan(0.01); // the chest picks up some of the waist's room
     expect(smooth[2 * 3 + 2]).toBeLessThan(0.03);
+  });
+});
+
+describe("garmentSkin", () => {
+  it("gives each garment vertex the bones of the body vertex under it", () => {
+    const parts = [PART.head, PART.chest, PART.chest, PART.waist];
+    const g = garmentFrom(parts, [1, 2, 3], "top");
+    const joints = [9, 9, 9, 9, 1, 2, 0, 0, 3, 4, 0, 0, 5, 6, 7, 8];
+    const weights = [1, 0, 0, 0, 0.5, 0.5, 0, 0, 0.25, 0.75, 0, 0, 0.1, 0.2, 0.3, 0.4];
+    const skin = garmentSkin(g, joints, weights);
+    expect([...skin.skinIndex]).toEqual([1, 2, 0, 0, 3, 4, 0, 0, 5, 6, 7, 8]);
+    expect(skin.skinWeight[5]).toBeCloseTo(0.75);
+    expect(skin.skinWeight).toHaveLength(4 * g.source.length);
   });
 });
 

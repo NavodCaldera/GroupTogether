@@ -100,3 +100,23 @@ def test_the_browser_names_the_same_bones_in_the_same_order():
     ts = (Path(__file__).resolve().parents[3] / "src/lib/fit/motion.ts").read_text("utf-8")
     block = ts[ts.index("export const BONES = [") : ts.index("] as const;")]
     assert re.findall(r'"([^"]+)"', block) == list(skin.BONES)
+
+
+@pytest.mark.anny
+def test_rewrite_builds_the_body_file_from_stored_parameters_in_any_key_order(tmp_path, capsys):
+    import fit
+    from body import LOCAL, PHENOTYPES
+
+    # The database returns keys in its own order: values must be matched by name.
+    pheno = dict(zip(PHENOTYPES, [1.0, 0.75, 0.5, 0.9, 0.5, 0.5]))
+    params = {"phenotype": dict(reversed(list(pheno.items()))),
+              "local": {k: 0.0 for k in reversed(LOCAL)}}
+    src, a, b = tmp_path / "p.json", tmp_path / "a.glb", tmp_path / "b.glb"
+    src.write_text(json.dumps(params))
+    assert fit.main(["fit.py", "--rewrite", str(src), "--glb", str(a)]) == 0
+    assert json.loads(capsys.readouterr().out.strip().splitlines()[-1]) == {
+        "status": "ok", "bodyVersion": 2}
+    src.write_text(json.dumps({"phenotype": pheno, "local": dict.fromkeys(LOCAL, 0.0)}))
+    assert fit.main(["fit.py", "--rewrite", str(src), "--glb", str(b)]) == 0
+    assert a.read_bytes() == b.read_bytes()
+    assert len(read_glb(a)["skins"][0]["joints"]) == 36

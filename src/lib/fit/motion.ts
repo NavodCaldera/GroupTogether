@@ -6,6 +6,8 @@
  * Angles are Euler XYZ in degrees about the file's axes: X to the body's left, Y up, Z forward.
  * A leg or arm hanging down swings forward with a negative X angle; a knee bends with a positive
  * one. Bones in the file have no rest rotation, so these are plain world-axis turns at each joint.
+ * The body rests with its arms out to the sides, about 42 degrees from hanging: a Z angle lowers
+ * or raises them (negative lowers the left arm, positive the right), applied before the X swing.
  */
 import type * as Three from "three";
 
@@ -71,6 +73,14 @@ const x = (bone: Bone, times: number[], angles: number[]): Track => ({
   times,
   degrees: angles.map((a) => [a, 0, 0]),
 });
+/** Arm tracks: the X swing with the arm first turned about Z by `side` degrees. */
+const armTrack = (bone: Bone, times: number[], swing: number[], side: number): Track => ({
+  bone,
+  times,
+  degrees: swing.map((a) => [a, 0, side]),
+});
+/** Brings an arm down to the body's side. */
+const ARM_DOWN = 35;
 const mirror = (angles: number[]) => angles.map((a) => (a === 0 ? 0 : -a));
 /** The same cycle half a period later (the other leg). */
 const halfLater = (angles: number[]) => {
@@ -92,8 +102,8 @@ function stride(duration: number, thigh: number, knee: number[], arm: number, el
       x("upperleg01.R", t, mirror(swing)),
       x("lowerleg01.L", t, knee),
       x("lowerleg01.R", t, halfLater(knee)),
-      x("upperarm01.L", t, arms),
-      x("upperarm01.R", t, mirror(arms)),
+      armTrack("upperarm01.L", t, arms, -ARM_DOWN),
+      armTrack("upperarm01.R", t, mirror(arms), ARM_DOWN),
       x("lowerarm01.L", ends, [-elbow, -elbow]),
       x("lowerarm01.R", ends, [-elbow, -elbow]),
     ],
@@ -101,7 +111,12 @@ function stride(duration: number, thigh: number, knee: number[], arm: number, el
 }
 
 const REACH_T = [0, 0.8, 1.6, 2.4, 3.2];
-const REACH = [0, -75, -150, -75, 0];
+const REACH = [0, 62.5, 125, 62.5, 0];
+const z = (bone: Bone, times: number[], angles: number[]): Track => ({
+  bone,
+  times,
+  degrees: angles.map((a) => [0, 0, a]),
+});
 const SIT_T = [0, 1, 2, 3.2, 4.2, 5.2];
 const SIT_THIGH = [0, -45, -90, -90, -45, 0];
 
@@ -110,7 +125,7 @@ export const CLIPS: Record<Motion, Clip> = {
   RUN: stride(0.7, 45, [40, 80, 10, 10, 40], 40, 70),
   REACH: {
     duration: 3.2,
-    tracks: [x("upperarm01.L", REACH_T, REACH), x("upperarm01.R", REACH_T, REACH)],
+    tracks: [z("upperarm01.L", REACH_T, REACH), z("upperarm01.R", REACH_T, mirror(REACH))],
   },
   SIT: {
     duration: 5.2,
@@ -120,6 +135,8 @@ export const CLIPS: Record<Motion, Clip> = {
       x("lowerleg01.L", SIT_T, mirror(SIT_THIGH)),
       x("lowerleg01.R", SIT_T, mirror(SIT_THIGH)),
       x("spine05", SIT_T, [0, 3, 5, 5, 3, 0]),
+      armTrack("upperarm01.L", [0, 5.2], [0, 0], -ARM_DOWN),
+      armTrack("upperarm01.R", [0, 5.2], [0, 0], ARM_DOWN),
     ],
     drop: { times: SIT_T, values: [0, 0.5, 1, 1, 0.5, 0] },
   },
@@ -136,9 +153,7 @@ export function poseAt(motion: Motion, t: number): Record<string, Angles> {
     const a = Math.max(0, i - 1);
     const span = track.times[i] - track.times[a];
     const f = span > 0 ? Math.min(1, Math.max(0, (at - track.times[a]) / span)) : 0;
-    pose[track.bone] = track.degrees[a].map(
-      (v, c) => v + (track.degrees[i][c] - v) * f,
-    ) as Angles;
+    pose[track.bone] = track.degrees[a].map((v, c) => v + (track.degrees[i][c] - v) * f) as Angles;
   }
   return pose;
 }
@@ -172,7 +187,11 @@ export function clipFor(THREE: typeof Three, motion: Motion, rest: RestPose): Th
       new THREE.VectorKeyframeTrack(
         "root.position",
         clip.drop.times,
-        clip.drop.values.flatMap((d) => [rest.root[0], rest.root[1] - d * rest.thigh, rest.root[2]]),
+        clip.drop.values.flatMap((d) => [
+          rest.root[0],
+          rest.root[1] - d * rest.thigh,
+          rest.root[2],
+        ]),
       ),
     );
   return new THREE.AnimationClip(motion, clip.duration, tracks);

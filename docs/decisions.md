@@ -360,8 +360,9 @@ personal body file is private, served only to its owner.
 **Geometric engine runs on the phone (2026-11-16, owner to confirm).** With answer (1), the
 garment on the buyer's body is the covered body surface pushed out by each area's room from the
 size chart, coloured with the fit report's tension (`src/lib/fit/drape.ts`). It takes
-milliseconds in the browser, works for tops, outerwear, bottoms, shorts and dresses, and is
-static (no walk, run, reach or sit on the buyer's own body yet). So the body clusters (shared
+milliseconds in the browser and works for tops, outerwear, bottoms, shorts and dresses. Since
+2026-11-16 the body file carries a skeleton, so the body and its garment walk, run, reach and
+sit (the garment follows the body; it does not swing or fold). So the body clusters (shared
 drapes) and the queued, 5-a-day Deep Fit Test are not needed for it; they come back only if a
 real cloth simulator (Blender, XRTailor) is added. A licence check
 (`npm run check:licences`, in `npm run check`) blocks the non-commercial body models.

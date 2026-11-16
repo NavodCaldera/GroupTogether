@@ -2,6 +2,8 @@
 
     python fit.py job.json [--glb body.glb]   # prints the result JSON; --glb writes the body
     python fit.py - < job.json
+    python fit.py --rewrite params.json --glb body.glb   # the body file again from a stored
+                                                         # {"phenotype", "local"}, no fitting
 
 Job:
 
@@ -216,6 +218,7 @@ class Fitter:
             "phenotype": {k: round(float(v), 4) for k, v in zip(PHENOTYPES, x[:N_PHENO])},
             "local": {k: round(float(v), 4) for k, v in zip(LOCAL, x[N_PHENO:])},
             "measurements": f.measurements(),
+            "bodyVersion": BODY_VERSION,
             "evals": self.evals,
             "seconds": round(time.perf_counter() - t0, 1),
         }
@@ -223,7 +226,9 @@ class Fitter:
 
 def write_body(fitter: Fitter, result: dict, path: str) -> None:
     """The fitted rest-pose body as a glb for the app's viewer: Y up, facing +Z, feet at y = 0."""
-    x = np.array(list(result["phenotype"].values()) + list(result["local"].values()))
+    # By name: stored results come back from the database with their keys reordered.
+    x = np.array([result["phenotype"][k] for k in PHENOTYPES]
+                 + [result["local"].get(k, 0.0) for k in LOCAL], dtype=float)
     local = x[N_PHENO:][None]
     verts, heads = fitter.body.forward(x[:N_PHENO][None], local)
     parts = body_parts(fitter.body, verts[0], heads[0])
@@ -247,12 +252,21 @@ def main(argv: list[str]) -> int:
         if not glb:
             print(__doc__, file=sys.stderr)
             return 2
-    if len(args) != 1:
+    rewrite = "--rewrite" in args
+    if rewrite:
+        args.remove("--rewrite")
+    if len(args) != 1 or (rewrite and not glb):
         print(__doc__, file=sys.stderr)
         return 2
     src = sys.stdin if args[0] == "-" else open(args[0], encoding="utf-8")
     with src:
-        job = Job.from_json(json.load(src))
+        data = json.load(src)
+    if rewrite:
+        with contextlib.redirect_stdout(sys.stderr):
+            write_body(Fitter(), data, glb)
+        print(json.dumps({"status": "ok", "bodyVersion": BODY_VERSION}))
+        return 0
+    job = Job.from_json(data)
     # Anny's Warp backend prints a banner on stdout: keep stdout for the result alone.
     with contextlib.redirect_stdout(sys.stderr):
         fitter = Fitter()

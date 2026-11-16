@@ -17,6 +17,12 @@ Newest first.
 - Task 4.1: the body file now carries a skeleton (36 bones, four per vertex) and
   `bodyVersion: 2`, so it can be animated (`tools/body-fitting/skin.py`, skins in `gltf.py`).
 
+- Tasks 4.2 to 4.4: the buyer's own body and the garment on it now walk, run, reach and sit
+  (`src/lib/fit/motion.ts`; the motion and play buttons show for a body with a skeleton). The
+  worker rewrites bodies built earlier from their stored shape when it has nothing else to do;
+  they stay confirmed and nobody is notified. Checked in the browser on Dilan's body (shirt,
+  chino, shorts) under software rendering only, not on a phone.
+
 ## 2026-11-16 - Plan for the remaining personal body work
 
 - Owner asked for "a full plan to implement all" of what `DEC-021` left unbuilt. Written as

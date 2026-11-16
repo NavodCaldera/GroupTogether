@@ -31,12 +31,23 @@ describe("motion clips", () => {
     expect(pose["upperleg01.L"][0]).toBeCloseTo(-90);
     expect(pose["lowerleg01.R"][0]).toBeCloseTo(90);
     expect(CLIPS.SIT.drop).toBeDefined();
+    expect(pose["upperarm01.L"][2]).toBeCloseTo(-35); // arms at the sides, not held out
+    expect(pose["upperarm01.R"][2]).toBeCloseTo(35);
   });
 
-  it("reaches with both arms up", () => {
+  it("reaches with both arms raised overhead from the sides", () => {
     const pose = poseAt("REACH", 1.6);
-    expect(pose["upperarm01.L"][0]).toBeCloseTo(-150);
-    expect(pose["upperarm01.R"][0]).toBeCloseTo(-150);
+    expect(pose["upperarm01.L"][2]).toBeCloseTo(125);
+    expect(pose["upperarm01.R"][2]).toBeCloseTo(-125);
+  });
+
+  it("walks and runs with the arms lowered to the sides, swinging against the legs", () => {
+    for (const id of ["WALK", "RUN"] as const) {
+      const quarter = poseAt(id, CLIPS[id].duration / 4);
+      expect(quarter["upperarm01.L"][2]).toBeCloseTo(-35);
+      expect(quarter["upperarm01.R"][2]).toBeCloseTo(35);
+      expect(Math.sign(quarter["upperarm01.L"][0])).toBe(-Math.sign(quarter["upperleg01.L"][0]));
+    }
   });
 });
 
@@ -53,5 +64,14 @@ describe("clipFor", () => {
     const q = new THREE.Quaternion().fromArray(thigh.values, 2 * 4);
     const foot = new THREE.Vector3(0, -1, 0).applyQuaternion(q);
     expect(foot.z).toBeCloseTo(1); // the thigh points forward
+    // The body rests with its arms about 42 degrees out from hanging; at the top of the reach
+    // the left arm points up.
+    const reach = clipFor(THREE, "REACH", rest).tracks.find(
+      (t) => t.name === "upperarm01L.quaternion",
+    )!;
+    const up = new THREE.Vector3(0.67, -0.74, 0).applyQuaternion(
+      new THREE.Quaternion().fromArray(reach.values, 2 * 4),
+    );
+    expect(up.y).toBeGreaterThan(0.9);
   });
 });

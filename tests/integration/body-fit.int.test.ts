@@ -7,6 +7,7 @@ import {
   OUTLINE_KEEP_MS,
   runBodyFitJob,
   sweepBodyOutlines,
+  upgradeBodies,
   type FitRunner,
 } from "@/server/body-fit-jobs";
 import { db } from "@/server/db";
@@ -185,4 +186,37 @@ it("the product page draws the garment on the buyer's body only once they confir
   const view = await getFitView(variant.productId, buyer.id);
   expect(view.personal).toMatchObject({ fitClass: "top", short: false });
   expect(view.personal?.url).toMatch(/^\/api\/fit-body\?v=/);
+  // A body built before the skeleton stands still.
+  expect(view.personal?.animated).toBe(false);
+  await saveBodyProfile(buyer.id, profile());
+  await buildOnce(async (input) => {
+    const out = await ok(input);
+    return { ...out, result: { ...out.result, bodyVersion: 2 } };
+  });
+  await confirmBody(buyer.id);
+  expect((await getFitView(variant.productId, buyer.id)).personal?.animated).toBe(true);
+});
+
+it("a body built before the skeleton is rewritten from its stored shape, still confirmed", async () => {
+  const buyer = await makeBuyer();
+  await saveBodyProfile(buyer.id, profile());
+  await buildOnce();
+  await confirmBody(buyer.id);
+  const before = await db.bodyProfile.findUniqueOrThrow({ where: { userId: buyer.id } });
+  const NEW = new Uint8Array([1, 2, 3]);
+  const seen: unknown[] = [];
+  const write = async (params: unknown) => (seen.push(params), NEW);
+
+  expect(await upgradeBodies(db, storage(), write)).toBe(1);
+  const after = await db.bodyProfile.findUniqueOrThrow({ where: { userId: buyer.id } });
+  expect(seen).toEqual([{ phenotype: { gender: 0 }, local: {} }]);
+  expect(after.bodyStatus).toBe("CONFIRMED");
+  expect(after.bodyFitAt).toEqual(before.bodyFitAt);
+  expect(after.bodyFileKey).not.toBe(before.bodyFileKey);
+  expect((after.bodyFit as { bodyVersion: number }).bodyVersion).toBe(2);
+  expect([...(await storage().get(after.bodyFileKey!))!]).toEqual([1, 2, 3]);
+  expect(await storage().get(before.bodyFileKey!)).toBeNull();
+  expect(await db.notification.count({ where: { userId: buyer.id } })).toBe(1); // the build's only
+  // Nothing left to do.
+  expect(await upgradeBodies(db, storage(), write)).toBe(0);
 });

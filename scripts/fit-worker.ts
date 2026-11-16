@@ -18,6 +18,8 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import {
   claimBodyFit,
   runBodyFitJob,
+  upgradeBodies,
+  type BodyWriter,
   type FitResult,
   type FitRunner,
 } from "../src/server/body-fit-jobs";
@@ -27,30 +29,46 @@ const PYTHON = process.env.BODY_FIT_PYTHON || "python";
 const FIT = join(process.cwd(), "tools", "body-fitting", "fit.py");
 const TIMEOUT_MS = 5 * 60 * 1000;
 
+/** Runs fit.py with JSON on stdin; resolves with its stdout. */
+const python = (args: string[], input: unknown) =>
+  new Promise<string>((resolve, reject) => {
+    const child = spawn(PYTHON, [FIT, ...args], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    let out = "";
+    let err = "";
+    const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
+    child.stdout.on("data", (d) => (out += d));
+    child.stderr.on("data", (d) => (err = (err + d).slice(-2000)));
+    child.on("error", reject);
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      if (code === 0) resolve(out);
+      else reject(new Error(`fit.py exited ${code}: ${err.trim().split("\n").pop()}`));
+    });
+    child.stdin.end(JSON.stringify(input));
+  });
+
 const runFit: FitRunner = async (input) => {
   const dir = await mkdtemp(join(tmpdir(), "body-fit-"));
   const glbPath = join(dir, "body.glb");
   try {
-    const stdout = await new Promise<string>((resolve, reject) => {
-      const child = spawn(PYTHON, [FIT, "-", "--glb", glbPath], {
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      let out = "";
-      let err = "";
-      const timer = setTimeout(() => child.kill(), TIMEOUT_MS);
-      child.stdout.on("data", (d) => (out += d));
-      child.stderr.on("data", (d) => (err = (err + d).slice(-2000)));
-      child.on("error", reject);
-      child.on("close", (code) => {
-        clearTimeout(timer);
-        if (code === 0) resolve(out);
-        else reject(new Error(`fit.py exited ${code}: ${err.trim().split("\n").pop()}`));
-      });
-      child.stdin.end(JSON.stringify(input));
-    });
+    const stdout = await python(["-", "--glb", glbPath], input);
     const result = JSON.parse(stdout.trim().split("\n").pop()!) as FitResult;
     const glb = result.status === "ok" ? new Uint8Array(await readFile(glbPath)) : null;
     return { result, glb };
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+};
+
+/** The body file again from stored parameters (older files gain the skeleton). */
+const writeBody: BodyWriter = async (params) => {
+  const dir = await mkdtemp(join(tmpdir(), "body-fit-"));
+  const glbPath = join(dir, "body.glb");
+  try {
+    await python(["--rewrite", "-", "--glb", glbPath], params);
+    return new Uint8Array(await readFile(glbPath));
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -73,6 +91,15 @@ async function main() {
     while (!stopping) {
       const job = await claimBodyFit(db);
       if (!job) {
+        // Idle: bring a few older body files up to date.
+        const upgraded = await upgradeBodies(db, storage, writeBody, 5).catch((error) => {
+          console.error("body upgrade failed:", error);
+          return 0;
+        });
+        if (upgraded) {
+          console.log(`upgraded ${upgraded} body file(s)`);
+          continue;
+        }
         if (once) return;
         await new Promise((r) => setTimeout(r, 2000));
         continue;
