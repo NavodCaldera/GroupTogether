@@ -28,6 +28,29 @@ Newest first.
     data, while the test was running.
   - Deleting the body removes the buyer's tests. The sweep removes finished tests after 90 days.
   - The product-page button comes in Task 6.6.
+- Task 6.3, body clusters. The standard body shapes are now 20 clusters (men-01 to men-10,
+  women-01 to women-10) instead of the four hand-made shapes.
+  - `tools/fit-simulation/clusters.py` samples 4000 adult Anny bodies per gender and groups them
+    with k-means on height, chest, waist and hip. Each shape is the real sampled body nearest its
+    group's centre.
+  - Every shape has a skeleton body file in `public/fit-assets/bodies`.
+  - Heights follow 166 ± 7 cm for men and 154 ± 6.5 cm for women. These are the lead's rough
+    South Asian figures, which the owner has not confirmed yet. The first run sampled heights
+    evenly, which gave 190 cm women, so it was redone.
+  - A buyer is matched to the nearest shape by standardised height, chest, waist and hip, and is
+    matched again on every save of their measurements.
+  - Thigh, arm, neck, wrist, shoulder and inseam are estimated from the main measurements.
+  - The old per-motion garment files are gone.
+  - The dev DB was loaded with a loader that upserts. `npm run db:seed` was not run, because it
+    empties every table.
+- Task 6.6, Deep Fit Test on the product page. A buyer with a confirmed body sees a "Deep Fit
+  Test" button (5 a day; disabled when none are left), then "Testing…" while it runs, then
+  "Simulated on your body" when it is done.
+  - The report then uses the simulated tension for each size and area.
+  - The viewer loads the size's simulated garment, binds it to the body's skeleton so the
+    motions move it, and colours it by area. Without a garment it draws the shell as before.
+  - The labels are recorded in DEC-021 as a UX-001 exception.
+  - The e2e test uses a fake simulator in place of Blender.
 
 ## 2026-11-16 - Material Library and Material Card: plan approved
 
