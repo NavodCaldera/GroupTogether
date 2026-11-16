@@ -61,6 +61,11 @@ export interface FitInput {
   /** The archetype the simulation ran on, in cm. */
   archetype?: Partial<Record<Region, number>> | null;
   base?: BaseTension | null;
+  /**
+   * A Deep Fit Test on the buyer's own body (DEC-021): where it has a tension for a size and area,
+   * that value replaces the formula's. It ran on the body itself, so it has no interval.
+   */
+  simulated?: BaseTension | null;
   /** Garment type: sets the ideal ease per area (./config.ts EASE). */
   fitClass?: FitClass;
   config?: FitConfig;
@@ -163,10 +168,12 @@ export function fitReport(input: FitInput): FitReport {
       if (sim) simulated = true;
       const at = (cm: number) =>
         regionTension(region, g, cm, input.stretchPct, sim, input.fitClass ?? "top", c);
-      const tension = at(m.value);
+      const own = input.simulated?.[size]?.[region];
+      if (own !== undefined) simulated = true;
+      const tension = own ?? at(m.value);
       // A larger body measurement means less room, so `high` gives the higher tension.
-      const tensionLow = at(Math.min(m.low, m.value));
-      const tensionHigh = at(Math.max(m.high, m.value));
+      const tensionLow = own ?? at(Math.min(m.low, m.value));
+      const tensionHigh = own ?? at(Math.max(m.high, m.value));
       const uncertain = band(tensionLow, c) !== band(tensionHigh, c);
       regions.push({
         region,

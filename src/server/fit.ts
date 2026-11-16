@@ -15,6 +15,7 @@ import {
 import { isRegion, regionFromEnum, REGIONS, type Region } from "@/lib/fit/regions";
 import { bodyFitEnabled, deleteBody, outlinesSchema, queueBodyFit } from "./body-fit";
 import { db } from "./db";
+import { deepFitsLeft, getDeepFit, type DeepFit } from "./deep-fit";
 import { AppError } from "./errors";
 
 export class FitError extends AppError {}
@@ -214,7 +215,35 @@ export interface FitView {
     animated: boolean;
     /** The buyer's own fitted body; false for the standard shape nearest to them. */
     own: boolean;
+    /**
+     * Size → a garment file simulated on this body (skinned to its skeleton, `_REGION_ID` per
+     * vertex). The viewer draws it instead of the pushed-out shell; null or a missing size: shell.
+     */
+    garments: Record<string, string> | null;
   } | null;
+  /** Deep Fit Test of this garment on the buyer's own body (DEC-021); null without a confirmed body. */
+  deepFit: { status: "none" | "queued" | "done" | "failed"; left: number } | null;
+}
+
+const DEEP_FIT_STATUS = {
+  QUEUED: "queued",
+  RUNNING: "queued",
+  DONE: "done",
+  FAILED: "failed",
+} as const;
+
+/** A Deep Fit Test's tensions, by size, keeping known areas only. */
+function simulatedTensions(
+  deep: DeepFit | null,
+): Record<string, Partial<Record<Region, number>>> | null {
+  if (deep?.status !== "DONE") return null;
+  const out: Record<string, Partial<Record<Region, number>>> = {};
+  for (const [size, areas] of Object.entries(deep.tensions)) {
+    out[size] = {};
+    for (const [k, v] of Object.entries(areas))
+      if (isRegion(k) && Number.isFinite(v)) out[size][k] = v;
+  }
+  return out;
 }
 
 /**
@@ -261,6 +290,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
       report: null,
       assets: [],
       body: null,
+      deepFit: null,
     };
   const { sizeChart, fitApprovedAt, kind, variants, fabricStretchPct, ...rest } = product;
   const material = [fabricStretchPct, ...Object.values(rest)].some((v) => v !== null)
@@ -278,8 +308,20 @@ export async function getFitView(productId: string, userId: string | null): Prom
       }
     : null;
   if (!chart || !profile)
-    return { material, chart, hasProfile: !!profile, report: null, assets: [], body: null };
+    return {
+      material,
+      chart,
+      hasProfile: !!profile,
+      report: null,
+      assets: [],
+      body: null,
+      deepFit: null,
+    };
 
+  const confirmed = profile.bodyStatus === "CONFIRMED" && !!userId;
+  const [deep, left] = confirmed
+    ? await Promise.all([getDeepFit(userId, productId), deepFitsLeft(userId)])
+    : [null, 0];
   const [tensions, assets] = profile.archetypeId
     ? await Promise.all([
         db.garmentRegionTension.findMany({
@@ -304,6 +346,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
     fitClass: fitClass(kind),
     archetype: profile.archetype ? archetypeParams(profile.archetype.params) : null,
     base: tensions.length ? base : null,
+    simulated: simulatedTensions(deep),
   });
   const garment = { fitClass: fitClass(kind), short: isShort(kind) };
   return {
@@ -319,10 +362,19 @@ export async function getFitView(productId: string, userId: string | null): Prom
             ...garment,
             animated: ((profile.bodyFit as { bodyVersion?: number } | null)?.bodyVersion ?? 1) >= 2,
             own: true,
+            garments:
+              deep?.status === "DONE" && Object.keys(deep.garments).length ? deep.garments : null,
           }
         : profile.archetype?.bodyUrl
-          ? { url: profile.archetype.bodyUrl, ...garment, animated: true, own: false }
+          ? {
+              url: profile.archetype.bodyUrl,
+              ...garment,
+              animated: true,
+              own: false,
+              garments: null,
+            }
           : null,
+    deepFit: confirmed ? { status: deep ? DEEP_FIT_STATUS[deep.status] : "none", left } : null,
   };
 }
 

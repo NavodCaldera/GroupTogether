@@ -8,18 +8,20 @@
 import {
   lazy,
   Suspense,
+  useActionState,
   useCallback,
   useEffect,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-import { cx } from "@/components/ui";
+import { Alert, Button, cx } from "@/components/ui";
 import { heatCss, RAMP_CSS, shownTension } from "@/lib/fit/colour";
 import type { FitClass } from "@/lib/fit/config";
 import { partGaps } from "@/lib/fit/drape";
 import { REGION_ID, REGION_LABEL } from "@/lib/fit/regions";
 import { band as bandOf, type Band, type FitReport } from "@/lib/fit/report";
+import { requestDeepFitAction } from "@/server/fit-actions";
 
 const FitViewer = lazy(() => import("./fit-viewer"));
 
@@ -53,15 +55,52 @@ const chip = (on: boolean) =>
     on ? "border-ink bg-ink text-paper" : "border-line bg-paper text-ink",
   );
 
+type DeepFit = { status: "none" | "queued" | "done" | "failed"; left: number };
+
+/** Deep Fit Test (DEC-021): queue a cloth simulation of this garment on the buyer's own body. */
+function DeepFitControl({ productId, deepFit }: { productId: string; deepFit: DeepFit }) {
+  const [state, run, pending] = useActionState(requestDeepFitAction, {});
+  if (deepFit.status === "done") return null;
+  if (deepFit.status === "queued")
+    return (
+      <p role="status" className="text-sm font-medium">
+        Testing…
+      </p>
+    );
+  return (
+    <form action={run} className="flex flex-col gap-2">
+      <input type="hidden" name="productId" value={productId} />
+      <Button type="submit" variant="secondary" disabled={pending || deepFit.left === 0}>
+        Deep Fit Test
+      </Button>
+      {state.error && <Alert>{state.error}</Alert>}
+    </form>
+  );
+}
+
 export function FitModule({
   report,
   assets,
   body: personal = null,
+  deepFit = null,
+  productId,
 }: {
   report: FitReport;
   assets: { motion: Motion; url: string }[];
-  /** A body file (the buyer's own or their standard shape): the garment is drawn over it. */
-  body?: { url: string; fitClass: FitClass; short: boolean; animated: boolean } | null;
+  /**
+   * A body file (the buyer's own or their standard shape): the garment is drawn over it, from
+   * `garments` (size → simulated garment file) when it has the size, else as a pushed-out shell.
+   */
+  body?: {
+    url: string;
+    fitClass: FitClass;
+    short: boolean;
+    animated: boolean;
+    garments?: Record<string, string> | null;
+  } | null;
+  /** The buyer's Deep Fit Test of this garment; null without a confirmed own body. */
+  deepFit?: DeepFit | null;
+  productId?: string;
 }) {
   const options = report.sizeOptions.filter((o) => o.regions.length);
   const [size, setSize] = useState(report.recommendedSize ?? options[0]?.size);
@@ -138,6 +177,7 @@ export function FitModule({
                   unsure={unsure}
                   heat={heat}
                   drape={drape}
+                  garment={personal?.garments?.[current.size]}
                   motion={personal?.animated ? motion : undefined}
                   playing={playing}
                   speed={speed}
@@ -200,6 +240,11 @@ export function FitModule({
       )}
 
       <div className="flex min-w-0 flex-col gap-3">
+        {deepFit?.status === "done" && (
+          <p className="text-sm font-medium" data-testid="fit-simulated">
+            Simulated on your body
+          </p>
+        )}
         <div className="flex items-baseline justify-between gap-2">
           <p className="text-sm text-subtle">Recommended</p>
           <p className="text-sm text-subtle">
@@ -256,6 +301,7 @@ export function FitModule({
             <span>Tight</span>
           </div>
         </div>
+        {deepFit && productId && <DeepFitControl productId={productId} deepFit={deepFit} />}
         <p className="text-xs text-subtle">Guidance, not a guarantee</p>
       </div>
     </div>

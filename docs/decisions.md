@@ -408,6 +408,11 @@ drapes) and the queued, 5-a-day Deep Fit Test are not needed for it; they come b
 real cloth simulator (Blender, XRTailor) is added. A licence check
 (`npm run check:licences`, in `npm run check`) blocks the non-commercial body models.
 
+**Deep Fit Test labels (2026-11-16, exception to `UX-001`).** The fit card for a buyer with a
+confirmed own body may show the button _Deep Fit Test_ (disabled once the day's 5 are used), the
+status _Testing…_ while the test is queued or running, and the label _Simulated on your body_
+when the result is shown. No other explanatory text.
+
 ### DEC-020 - Personalized fit heatmap
 
 **Status:** Decided **2026-11-15**, built **2026-11-15**. **Rules:** `FIT-001`, `UX-001`,

@@ -123,6 +123,7 @@ it("stores only numbers and consent, matches an archetype, and deletes on reques
     short: false,
     animated: true,
     own: false,
+    garments: null,
   });
   expect((await getFitView(variant.productId, null)).body).toBeNull();
 
