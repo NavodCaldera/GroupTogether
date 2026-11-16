@@ -35,7 +35,12 @@ import {
 import { db } from "../src/server/db";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadBodyFiles, loadFitManifest, type FitManifest } from "../tools/fit-simulation/load";
+import {
+  loadArchetypes,
+  loadBodyFiles,
+  loadFitManifest,
+  type FitManifest,
+} from "../tools/fit-simulation/load";
 import { saveBodyProfile as saveBodyProfileFor } from "../src/server/fit";
 import { hashPassword } from "../src/server/auth/password";
 import { setCartItem } from "../src/server/orders/cart";
@@ -703,10 +708,18 @@ async function main() {
       await db.stockOffer.update({ where: { id: offer.id }, data: { approvedRevision: 1 } });
   }
 
-  // Fit heatmap demo (DEC-020). Each garment in tools/fit-simulation/seed/garments has its
-  // pipeline output committed in public/fit-assets/seed-<name>: tops carry 3D simulations on
-  // two archetypes; dresses and bottoms carry only a size chart (report without 3D); Track
-  // pants waits for the Factory admin's approval; the school shirt has no fit data at all.
+  // Fit heatmap demo (DEC-020). The standard shapes are the 20 body clusters
+  // (tools/fit-simulation/clusters.py). Each garment in tools/fit-simulation/seed/garments has
+  // its pipeline output committed in public/fit-assets/seed-<name>: tops carry tensions on the
+  // ten shapes of their audience; dresses and bottoms carry only a size chart (report without
+  // simulation); Track pants waits for the Factory admin's approval; the school shirt has no fit
+  // data at all.
+  await loadArchetypes(
+    db,
+    JSON.parse(
+      readFileSync(join(process.cwd(), "tools/fit-simulation/seed/clusters.json"), "utf8"),
+    ),
+  );
   const fitRoot = join(process.cwd(), "public/fit-assets");
   for (const dir of readdirSync(fitRoot).filter((d) => d.startsWith("seed-"))) {
     const manifest = JSON.parse(

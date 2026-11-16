@@ -2,8 +2,9 @@
 
     python tools/fit-simulation/anny_bodies.py public/fit-assets/bodies [archetypes.json]
 
-Each archetype's height, chest, waist and hip (archetypes.py) are fitted with the same model as a
-buyer's own body (tools/body-fitting), so every body in the viewer looks and moves alike. Writes
+Each archetype is built with the same model as a buyer's own body (tools/body-fitting), so every
+body in the viewer looks and moves alike: from its stored Anny phenotype (the clusters,
+clusters.py), or else by fitting its height, chest, waist and hip. Writes
 `<name>-<hash>.glb` per shape and `bodies.json` (name -> file), which `load.ts` `loadBodyFiles`
 and the seed read. File names carry a content hash: the same input gives the same names, and the
 files can be cached for ever.
@@ -35,9 +36,9 @@ def build(out_dir: str, archetypes_path: str | None = None, fitter=None) -> dict
     files: dict[str, str] = {}
     for a in load(archetypes_path):
         p = a["params"]
-        result = fitter.fit_measurements(p["height"], 1 if a["gender"] == "WOMEN" else 0,
-                                         {k: p[k] for k in GIRTHS})
-        if result["status"] != "ok":
+        result = a.get("anny") or fitter.fit_measurements(
+            p["height"], 1 if a["gender"] == "WOMEN" else 0, {k: p[k] for k in GIRTHS})
+        if result.get("status", "ok") != "ok":
             raise RuntimeError(f"{a['name']}: no body matches {result['quality']}")
         tmp = out / f"{a['name']}.tmp"
         write_body(fitter, result, str(tmp))

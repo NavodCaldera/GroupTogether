@@ -50,370 +50,1697 @@
   },
   "archetypes": [
     {
-      "name": "women-petite-155",
+      "name": "women-01",
       "gender": "WOMEN",
       "params": {
-        "height": 155,
-        "chest": 84,
-        "waist": 70,
-        "hip": 92,
-        "thigh": 52,
-        "upperArm": 26,
-        "shoulder": 37,
-        "torso": 44,
-        "neck": 32,
+        "height": 146.2,
+        "chest": 76.8,
+        "waist": 59.6,
+        "hip": 85.0,
+        "torso": 39.8,
+        "thigh": 48.1,
+        "upperArm": 24.0,
+        "neck": 28.0,
+        "wrist": 13.9,
+        "shoulder": 35.5,
+        "inseam": 65.9
+      },
+      "share": 0.121,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.4183,
+          "weight": 0.2883,
+          "height": 0.2192,
+          "proportions": 0.3376
+        },
+        "local": {}
+      }
+    },
+    {
+      "name": "women-02",
+      "gender": "WOMEN",
+      "params": {
+        "height": 147.3,
+        "chest": 82.2,
+        "waist": 65.2,
+        "hip": 93.5,
+        "torso": 39.7,
+        "thigh": 52.9,
+        "upperArm": 25.7,
+        "neck": 30.0,
+        "wrist": 14.0,
+        "shoulder": 35.8,
+        "inseam": 66.4
+      },
+      "share": 0.102,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.4826,
+          "weight": 0.8242,
+          "height": 0.2273,
+          "proportions": 0.2118
+        },
+        "local": {}
+      }
+    },
+    {
+      "name": "women-03",
+      "gender": "WOMEN",
+      "params": {
+        "height": 150.0,
+        "chest": 90.5,
+        "waist": 77.6,
+        "hip": 102.2,
+        "torso": 41.4,
+        "thigh": 57.8,
+        "upperArm": 28.3,
+        "neck": 33.0,
+        "wrist": 14.2,
+        "shoulder": 36.4,
+        "inseam": 67.7
+      },
+      "share": 0.061,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.2135,
+          "weight": 0.8137,
+          "height": 0.2576,
+          "proportions": 0.5641
+        },
+        "local": {}
+      }
+    },
+    {
+      "name": "women-04",
+      "gender": "WOMEN",
+      "params": {
+        "height": 152.4,
+        "chest": 77.1,
+        "waist": 55.1,
+        "hip": 76.5,
+        "torso": 41.3,
+        "thigh": 43.3,
+        "upperArm": 24.1,
+        "neck": 28.1,
         "wrist": 14.5,
-        "inseam": 70
+        "shoulder": 37.0,
+        "inseam": 68.7
+      },
+      "share": 0.05,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.0482,
+          "weight": 0.1444,
+          "height": 0.273,
+          "proportions": 0.2548
+        },
+        "local": {}
       }
     },
     {
-      "name": "women-curvy-162",
+      "name": "women-05",
       "gender": "WOMEN",
       "params": {
-        "height": 162,
-        "chest": 98,
-        "waist": 84,
-        "hip": 106,
-        "thigh": 60,
-        "upperArm": 31,
-        "shoulder": 40,
-        "torso": 46,
-        "neck": 34,
-        "wrist": 15.5,
-        "inseam": 73
+        "height": 154.1,
+        "chest": 83.7,
+        "waist": 67.6,
+        "hip": 97.0,
+        "torso": 41.6,
+        "thigh": 54.9,
+        "upperArm": 26.2,
+        "neck": 30.6,
+        "wrist": 14.6,
+        "shoulder": 37.4,
+        "inseam": 69.5
+      },
+      "share": 0.134,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.3046,
+          "weight": 0.5885,
+          "height": 0.2908,
+          "proportions": 0.2728
+        },
+        "local": {}
+      }
+    },
+    {
+      "name": "women-06",
+      "gender": "WOMEN",
+      "params": {
+        "height": 154.2,
+        "chest": 90.2,
+        "waist": 64.2,
+        "hip": 95.2,
+        "torso": 41.2,
+        "thigh": 53.9,
+        "upperArm": 28.2,
+        "neck": 32.9,
+        "wrist": 14.6,
+        "shoulder": 37.5,
+        "inseam": 69.5
+      },
+      "share": 0.068,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.7724,
+          "weight": 0.8423,
+          "height": 0.2667,
+          "proportions": 0.1223
+        },
+        "local": {}
+      }
+    },
+    {
+      "name": "women-07",
+      "gender": "WOMEN",
+      "params": {
+        "height": 154.9,
+        "chest": 79.8,
+        "waist": 61.7,
+        "hip": 87.8,
+        "torso": 41.7,
+        "thigh": 49.7,
+        "upperArm": 25.0,
+        "neck": 29.1,
+        "wrist": 14.7,
+        "shoulder": 37.6,
+        "inseam": 69.9
+      },
+      "share": 0.209,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.2686,
+          "weight": 0.3097,
+          "height": 0.2973,
+          "proportions": 0.2223
+        },
+        "local": {}
+      }
+    },
+    {
+      "name": "women-08",
+      "gender": "WOMEN",
+      "params": {
+        "height": 156.2,
+        "chest": 98.4,
+        "waist": 88.1,
+        "hip": 110.3,
+        "torso": 43.0,
+        "thigh": 62.4,
+        "upperArm": 30.8,
+        "neck": 35.9,
+        "wrist": 14.8,
+        "shoulder": 38.0,
+        "inseam": 70.4
+      },
+      "share": 0.046,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.0803,
+          "weight": 0.8795,
+          "height": 0.3151,
+          "proportions": 0.6147
+        },
+        "local": {}
+      }
+    },
+    {
+      "name": "women-09",
+      "gender": "WOMEN",
+      "params": {
+        "height": 161.3,
+        "chest": 81.7,
+        "waist": 64.7,
+        "hip": 91.8,
+        "torso": 43.7,
+        "thigh": 52.0,
+        "upperArm": 25.6,
+        "neck": 29.8,
+        "wrist": 15.3,
+        "shoulder": 39.2,
+        "inseam": 72.7
+      },
+      "share": 0.114,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.6083,
+          "weight": 0.3765,
+          "height": 0.3594,
+          "proportions": 0.4431
+        },
+        "local": {}
+      }
+    },
+    {
+      "name": "women-10",
+      "gender": "WOMEN",
+      "params": {
+        "height": 162.5,
+        "chest": 88.5,
+        "waist": 72.0,
+        "hip": 101.4,
+        "torso": 43.6,
+        "thigh": 57.4,
+        "upperArm": 27.7,
+        "neck": 32.3,
+        "wrist": 15.4,
+        "shoulder": 39.5,
+        "inseam": 73.3
+      },
+      "share": 0.094,
+      "anny": {
+        "phenotype": {
+          "gender": 1.0,
+          "age": 0.75,
+          "muscle": 0.2798,
+          "weight": 0.6565,
+          "height": 0.3677,
+          "proportions": 0.2318
+        },
+        "local": {}
       }
     }
   ],
-  "assets": [
-    {
-      "archetype": "women-petite-155",
-      "motion": "WALK",
-      "file": "women-petite-155/walk-abef76d1e0.glb",
-      "size": "S"
-    },
-    {
-      "archetype": "women-petite-155",
-      "motion": "RUN",
-      "file": "women-petite-155/run-f3c48e6fd9.glb",
-      "size": "S"
-    },
-    {
-      "archetype": "women-petite-155",
-      "motion": "REACH",
-      "file": "women-petite-155/reach-4ab67e08a5.glb",
-      "size": "S"
-    },
-    {
-      "archetype": "women-petite-155",
-      "motion": "SIT",
-      "file": "women-petite-155/sit-f441eb7463.glb",
-      "size": "S"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "motion": "WALK",
-      "file": "women-curvy-162/walk-215ee7f9f9.glb",
-      "size": "L"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "motion": "RUN",
-      "file": "women-curvy-162/run-37ef0bd941.glb",
-      "size": "L"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "motion": "REACH",
-      "file": "women-curvy-162/reach-93c3d67167.glb",
-      "size": "L"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "motion": "SIT",
-      "file": "women-curvy-162/sit-c5067c68d2.glb",
-      "size": "L"
-    }
-  ],
+  "assets": [],
   "tensions": [
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-01",
       "size": "S",
       "region": "chest",
-      "base": 0.516,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "women-petite-155",
-      "size": "S",
-      "region": "waist",
-      "base": 0.41,
+      "base": 0.387,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-01",
+      "size": "S",
+      "region": "waist",
+      "base": 0.284,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.3,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.455,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-01",
+      "size": "S",
+      "region": "torso",
+      "base": 0.356,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "M",
+      "region": "chest",
+      "base": 0.31,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "M",
+      "region": "waist",
+      "base": 0.218,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.24,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.388,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "M",
+      "region": "torso",
+      "base": 0.326,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "L",
+      "region": "chest",
+      "base": 0.235,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "L",
+      "region": "waist",
+      "base": 0.151,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.18,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.34,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "L",
+      "region": "torso",
+      "base": 0.296,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.16,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.084,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.12,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.3,
+      "note": ""
+    },
+    {
+      "archetype": "women-01",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.266,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "S",
+      "region": "chest",
+      "base": 0.483,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-02",
+      "size": "S",
+      "region": "waist",
+      "base": 0.347,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.312,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.522,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-02",
+      "size": "S",
+      "region": "torso",
+      "base": 0.354,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "M",
+      "region": "chest",
+      "base": 0.378,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "M",
+      "region": "waist",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.252,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.443,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "M",
+      "region": "torso",
+      "base": 0.324,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "L",
+      "region": "chest",
+      "base": 0.303,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "L",
+      "region": "waist",
+      "base": 0.213,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.192,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.38,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "L",
+      "region": "torso",
+      "base": 0.294,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.228,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.147,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.132,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.334,
+      "note": ""
+    },
+    {
+      "archetype": "women-02",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.264,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "S",
+      "region": "chest",
+      "base": 0.636,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-03",
+      "size": "S",
+      "region": "waist",
+      "base": 0.554,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "women-03",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.347,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.624,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-03",
+      "size": "S",
+      "region": "torso",
+      "base": 0.458,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-03",
+      "size": "M",
+      "region": "chest",
+      "base": 0.525,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-03",
+      "size": "M",
+      "region": "waist",
+      "base": 0.44,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.276,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.546,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-03",
+      "size": "M",
+      "region": "torso",
+      "base": 0.358,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "L",
+      "region": "chest",
+      "base": 0.415,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "L",
+      "region": "waist",
+      "base": 0.351,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.216,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.467,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-03",
+      "size": "L",
+      "region": "torso",
+      "base": 0.328,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.331,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.284,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.156,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.396,
+      "note": ""
+    },
+    {
+      "archetype": "women-03",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.298,
+      "note": ""
+    },
+    {
+      "archetype": "women-04",
+      "size": "S",
+      "region": "chest",
+      "base": 0.392,
+      "note": ""
+    },
+    {
+      "archetype": "women-04",
+      "size": "S",
+      "region": "waist",
+      "base": 0.234,
+      "note": ""
+    },
+    {
+      "archetype": "women-04",
       "size": "S",
       "region": "shoulder",
       "base": 0.387,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "S",
       "region": "upperArm",
-      "base": 0.534,
+      "base": 0.459,
       "note": "peak in reach"
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "S",
       "region": "torso",
-      "base": 0.66,
+      "base": 0.451,
       "note": "peak in reach"
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "M",
       "region": "chest",
-      "base": 0.406,
+      "base": 0.314,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "M",
       "region": "waist",
-      "base": 0.333,
+      "base": 0.168,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "M",
       "region": "shoulder",
       "base": 0.3,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "M",
       "region": "upperArm",
-      "base": 0.455,
-      "note": "peak in reach"
+      "base": 0.391,
+      "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "M",
       "region": "torso",
-      "base": 0.54,
-      "note": "peak in reach"
+      "base": 0.356,
+      "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "L",
       "region": "chest",
-      "base": 0.325,
+      "base": 0.239,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "L",
       "region": "waist",
-      "base": 0.267,
+      "base": 0.101,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "L",
       "region": "shoulder",
       "base": 0.24,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "L",
       "region": "upperArm",
-      "base": 0.388,
+      "base": 0.342,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "L",
       "region": "torso",
-      "base": 0.43,
+      "base": 0.326,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "XL",
       "region": "chest",
-      "base": 0.25,
+      "base": 0.164,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "XL",
       "region": "waist",
-      "base": 0.2,
+      "base": 0.05,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "XL",
       "region": "shoulder",
       "base": 0.18,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "XL",
       "region": "upperArm",
-      "base": 0.34,
+      "base": 0.302,
       "note": ""
     },
     {
-      "archetype": "women-petite-155",
+      "archetype": "women-04",
       "size": "XL",
       "region": "torso",
-      "base": 0.35,
+      "base": 0.296,
       "note": ""
     },
     {
-      "archetype": "women-curvy-162",
+      "archetype": "women-05",
+      "size": "S",
+      "region": "chest",
+      "base": 0.51,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-05",
+      "size": "S",
+      "region": "waist",
+      "base": 0.373,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.413,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.542,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-05",
+      "size": "S",
+      "region": "torso",
+      "base": 0.472,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-05",
+      "size": "M",
+      "region": "chest",
+      "base": 0.401,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "M",
+      "region": "waist",
+      "base": 0.307,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.316,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.463,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-05",
+      "size": "M",
+      "region": "torso",
+      "base": 0.367,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "L",
+      "region": "chest",
+      "base": 0.321,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "L",
+      "region": "waist",
+      "base": 0.24,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.256,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.394,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "L",
+      "region": "torso",
+      "base": 0.332,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.246,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.173,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.196,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.344,
+      "note": ""
+    },
+    {
+      "archetype": "women-05",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.302,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "S",
+      "region": "chest",
+      "base": 0.63,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-06",
+      "size": "S",
+      "region": "waist",
+      "base": 0.336,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.42,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.62,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-06",
+      "size": "S",
+      "region": "torso",
+      "base": 0.444,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "M",
+      "region": "chest",
+      "base": 0.52,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-06",
+      "size": "M",
+      "region": "waist",
+      "base": 0.269,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.32,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.542,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-06",
+      "size": "M",
+      "region": "torso",
+      "base": 0.354,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "L",
+      "region": "chest",
+      "base": 0.409,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "L",
+      "region": "waist",
+      "base": 0.202,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.26,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.463,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-06",
+      "size": "L",
+      "region": "torso",
+      "base": 0.324,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.328,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.136,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.2,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.394,
+      "note": ""
+    },
+    {
+      "archetype": "women-06",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.294,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "S",
+      "region": "chest",
+      "base": 0.439,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "S",
+      "region": "waist",
+      "base": 0.308,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.427,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.495,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-07",
+      "size": "S",
+      "region": "torso",
+      "base": 0.479,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-07",
+      "size": "M",
+      "region": "chest",
+      "base": 0.347,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "M",
+      "region": "waist",
+      "base": 0.241,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.327,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.416,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "M",
+      "region": "torso",
+      "base": 0.374,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "L",
+      "region": "chest",
+      "base": 0.272,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "L",
+      "region": "waist",
+      "base": 0.174,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.264,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.36,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "L",
+      "region": "torso",
+      "base": 0.334,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.197,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.108,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.204,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.32,
+      "note": ""
+    },
+    {
+      "archetype": "women-07",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.304,
+      "note": ""
+    },
+    {
+      "archetype": "women-08",
       "size": "S",
       "region": "chest",
       "base": 1.0,
       "note": "peak in run"
     },
     {
-      "archetype": "women-curvy-162",
+      "archetype": "women-08",
       "size": "S",
       "region": "waist",
-      "base": 0.674,
+      "base": 0.758,
       "note": "peak in sit"
     },
     {
-      "archetype": "women-curvy-162",
+      "archetype": "women-08",
       "size": "S",
       "region": "shoulder",
-      "base": 0.81,
+      "base": 0.453,
       "note": "peak in reach"
     },
     {
-      "archetype": "women-curvy-162",
+      "archetype": "women-08",
       "size": "S",
       "region": "upperArm",
-      "base": 0.73,
+      "base": 0.722,
       "note": "peak in reach"
     },
     {
-      "archetype": "women-curvy-162",
+      "archetype": "women-08",
       "size": "S",
-      "region": "torso",
-      "base": 0.82,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "M",
-      "region": "chest",
-      "base": 0.663,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "M",
-      "region": "waist",
-      "base": 0.561,
-      "note": "peak in sit"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "M",
-      "region": "shoulder",
-      "base": 0.592,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "M",
-      "region": "upperArm",
-      "base": 0.651,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "M",
-      "region": "torso",
-      "base": 0.7,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "L",
-      "region": "chest",
-      "base": 0.553,
-      "note": "peak in run"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "L",
-      "region": "waist",
-      "base": 0.448,
-      "note": ""
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "L",
-      "region": "shoulder",
-      "base": 0.387,
-      "note": ""
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "L",
-      "region": "upperArm",
-      "base": 0.573,
-      "note": "peak in reach"
-    },
-    {
-      "archetype": "women-curvy-162",
-      "size": "L",
       "region": "torso",
       "base": 0.58,
       "note": "peak in reach"
     },
     {
-      "archetype": "women-curvy-162",
-      "size": "XL",
+      "archetype": "women-08",
+      "size": "M",
       "region": "chest",
-      "base": 0.442,
+      "base": 0.671,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-08",
+      "size": "M",
+      "region": "waist",
+      "base": 0.639,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "women-08",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.353,
       "note": ""
     },
     {
-      "archetype": "women-curvy-162",
+      "archetype": "women-08",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.644,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-08",
+      "size": "M",
+      "region": "torso",
+      "base": 0.465,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-08",
+      "size": "L",
+      "region": "chest",
+      "base": 0.56,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-08",
+      "size": "L",
+      "region": "waist",
+      "base": 0.525,
+      "note": "peak in sit"
+    },
+    {
+      "archetype": "women-08",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "women-08",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.565,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-08",
+      "size": "L",
+      "region": "torso",
+      "base": 0.36,
+      "note": ""
+    },
+    {
+      "archetype": "women-08",
       "size": "XL",
+      "region": "chest",
+      "base": 0.45,
+      "note": ""
+    },
+    {
+      "archetype": "women-08",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.412,
+      "note": ""
+    },
+    {
+      "archetype": "women-08",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.22,
+      "note": ""
+    },
+    {
+      "archetype": "women-08",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.487,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-08",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.33,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "S",
+      "region": "chest",
+      "base": 0.474,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-09",
+      "size": "S",
+      "region": "waist",
+      "base": 0.341,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.746,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-09",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.518,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-09",
+      "size": "S",
+      "region": "torso",
+      "base": 0.636,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-09",
+      "size": "M",
+      "region": "chest",
+      "base": 0.371,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "M",
+      "region": "waist",
+      "base": 0.274,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "M",
+      "region": "shoulder",
+      "base": 0.433,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.44,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "M",
+      "region": "torso",
+      "base": 0.516,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-09",
+      "size": "L",
+      "region": "chest",
+      "base": 0.296,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "L",
+      "region": "waist",
+      "base": 0.208,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.333,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.377,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "L",
+      "region": "torso",
+      "base": 0.409,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.221,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.141,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.268,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.332,
+      "note": ""
+    },
+    {
+      "archetype": "women-09",
+      "size": "XL",
+      "region": "torso",
+      "base": 0.344,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
+      "size": "S",
+      "region": "chest",
+      "base": 0.599,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-10",
+      "size": "S",
+      "region": "waist",
+      "base": 0.448,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
+      "size": "S",
+      "region": "shoulder",
+      "base": 0.77,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-10",
+      "size": "S",
+      "region": "upperArm",
+      "base": 0.6,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-10",
+      "size": "S",
+      "region": "torso",
+      "base": 0.628,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-10",
+      "size": "M",
+      "region": "chest",
+      "base": 0.488,
+      "note": "peak in run"
+    },
+    {
+      "archetype": "women-10",
+      "size": "M",
       "region": "waist",
       "base": 0.356,
       "note": ""
     },
     {
-      "archetype": "women-curvy-162",
-      "size": "XL",
+      "archetype": "women-10",
+      "size": "M",
       "region": "shoulder",
-      "base": 0.3,
+      "base": 0.453,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-10",
+      "size": "M",
+      "region": "upperArm",
+      "base": 0.522,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-10",
+      "size": "M",
+      "region": "torso",
+      "base": 0.508,
+      "note": "peak in reach"
+    },
+    {
+      "archetype": "women-10",
+      "size": "L",
+      "region": "chest",
+      "base": 0.383,
       "note": ""
     },
     {
-      "archetype": "women-curvy-162",
-      "size": "XL",
-      "region": "upperArm",
-      "base": 0.495,
-      "note": "peak in reach"
+      "archetype": "women-10",
+      "size": "L",
+      "region": "waist",
+      "base": 0.289,
+      "note": ""
     },
     {
-      "archetype": "women-curvy-162",
+      "archetype": "women-10",
+      "size": "L",
+      "region": "shoulder",
+      "base": 0.353,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
+      "size": "L",
+      "region": "upperArm",
+      "base": 0.443,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
+      "size": "L",
+      "region": "torso",
+      "base": 0.402,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
+      "size": "XL",
+      "region": "chest",
+      "base": 0.306,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
+      "size": "XL",
+      "region": "waist",
+      "base": 0.222,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
+      "size": "XL",
+      "region": "shoulder",
+      "base": 0.28,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
+      "size": "XL",
+      "region": "upperArm",
+      "base": 0.38,
+      "note": ""
+    },
+    {
+      "archetype": "women-10",
       "size": "XL",
       "region": "torso",
-      "base": 0.465,
-      "note": "peak in reach"
+      "base": 0.342,
+      "note": ""
     }
   ],
   "engine": "analytic"

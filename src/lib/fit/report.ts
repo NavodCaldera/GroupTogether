@@ -245,33 +245,55 @@ export function fitReport(input: FitInput): FitReport {
   };
 }
 
+/** What a buyer is matched to a standard shape (body cluster) by, in cm. */
+export const MATCH_FEATURES = ["height", "chest", "waist", "hip"] as const;
+export type MatchMeasurements = Partial<Record<(typeof MATCH_FEATURES)[number], number>>;
+
+/** The matching features of a stored archetype's params (cm). */
+export function matchParams(json: unknown): MatchMeasurements {
+  const out: MatchMeasurements = {};
+  if (json && typeof json === "object")
+    for (const k of MATCH_FEATURES) {
+      const v = (json as Record<string, unknown>)[k];
+      if (typeof v === "number" && Number.isFinite(v)) out[k] = v;
+    }
+  return out;
+}
+
 /**
- * Nearest archetype by weighted Euclidean distance on chest, waist and hip, among the given
- * gender's archetypes when it is known.
+ * Nearest archetype by standardised distance over height, chest, waist and hip: each feature's
+ * difference is divided by its spread among the candidate archetypes, so every feature counts by
+ * how much the standard shapes differ in it. Only the given gender's archetypes when it is known
+ * and has any; null when no feature can be compared.
  */
-export function nearestArchetype<
-  A extends { id: string; gender: string; params: Partial<Record<Region, number>> },
->(
-  body: Body,
+export function closestArchetype<A extends { gender: string; params: MatchMeasurements }>(
+  measurements: MatchMeasurements,
   archetypes: A[],
   gender?: string | null,
-  weights: Partial<Record<Region, number>> = { chest: 1, waist: 1, hip: 1 },
 ): A | null {
-  const pool = gender ? archetypes.filter((a) => a.gender === gender) : archetypes;
+  const own = gender ? archetypes.filter((a) => a.gender === gender) : [];
+  const pool = own.length ? own : archetypes;
+  const spread = Object.fromEntries(
+    MATCH_FEATURES.map((k) => {
+      const xs = pool.map((a) => a.params[k]).filter((v): v is number => v !== undefined);
+      const mean = xs.reduce((t, v) => t + v, 0) / (xs.length || 1);
+      const sd = Math.sqrt(xs.reduce((t, v) => t + (v - mean) ** 2, 0) / (xs.length || 1));
+      return [k, sd > 1e-6 ? sd : 1];
+    }),
+  ) as Record<(typeof MATCH_FEATURES)[number], number>;
   let best: A | null = null;
   let bestD = Infinity;
-  for (const a of pool.length ? pool : archetypes) {
+  for (const a of pool) {
     let d = 0;
     let n = 0;
-    for (const [region, w] of Object.entries(weights) as [Region, number][]) {
-      const m = body[region]?.value;
-      const p = a.params[region];
+    for (const k of MATCH_FEATURES) {
+      const m = measurements[k];
+      const p = a.params[k];
       if (m === undefined || p === undefined) continue;
-      d += w * (m - p) ** 2;
+      d += ((m - p) / spread[k]) ** 2;
       n++;
     }
-    if (!n) continue;
-    if (d / n < bestD) {
+    if (n && d / n < bestD) {
       bestD = d / n;
       best = a;
     }

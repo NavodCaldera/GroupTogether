@@ -4,7 +4,14 @@ import { Prisma } from "@/generated/prisma/client";
 import type { FitClass } from "@/lib/fit/config";
 import { fitClass, readBody, readChart, sizeOrder } from "@/lib/fit/data";
 import { isShort } from "@/lib/fit/drape";
-import { fitReport, nearestArchetype, type Body, type FitReport } from "@/lib/fit/report";
+import {
+  closestArchetype,
+  fitReport,
+  matchParams,
+  type Body,
+  type FitReport,
+  type MatchMeasurements,
+} from "@/lib/fit/report";
 import { isRegion, regionFromEnum, REGIONS, type Region } from "@/lib/fit/regions";
 import { bodyFitEnabled, deleteBody, outlinesSchema, queueBodyFit } from "./body-fit";
 import { db } from "./db";
@@ -90,7 +97,26 @@ const profileSchema = z.object({
 
 export type ProfileInput = z.input<typeof profileSchema>;
 
-/** Saves the buyer's own measurements (never photos) and their nearest archetype. */
+/**
+ * The standard shape (body cluster) nearest to these measurements, by standardised distance over
+ * height, chest, waist and hip, among the given gender's shapes when it is known.
+ */
+export async function nearestArchetype(gender: string | null, measurements: MatchMeasurements) {
+  const archetypes = await db.bodyArchetype.findMany({
+    select: { id: true, name: true, gender: true, params: true },
+    orderBy: { name: "asc" },
+  });
+  return closestArchetype(
+    measurements,
+    archetypes.map((a) => ({ ...a, params: matchParams(a.params) })),
+    gender,
+  );
+}
+
+/**
+ * Saves the buyer's own measurements (never photos) and re-picks their nearest archetype from
+ * them on every save.
+ */
 export async function saveBodyProfile(userId: string, input: unknown) {
   const p = profileSchema.parse(input);
   const measurements = Object.fromEntries(
@@ -103,14 +129,12 @@ export async function saveBodyProfile(userId: string, input: unknown) {
   );
   const body = readBody(measurements);
   if (!Object.keys(body).length) throw new FitError("Enter at least one measurement");
-  const archetypes = await db.bodyArchetype.findMany({
-    select: { id: true, gender: true, params: true },
+  const nearest = await nearestArchetype(p.gender, {
+    height: p.heightCm,
+    chest: body.chest?.value,
+    waist: body.waist?.value,
+    hip: body.hip?.value,
   });
-  const nearest = nearestArchetype(
-    body,
-    archetypes.map((a) => ({ ...a, params: archetypeParams(a.params) })),
-    p.gender,
-  );
   const data = {
     heightCm: p.heightCm,
     gender: p.gender,

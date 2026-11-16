@@ -29,17 +29,41 @@ tab.
 
 The demo garments live in [`seed/garments`](seed/garments) and their output is committed in
 `public/fit-assets/seed-<name>` (rebuild all with
-`python tools/fit-simulation/pipeline.py tools/fit-simulation/seed/garments public/fit-assets --all`).
-`npm run db:seed` loads every one onto the product with the same title and measures Dilan,
-Ravindu, Sachini and Ayesha. Tops have 3D on two archetypes of their audience; dresses and
-bottoms (`"simulate": false`) have a size chart only, until the mesh generator covers them;
-Track pants (`"approved": false`) waits for the Factory admin. Output is deterministic, so rerunning the
+`python tools/fit-simulation/pipeline.py tools/fit-simulation/seed/garments public/fit-assets --all --no-meshes`).
+`npm run db:seed` loads the 20 standard shapes, every garment onto the product with the same
+title, and measures Dilan, Ravindu, Sachini and Ayesha. Tops carry tensions on the ten shapes of
+their audience; dresses and bottoms (`"simulate": false`) have a size chart only; Track pants
+(`"approved": false`) waits for the Factory admin. `--no-meshes` leaves out the per-motion garment
+files, since every standard shape now has a body file. Output is deterministic, so rerunning the
 pipeline on unchanged input produces the same file names.
+
+### Standard shapes: 20 body clusters
+
+The standard shapes (archetypes) are 10 men's and 10 women's body clusters, `men-01` ..
+`men-10` and `women-01` .. `women-10`, shortest first, committed in
+[`seed/clusters.json`](seed/clusters.json):
+
+```sh
+.venv/Scripts/python tools/fit-simulation/clusters.py   # about 20 minutes
+```
+
+It samples 4000 adult Anny bodies per gender (weight, muscle, height and proportions uniform,
+age a young adult's), kept by rejection so their heights follow a normal per gender truncated at
+2.5 sd (`HEIGHT_CM`: men 166 ± 7 cm, women 154 ± 6.5 cm, approximate South Asian adult figures for
+the owner to confirm), measures height, chest, waist and hip like a
+buyer's body, and runs k-means (numpy, fixed seed) on the standardised measurements. Each shape is
+the sampled body nearest its cluster centre, so its Anny phenotype rebuilds exactly its
+measurements; `share` is the part of the sample in its cluster. Thigh, upper arm, shoulder, neck,
+wrist and inseam are estimated from the girths and height for the garment simulation. A buyer is
+matched to the nearest shape of their gender by standardised distance over height, chest, waist
+and hip (`nearestArchetype` in [`src/server/fit.ts`](../../src/server/fit.ts)), again on every
+save of their measurements. Tests: `.venv/Scripts/python -m pytest tools/fit-simulation/tests -q`
+(the `anny` ones need the body-fitting environment).
 
 ### Standard bodies (DEC-021)
 
-The standard shapes are also written as Anny bodies with a skeleton, which the viewer uses with
-the garment drawn over them in the browser (the same way as a buyer's own body):
+Every standard shape is also written as an Anny body with a skeleton, from its stored phenotype.
+The viewer draws the garment over it in the browser, the same way as over a buyer's own body:
 
 ```sh
 .venv/Scripts/python tools/fit-simulation/anny_bodies.py public/fit-assets/bodies
@@ -53,14 +77,16 @@ second step itself. A shape with a body file no longer uses the per-motion garme
 
 | File                               | Does                                                                                    |
 | ---------------------------------- | --------------------------------------------------------------------------------------- |
-| [`archetypes.py`](archetypes.py)   | Body archetypes (2 seed; target 30–50 Sri Lankan shapes)                                |
+| [`clusters.py`](clusters.py)       | The 20 standard shapes as body clusters (`seed/clusters.json`)                          |
+| [`archetypes.py`](archetypes.py)   | Loads the standard shapes                                                               |
+| [`anny_bodies.py`](anny_bodies.py) | Their Anny body files in `public/fit-assets/bodies`                                     |
 | [`mesh.py`](mesh.py)               | Measurement-driven body and garment meshes, area ids, the four motions as morph targets |
 | [`simulate.py`](simulate.py)       | Per-size area tension; `analytic` engine now, `blender` later                           |
 | [`blender_sim.py`](blender_sim.py) | Planned Blender headless cloth step (not wired)                                         |
 | [`gltf.py`](gltf.py)               | Binary glTF writer with the `_REGION_ID` attribute and morph animation                  |
 | [`pipeline.py`](pipeline.py)       | Runs everything and writes `manifest.json`                                              |
 | [`load.ts`](load.ts)               | Copies files and inserts rows                                                           |
-| [`seed/`](seed)                    | The test garment                                                                        |
+| [`seed/`](seed)                    | The demo garments and the clusters                                                      |
 
 ## Contract with the app
 

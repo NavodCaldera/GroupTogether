@@ -6,12 +6,18 @@ import {
   deleteBodyProfile,
   fitAccuracy,
   getFitView,
+  nearestArchetype,
   saveBodyProfile,
   saveFitData,
   saveFitFeedback,
   setFitApproved,
 } from "@/server/fit";
-import { loadBodyFiles, loadFitManifest, type FitManifest } from "../../tools/fit-simulation/load";
+import {
+  loadArchetypes,
+  loadBodyFiles,
+  loadFitManifest,
+  type FitManifest,
+} from "../../tools/fit-simulation/load";
 import { makeBuyer, makeFactory, makeReceivedOrder, makeUser, resetDb } from "./helpers";
 
 beforeEach(resetDb);
@@ -20,6 +26,10 @@ afterAll(() => db.$disconnect());
 const manifest = JSON.parse(
   readFileSync(join(process.cwd(), "public/fit-assets/seed-crew-tee/manifest.json"), "utf8"),
 ) as FitManifest;
+
+const clusters = JSON.parse(
+  readFileSync(join(process.cwd(), "tools/fit-simulation/seed/clusters.json"), "utf8"),
+) as FitManifest["archetypes"];
 
 const fabric = {
   fabricStretchPct: 5,
@@ -75,7 +85,13 @@ it("a factory's fit data waits for approval and only its own listing can be edit
 
 it("stores only numbers and consent, matches an archetype, and deletes on request", async () => {
   const { variant } = await makeFactory();
-  await loadFitManifest(db, manifest, variant.productId, {
+  // The old per-motion garment files, for a standard shape without a body file.
+  const motions = ["WALK", "RUN", "REACH", "SIT"].map((motion) => ({
+    archetype: "men-07",
+    motion,
+    file: `men-07/${motion.toLowerCase()}-abc123.glb`,
+  }));
+  await loadFitManifest(db, { ...manifest, assets: motions }, variant.productId, {
     baseUrl: "/fit-assets/x",
     approve: true,
   });
@@ -90,19 +106,19 @@ it("stores only numbers and consent, matches an archetype, and deletes on reques
   });
   expect(saved.consentAt).toBeInstanceOf(Date);
   const archetype = await db.bodyArchetype.findUnique({ where: { id: saved.archetypeId! } });
-  expect(archetype?.name).toBe("men-broad-174");
+  expect(archetype?.name).toBe("men-07");
 
   const view = await getFitView(variant.productId, buyer.id);
   expect(view.report?.simulated).toBe(true);
   expect(view.assets.map((a) => a.motion).sort()).toEqual(["REACH", "RUN", "SIT", "WALK"]);
-  expect(view.assets[0].url).toMatch(/^\/fit-assets\/x\/men-broad-174\//);
+  expect(view.assets[0].url).toMatch(/^\/fit-assets\/x\/men-07\//);
   // No body file for this standard shape yet: the old per-motion files are still used.
   expect(view.body).toBeNull();
 
   // With a standard body file, the garment is drawn over it and it moves like an own body.
-  await loadBodyFiles(db, { "men-broad-174": "men-broad-174-abc123.glb" }, "/fit-assets/bodies");
+  await loadBodyFiles(db, { "men-07": "men-07-abc123.glb" }, "/fit-assets/bodies");
   expect((await getFitView(variant.productId, buyer.id)).body).toEqual({
-    url: "/fit-assets/bodies/men-broad-174-abc123.glb",
+    url: "/fit-assets/bodies/men-07-abc123.glb",
     fitClass: "top",
     short: false,
     animated: true,
@@ -113,6 +129,53 @@ it("stores only numbers and consent, matches an archetype, and deletes on reques
   await deleteBodyProfile(buyer.id);
   expect(await db.bodyProfile.count({ where: { userId: buyer.id } })).toBe(0);
   expect((await getFitView(variant.productId, buyer.id)).report).toBeNull();
+});
+
+it("matches a buyer to the nearest of the 20 clusters and re-picks when measurements change", async () => {
+  await loadArchetypes(db, clusters);
+  expect(await db.bodyArchetype.count()).toBe(20);
+  const at = (name: string) => {
+    const p = clusters.find((a) => a.name === name)!.params;
+    return {
+      heightCm: p.height,
+      gender: "WOMEN",
+      ageBand: null,
+      measurements: Object.fromEntries(
+        (["chest", "waist", "hip"] as const).map((k) => [
+          k,
+          { value: p[k], low: p[k] - 2, high: p[k] + 2, source: "typed" },
+        ]),
+      ),
+      captureMeta: null,
+      consent: true,
+    };
+  };
+  const w04 = clusters.find((a) => a.name === "women-04")!.params;
+  expect((await nearestArchetype("WOMEN", w04))?.name).toBe("women-04");
+  // A man's measurements look only among the men.
+  expect((await nearestArchetype("MEN", w04))?.name).toMatch(/^men-/);
+
+  const buyer = await makeBuyer();
+  const first = await saveBodyProfile(buyer.id, at("women-04"));
+  expect((await db.bodyArchetype.findUnique({ where: { id: first.archetypeId! } }))?.name).toBe(
+    "women-04",
+  );
+  const again = await saveBodyProfile(buyer.id, at("women-09"));
+  expect((await db.bodyArchetype.findUnique({ where: { id: again.archetypeId! } }))?.name).toBe(
+    "women-09",
+  );
+
+  // Loading the clusters again removes shapes no longer in the list; their buyers are re-picked.
+  await loadArchetypes(
+    db,
+    clusters.filter((a) => a.name !== "women-09"),
+  );
+  expect(await db.bodyArchetype.count()).toBe(19);
+  const moved = await db.bodyProfile.findUniqueOrThrow({
+    where: { userId: buyer.id },
+    select: { archetype: { select: { name: true } } },
+  });
+  expect(moved.archetype?.name).toMatch(/^women-(0[1-8]|10)$/);
 });
 
 it("takes fit feedback once, for the buyer's own collected line", async () => {
