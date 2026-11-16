@@ -6,6 +6,14 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-16 - Remaining personal body work: build started
+
+- Owner said "start". Built in the plan's order, skipping what needs an owner choice first
+  (hosting and storage, dropping the old mannequin table, installing Blender).
+- Task 1.1: `npm run dev:phone` serves HTTPS on the local network so a phone camera can be
+  tested (`DEV_PHONE_HOST`, steps in `docs/development-tooling.md`). Not yet tried on a real
+  phone.
+
 ## 2026-11-16 - Plan for the remaining personal body work
 
 - Owner asked for "a full plan to implement all" of what `DEC-021` left unbuilt. Written as

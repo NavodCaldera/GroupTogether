@@ -132,6 +132,19 @@ Never use the development application's privileged connection as a substitute fo
 - `npm run browser -- --help`: pinned interactive Playwright CLI, with its repository skill.
   Use synthetic fixtures. Browser state, reports, traces and screenshots stay ignored.
 
+## Testing on a phone
+
+A phone's camera only works over HTTPS, so the fit photos cannot be tested on plain
+`http://<address>:3002`.
+
+1. Find this computer's Wi-Fi address (`ipconfig`, IPv4) and set `DEV_PHONE_HOST` to it in `.env`.
+2. Stop `npm run dev`, then run `npm run dev:phone`. The first run creates a self-signed
+   certificate in `certificates/` (git-ignored) and may ask to trust it.
+3. On a phone on the same Wi-Fi open `https://<address>:3002` and accept the certificate warning.
+4. Sign in as a buyer, go to Account → My measurements and take both photos.
+
+Windows Firewall may ask to allow Node on private networks the first time.
+
 ## GitHub automation and connections
 
 CI runs on main pushes, PRs and manual dispatch. It uses Node 24, disposable PostgreSQL 18,

@@ -15,7 +15,7 @@ const nextConfig: NextConfig = {
       "style-src 'self' 'unsafe-inline' https://unpkg.com",
       "img-src 'self' data: blob: https://tile.openstreetmap.org https://unpkg.com",
       "font-src 'self'",
-      `connect-src 'self' https://photon.komoot.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io${development ? " ws:" : ""}`,
+      `connect-src 'self' https://photon.komoot.io https://*.ingest.sentry.io https://*.ingest.us.sentry.io https://*.ingest.de.sentry.io${development ? " ws: wss:" : ""}`,
       "frame-ancestors 'none'",
       "object-src 'none'",
       "base-uri 'self'",
@@ -46,6 +46,8 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // `npm run dev:phone`: a phone on the same Wi-Fi opens https://<DEV_PHONE_HOST>:3002.
+  allowedDevOrigins: process.env.DEV_PHONE_HOST ? [process.env.DEV_PHONE_HOST] : [],
   // Keep browser tests independent of the developer's running server.
   distDir: process.env.GROUPBASKET_E2E === "1" ? ".next/e2e" : ".next",
   turbopack: {

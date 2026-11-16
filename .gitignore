@@ -33,6 +33,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# `npm run dev:phone` self-signed certificate
+/certificates
+
 # vercel
 .vercel
 
