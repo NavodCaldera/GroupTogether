@@ -364,6 +364,12 @@ milliseconds in the browser and works for tops, outerwear, bottoms, shorts and d
 2026-11-16 the body file carries a skeleton, so the body and its garment walk, run, reach and
 sit (the garment follows the body; it does not swing or fold).
 
+**Standard shapes are Anny bodies (2026-11-16, assumed answer 2, built).** The four seed
+archetypes are fitted from their height, chest, waist and hip with the same model and carry the
+same skeleton, so a buyer without an own body sees the garment drawn over their nearest shape
+the same way. The earlier tube mannequin files and the `FitAsset` table are no longer used for
+a shape that has a body file; deleting them waits for the owner.
+
 **Release gate (2026-11-16, Claude's call, owner to confirm).** The own 3D body is built only
 when `BODY_FIT_ENABLED` is `"1"`. It stays off in production until at least 10 tape-measured
 volunteers give a mean absolute error of at most 2 cm for each of chest, waist and hip, with at

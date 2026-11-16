@@ -1,6 +1,6 @@
 import * as THREE from "three";
 import { describe, expect, it } from "vitest";
-import { BONES, CLIPS, clipFor, MOTION_IDS, poseAt } from "./motion";
+import { BONES, CLIPS, clipFor, MOTION_IDS, poseAt, tooSlow } from "./motion";
 
 describe("motion clips", () => {
   it("only move bones the body file has", () => {
@@ -73,5 +73,15 @@ describe("clipFor", () => {
       new THREE.Quaternion().fromArray(reach.values, 2 * 4),
     );
     expect(up.y).toBeGreaterThan(0.9);
+  });
+});
+
+describe("tooSlow", () => {
+  it("is true only once enough frames show the device can't keep up", () => {
+    expect(tooSlow(Array(12).fill(16))).toBe(false); // 60 frames a second
+    expect(tooSlow(Array(12).fill(60))).toBe(false); // slow but watchable
+    expect(tooSlow(Array(12).fill(130))).toBe(true); // under 10 frames a second
+    expect(tooSlow(Array(5).fill(400))).toBe(false); // too few frames to judge (loading)
+    expect(tooSlow([...Array(11).fill(16), 2000])).toBe(false); // one hitch is not a slow device
   });
 });

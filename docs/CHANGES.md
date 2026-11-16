@@ -39,6 +39,21 @@ Newest first.
   A stuck or crashed process is replaced on the next job. A worker whose job was taken over by
   another after the 10-minute stale time no longer writes its late result.
 
+- Tasks 5.1 and 5.2: the four standard body shapes are now Anny bodies with a skeleton
+  (`tools/fit-simulation/anny_bodies.py`, files in `public/fit-assets/bodies`,
+  `BodyArchetype.bodyUrl`, migration `archetype_body_url`). A buyer without their own 3D body
+  sees their nearest standard shape with the garment drawn over it, moving like an own body, for
+  every garment type (before: tops only, on a tube mannequin). `FitView.personal` is now
+  `FitView.body` with `own`. The old per-motion mannequin files stay in place, unused when a
+  shape has a body file; removing them and the `FitAsset` table waits for the owner (plan
+  Task 5.3).
+- The viewer draws only when something changes, and starts with the body still for people who
+  ask their device for reduced motion. The test browser draws in software and a body animating
+  all the time made the fit browser test take 5 minutes; it takes 7 s again.
+  On a device that draws under 10 frames a second the body stops moving by itself (Play still
+  works). The fit browser test now waits for "Delete my measurements" to finish (it failed about
+  1 run in 3).
+
 ## 2026-11-16 - Plan for the remaining personal body work
 
 - Owner asked for "a full plan to implement all" of what `DEC-021` left unbuilt. Written as

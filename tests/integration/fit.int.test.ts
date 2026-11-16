@@ -11,7 +11,7 @@ import {
   saveFitFeedback,
   setFitApproved,
 } from "@/server/fit";
-import { loadFitManifest, type FitManifest } from "../../tools/fit-simulation/load";
+import { loadBodyFiles, loadFitManifest, type FitManifest } from "../../tools/fit-simulation/load";
 import { makeBuyer, makeFactory, makeReceivedOrder, makeUser, resetDb } from "./helpers";
 
 beforeEach(resetDb);
@@ -96,6 +96,19 @@ it("stores only numbers and consent, matches an archetype, and deletes on reques
   expect(view.report?.simulated).toBe(true);
   expect(view.assets.map((a) => a.motion).sort()).toEqual(["REACH", "RUN", "SIT", "WALK"]);
   expect(view.assets[0].url).toMatch(/^\/fit-assets\/x\/men-broad-174\//);
+  // No body file for this standard shape yet: the old per-motion files are still used.
+  expect(view.body).toBeNull();
+
+  // With a standard body file, the garment is drawn over it and it moves like an own body.
+  await loadBodyFiles(db, { "men-broad-174": "men-broad-174-abc123.glb" }, "/fit-assets/bodies");
+  expect((await getFitView(variant.productId, buyer.id)).body).toEqual({
+    url: "/fit-assets/bodies/men-broad-174-abc123.glb",
+    fitClass: "top",
+    short: false,
+    animated: true,
+    own: false,
+  });
+  expect((await getFitView(variant.productId, null)).body).toBeNull();
 
   await deleteBodyProfile(buyer.id);
   expect(await db.bodyProfile.count({ where: { userId: buyer.id } })).toBe(0);

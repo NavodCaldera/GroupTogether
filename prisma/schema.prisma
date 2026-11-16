@@ -1273,6 +1273,8 @@ model BodyArchetype {
   gender    String
   /// Body measurements in cm, keyed like the size chart
   params    Json
+  /// This shape as an Anny body file with a skeleton (public); null until it is generated
+  bodyUrl   String?
   createdAt DateTime @default(now())
 
   profiles BodyProfile[]

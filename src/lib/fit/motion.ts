@@ -196,3 +196,18 @@ export function clipFor(THREE: typeof Three, motion: Motion, rest: RestPose): Th
     );
   return new THREE.AnimationClip(motion, clip.duration, tracks);
 }
+
+/** Frames judged before deciding a device is too slow to animate the body. */
+export const SLOW_FRAMES = 12;
+/** Slower than this (under 10 frames a second) and the body stops moving by itself. */
+export const SLOW_FRAME_MS = 100;
+
+/**
+ * True when the last `SLOW_FRAMES` frame times (ms) show the device can't keep up. The median,
+ * so one hitch while something loads doesn't count.
+ */
+export function tooSlow(frameMs: number[]): boolean {
+  if (frameMs.length < SLOW_FRAMES) return false;
+  const sorted = frameMs.slice(-SLOW_FRAMES).sort((a, b) => a - b);
+  return sorted[SLOW_FRAMES / 2] > SLOW_FRAME_MS;
+}

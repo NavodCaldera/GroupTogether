@@ -182,7 +182,15 @@ export interface FitView {
   /** The simulated garment on the buyer's archetype, per motion. */
   assets: { motion: "WALK" | "RUN" | "REACH" | "SIT"; url: string }[];
   /** The buyer's confirmed own 3D body (DEC-021): the garment is drawn over it in the browser. */
-  personal: { url: string; fitClass: FitClass; short: boolean; animated: boolean } | null;
+  body: {
+    url: string;
+    fitClass: FitClass;
+    short: boolean;
+    /** The file has a skeleton: walk, run, reach and sit play on it. */
+    animated: boolean;
+    /** The buyer's own fitted body; false for the standard shape nearest to them. */
+    own: boolean;
+  } | null;
 }
 
 /**
@@ -213,7 +221,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
           select: {
             measurements: true,
             archetypeId: true,
-            archetype: { select: { params: true } },
+            archetype: { select: { params: true, bodyUrl: true } },
             bodyStatus: true,
             bodyFit: true,
             bodyFitAt: true,
@@ -228,7 +236,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
       hasProfile: !!profile,
       report: null,
       assets: [],
-      personal: null,
+      body: null,
     };
   const { sizeChart, fitApprovedAt, kind, variants, fabricStretchPct, ...rest } = product;
   const material = [fabricStretchPct, ...Object.values(rest)].some((v) => v !== null)
@@ -246,7 +254,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
       }
     : null;
   if (!chart || !profile)
-    return { material, chart, hasProfile: !!profile, report: null, assets: [], personal: null };
+    return { material, chart, hasProfile: !!profile, report: null, assets: [], body: null };
 
   const [tensions, assets] = profile.archetypeId
     ? await Promise.all([
@@ -273,21 +281,24 @@ export async function getFitView(productId: string, userId: string | null): Prom
     archetype: profile.archetype ? archetypeParams(profile.archetype.params) : null,
     base: tensions.length ? base : null,
   });
+  const garment = { fitClass: fitClass(kind), short: isShort(kind) };
   return {
     material,
     chart,
     hasProfile: true,
     report,
     assets: assets.map((a) => ({ motion: a.motion, url: a.gltfUrl })),
-    personal:
+    body:
       profile.bodyStatus === "CONFIRMED"
         ? {
             url: `/api/fit-body?v=${profile.bodyFitAt?.getTime().toString(36) ?? "0"}`,
-            fitClass: fitClass(kind),
-            short: isShort(kind),
+            ...garment,
             animated: ((profile.bodyFit as { bodyVersion?: number } | null)?.bodyVersion ?? 1) >= 2,
+            own: true,
           }
-        : null,
+        : profile.archetype?.bodyUrl
+          ? { url: profile.archetype.bodyUrl, ...garment, animated: true, own: false }
+          : null,
   };
 }
 

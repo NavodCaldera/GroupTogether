@@ -36,6 +36,19 @@ bottoms (`"simulate": false`) have a size chart only, until the mesh generator c
 Track pants (`"approved": false`) waits for the Factory admin. Output is deterministic, so rerunning the
 pipeline on unchanged input produces the same file names.
 
+### Standard bodies (DEC-021)
+
+The standard shapes are also written as Anny bodies with a skeleton, which the viewer uses with
+the garment drawn over them in the browser (the same way as a buyer's own body):
+
+```sh
+.venv/Scripts/python tools/fit-simulation/anny_bodies.py public/fit-assets/bodies
+npx tsx --conditions=react-server tools/fit-simulation/load.ts --bodies public/fit-assets/bodies
+```
+
+The first needs the [body-fitting](../body-fitting/README.md) environment; the seed runs the
+second step itself. A shape with a body file no longer uses the per-motion garment files below.
+
 ## Files
 
 | File                               | Does                                                                                    |

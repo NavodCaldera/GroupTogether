@@ -120,3 +120,20 @@ def test_rewrite_builds_the_body_file_from_stored_parameters_in_any_key_order(tm
     assert fit.main(["fit.py", "--rewrite", str(src), "--glb", str(b)]) == 0
     assert a.read_bytes() == b.read_bytes()
     assert len(read_glb(a)["skins"][0]["joints"]) == 36
+
+
+@pytest.mark.anny
+def test_standard_bodies_are_written_once_per_shape_with_stable_names(body, tmp_path):
+    from fit import Fitter
+
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "fit-simulation"))
+    import anny_bodies
+
+    fitter = Fitter(body)
+    first = anny_bodies.build(str(tmp_path), fitter=fitter)
+    assert sorted(first) == ["men-broad-174", "men-slim-168", "women-curvy-162", "women-petite-155"]
+    assert json.loads((tmp_path / "bodies.json").read_text()) == first
+    (tmp_path / "stale-000.glb").write_bytes(b"x")
+    assert anny_bodies.build(str(tmp_path), fitter=fitter) == first  # same input, same names
+    assert sorted(p.name for p in tmp_path.glob("*.glb")) == sorted(first.values())
+    assert len(read_glb(tmp_path / first["women-curvy-162"])["skins"][0]["joints"]) == 36

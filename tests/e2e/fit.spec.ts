@@ -6,7 +6,9 @@ import { DEMO_ADMINS, DEMO_BUYERS, DEMO_PASSWORD } from "../../src/lib/demo-acco
 import { seedBrowserFixtures } from "./seed-fixtures";
 
 // The personalized fit heatmap (DEC-020) on the seeded tee: Dilan has measurements.
-test.use({ viewport: { width: 360, height: 740 } });
+// Reduced motion: the body starts standing still, so the viewer draws only on a change. The test
+// browser draws in software, where a body animating all the time starves the page.
+test.use({ viewport: { width: 360, height: 740 }, contextOptions: { reducedMotion: "reduce" } });
 test.describe.configure({ mode: "serial" });
 
 let tee = "";
@@ -63,6 +65,7 @@ test("a measured buyer sees the heatmap and switching size shifts the areas", as
   // The viewer loads the simulated garment and renders into a canvas.
   await expect(fit.locator("canvas")).toBeVisible({ timeout: 30_000 });
   await fit.getByRole("button", { name: "Reach" }).click();
+  await expect(fit.getByRole("button", { name: "Play" })).toBeVisible(); // still, as asked
   await fit.getByLabel("Heatmap").uncheck();
   await expect(fit.locator("canvas")).toBeVisible();
   await noSideScroll(page);
@@ -94,7 +97,9 @@ test("a buyer without measurements is offered the fit report and can type them i
   await noSideScroll(page);
 
   await page.goto("/account/fit");
-  await page.getByRole("button", { name: "Delete my measurements" }).click();
+  const remove = page.getByRole("button", { name: "Delete my measurements" });
+  await remove.click();
+  await expect(remove).toBeHidden(); // deleted: leaving earlier can cancel it
   await page.goto(`/products/${tee}`);
   await expect(page.getByText("Get your fit report")).toBeVisible();
 });

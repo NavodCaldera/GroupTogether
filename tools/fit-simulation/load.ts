@@ -34,6 +34,19 @@ export interface FitManifest {
 
 const MOTIONS = ["WALK", "RUN", "REACH", "SIT"] as const;
 
+/**
+ * Points standard shapes at their Anny body files (tools/fit-simulation/anny_bodies.py writes
+ * the files and `bodies.json`, name → file). Shapes not named keep what they have.
+ */
+export async function loadBodyFiles(
+  db: PrismaClient,
+  files: Record<string, string>,
+  baseUrl: string,
+) {
+  for (const [name, file] of Object.entries(files))
+    await db.bodyArchetype.updateMany({ where: { name }, data: { bodyUrl: `${baseUrl}/${file}` } });
+}
+
 export async function loadFitManifest(
   db: PrismaClient,
   manifest: FitManifest,
@@ -101,10 +114,25 @@ async function main() {
     return i >= 0 ? args[i + 1] : undefined;
   };
   const out = args[0];
-  if (!out || (!opt("--product") && !opt("--title")))
-    throw new Error("Usage: load.ts OUT_DIR (--product ID | --title TITLE) [--approve]");
+  const bodies = opt("--bodies");
+  if (!bodies && (!out || (!opt("--product") && !opt("--title"))))
+    throw new Error(
+      "Usage: load.ts OUT_DIR (--product ID | --title TITLE) [--approve] | load.ts --bodies DIR",
+    );
   await import("dotenv/config");
   const { db } = await import("../../src/server/db");
+  if (bodies) {
+    // Standard body files written by anny_bodies.py into public/fit-assets/<DIR name>.
+    const files = JSON.parse(readFileSync(join(bodies, "bodies.json"), "utf8"));
+    await loadBodyFiles(
+      db,
+      files,
+      `${opt("--base-url") ?? "/fit-assets"}/${basename(resolve(bodies))}`,
+    );
+    console.log(`Pointed ${Object.keys(files).length} standard shapes at their body files`);
+    await db.$disconnect();
+    return;
+  }
   const product = await db.product.findFirstOrThrow({
     where: opt("--product") ? { id: opt("--product") } : { title: opt("--title") },
     select: { id: true },

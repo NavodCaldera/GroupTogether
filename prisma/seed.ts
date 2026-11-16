@@ -35,7 +35,7 @@ import {
 import { db } from "../src/server/db";
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { loadFitManifest, type FitManifest } from "../tools/fit-simulation/load";
+import { loadBodyFiles, loadFitManifest, type FitManifest } from "../tools/fit-simulation/load";
 import { saveBodyProfile as saveBodyProfileFor } from "../src/server/fit";
 import { hashPassword } from "../src/server/auth/password";
 import { setCartItem } from "../src/server/orders/cart";
@@ -721,6 +721,12 @@ async function main() {
       approve: manifest.garment.approved !== false,
     });
   }
+  // Standard shapes as Anny bodies with a skeleton (tools/fit-simulation/anny_bodies.py).
+  await loadBodyFiles(
+    db,
+    JSON.parse(readFileSync(join(fitRoot, "bodies", "bodies.json"), "utf8")),
+    "/fit-assets/bodies",
+  );
   // Measured buyers of different shapes (photo values with intervals, a few typed); Tharindu
   // and Nimali have none, to try measuring.
   const m = (value: number, spread: number, source: "photo" | "typed" = "photo") => ({

@@ -183,20 +183,20 @@ it("the product page draws the garment on the buyer's body only once they confir
   const buyer = await makeBuyer();
   await saveBodyProfile(buyer.id, profile());
   await buildOnce();
-  expect((await getFitView(variant.productId, buyer.id)).personal).toBeNull();
+  expect((await getFitView(variant.productId, buyer.id)).body).toBeNull();
   await confirmBody(buyer.id);
   const view = await getFitView(variant.productId, buyer.id);
-  expect(view.personal).toMatchObject({ fitClass: "top", short: false });
-  expect(view.personal?.url).toMatch(/^\/api\/fit-body\?v=/);
+  expect(view.body).toMatchObject({ fitClass: "top", short: false, own: true });
+  expect(view.body?.url).toMatch(/^\/api\/fit-body\?v=/);
   // A body built before the skeleton stands still.
-  expect(view.personal?.animated).toBe(false);
+  expect(view.body?.animated).toBe(false);
   await saveBodyProfile(buyer.id, profile());
   await buildOnce(async (input) => {
     const out = await ok(input);
     return { ...out, result: { ...out.result, bodyVersion: 2 } };
   });
   await confirmBody(buyer.id);
-  expect((await getFitView(variant.productId, buyer.id)).personal?.animated).toBe(true);
+  expect((await getFitView(variant.productId, buyer.id)).body?.animated).toBe(true);
 });
 
 it("a body built before the skeleton is rewritten from its stored shape, still confirmed", async () => {

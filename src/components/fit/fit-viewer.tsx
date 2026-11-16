@@ -16,7 +16,7 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import { regionWeights, REGION_COUNT } from "@/lib/fit/blend";
 import type { FitClass } from "@/lib/fit/config";
 import { drapePositions, garmentFrom, garmentSkin } from "@/lib/fit/drape";
-import { clipFor, type Motion } from "@/lib/fit/motion";
+import { clipFor, SLOW_FRAMES, tooSlow, type Motion } from "@/lib/fit/motion";
 import { RAMP_GLSL } from "@/lib/fit/colour";
 
 export interface FitViewerProps {
@@ -32,6 +32,8 @@ export interface FitViewerProps {
   motion?: Motion;
   playing: boolean;
   speed: number;
+  /** The device can't animate the body smoothly (called once). */
+  onSlow?: () => void;
   onError: () => void;
   onReady: () => void;
 }
@@ -126,6 +128,15 @@ export default function FitViewer(props: FitViewerProps) {
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.enablePan = false;
+    // Draw only when something changed: a paused, settled view costs nothing (weak phones,
+    // battery). Frames left to draw after the last change.
+    // Times of the latest frames drawn while the body moves, to notice a device that can't keep up.
+    let frameMs: number[] = [];
+    let lastFrame = 0;
+    let judged = false;
+    let frames = 2;
+    const redraw = () => (frames = 2);
+    controls.addEventListener("change", redraw);
 
     const u: Uniforms = {
       uTension: { value: [...target.current.tensions] },
@@ -193,6 +204,7 @@ export default function FitViewer(props: FitViewerProps) {
       renderer.domElement.style.height = "100%";
       camera.aspect = w / Math.max(1, h);
       camera.updateProjectionMatrix();
+      redraw();
     };
     const observer = new ResizeObserver(resize);
     observer.observe(el);
@@ -266,6 +278,7 @@ export default function FitViewer(props: FitViewerProps) {
             },
           };
         }
+        redraw();
         onReady();
       })
       .catch(() => !disposed && onError());
@@ -274,16 +287,44 @@ export default function FitViewer(props: FitViewerProps) {
       const dt = Math.min(clock.getDelta(), 0.1);
       const t = target.current;
       const ease = 1 - Math.exp(-dt * 12);
+      // Colours still easing towards the chosen size or the heatmap toggle.
+      let moving = 0;
+      const towards = (from: number, to: number) => {
+        moving = Math.max(moving, Math.abs(to - from));
+        return from + (to - from) * ease;
+      };
       for (let i = 0; i < REGION_COUNT; i++) {
-        u.uTension.value[i] += ((t.tensions[i] ?? 0) - u.uTension.value[i]) * ease;
-        u.uUnsure.value[i] += ((t.unsure[i] ?? 0) - u.uUnsure.value[i]) * ease;
+        u.uTension.value[i] = towards(u.uTension.value[i], t.tensions[i] ?? 0);
+        u.uUnsure.value[i] = towards(u.uUnsure.value[i], t.unsure[i] ?? 0);
       }
-      u.uHeat.value += ((t.heat ? 1 : 0) - u.uHeat.value) * ease;
-      if (rig && t.motion && rig.motion !== t.motion) rig.play(t.motion);
+      u.uHeat.value = towards(u.uHeat.value, t.heat ? 1 : 0);
+      if (rig && t.motion && rig.motion !== t.motion) {
+        rig.play(t.motion);
+        redraw();
+      }
       if (mixer) mixer.update(t.playing ? dt * t.speed : 0);
-      if (draped && t.drape && draped.key !== t.drape.gaps.join(",")) draped.update(t.drape.gaps);
+      if (draped && t.drape && draped.key !== t.drape.gaps.join(",")) {
+        draped.update(t.drape.gaps);
+        redraw();
+      }
       controls.update();
+      if ((mixer && t.playing) || moving > 0.002) redraw();
+      if (frames <= 0) return;
+      frames--;
       renderer.render(scene, camera);
+      if (judged || !(mixer && t.playing)) {
+        frameMs = [];
+        lastFrame = 0;
+        return;
+      }
+      const now = performance.now();
+      if (lastFrame) frameMs.push(now - lastFrame);
+      lastFrame = now;
+      if (frameMs.length > SLOW_FRAMES) frameMs.shift();
+      if (tooSlow(frameMs)) {
+        judged = true;
+        t.onSlow?.();
+      }
     });
 
     return () => {

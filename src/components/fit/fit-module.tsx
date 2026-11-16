@@ -5,7 +5,15 @@
  * for the buyer's archetype, beside the fit report. Every size's tensions arrive at once, so
  * the size switch recolours instantly.
  */
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { cx } from "@/components/ui";
 import { heatCss, RAMP_CSS, shownTension } from "@/lib/fit/colour";
 import type { FitClass } from "@/lib/fit/config";
@@ -32,6 +40,13 @@ const VERDICT: Record<Band, string> = {
 
 const CONFIDENCE = { high: "High", medium: "Medium", low: "Low" } as const;
 
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+const watchReducedMotion = (changed: () => void) => {
+  const query = window.matchMedia(REDUCED_MOTION);
+  query.addEventListener("change", changed);
+  return () => query.removeEventListener("change", changed);
+};
+
 const chip = (on: boolean) =>
   cx(
     "min-h-11 min-w-11 rounded-lg border px-3 text-sm font-medium sm:min-h-9 sm:min-w-9",
@@ -41,18 +56,25 @@ const chip = (on: boolean) =>
 export function FitModule({
   report,
   assets,
-  personal = null,
+  body: personal = null,
 }: {
   report: FitReport;
   assets: { motion: Motion; url: string }[];
-  /** The buyer's own 3D body: the garment is drawn over it instead of the archetype animation. */
-  personal?: { url: string; fitClass: FitClass; short: boolean; animated: boolean } | null;
+  /** A body file (the buyer's own or their standard shape): the garment is drawn over it. */
+  body?: { url: string; fitClass: FitClass; short: boolean; animated: boolean } | null;
 }) {
   const options = report.sizeOptions.filter((o) => o.regions.length);
   const [size, setSize] = useState(report.recommendedSize ?? options[0]?.size);
   const [motion, setMotion] = useState<Motion>(assets[0]?.motion ?? "WALK");
   const [heat, setHeat] = useState(true);
-  const [playing, setPlaying] = useState(true);
+  // Someone who asked their device for less motion starts with the body standing still.
+  const reducedMotion = useSyncExternalStore(
+    watchReducedMotion,
+    () => window.matchMedia(REDUCED_MOTION).matches,
+    () => false,
+  );
+  const [paused, setPaused] = useState<boolean | null>(null);
+  const playing = paused === null ? !reducedMotion : !paused;
   const [speed, setSpeed] = useState(1);
   const [show3d, setShow3d] = useState(false);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
@@ -76,6 +98,8 @@ export function FitModule({
   }, [assets.length, personal]);
 
   const onError = useCallback(() => setState("failed"), []);
+  // A device that can't animate smoothly gets a still body, unless the buyer chose already.
+  const onSlow = useCallback(() => setPaused((p) => p ?? true), []);
   const onReady = useCallback(() => setState("ready"), []);
 
   const current = options.find((o) => o.size === size) ?? options[0];
@@ -117,6 +141,7 @@ export function FitModule({
                   motion={personal?.animated ? motion : undefined}
                   playing={playing}
                   speed={speed}
+                  onSlow={onSlow}
                   onError={onError}
                   onReady={onReady}
                 />
@@ -146,7 +171,7 @@ export function FitModule({
                 <button
                   type="button"
                   className={chip(false)}
-                  onClick={() => setPlaying((p) => !p)}
+                  onClick={() => setPaused(playing)}
                   aria-label={playing ? "Pause" : "Play"}
                 >
                   {playing ? "❚❚" : "▶"}
