@@ -17,9 +17,13 @@ Newest first.
   - Deep Fit Test: since the Material Card the Fit section is taller than the test screen, so
     scrolling to the section left the 3D viewer out of view and it never loaded. The test now
     scrolls to the viewer's controls.
-- Still failing: the Security check. `npm audit --audit-level=high` reports GHSA-fc5q-39xc-vjpf
-  (picomatch ReDoS), which affects every picomatch version and has no fix yet. It reaches the
-  app only through build and test tools. Whether to allowlist it is left to the owner.
+- The demo payment page also needs `DEMO_MERCHANT_ID` and `DEMO_MERCHANT_SECRET`; the Playwright
+  web server now sets test-only values.
+- Security check: `npm audit --audit-level=high` reports GHSA-fc5q-39xc-vjpf (picomatch ReDoS),
+  which affects every picomatch version and has no fix yet; it reaches the app only through
+  build and test tools. It stays red: switching CI to an allowlist needs the owner to change it
+  or grant permission (draft in `scripts/check-audit.mjs`, not committed).
+- The owner said to merge the open Dependabot pull requests once their checks pass.
 
 ## 2026-11-17 - Drape files committed and synced with GitHub
 

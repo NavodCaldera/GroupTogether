@@ -49,6 +49,8 @@ export default defineConfig({
       APP_URL: `http://localhost:${PORT}`,
       GROUPBASKET_E2E: "1",
       PAYMENT_GATEWAY: "demo",
+      DEMO_MERCHANT_ID: "1200000",
+      DEMO_MERCHANT_SECRET: "e2e-only-not-a-real-secret",
     },
   },
 });
