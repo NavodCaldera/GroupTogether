@@ -28,6 +28,22 @@ Newest first.
     data, while the test was running.
   - Deleting the body removes the buyer's tests. The sweep removes finished tests after 90 days.
   - The product-page button comes in Task 6.6.
+- Task 6.1, the Blender speed check, passed (`tools/cloth-sim/SPIKE.md`).
+  - On this laptop one size takes about 1–2 minutes of cloth simulation and 1–5 minutes end to
+    end. The tight size is the slowest.
+  - Nothing exploded: the furthest garment point was 9 cm from the body.
+  - Chest strain is ordered small > fit > large.
+  - Finding: the tension readout maxes out at 1.0 on shoulders and upper arms for every size,
+    and on the chest for the size that fits. This is being recalibrated before cluster drapes
+    are run.
+- Task 6.2, the simulation tool (`tools/cloth-sim`).
+  - `garment.py` builds the shell from the body, with the rest shape taken in for small sizes.
+  - `fabric.py` turns gsm, stretch and weave into Blender cloth settings.
+  - `simulate.py` runs inside Blender.
+  - `run.py` starts Blender as a separate process. It is also the CLI that the Deep Fit worker
+    calls, with the job JSON in and the result on the last line out.
+  - The output garment glb carries the region ids and the skeleton weights, so the browser
+    animates it.
 - Task 6.3, body clusters. The standard body shapes are now 20 clusters (men-01 to men-10,
   women-01 to women-10) instead of the four hand-made shapes.
   - `tools/fit-simulation/clusters.py` samples 4000 adult Anny bodies per gender and groups them
