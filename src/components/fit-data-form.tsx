@@ -1,5 +1,5 @@
 import { AdminForm } from "@/app/admin/admin-form";
-import { Field, Input, Select, Textarea } from "@/components/ui";
+import { Field, Input, Textarea } from "@/components/ui";
 import { kindRegions, readChart, sizeOrder } from "@/lib/fit/data";
 import { REGION_LABEL } from "@/lib/fit/regions";
 import { sizesFor } from "@/lib/taxonomy";
@@ -10,11 +10,6 @@ type FitProduct = {
   kind: string | null;
   sizeChart: unknown;
   fabricStretchPct: number | null;
-  gsm: number | null;
-  weave: string | null;
-  thermalMinC: number | null;
-  thermalMaxC: number | null;
-  breathability: number | null;
   careNotes: string | null;
   variants: { size: string }[];
 };
@@ -87,28 +82,6 @@ export function FitDataForm({
             inputMode="numeric"
             defaultValue={n(product.fabricStretchPct)}
           />
-        </Field>
-        <Field label="GSM" name="gsm">
-          <Input name="gsm" inputMode="numeric" defaultValue={n(product.gsm)} />
-        </Field>
-        <Field label="Weave" name="weave">
-          <Input name="weave" placeholder="Jersey knit" defaultValue={product.weave ?? ""} />
-        </Field>
-        <Field label="Comfort from (°C)" name="thermalMinC">
-          <Input name="thermalMinC" inputMode="numeric" defaultValue={n(product.thermalMinC)} />
-        </Field>
-        <Field label="Comfort to (°C)" name="thermalMaxC">
-          <Input name="thermalMaxC" inputMode="numeric" defaultValue={n(product.thermalMaxC)} />
-        </Field>
-        <Field label="Breathability" name="breathability">
-          <Select name="breathability" defaultValue={n(product.breathability)}>
-            <option value="">—</option>
-            {[1, 2, 3, 4, 5].map((v) => (
-              <option key={v} value={v}>
-                {v} of 5
-              </option>
-            ))}
-          </Select>
         </Field>
       </div>
       <Field label="Care" name="careNotes">

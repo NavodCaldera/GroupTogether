@@ -80,27 +80,15 @@ const optInt = (min: number, max: number, msg: string) =>
 
 /** The factory's fit data form: `chart.<size>.<region>` cells plus fabric fields. */
 export function parseFitForm(entries: Record<string, string>, sizes: string[]) {
+  // gsm and weave come from the Material card (DEC-022); the temperature range and the 1–5
+  // breathability score are no longer collected (unsourced claims).
   const fabric = z
     .object({
       fabricStretchPct: optInt(0, 100, "Stretch is a whole percent from 0 to 100"),
-      gsm: optInt(20, 1000, "GSM is a whole number from 20 to 1000"),
-      weave: z.string().trim().max(60),
-      thermalMinC: optInt(-10, 50, "Comfort temperatures are whole °C from −10 to 50"),
-      thermalMaxC: optInt(-10, 50, "Comfort temperatures are whole °C from −10 to 50"),
-      breathability: optInt(1, 5, "Breathability is 1 to 5"),
       careNotes: z.string().trim().max(500),
     })
-    .refine(
-      (v) => v.thermalMinC === null || v.thermalMaxC === null || v.thermalMinC <= v.thermalMaxC,
-      { message: "The lowest comfort temperature is above the highest" },
-    )
     .parse({
       fabricStretchPct: entries.fabricStretchPct ?? "",
-      gsm: entries.gsm ?? "",
-      weave: entries.weave ?? "",
-      thermalMinC: entries.thermalMinC ?? "",
-      thermalMaxC: entries.thermalMaxC ?? "",
-      breathability: entries.breathability ?? "",
       careNotes: entries.careNotes ?? "",
     });
   const chart: SizeChart = {};
@@ -113,5 +101,5 @@ export function parseFitForm(entries: Record<string, string>, sizes: string[]) {
         throw new FitDataError(`Enter the ${size} ${REGION_LABEL[region].toLowerCase()} in cm`);
       (chart[size] ??= {})[region] = Math.round(n.data * 10) / 10;
     }
-  return { ...fabric, weave: fabric.weave || null, careNotes: fabric.careNotes || null, chart };
+  return { ...fabric, careNotes: fabric.careNotes || null, chart };
 }

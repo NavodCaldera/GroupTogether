@@ -26,11 +26,12 @@ export class FitError extends AppError {}
 type FitFields = {
   chart: Record<string, Partial<Record<Region, number>>>;
   fabricStretchPct: number | null;
-  gsm: number | null;
-  weave: string | null;
-  thermalMinC: number | null;
-  thermalMaxC: number | null;
-  breathability: number | null;
+  /** Set by the Material card since DEC-022; the fit form no longer sends these. */
+  gsm?: number | null;
+  weave?: string | null;
+  thermalMinC?: number | null;
+  thermalMaxC?: number | null;
+  breathability?: number | null;
   careNotes: string | null;
 };
 

@@ -16,13 +16,26 @@ export const IMAGE_TYPES: Record<string, string> = {
 };
 const MAX_UPLOAD_BYTES = 5 * 1024 * 1024;
 
+/** Lab reports (DEC-022), up to 10 MB */
+export const PDF_TYPES: Record<string, string> = { "application/pdf": "pdf" };
+export const PDF_MAX_BYTES = 10 * 1024 * 1024;
+/** Fabric videos on the Material Card (DEC-022), up to 30 MB */
+export const VIDEO_TYPES: Record<string, string> = { "video/mp4": "mp4", "video/webm": "webm" };
+export const VIDEO_MAX_BYTES = 30 * 1024 * 1024;
+
 export class UploadError extends Error {}
 
-export function checkUpload(file: File | null, types: Record<string, string>, label: string) {
+export function checkUpload(
+  file: File | null,
+  types: Record<string, string>,
+  label: string,
+  maxBytes = MAX_UPLOAD_BYTES,
+) {
   if (!file || file.size === 0) throw new UploadError(`Choose the ${label}`);
   if (!types[file.type])
     throw new UploadError(`The ${label} must be ${Object.values(types).join(", ").toUpperCase()}`);
-  if (file.size > MAX_UPLOAD_BYTES) throw new UploadError(`The ${label} must be 5 MB or smaller`);
+  if (file.size > maxBytes)
+    throw new UploadError(`The ${label} must be ${maxBytes / 1024 / 1024} MB or smaller`);
   return file;
 }
 
