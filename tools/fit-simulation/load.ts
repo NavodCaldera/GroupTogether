@@ -5,16 +5,22 @@
  *
  *   npx tsx tools/fit-simulation/load.ts OUT_DIR (--product ID | --title "Title")
  *       [--assets-dir public/fit-assets] [--base-url /fit-assets] [--approve]
+ *   npx tsx tools/fit-simulation/load.ts --drapes OUT_DIR [--assets-dir …] [--base-url …]
+ *
+ * `--drapes` loads a cloth-sim batch (tools/cloth-sim/batch.py, DEC-021): simulated tensions and
+ * one garment file per standard shape × size, per product.
  *
  * Files are named by content hash, so the host may cache them forever (next.config.ts sets
  * that for /fit-assets). With an outside CDN, copy OUT_DIR there and pass its --base-url.
  */
-import { cpSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { basename, join, resolve } from "node:path";
 import type { MotionClip, PrismaClient } from "../../src/generated/prisma/client";
 import { readBody } from "../../src/lib/fit/data";
 import { isRegion, REGION_ENUM } from "../../src/lib/fit/regions";
 import { closestArchetype, matchParams } from "../../src/lib/fit/report";
+import { FIT_DATA_SELECT, fitDataHash } from "../../src/server/deep-fit-jobs";
 
 export interface FitManifest {
   garment: {
@@ -151,6 +157,103 @@ export async function loadFitManifest(
   });
 }
 
+/** tools/cloth-sim/batch.py's manifest.json; garment paths are relative to its folder. */
+export interface DrapeManifest {
+  products: {
+    id: string;
+    /** fitDataHash of the product's fit data the batch simulated. */
+    fitDataHash: string;
+    drapes: {
+      archetype: string;
+      size: string;
+      tension: Record<string, number>;
+      /** null when the size blew up or timed out ("unstable"). */
+      garment: string | null;
+      note?: string;
+    }[];
+  }[];
+}
+
+const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+const safeName = (s: string) => s.replace(/[^A-Za-z0-9.+-]/g, "_");
+
+/**
+ * Loads a cloth-sim batch: per product, in one transaction, the simulated tensions replace the
+ * standard shapes' `GarmentRegionTension` rows (note "simulated") and a `ClusterDrape` row points
+ * at each size's garment, copied to `<assetsDir>/drapes` under a content-hash name. A product
+ * whose fit data changed since the batch is skipped, as is a size that did not simulate.
+ */
+export async function loadDrapes(
+  db: PrismaClient,
+  outDir: string,
+  { assetsDir, baseUrl }: { assetsDir: string; baseUrl: string },
+) {
+  const manifest = JSON.parse(readFileSync(join(outDir, "manifest.json"), "utf8")) as DrapeManifest;
+  const base = `${baseUrl.replace(/\/$/, "")}/drapes`;
+  const target = join(assetsDir, "drapes");
+  const loaded: { productId: string; drapes: number; tensions: number }[] = [];
+  const skipped: { productId: string; reason: string }[] = [];
+  for (const p of manifest.products) {
+    const usable = p.drapes.filter((d) => d.garment && d.note !== "unstable");
+    // Content-hash names: unchanged files keep their URL and may be cached forever.
+    const urls = new Map<(typeof usable)[number], string>();
+    for (const d of usable) {
+      const bytes = readFileSync(join(outDir, d.garment!));
+      const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 10);
+      const file = `${safeName(d.archetype)}-${safeName(d.size)}-${hash}.glb`;
+      urls.set(d, `${base}/${file}`);
+      mkdirSync(target, { recursive: true });
+      if (!existsSync(join(target, file)))
+        copyFileSync(join(outDir, d.garment!), join(target, file));
+    }
+    const reason = await db.$transaction(async (tx) => {
+      const product = await tx.product.findUnique({ where: { id: p.id }, select: FIT_DATA_SELECT });
+      if (!product) return "product not found";
+      if (fitDataHash(product) !== p.fitDataHash) return "fit data changed";
+      const shapes = await tx.bodyArchetype.findMany({
+        where: { name: { in: [...new Set(p.drapes.map((d) => d.archetype))] } },
+        select: { id: true, name: true },
+      });
+      const ids = new Map(shapes.map((a) => [a.name, a.id]));
+      const missing = p.drapes.find((d) => !ids.has(d.archetype));
+      if (missing) return `unknown standard shape ${missing.archetype}`;
+      await tx.clusterDrape.deleteMany({
+        where: { productId: p.id, archetypeId: { in: [...ids.values()] } },
+      });
+      await tx.clusterDrape.createMany({
+        data: usable.map((d) => ({
+          productId: p.id,
+          archetypeId: ids.get(d.archetype)!,
+          size: d.size,
+          garmentUrl: urls.get(d)!,
+          fitDataHash: p.fitDataHash,
+        })),
+      });
+      let tensions = 0;
+      for (const d of usable)
+        for (const [region, t] of Object.entries(d.tension)) {
+          if (!isRegion(region) || !Number.isFinite(t)) continue;
+          const key = {
+            productId: p.id,
+            archetypeId: ids.get(d.archetype)!,
+            size: d.size,
+            region: REGION_ENUM[region],
+          };
+          await tx.garmentRegionTension.upsert({
+            where: { productId_archetypeId_size_region: key },
+            create: { ...key, baseTension: clamp01(t), note: "simulated" },
+            update: { baseTension: clamp01(t), note: "simulated" },
+          });
+          tensions++;
+        }
+      loaded.push({ productId: p.id, drapes: usable.length, tensions });
+      return null;
+    });
+    if (reason) skipped.push({ productId: p.id, reason });
+  }
+  return { loaded, skipped };
+}
+
 async function main() {
   const args = process.argv.slice(2);
   const opt = (k: string) => {
@@ -159,12 +262,24 @@ async function main() {
   };
   const out = args[0];
   const bodies = opt("--bodies");
-  if (!bodies && (!out || (!opt("--product") && !opt("--title"))))
+  const drapes = opt("--drapes");
+  if (!bodies && !drapes && (!out || (!opt("--product") && !opt("--title"))))
     throw new Error(
-      "Usage: load.ts OUT_DIR (--product ID | --title TITLE) [--approve] | load.ts --bodies DIR",
+      "Usage: load.ts OUT_DIR (--product ID | --title TITLE) [--approve] | load.ts --bodies DIR | load.ts --drapes DIR",
     );
   await import("dotenv/config");
   const { db } = await import("../../src/server/db");
+  if (drapes) {
+    const n = await loadDrapes(db, drapes, {
+      assetsDir: resolve(opt("--assets-dir") ?? "public/fit-assets"),
+      baseUrl: opt("--base-url") ?? "/fit-assets",
+    });
+    for (const l of n.loaded)
+      console.log(`Loaded ${l.drapes} drapes and ${l.tensions} tension rows for ${l.productId}`);
+    for (const s of n.skipped) console.log(`Skipped ${s.productId}: ${s.reason}`);
+    await db.$disconnect();
+    return;
+  }
   if (bodies) {
     // Standard body files written by anny_bodies.py into public/fit-assets/<DIR name>.
     const files = JSON.parse(readFileSync(join(bodies, "bodies.json"), "utf8"));

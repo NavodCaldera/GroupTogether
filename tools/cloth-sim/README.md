@@ -83,3 +83,37 @@ Sizes run in parallel, one Blender process (8 threads) per size, as many as the 
   upper arm and shoulder read tight in every size. See [`SPIKE.md`](SPIKE.md).
 - Tension is not calibrated against wear trials; the 0.05 added to the stretch capacity is the
   plan's rule, not a measured value.
+
+## Batch: every garment on every standard shape (Task 6.4)
+
+```sh
+npx tsx --conditions=react-server tools/cloth-sim/export.ts out/drapes-export.json   # [--product ID | --title "Title"]
+python tools/cloth-sim/batch.py out/drapes-export.json out/drapes --parallel 2        # resumable
+npx tsx --conditions=react-server tools/fit-simulation/load.ts --drapes out/drapes
+```
+
+1. [`export.ts`](export.ts) writes every product with an approved size chart as a `run.simulate`
+   job (no `body`), its `fitDataHash` ([`deep-fit-jobs.ts`](../../src/server/deep-fit-jobs.ts))
+   and the gender of its audience (null: all shapes; children's products are left out), plus
+   every standard shape that has a body file, as a path under `public/`.
+2. [`batch.py`](batch.py) runs one size per Blender process (8 threads), `--parallel` at once
+   (default 2, for 16 cores), on every shape of the product's gender. Each finished size is
+   `OUT/<product>/<shape>/<size>.json` (+ `<size>.glb`); a rerun skips sizes already there for the
+   same `fitDataHash` and body file, so a stopped batch resumes. A job that cannot run is reported
+   and tried again next time; an unstable size is kept with no garment. `OUT/manifest.json` lists
+   every finished size.
+3. `load.ts --drapes` copies each garment to `public/fit-assets/drapes/<shape>-<size>-<hash>.glb`
+   and, per product in one transaction, writes the simulated tensions over the shapes'
+   `GarmentRegionTension` rows (`note` "simulated") and a `ClusterDrape` row per size. A product
+   whose fit data changed since the export is skipped; an unstable size keeps its old tensions.
+   Saving changed fit data deletes the product's `ClusterDrape` rows, and the product page only
+   shows drapes whose hash matches the product's fit data now.
+
+The product page then draws a buyer's standard shape wearing the simulated garment of the chosen
+size (`FitView.body.garments`) when the buyer has no confirmed own body.
+
+Run time, estimated from [`SPIKE.md`](SPIKE.md) (not yet measured on a batch): one size end to
+end took 58–146 s unloaded for WALK and REACH (158 frames); the export asks for all four motions
+(286 frames), so about 105–265 s, call it 3 min. With `--parallel 2` that is about 1.5 min per
+size: a garment with 4 sizes on its 10 shapes (40 sizes) about an hour, the 10 approved seed
+garments (400 sizes) about 10 hours (6–15 h).

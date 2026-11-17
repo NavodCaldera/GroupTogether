@@ -16,6 +16,7 @@ import { isRegion, regionFromEnum, REGIONS, type Region } from "@/lib/fit/region
 import { bodyFitEnabled, deleteBody, outlinesSchema, queueBodyFit } from "./body-fit";
 import { db } from "./db";
 import { deepFitsLeft, getDeepFit, type DeepFit } from "./deep-fit";
+import { FIT_DATA_SELECT, fitDataHash } from "./deep-fit-jobs";
 import { AppError } from "./errors";
 
 export class FitError extends AppError {}
@@ -35,7 +36,8 @@ type FitFields = {
 
 /**
  * Saves a product's size chart and fabric details. A factory (`sellerId`) edits only its own
- * listing and any change clears the approval; an admin's save approves it.
+ * listing and any change clears the approval; an admin's save approves it. A change to what the
+ * cloth simulation depends on drops the product's cluster drapes, so a stale one is never shown.
  */
 export async function saveFitData(
   productId: string,
@@ -48,15 +50,24 @@ export async function saveFitData(
       : { id: productId, OR: [{ sellerId: null }, { seller: { isBrand: false } }] };
   if (!(await db.product.count({ where }))) throw new FitError("Product not found");
   const { chart, ...fabric } = fields;
-  await db.product.update({
-    where: { id: productId },
-    data: {
-      ...fabric,
-      sizeChart: Object.keys(chart).length ? chart : Prisma.DbNull,
-      ...("adminId" in by
-        ? { fitApprovedAt: new Date(), fitApprovedById: by.adminId }
-        : { fitApprovedAt: null, fitApprovedById: null }),
-    },
+  await db.$transaction(async (tx) => {
+    const before = await tx.product.findUniqueOrThrow({
+      where: { id: productId },
+      select: FIT_DATA_SELECT,
+    });
+    const after = await tx.product.update({
+      where: { id: productId },
+      data: {
+        ...fabric,
+        sizeChart: Object.keys(chart).length ? chart : Prisma.DbNull,
+        ...("adminId" in by
+          ? { fitApprovedAt: new Date(), fitApprovedById: by.adminId }
+          : { fitApprovedAt: null, fitApprovedById: null }),
+      },
+      select: FIT_DATA_SELECT,
+    });
+    if (fitDataHash(before) !== fitDataHash(after))
+      await tx.clusterDrape.deleteMany({ where: { productId } });
   });
 }
 
@@ -322,7 +333,9 @@ export async function getFitView(productId: string, userId: string | null): Prom
   const [deep, left] = confirmed
     ? await Promise.all([getDeepFit(userId, productId), deepFitsLeft(userId)])
     : [null, 0];
-  const [tensions, assets] = profile.archetypeId
+  // Garments simulated on the buyer's standard shape, for the fit data the product has now.
+  const shapeBody = profile.bodyStatus !== "CONFIRMED" && !!profile.archetype?.bodyUrl;
+  const [tensions, assets, drapes] = profile.archetypeId
     ? await Promise.all([
         db.garmentRegionTension.findMany({
           where: { productId, archetypeId: profile.archetypeId },
@@ -333,8 +346,19 @@ export async function getFitView(productId: string, userId: string | null): Prom
           select: { motion: true, gltfUrl: true },
           orderBy: { motion: "asc" },
         }),
+        shapeBody
+          ? db.clusterDrape.findMany({
+              where: {
+                productId,
+                archetypeId: profile.archetypeId,
+                fitDataHash: fitDataHash(product),
+                size: { in: chart.sizes },
+              },
+              select: { size: true, garmentUrl: true },
+            })
+          : [],
       ])
-    : [[], []];
+    : [[], [], []];
   const base: Record<string, Partial<Record<Region, number>>> = {};
   for (const t of tensions) (base[t.size] ??= {})[regionFromEnum(t.region)] = t.baseTension;
   const body: Body = readBody(profile.measurements);
@@ -371,7 +395,9 @@ export async function getFitView(productId: string, userId: string | null): Prom
               ...garment,
               animated: true,
               own: false,
-              garments: null,
+              garments: drapes.length
+                ? Object.fromEntries(drapes.map((d) => [d.size, d.garmentUrl]))
+                : null,
             }
           : null,
     deepFit: confirmed ? { status: deep ? DEEP_FIT_STATUS[deep.status] : "none", left } : null,
