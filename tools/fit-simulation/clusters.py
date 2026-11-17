@@ -11,9 +11,10 @@ Each group's archetype is the sampled body nearest its centre, so the stored Ann
 gives exactly the measurements stored with it. Output is deterministic for a seed; names run
 men-01 .. men-10 and women-01 .. women-10, shortest first.
 
-Thigh, upper arm, shoulder, neck, wrist and inseam are not measured on the body: they are
-estimated from the measured girths and height with the ratios of the earlier hand-made shapes,
-for the garment simulation (pipeline.py) only.
+Upper arm and thigh are measured on the body the way the cloth simulation tapes its body file
+(tools/cloth-sim/garment.py `girth`), so the fit report and the drape read the same limbs.
+Shoulder, neck, wrist and inseam are not measured on the body: they are estimated from the
+measured girths and height with the ratios of the earlier hand-made shapes.
 
 Needs the body-fitting environment (Anny); k-means is plain numpy.
 """
@@ -29,6 +30,7 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "body-fitting"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "cloth-sim"))
 
 FEATURES = ("height", "chest", "waist", "hip")
 GENDERS = (("MEN", 0.0, "men"), ("WOMEN", 1.0, "women"))
@@ -37,12 +39,13 @@ AGE = 0.75  # Anny's young adult (as tools/body-fitting/fit.py PRIOR)
 # confirm. Uniform phenotypes reach 136-245 cm, so the kept bodies are drawn toward these.
 HEIGHT_CM = {"MEN": (166.0, 7.0), "WOMEN": (154.0, 6.5)}
 HEIGHT_TRUNCATE_SD = 2.5
+LIMBS = ("thigh", "upperArm")  # measured on the body (limb_girths)
 # Estimated measurements: (source, ratio) per gender.
 ESTIMATES = {
-    "MEN": {"thigh": ("hip", 0.565), "upperArm": ("chest", 0.314), "neck": ("chest", 0.39),
-            "wrist": ("height", 0.10), "shoulder": ("height", 0.257), "inseam": ("height", 0.453)},
-    "WOMEN": {"thigh": ("hip", 0.566), "upperArm": ("chest", 0.313), "neck": ("chest", 0.365),
-              "wrist": ("height", 0.095), "shoulder": ("height", 0.243), "inseam": ("height", 0.451)},
+    "MEN": {"neck": ("chest", 0.39), "wrist": ("height", 0.10), "shoulder": ("height", 0.257),
+            "inseam": ("height", 0.453)},
+    "WOMEN": {"neck": ("chest", 0.365), "wrist": ("height", 0.095), "shoulder": ("height", 0.243),
+              "inseam": ("height", 0.451)},
 }
 OUT = Path(__file__).resolve().parent / "seed" / "clusters.json"
 
@@ -99,8 +102,27 @@ def _sample(body, gender: float, samples: int, rng: np.random.Generator, height:
     return np.array(xs[:samples]), np.array(ms[:samples])
 
 
-def _params(gender: str, m: np.ndarray) -> dict[str, float]:
+def limb_girths(body, phenotype: np.ndarray) -> dict[str, float]:
+    """Upper arm and thigh (cm) of the body `phenotype` builds, taped as the cloth simulation
+    tapes its body file (same axes, parts and bones as tools/body-fitting `write_body`)."""
+    from types import SimpleNamespace
+
+    import garment
+    from body import body_parts
+    from skin import to_file_axes
+
+    verts, heads = body.forward(np.atleast_2d(phenotype))
+    parts = body_parts(body, verts[0], heads[0])
+    floor = float(verts[0][body.solid, 2].min())
+    points, joints = to_file_axes(verts[0], floor), to_file_axes(heads[0], floor)
+    labels = list(body.model.bone_labels)
+    bones = SimpleNamespace(bone=lambda n: joints[labels.index(n)])
+    return {r: round(garment.girth(points, parts, bones, r), 1) for r in LIMBS}
+
+
+def _params(gender: str, m: np.ndarray, limbs: dict[str, float]) -> dict[str, float]:
     p = {k: float(v) for k, v in zip(FEATURES + ("torso",), m)}
+    p.update(limbs)
     for k, (src, ratio) in ESTIMATES[gender].items():
         p[k] = round(p[src] * ratio, 1)
     return p
@@ -127,7 +149,7 @@ def build(per_gender: int = 10, samples: int = 4000, seed: int = 1, body=None) -
             out.append({
                 "name": f"{prefix}-{n:02d}",
                 "gender": gender,
-                "params": _params(gender, ms[i]),
+                "params": _params(gender, ms[i], limb_girths(body, xs[i])),
                 "share": round(size / samples, 3),
                 "anny": {
                     "phenotype": {k: float(v) for k, v in zip(PHENOTYPES, xs[i])},
