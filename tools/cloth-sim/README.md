@@ -141,6 +141,8 @@ The product page then draws a buyer's standard shape wearing the simulated garme
 size (`FitView.body.garments`) when the buyer has no confirmed own body.
 
 Run time, measured on the crew tee batch (10 men shapes × 4 sizes, all four motions, 286
-frames, `--parallel 2`, 2026-11-17): about 100–125 s per size end to end per process, so about
-1 min per size with two at once; the 40 sizes took RUN_MIN min. The 10 approved seed garments
-(400 sizes) would take about RUN_H hours.
+frames, `--parallel 2`, 2026-11-17, other agents' work running alongside): 116–410 s per size
+end to end per process, mean 252 s (the looser and the smaller bodies are faster, men-05 and
+men-08 slowest); the 40 sizes took 86 min, about 2.1 min per size with two at once. The 10
+approved seed garments (400 sizes) would take about 14 hours on a loaded machine. Unloaded, one
+size took 100–125 s (two at once).

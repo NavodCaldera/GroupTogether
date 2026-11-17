@@ -138,3 +138,30 @@ reference already follows the drape, so the push itself is not counted as stretc
 
 men-03 XL, WALK alone: chest 1.0 → 0.27, waist 1.0 → 0.15. men-03 L: chest 0.54 → 0.44 (now the
 slack side, 5 cm of room). Dilan's criteria test still passes.
+
+Crew tee batch on the 10 men shapes after the fix (`batch.py`, all four motions, 40 sizes, 86 min
+with `--parallel 2`, mean 252 s per size per process; before the fix 96–104 s, unloaded). Chest /
+waist / upper arm, S / M / L / XL:
+
+| Shape | Chest | Waist | Upper arm |
+|---|---|---|---|
+| men-01 | 0.38 / 0.26 / 0.18 / 0.13 | 0.22 / 0.16 / 0.12 / 0.13 | 0.29 / 0.24 / 0.20 / 0.16 |
+| men-02 | 0.53 / 0.36 / 0.25 / 0.22 | 0.37 / 0.27 / 0.19 / 0.17 | 0.41 / 0.34 / 0.28 / 0.23 |
+| men-03 | 0.94 / 0.60 / 0.44 / 0.27 | 0.44 / 0.32 / 0.23 / 0.19 | 1.00 / 1.00 / 1.00 / 1.00 |
+| men-04 | 0.32 / 0.22 / 0.15 / 0.10 | 0.15 / 0.11 / 0.10 / 0.10 | 0.20 / 0.17 / 0.14 / 0.11 |
+| men-05 | 1.00 / 1.00 / 0.60 / 0.43 | 1.00 / 1.00 / 0.60 / 0.47 | 1.00 / 0.94 / 0.55 / 0.38 |
+| men-06 | 0.43 / 0.29 / 0.20 / 0.12 | 0.28 / 0.20 / 0.15 / 0.10 | 0.27 / 0.22 / 0.18 / 0.15 |
+| men-07 | 0.60 / 0.44 / 0.31 / 0.19 | 0.41 / 0.30 / 0.21 / 0.14 | 0.52 / 0.42 / 0.35 / 0.28 |
+| men-08 | 1.00 / 1.00 / 1.00 / 0.60 | 1.00 / 1.00 / 1.00 / 1.00 | 1.00 / 1.00 / 1.00 / 1.00 |
+| men-09 | 0.95 / 0.60 / 0.48 / 0.29 | 0.48 / 0.34 / 0.24 / 0.16 | 1.00 / 1.00 / 1.00 / 0.87 |
+| men-10 | 0.56 / 0.39 / 0.27 / 0.16 | 0.31 / 0.22 / 0.16 / 0.10 | 0.39 / 0.32 / 0.26 / 0.22 |
+
+Every area of every shape now reads S ≥ M ≥ L ≥ XL (before: 11 inversions), and all 94 areas with
+6 cm or more of room on the body file read ≤ 0.5. Two things the fix does not change:
+
+- men-03 and men-09 read a tight sleeve in every size because their body files' upper arms are
+  41.9 and 39.5 cm (listed 32.2 and 32.6): the room is measured on the body file.
+- A size a little under the body reads the slack side's 0.6, not tight: men-05 L (chest 108 on a
+  110.6 body file, 109.7 listed) reads 0.60, as before the fix. 2.4 % under the body is within the
+  jersey's 5 % stretch, so its strain (≈ 0.02 against a 0.10 capacity) stays below the slack side.
+
