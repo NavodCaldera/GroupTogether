@@ -712,6 +712,35 @@ async function main() {
       await db.stockOffer.update({ where: { id: offer.id }, data: { approvedRevision: 1 } });
   }
 
+  // Material library (DEC-022): every material loads as a draft; the demo publishes only the
+  // three its products use, so their Material Cards can be seen locally. Set before the fit data
+  // below, which then restores each garment's simulated gsm, weave and approval.
+  await loadLibrary(db, readLibrary());
+  const demoMaterials = [
+    { title: "Crew-neck cotton tee (3-pack)", code: "cj_crs", gsm: 180 },
+    { title: "Polo shirt", code: "cpique", gsm: 220 },
+    { title: "Hooded sweatshirt", code: "cfleece", gsm: 320 },
+  ];
+  const factoryAdmin = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.FACTORY } });
+  for (const d of demoMaterials) {
+    await publishMaterial(factoryAdmin.id, d.code, true);
+    const product = await db.product.findFirstOrThrow({
+      where: { title: d.title },
+      select: { id: true, sellerId: true },
+    });
+    const material = await getMaterial(d.code);
+    await setProductMaterial(
+      product.id,
+      {
+        materialCode: d.code,
+        gsm: d.gsm,
+        composition: libraryComposition(material!),
+        confirmRange: false,
+      },
+      { sellerId: product.sellerId! },
+    );
+  }
+
   // Fit heatmap demo (DEC-020). The standard shapes are the 20 body clusters
   // (tools/fit-simulation/clusters.py). Each garment in tools/fit-simulation/seed/garments has
   // its pipeline output committed in public/fit-assets/seed-<name>: tops carry tensions on the
@@ -817,33 +846,6 @@ async function main() {
   for (const { userId, ...p } of fitProfiles)
     await saveBodyProfileFor(userId, { ...p, captureMeta: { seed: true }, consent: true });
 
-  // Material library (DEC-022): every material loads as a draft; the demo publishes only the
-  // three its products use, so their Material Cards can be seen locally.
-  await loadLibrary(db, readLibrary());
-  const demoMaterials = [
-    { title: "Crew-neck cotton tee (3-pack)", code: "cj_crs", gsm: 180 },
-    { title: "Polo shirt", code: "cpique", gsm: 200 },
-    { title: "Hooded sweatshirt", code: "cfleece", gsm: 300 },
-  ];
-  const factoryAdmin = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.FACTORY } });
-  for (const d of demoMaterials) {
-    await publishMaterial(factoryAdmin.id, d.code, true);
-    const product = await db.product.findFirstOrThrow({
-      where: { title: d.title },
-      select: { id: true, sellerId: true },
-    });
-    const material = await getMaterial(d.code);
-    await setProductMaterial(
-      product.id,
-      {
-        materialCode: d.code,
-        gsm: d.gsm,
-        composition: libraryComposition(material!),
-        confirmRange: false,
-      },
-      { sellerId: product.sellerId! },
-    );
-  }
 
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}
