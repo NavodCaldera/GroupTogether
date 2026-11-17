@@ -151,7 +151,7 @@ CI runs on main pushes, PRs and manual dispatch. It uses Node 24, disposable Pos
 read-only repository permissions, pinned action commits, a production build and automated tests.
 Only synthetic browser diagnostics are retained, for seven days after failure. It does not deploy.
 
-Security CI runs `npm audit --audit-level=high` and Semgrep 1.182.1 with only local rules,
+Security CI runs `scripts/check-audit.mjs` (`npm audit --audit-level=high` with a dated allowlist for advisories that have no fix) and Semgrep 1.182.1 with only local rules,
 metrics/version checks disabled. Rules detect unsafe raw SQL in app source and direct database/
 session imports into client modules; they do not prove authorization or isolation. Dependabot
 opens weekly npm/action updates, caps npm PRs and leaves major upgrades for explicit review.

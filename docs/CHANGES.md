@@ -21,8 +21,9 @@ Newest first.
   web server now sets test-only values.
 - Security check: `npm audit --audit-level=high` reports GHSA-fc5q-39xc-vjpf (picomatch ReDoS),
   which affects every picomatch version and has no fix yet; it reaches the app only through
-  build and test tools. It stays red: switching CI to an allowlist needs the owner to change it
-  or grant permission (draft in `scripts/check-audit.mjs`, not committed).
+  build and test tools. With the owner's permission CI now runs `scripts/check-audit.mjs`:
+  `npm audit` failing on any high or critical advisory except this one, allowed until
+  2026-12-31. Remove the entry once picomatch ships a fix. Merged Dependabot branches deleted.
 - The owner said to merge the open Dependabot pull requests once their checks pass.
 
 ## 2026-11-17 - Drape files committed and synced with GitHub

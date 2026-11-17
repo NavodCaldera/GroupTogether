@@ -24,7 +24,8 @@ jobs:
           node-version: "24"
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm audit --audit-level=high
+      # npm audit --audit-level=high, minus dated allowlisted advisories with no fix yet
+      - run: node scripts/check-audit.mjs
   static-analysis:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
