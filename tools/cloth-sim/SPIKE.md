@@ -109,3 +109,32 @@ Lead's criteria, all met and pinned by `test_crew_tee_on_dilan_reads_fit_tight_a
 0.25 (that value is the slack side, from the chart), and the shoulder ordering (0.13 / 0.12 / 0.12).
 Two small reads 0.6 at waist and upper arm because those are the slack side's "no room" value:
 the chart leaves −1.0 and −0.1 cm there, touching, not stretched.
+
+## Loose sizes read tight on the first batch (2026-11-17)
+
+The first real batch (crew tee, 10 men shapes × S/M/L/XL, all four motions) read loose cloth as
+tight: men-03 XL (chest 13 cm of room) read chest and waist 1.0, and several shapes read XL
+tighter than L. The strain side fired, mostly in WALK, RUN and SIT, the motions with the arms
+down at the sides.
+
+**Cause.** The pins and the soft goal pull the cloth towards the drape carried by the skin, and
+skinning carries torso cloth with the torso. When an arm swings down against the side, the
+skinned drape of the tee's side lies inside the arm: on men-03 XL in WALK about 100 of the torso's
+drape vertices were inside the arm in every frame of the clip (0 standing). The goal pulled that
+cloth into the arm, the one-sided collider pushed it back out, and the cloth was stretched round
+the arm (vertices up to 7 cm from where the skin carries them, single edges at 5× their rest
+length). The strained chest vertices were all at the side under the arm (|x| ≈ 0.19 m), 95 % of
+them within 5 cm of the arm. A looser size hangs further out, so more of it lies in the arm's
+way: hence XL tighter than L. Turning the goal off was worse (cloth wound up on the arms, as in
+the spike).
+
+**Fix.** `run.clear_of_limbs`: every frame, each drape vertex that lies inside (or within 1 cm
+of) a body part that does not carry it is moved out along that part's skin normal to 1 cm off it:
+torso cloth off the arms, a sleeve off the torso and the other arm. Only the depth beyond what the
+vertex had standing is moved, so the rest pose and the settled garment are unchanged. The strain's
+reference already follows the drape, so the push itself is not counted as stretch. Pinned by
+`test_the_drape_is_kept_out_of_an_arm_swinging_down_against_the_side` (numpy) and
+`test_a_loose_crew_tee_reads_loose_while_the_arms_swing` (Blender, men-03 XL, WALK).
+
+men-03 XL, WALK alone: chest 1.0 → 0.27, waist 1.0 → 0.15. men-03 L: chest 0.54 → 0.44 (now the
+slack side, 5 cm of room). Dilan's criteria test still passes.

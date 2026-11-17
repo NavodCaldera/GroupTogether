@@ -133,6 +133,39 @@ def test_timeline_eases_into_and_out_of_each_motion():
     assert np.abs(angle(len(frames) - 1, "upperleg01.L")).max() < 12
 
 
+def _inside_arm_cm(goal: np.ndarray, body_frame: np.ndarray, body: garment.Body,
+                   cloth: np.ndarray) -> np.ndarray:
+    """How deep (cm) each `cloth` vertex lies inside the arms' skin (0 outside, within 6 cm)."""
+    arm = np.flatnonzero(np.isin(body.parts, run._ARM))
+    normals = garment.vertex_normals(body_frame, body.faces)
+    p = goal[cloth]
+    d2 = ((p[:, None] - body_frame[arm][None]) ** 2).sum(-1)
+    k = arm[d2.argmin(1)]
+    off = ((p - body_frame[k]) * normals[k]).sum(1)
+    return np.where(d2.min(1) < 0.06 ** 2, np.maximum(0, -off), 0) * 100
+
+
+def test_the_drape_is_kept_out_of_an_arm_swinging_down_against_the_side(body_glb):
+    """The cause of loose tees reading tight (crew tee batch, 2026-11-17): skinned with the
+    torso, a loose tee's side lies inside the arm once WALK lowers it, so the goal pulled that
+    cloth into a collider that pushed it back out."""
+    body = garment.read_body(body_glb)
+    g = garment.build(body, "top", False, chest(124))
+    frames = run.timeline(["WALK"])
+    frames = frames[:1] + frames[run.SETTLE + run.BLEND::8]
+    bodies = np.stack([pose.skin(body.positions, body.joints, body.weights,
+                                 pose.skin_matrices(body.names, body.parents, body.heads, a, d))
+                       for a, d in frames])
+    goal = run.skinned(g.drape, g.joints, g.weights, body, frames)
+    torso = np.flatnonzero(np.isin(g.part, run._TORSO))
+    before = max(_inside_arm_cm(goal[f], bodies[f], body, torso).max() for f in range(len(frames)))
+    assert before > 2  # the skinned drape alone goes well inside the arm
+    clear = run.clear_of_limbs(goal, g, body, bodies)
+    after = max(_inside_arm_cm(clear[f], bodies[f], body, torso).max() for f in range(len(frames)))
+    assert after < 0.3
+    assert np.array_equal(clear[0], goal[0])  # standing, nothing moves
+
+
 # ---- tension from strain -------------------------------------------------------------------
 def test_tension_is_the_95th_percentile_over_the_stretch_capacity():
     region = np.array([0, 0, 0, 3])
@@ -148,6 +181,22 @@ def test_unstable_size_reads_fully_tight():
     out = run.unstable(np.array([0, 1, 3, 255]))
     assert out == {"tension": {"chest": 1.0, "waist": 1.0, "upperArm": 1.0}, "garment": None,
                    "note": "unstable"}
+
+
+@pytest.mark.parametrize("how", ["timeout", "crash"])
+def test_a_blender_timeout_or_crash_is_a_failed_size_not_a_tight_one(body_glb, tmp_path,
+                                                                      monkeypatch, how):
+    def blender(cmd, **kw):
+        if how == "timeout":
+            raise subprocess.TimeoutExpired(cmd, kw.get("timeout"))
+        return subprocess.CompletedProcess(cmd, 3, "", "Segmentation fault")
+
+    monkeypatch.setattr(run, "blender_bin", lambda: "blender")
+    monkeypatch.setattr(run.subprocess, "run", blender)
+    r = run.simulate(job(body_glb, {"M": chest(100)}, motions=["WALK"]), str(tmp_path))
+    s = r["sizes"]["M"]
+    assert r["status"] == "ok" and s["failed"] is True and s["note"] == how
+    assert "tension" not in s and s["garment"] is None
 
 
 def test_missing_body_fails_without_starting_blender(tmp_path):
@@ -249,6 +298,20 @@ def test_crew_tee_on_dilan_reads_fit_tight_and_loose_the_same_twice(dilan_glb, t
     for s in sizes:
         for region, v in t[s].items():
             assert abs(second["sizes"][s]["tension"][region] - v) <= 0.05, (s, region)
+
+
+@pytest.mark.blender
+@needs_blender
+def test_a_loose_crew_tee_reads_loose_while_the_arms_swing(tmp_path):
+    """Crew tee XL on men-03 (chest 103 on the body file, 13 cm room): WALK used to read the chest
+    and waist fully tight (1.0) as the arms dragged the tee's sides."""
+    bodies = ROOT / "public" / "fit-assets" / "bodies"
+    body = str(bodies / json.loads((bodies / "bodies.json").read_text("utf-8"))["men-03"])
+    sizes, fab = crew_tee()
+    j = {"body": body, "cls": "top", "short": False, "sizes": {"XL": sizes["large2"]},
+         "fabric": fab, "motions": ["WALK"]}
+    t = run.simulate(j, str(tmp_path), timeout_s=600)["sizes"]["XL"]["tension"]
+    assert t["chest"] <= 0.5 and t["waist"] <= 0.5, t
 
 
 def test_loose_side_matches_the_app_config():

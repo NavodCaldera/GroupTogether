@@ -67,6 +67,8 @@ def _simulate(out: Path, u: dict, timeout_s: int) -> dict:
     if res.get("status") != "ok" or u["size"] not in res.get("sizes", {}):
         raise RuntimeError(res.get("error") or "no result")
     s = res["sizes"][u["size"]]
+    if s.get("failed"):  # Blender timed out or crashed: not written, so a rerun tries it again
+        raise RuntimeError(s.get("note", "failed") + (f": {s['error']}" if s.get("error") else ""))
     r = {"fitDataHash": u["product"]["fitDataHash"], "body": u["shape"]["body"],
          "tension": s.get("tension", {}), "garment": s.get("garment"),
          "seconds": s.get("seconds", res.get("seconds"))}

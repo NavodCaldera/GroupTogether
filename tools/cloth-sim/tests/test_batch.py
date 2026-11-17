@@ -48,6 +48,9 @@ def fake(monkeypatch):
             live["now"] -= 1
         if job["body"] == "broken.glb":
             return {"status": "failed", "sizes": {}, "seconds": 0, "error": "body: missing"}
+        if job["body"] == "slow.glb":
+            return {"status": "ok", "seconds": 600, "sizes": {size: {
+                "failed": True, "note": "timeout", "garment": None}}}
         if size == "L" and job["body"] == "men-02.glb":
             return {"status": "ok", "seconds": 1, "sizes": {size: {
                 "tension": {"chest": 1.0}, "garment": None, "note": "unstable"}}}
@@ -110,6 +113,18 @@ def test_a_failed_job_is_reported_and_tried_again_next_time(fake, tmp_path):
     calls.clear()
     batch.batch(e, str(tmp_path), log=lambda *_: None)
     assert len(calls) == 2
+
+
+def test_a_size_that_timed_out_is_not_written_and_is_tried_again(fake, tmp_path):
+    calls, _ = fake
+    e = export()
+    e["archetypes"][0]["body"] = "slow.glb"
+    summary = batch.batch(e, str(tmp_path), log=lambda *_: None)
+    assert sorted(summary["failed"]) == ["p1/men-01/L", "p1/men-01/M"]
+    assert not (tmp_path / "p1/men-01/M.json").exists()
+    calls.clear()
+    batch.batch(e, str(tmp_path), log=lambda *_: None)
+    assert sorted(c["body"] for c in calls) == ["slow.glb"] * 2
 
 
 def test_bad_size_names_are_refused(fake, tmp_path):
