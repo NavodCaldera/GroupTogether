@@ -1,6 +1,7 @@
 # Spike: Blender cloth on a buyer's body (Task 6.1)
 
-**Verdict: GO**, with two findings for Task 6.4 below. Measured 2026-11-16 on this machine
+**Verdict: GO**, with two findings for Task 6.4 below. Finding 1 (tension saturates) is fixed:
+see [Finding 1 fixed](#finding-1-fixed-2026-11-17). Measured 2026-11-16 on this machine
 (16 cores, Blender 4.5.10 LTS, `-t 8`), other agents' work running alongside.
 
 ## Set-up
@@ -70,3 +71,41 @@ Regenerate the body (Anny environment):
 ```sh
 python -c "import sys; sys.path.insert(0,'tools/body-fitting'); from fit import Fitter, write_body; f=Fitter(); write_body(f, f.fit_measurements(172, 0, {'chest':100,'waist':88,'hip':98}), 'dilan.glb')"
 ```
+
+## Finding 1 fixed (2026-11-17)
+
+Three causes, three changes (README "How it works" has the full rule):
+
+1. **The cloth was held off the skin by the collider.** Body thickness + collision distance
+   (0.9 cm) add 5.7 cm round the body, so Dilan in M (chest 102 on 101.3) was stretched 5 % just
+   standing. The rest shape is now let out by the same 0.9 cm. The soft goal pulled towards the
+   pushed-out shell, which kept loose areas in tension too; it now pulls towards `drape` (the rest
+   shape, kept 1 cm off the skin).
+2. **Cloth wound up on the arms and stayed.** Skin friction 5 → 0.5, pin stiffness 5 → 30, soft
+   goal 0.2 → 0.5: in the old run the fit's chest strain grew from 0.04 to 0.6 over the motions and
+   never relaxed; now it returns at every rest pose.
+3. **What is measured.** Strain beyond the skin's own stretch (an edge's reference stretches with
+   the skin under it); rim vertices and cloth squeezed between an arm and the torso (2.5 cm of
+   both) are left out. Strain alone reads zero for any unstretched cloth, so tension is the higher
+   of the strain reading and a slack reading `0.6 × exp(−room / looseAt)` from the chart's room on
+   this body with the app's `snugFrom` and `looseAt`. A top's hem is held at the chart's waist when
+   the chart has no hip.
+
+Crew tee on Dilan, `run.simulate` one size per call, 8 threads, end to end (s):
+
+| Size | Motions | Chest | Waist | Hip | Upper arm | Shoulder | s |
+|---|---|---|---|---|---|---|---|
+| Two small (90 / 86) | WALK, REACH | 0.886 | 0.600 | 0.591 | 0.600 | 0.194 | 42.7 |
+| M, the fit (102 / 98) | WALK, REACH | 0.573 | 0.325 | 0.251 | 0.406 | 0.178 | 37.4 |
+| Two large, XL (116 / 112) | WALK, REACH | 0.239 | 0.150 | 0.092 | 0.272 | 0.164 | 35.2 |
+| Two small | all four | 0.875 | 0.600 | 0.591 | 0.600 | 0.131 | 81.0 |
+| M | all four | 0.573 | 0.325 | 0.251 | 0.406 | 0.122 | 74.6 |
+| XL | all four | 0.239 | 0.150 | 0.092 | 0.272 | 0.116 | 67.4 |
+
+Lead's criteria, all met and pinned by `test_crew_tee_on_dilan_reads_fit_tight_and_loose_the_same_twice`
+(blender + anny): M chest, waist, hip in 0.15–0.6 and upper arm, shoulder ≤ 0.7; two small chest
+≥ 0.8; two large chest, waist, hip ≤ 0.25; small ≥ fit ≥ large in every area; two runs within
+0.05 (they agreed to the third decimal). Margins to watch on other bodies: XL chest 0.239 against
+0.25 (that value is the slack side, from the chart), and the shoulder ordering (0.13 / 0.12 / 0.12).
+Two small reads 0.6 at waist and upper arm because those are the slack side's "no room" value:
+the chart leaves −1.0 and −0.1 cm there, touching, not stretched.

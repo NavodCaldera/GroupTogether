@@ -34,9 +34,9 @@ needs_blender = pytest.mark.skipif(not os.environ.get("BLENDER_BIN"), reason="BL
 
 @pytest.fixture(scope="session")
 def body_glb():
-    """A committed standard body with a skeleton: men-broad-174 (chest 104)."""
+    """A committed standard body with a skeleton: cluster men-09 (173 cm, chest 104)."""
     bodies = ROOT / "public" / "fit-assets" / "bodies"
-    name = json.loads((bodies / "bodies.json").read_text("utf-8"))["men-broad-174"]
+    name = json.loads((bodies / "bodies.json").read_text("utf-8"))["men-09"]
     return str(bodies / name)
 
 
@@ -197,3 +197,72 @@ def test_a_fitted_body_from_measurements_dresses(tmp_path):
     write_body(f, f.fit_measurements(172, 0, {"chest": 100, "waist": 88, "hip": 98}), str(path))
     g = garment.build(str(path), "top", False, {"chest": 102, "waist": 98})
     assert abs(g.body_girth["chest"] - 100) < 3
+
+
+def test_a_top_without_a_hip_is_held_at_the_hip_by_its_waist(body_glb):
+    g = garment.build(body_glb, "top", False, {"chest": 100, "waist": 90})
+    assert "hip" in g.shell_girth
+    assert g.rest_scale[REGION_ID["hip"]] < 1.0
+    bottom = garment.build(body_glb, "bottom", False, {"waist": 90})
+    assert "hip" not in bottom.shell_girth
+
+
+@pytest.fixture(scope="session")
+def dilan_glb(tmp_path_factory):
+    """Dilan (172 cm, chest 100, waist 88, hip 98) fitted from his measurements."""
+    sys.path.insert(0, str(ROOT / "tools" / "body-fitting"))
+    from fit import Fitter, write_body
+
+    f = Fitter()
+    path = tmp_path_factory.mktemp("dilan") / "dilan.glb"
+    write_body(f, f.fit_measurements(172, 0, {"chest": 100, "waist": 88, "hip": 98}), str(path))
+    return str(path)
+
+
+def crew_tee() -> tuple[dict, dict]:
+    tee = json.loads((ROOT / "tools/fit-simulation/seed/garments/crew-tee.json").read_text("utf-8"))
+    chart = tee["size_chart"]
+    two_small = {k: v - (chart["M"][k] - chart["S"][k]) * 2 for k, v in chart["M"].items()}
+    sizes = {"small2": two_small, "fit": chart["M"], "large2": chart["XL"]}
+    fab = {k: tee["fabric"][k] for k in ("gsm", "stretch_pct", "weave")}
+    return sizes, fab
+
+
+@pytest.mark.anny
+@pytest.mark.blender
+@needs_blender
+def test_crew_tee_on_dilan_reads_fit_tight_and_loose_the_same_twice(dilan_glb, tmp_path):
+    sizes, fab = crew_tee()
+    j = {"body": dilan_glb, "cls": "top", "short": False, "sizes": sizes, "fabric": fab,
+         "motions": ["WALK", "REACH"]}
+    first = run.simulate(j, str(tmp_path / "a"))
+    second = run.simulate(j, str(tmp_path / "b"))
+    assert first["status"] == second["status"] == "ok"
+    t = {s: first["sizes"][s]["tension"] for s in sizes}
+    for region in ("chest", "waist", "hip"):
+        assert 0.15 <= t["fit"][region] <= 0.6, (region, t)
+        assert t["large2"][region] <= 0.25, (region, t)
+    assert t["fit"]["upperArm"] <= 0.7 and t["fit"]["shoulder"] <= 0.7, t
+    assert t["small2"]["chest"] >= 0.8, t
+    for region in t["fit"]:
+        assert t["small2"][region] >= t["fit"][region] >= t["large2"][region], (region, t)
+    for s in sizes:
+        for region, v in t[s].items():
+            assert abs(second["sizes"][s]["tension"][region] - v) <= 0.05, (s, region)
+
+
+def test_loose_side_matches_the_app_config():
+    ts = (ROOT / "src" / "lib" / "fit" / "config.ts").read_text("utf-8")
+    assert re.search(rf"snugFrom: {run.SNUG_FROM},", ts)
+    for cls, regions in run.LOOSE_AT.items():
+        block = re.search(rf"\n  {cls}: \{{(.*?)\n  \}},", ts, re.S).group(1)
+        for region, loose in regions.items():
+            assert re.search(rf"{region}: \{{ ideal: [\d.]+, looseAt: {loose} \}}", block), (cls, region)
+
+
+def test_slack_reads_snug_with_no_room_and_loose_with_much():
+    assert run.slack(-3, 16) == run.slack(0, 16) == run.SNUG_FROM
+    assert run.slack(16, 16) == pytest.approx(run.SNUG_FROM / np.e)
+    strain = np.zeros((4, 2))
+    t = run.tension(strain, np.array([0, 1]), 5, room={"chest": 0.7, "waist": 25})
+    assert t["chest"] > 0.55 and t["waist"] < 0.2

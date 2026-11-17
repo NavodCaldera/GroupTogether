@@ -54,23 +54,38 @@ still return.
    along the normals by each area's room from the chart (at least 1 cm, at most 6 cm). The shell's
    own girths are measured, and `rest_scale` per area = chart ÷ shell girth. The `rest` shape is
    the shell taken in (or let out) round the body by that scale: round the vertical axis for the
-   torso, round the bone for sleeves and legs. Lengths keep; the shoulder yoke keeps its size so
-   the garment hangs from the shoulders.
+   torso, round the bone for sleeves and legs, then let out by the simulation's collision offset
+   (0.9 cm, so a chart equal to the body reads as touching). Lengths keep; the shoulder yoke keeps
+   its size so the garment hangs from the shoulders. A top without a hip in its chart has its hem
+   (the hip area) held at the chart's waist. `drape` is where the cloth sits standing: `rest`,
+   kept at least 1 cm off the skin (a tight size lies on the skin, a loose one hangs at its size).
 2. [`pose.py`](pose.py): the app's clips ([`motion.ts`](../../src/lib/fit/motion.ts), copied;
    a test checks they agree) and linear blend skinning on the body file's 36 bones.
 3. [`run.py`](run.py): a timeline of 30 settle frames, then per motion 12 frames easing in from
    the rest pose, 40 frames of the clip (25 fps) and 12 frames easing out. The body and the
-   skinned garment are posed for every frame and handed to Blender.
+   `drape` are skinned to every frame and handed to Blender.
 4. [`simulate.py`](simulate.py) (inside Blender): the body is a one-sided collider animated by a
    shape key per frame; the garment is cloth whose springs take their rest lengths from the
    `rest` shape key, so a tight size is in tension from the start and pushes on the body. The
-   neckline (waistband for bottoms) is pinned to the skinned garment; every other vertex is pulled
-   lightly (goal 0.2) towards it, so cloth caught between the arm and the torso cannot creep.
-   Self-collision is off. Fabric: [`fabric.py`](fabric.py).
-5. Strain per vertex = the mean of its edges' (length ÷ rest length − 1). Tension per area = the
-   95th percentile over the area's vertices and every frame from the settled one on, divided by
-   `stretch_pct / 100 + 0.05`, clamped to 0–1.
-6. `<size>.glb` is the settled garment (the last frame before the first motion) in the body file's
+   neckline (waistband for bottoms) is pinned to the skinned drape (pin stiffness 30); every other
+   vertex is pulled towards it with goal 0.5, and the skin's friction is low (0.5), so cloth that
+   an arm drags along returns instead of staying wound up. Self-collision is off. Fabric:
+   [`fabric.py`](fabric.py).
+5. **Strain** per vertex = the mean of its edges' (length ÷ reference − 1), where an edge's
+   reference is its rest length, stretched as far as the skin under it stretches in that frame
+   (the drape carried by the skin alone): only the strain the cloth adds beyond the body's own
+   surface counts. Read from the settled frame on, leaving out the rim of each opening (neck, hem,
+   cuffs: too few edges) and, per frame, cloth within 2.5 cm of both an arm and the torso, or of
+   both legs (squeezed between two colliding body surfaces, not stretched by its size).
+6. **Tension** per area, 0 slack to 1 tight, is the higher of
+   - the tight side: the 95th percentile of that strain over the area's vertices and frames,
+     ÷ `stretch_pct / 100 + 0.05`, clamped to 0–1;
+   - the slack side: `0.6 × exp(−room / looseAt)`, room = chart girth − the body's girth at that
+     area (cm, floored at 0), with the app's `snugFrom` (0.6) and per-type `looseAt`
+     ([`config.ts`](../../src/lib/fit/config.ts) `EASE`; a test keeps them equal). Unstretched
+     cloth has zero strain however loose it is, so this side says how much room it has: none reads
+     snug (0.6), the app's loose distance reads 0.22. Shoulder and lengths have no slack side.
+7. `<size>.glb` is the settled garment (the last frame before the first motion) in the body file's
    axes, with `_REGION_ID` (0 chest … 5 shoulder, 255 neutral), `JOINTS_0`, `WEIGHTS_0` and the
    same 36-bone skeleton as the body, so the viewer binds it to the body and plays the clips.
 
@@ -78,9 +93,11 @@ Sizes run in parallel, one Blender process (8 threads) per size, as many as the 
 
 ## Known limits
 
-- The shell is the body's skin offset outwards, so a sleeve has no slack under the arm. Motions
-  that fold the arm against the torso (WALK lowers the arms 35°) stretch the underarm, and the
-  upper arm and shoulder read tight in every size. See [`SPIKE.md`](SPIKE.md).
+- The shell is the body's skin offset outwards: no seams, no extra cloth under the arm. The strain
+  read from it leaves the squeezed underarm out rather than modelling a gusset.
+- The tight side reads the mean of each vertex's edges, so a tight girth (stretched round, not
+  along) reads lower than its circumferential stretch: Dilan in two sizes small is stretched 11 %
+  round the chest and reads 0.885.
 - Tension is not calibrated against wear trials; the 0.05 added to the stretch capacity is the
   plan's rule, not a measured value.
 
