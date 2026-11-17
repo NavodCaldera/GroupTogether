@@ -16,9 +16,9 @@ Newest first.
 - A garment's own girth is taped on the garment alone, so a tee is sized round its hem, not the seat below it.
 - Crew tee quick check (men-02, men-03): every area reads tighter to looser from S to XL, and areas with
   6 cm or more of room read 0.34 or less.
-- Owner decision: the full run covers only two garments for now, the Oxford button-down shirt and the
-  Slim chino (80 runs, about 1.5 h, no internet). The other garments, and a crew tee re-run with this fix,
-  wait. The crew tee drapes in the dev DB are still from before this fix.
+- Owner decision: the full run covers only the Oxford button-down shirt for now (40 runs, about 1.5 h,
+  no internet; the Slim chino was dropped from it the same day). The other garments, and a crew tee re-run
+  with this fix, wait. The crew tee drapes in the dev DB are still from before this fix.
 
 ## 2026-11-17 - Standard bodies list their measured upper arm and thigh (Phase 6)
 
