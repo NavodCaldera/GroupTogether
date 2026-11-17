@@ -6,6 +6,12 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-18 - New work on its own branch
+
+- The owner said that anything new must be done on a new branch. New work now starts on a
+  branch from `origin/main` and reaches `main` through a pull request after its checks pass.
+  Recorded in `AGENTS.md` and `CLAUDE.md`.
+
 ## 2026-11-17 - CI browser checks fixed
 
 - The owner asked to fix the failing GitHub checks. The same 5 browser tests failed on main and
