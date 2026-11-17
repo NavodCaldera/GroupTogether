@@ -159,9 +159,15 @@ def hull_perimeter(pts: np.ndarray) -> float:
     return float(np.linalg.norm(np.roll(hull, -1, axis=0) - hull, axis=1).sum())
 
 
+FULLEST = ("thigh",)  # taped round the fullest part (just below the crotch), not the middle
+_SLICE_M = 0.012
+_SCAN_STEP_M = 0.005
+
+
 def girth(points: np.ndarray, parts: np.ndarray, body: Body, region: str) -> float:
-    """Tape measure (cm) round `region`: a 2.4 cm slice through the middle of its vertices,
-    across the torso, or across the left limb at right angles to its bone."""
+    """Tape measure (cm) round `region`: a 2.4 cm slice through the middle of its vertices
+    (the thigh: its fullest slice), across the torso, or across the left limb at right angles to
+    its bone. tools/fit-simulation/clusters.py lists the standard bodies' limbs with this."""
     if region in LIMB_AXIS:
         a, b = (body.bone(n) for n in LIMB_AXIS[region])
         axis = (b - a) / np.linalg.norm(b - a)
@@ -174,12 +180,22 @@ def girth(points: np.ndarray, parts: np.ndarray, body: Body, region: str) -> flo
     if not sel.any():
         return float("nan")
     along = points @ axis
-    band = pool & (np.abs(along - np.median(along[sel])) < 0.012)
-    q = points[band] - np.outer(along[band], axis)
     u = np.cross(axis, [0, 0, 1.0] if abs(axis[2]) < 0.9 else [1.0, 0, 0])
     u /= np.linalg.norm(u)
     v = np.cross(axis, u)
-    return 100 * hull_perimeter(np.stack([q @ u, q @ v], axis=1))
+
+    def tape(at: float, least: int = 3) -> float:
+        band = pool & (np.abs(along - at) < _SLICE_M)
+        if band.sum() < least:
+            return float("nan")
+        q = points[band] - np.outer(along[band], axis)
+        return 100 * hull_perimeter(np.stack([q @ u, q @ v], axis=1))
+
+    if region in FULLEST:
+        lo, hi = along[sel].min() + _SLICE_M, along[sel].max() - _SLICE_M
+        tapes = [tape(t, 8) for t in np.arange(lo, hi, _SCAN_STEP_M)]
+        return float(np.nanmax(tapes)) if np.isfinite(tapes).any() else float("nan")
+    return tape(float(np.median(along[sel])))
 
 
 def _smooth(x: np.ndarray, edges: np.ndarray, rounds: int = SMOOTHING) -> np.ndarray:

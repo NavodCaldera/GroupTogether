@@ -53,8 +53,10 @@ age a young adult's), kept by rejection so their heights follow a normal per gen
 the owner to confirm), measures height, chest, waist and hip like a
 buyer's body, and runs k-means (numpy, fixed seed) on the standardised measurements. Each shape is
 the sampled body nearest its cluster centre, so its Anny phenotype rebuilds exactly its
-measurements; `share` is the part of the sample in its cluster. Thigh, upper arm, shoulder, neck,
-wrist and inseam are estimated from the girths and height for the garment simulation. A buyer is
+measurements; `share` is the part of the sample in its cluster. Upper arm (mid upper arm) and
+thigh (its fullest part, below the crotch) are taped on the body as the cloth simulation tapes the
+body file (`girth` in [`tools/cloth-sim/garment.py`](../cloth-sim/garment.py)), so the fit report
+and the drape agree; shoulder, neck, wrist and inseam are estimated from the girths and height. A buyer is
 matched to the nearest shape of their gender by standardised distance over height, chest, waist
 and hip (`nearestArchetype` in [`src/server/fit.ts`](../../src/server/fit.ts)), again on every
 save of their measurements. Tests: `.venv/Scripts/python -m pytest tools/fit-simulation/tests -q`

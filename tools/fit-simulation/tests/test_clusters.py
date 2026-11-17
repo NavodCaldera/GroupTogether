@@ -82,3 +82,54 @@ def test_build_is_repeatable_with_ten_well_apart_clusters_per_gender(body):
     assert heights == sorted(heights)
     # Heights follow the women's adult distribution, not Anny's uniform range.
     assert 148 <= sum(heights) / len(heights) <= 160 and max(heights) <= 154 + 2.5 * 6.5
+
+
+def _within(listed: float, mesh: float) -> bool:
+    """The audit tolerance: 2 cm or 3 %, whichever is larger."""
+    return abs(mesh - listed) <= max(2.0, 0.03 * listed)
+
+
+def test_each_body_file_has_the_limb_girths_its_cluster_lists():
+    """The fit report reads the listed girths, the cloth simulation the body file: they agree."""
+    sys.path.insert(0, str(HERE.parent / "cloth-sim"))
+    import garment
+
+    bodies = HERE.parents[1] / "public" / "fit-assets" / "bodies"
+    files = json.loads((bodies / "bodies.json").read_text("utf-8"))
+    off = []
+    for a in json.loads((HERE / "seed" / "clusters.json").read_text("utf-8")):
+        b = garment.read_body(str(bodies / files[a["name"]]))
+        mesh = {r: garment.girth(b.positions, b.parts, b, r) for r in ("upperArm", "thigh")}
+        mesh["height"] = 100 * float(np.ptp(b.positions[:, 1]))
+        off += [(a["name"], k, a["params"][k], round(v, 1)) for k, v in mesh.items()
+                if not _within(a["params"][k], v)]
+    assert off == []
+
+
+def test_the_thigh_is_taped_round_its_fullest_part_below_the_crotch():
+    """Not near the knee: a thigh is about 0.5-0.65 of the hip on every standard body."""
+    sys.path.insert(0, str(HERE.parent / "cloth-sim"))
+    import garment
+
+    bodies = HERE.parents[1] / "public" / "fit-assets" / "bodies"
+    files = json.loads((bodies / "bodies.json").read_text("utf-8"))
+    for a in json.loads((HERE / "seed" / "clusters.json").read_text("utf-8")):
+        b = garment.read_body(str(bodies / files[a["name"]]))
+        ratio = garment.girth(b.positions, b.parts, b, "thigh") / a["params"]["hip"]
+        assert 0.5 <= ratio <= 0.65, (a["name"], round(ratio, 3))
+
+
+@pytest.mark.anny
+def test_limb_girths_are_measured_on_the_body_as_its_file_has_it(body):
+    sys.path.insert(0, str(HERE.parent / "cloth-sim"))
+    import garment
+    from body import PHENOTYPES
+
+    bodies = HERE.parents[1] / "public" / "fit-assets" / "bodies"
+    files = json.loads((bodies / "bodies.json").read_text("utf-8"))
+    for a in json.loads((HERE / "seed" / "clusters.json").read_text("utf-8"))[::7]:
+        ph = np.array([a["anny"]["phenotype"][k] for k in PHENOTYPES])
+        got = clusters.limb_girths(body, ph)
+        b = garment.read_body(str(bodies / files[a["name"]]))
+        for r in ("upperArm", "thigh"):
+            assert abs(got[r] - garment.girth(b.positions, b.parts, b, r)) < 0.2

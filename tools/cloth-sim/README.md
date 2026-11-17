@@ -98,10 +98,10 @@ Sizes run in parallel, one Blender process (8 threads) per size, as many as the 
 
 ## Known limits
 
-- Room is measured on the body file, not taken from the shape's listed measurements. Some
-  muscular standard shapes have much thicker upper arms in their body file than listed (men-03
-  41.9 cm against 32.2, men-09 39.5 against 32.6), so a crew tee's sleeve is tight on them in
-  every size.
+- Room is measured on the body file, not taken from the shape's listed measurements. The listed
+  upper arm and thigh are taped with the same `girth` (tools/fit-simulation/clusters.py), so they
+  agree; chest is within 2 cm, but `girth` tapes waist and hip through the middle of their parts,
+  not at the narrowest waist and widest hip the listed ones use (up to 10 cm apart).
 
 - The shell is the body's skin offset outwards: no seams, no extra cloth under the arm. The strain
   read from it leaves the squeezed underarm out rather than modelling a gusset.
