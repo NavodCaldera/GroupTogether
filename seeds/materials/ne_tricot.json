@@ -1,0 +1,29 @@
+{
+  "feelsLikeAnchor": null,
+  "stretchType": null,
+  "endUses": [],
+  "code": "ne_tricot",
+  "displayName": "Nylon-elastane tricot",
+  "construction": "tricot",
+  "yarnProcess": null,
+  "finish": "none",
+  "gsm": null,
+  "fibers": [
+    {
+      "fiber": "nylon",
+      "standard": null,
+      "pct": 80
+    },
+    {
+      "fiber": "elastane",
+      "standard": null,
+      "pct": 20
+    }
+  ],
+  "evidence": [],
+  "todo": [
+    "TODO(evidence): SIPPO study (S35) not yet read.",
+    "TODO(evidence): no source read that describes this fabric's hand or surface; feel axes stay not available.",
+    "Default composition is a starting point the factory confirms or edits; it is not shown to buyers as a library fact."
+  ]
+}

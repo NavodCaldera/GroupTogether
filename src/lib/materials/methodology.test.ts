@@ -14,6 +14,7 @@ const ev = (code: string, over: Partial<EvidenceLite> = {}): EvidenceLite => ({
   valueText: null,
   valueMin: null,
   valueMax: null,
+  verified: true,
   ...over,
 });
 
@@ -207,12 +208,16 @@ describe("estimated bands", () => {
     expect(estimateBreath(jersey({ constructionCategory: "WOVEN" }))).toBeNull();
     expect(estimateBreath(jersey({ evidence: [] }))).toBeNull();
   });
-  it("moves pique towards insulating when the evidence is present", () => {
-    const f = jersey({
-      constructionCode: "pique",
-      evidence: [...jersey().evidence, ev("EV-KNIT-LACOSTE-LOW-AIRPERM")],
-    });
-    expect(estimateBreath(f)?.band).toEqual([20, 50]);
+  it("does not move pique: structure findings disagree", () => {
+    expect(estimateBreath(jersey({ constructionCode: "pique" }))?.band).toEqual([10, 40]);
+  });
+  it("ignores evidence whose quote was not verified", () => {
+    const unverified = jersey().evidence.map((e) => ({ ...e, verified: false }));
+    const f = jersey({ evidence: unverified, gsm: null });
+    expect(estimateSoft(f)).toBeNull();
+    expect(estimateSurface(f)).toBeNull();
+    expect(estimateBreath(f)).toBeNull();
+    expect(weightAxis(f).basis).toBe("NOT_AVAILABLE");
   });
   it("widens a library-range breath band", () => {
     expect(estimateBreath(jersey({ gsm: null }))?.band).toEqual([0.6, 58.8]);

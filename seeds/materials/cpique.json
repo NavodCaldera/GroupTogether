@@ -1,0 +1,22 @@
+{
+  "feelsLikeAnchor": null,
+  "stretchType": null,
+  "endUses": [],
+  "code": "cpique",
+  "displayName": "Cotton piqué",
+  "construction": "pique",
+  "yarnProcess": null,
+  "finish": "none",
+  "gsm": null,
+  "fibers": [
+    {
+      "fiber": "cotton_upland",
+      "standard": null,
+      "pct": 100
+    }
+  ],
+  "evidence": [],
+  "todo": [
+    "TODO(evidence): no gsm range or hand descriptor read for piqué."
+  ]
+}

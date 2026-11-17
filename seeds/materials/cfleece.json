@@ -1,0 +1,51 @@
+{
+  "feelsLikeAnchor": null,
+  "stretchType": null,
+  "endUses": [],
+  "code": "cfleece",
+  "displayName": "Brushed fleece (polyester-cotton)",
+  "construction": "fleece",
+  "yarnProcess": null,
+  "finish": "brushed",
+  "gsm": [
+    200,
+    400
+  ],
+  "fibers": [
+    {
+      "fiber": "polyester",
+      "standard": null,
+      "pct": 80
+    },
+    {
+      "fiber": "cotton_upland",
+      "standard": null,
+      "pct": 20
+    }
+  ],
+  "evidence": [
+    {
+      "code": "EV-CFLEECE-GSM",
+      "attribute": "typical_gsm",
+      "claim": "Typically 200–400 gsm.",
+      "source": "S14",
+      "locator": "Knitted fabrics: Fleece",
+      "excerpt": "Brushed loop on inside for warmth. 200–400 GSM.",
+      "valueMin": 200,
+      "valueMax": 400,
+      "unit": "g/m2"
+    },
+    {
+      "code": "EV-CFLEECE-COMP",
+      "attribute": "composition",
+      "claim": "Fleece comes as 100% polyester or 80% polyester / 20% cotton.",
+      "source": "S14",
+      "locator": "Specifications table: Fleece",
+      "excerpt": "100% polyester or 80% polyester / 20% cotton"
+    }
+  ],
+  "todo": [
+    "The spec said 80/20 poly-cotton; the source says 80% polyester / 20% cotton, used here.",
+    "The same source's quick answer gives 260–380 gsm."
+  ]
+}

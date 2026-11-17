@@ -1,0 +1,23 @@
+{
+  "feelsLikeAnchor": null,
+  "stretchType": null,
+  "endUses": [],
+  "code": "pj_perf",
+  "displayName": "Polyester performance jersey",
+  "construction": "single_jersey",
+  "yarnProcess": null,
+  "finish": "moisture_wicking",
+  "gsm": null,
+  "fibers": [
+    {
+      "fiber": "polyester",
+      "standard": null,
+      "pct": 100
+    }
+  ],
+  "evidence": [],
+  "todo": [
+    "TODO(evidence): polyester softness comparison (S10) unread, so the polyester shift does not apply.",
+    "TODO(evidence): no drying-rate source read; 'dries fast' is not claimed."
+  ]
+}

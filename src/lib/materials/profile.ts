@@ -110,6 +110,7 @@ export function weightAxis(f: FabricFacts): AxisResult {
   }
   const ev = f.evidence.find(
     (e) =>
+      e.verified &&
       e.subjectType === "MATERIAL" &&
       e.subjectCode === f.materialCode &&
       e.attribute === "typical_gsm",

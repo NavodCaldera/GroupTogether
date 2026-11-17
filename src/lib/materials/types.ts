@@ -48,6 +48,8 @@ export type EvidenceLite = {
   valueText: string | null;
   valueMin: number | null;
   valueMax: number | null;
+  /** Its quote was read from the source. Unverified rows are kept and listed, never used. */
+  verified: boolean;
 };
 
 export type FiberShare = { fiber: string; standard: string | null; pct: number };

@@ -19,6 +19,7 @@ const ev = (code: string, over: Partial<EvidenceLite>): EvidenceLite => ({
   valueText: null,
   valueMin: null,
   valueMax: null,
+  verified: true,
   ...over,
 });
 

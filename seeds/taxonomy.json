@@ -1,0 +1,69 @@
+{
+  "fibers": [
+    { "code": "cotton_upland", "name": "Upland cotton", "family": "NATURAL_PLANT", "speciesOrPolymer": "G. hirsutum", "stapleLengthMmMin": 22, "stapleLengthMmMax": 32, "moistureRegainPct": 8.5, "notes": null },
+    { "code": "cotton_pima", "name": "Pima / Supima cotton", "family": "NATURAL_PLANT", "speciesOrPolymer": "G. barbadense", "stapleLengthMmMin": 35, "stapleLengthMmMax": 51, "moistureRegainPct": 8.5, "notes": null },
+    { "code": "cotton_egyptian", "name": "Egyptian (Giza) cotton", "family": "NATURAL_PLANT", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 8.5, "notes": "TODO(evidence): sources disagree on whether Egyptian is a species (S25) or an origin (S26, unread)." },
+    { "code": "viscose", "name": "Viscose / rayon", "family": "REGENERATED_CELLULOSIC", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 13, "notes": null },
+    { "code": "modal", "name": "Modal", "family": "REGENERATED_CELLULOSIC", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": null, "notes": "TODO(evidence): no regain value in the sources read." },
+    { "code": "lyocell", "name": "Lyocell / Tencel", "family": "REGENERATED_CELLULOSIC", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": null, "notes": "TODO(evidence): no regain value in the sources read." },
+    { "code": "polyester", "name": "Polyester", "family": "SYNTHETIC", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 0.4, "notes": null },
+    { "code": "polyester_recycled", "name": "Recycled polyester (rPET)", "family": "SYNTHETIC", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 0.4, "notes": null },
+    { "code": "nylon", "name": "Nylon / polyamide", "family": "SYNTHETIC", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 4.5, "notes": null },
+    { "code": "elastane", "name": "Elastane / spandex", "family": "SYNTHETIC", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": null, "notes": "TODO(evidence): no regain value in the sources read." },
+    { "code": "acrylic", "name": "Acrylic", "family": "SYNTHETIC", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 2, "notes": null },
+    { "code": "wool", "name": "Wool", "family": "NATURAL_ANIMAL", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 15.5, "notes": "Source gives 15–16%; stored as the midpoint, range in evidence." },
+    { "code": "silk", "name": "Silk", "family": "NATURAL_ANIMAL", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 11, "notes": "Source value is for mulberry and tussar silk." },
+    { "code": "linen", "name": "Linen (flax)", "family": "NATURAL_PLANT", "speciesOrPolymer": null, "stapleLengthMmMin": null, "stapleLengthMmMax": null, "moistureRegainPct": 12, "notes": null }
+  ],
+  "yarnProcesses": [
+    { "code": "open_end_carded", "name": "Open-end (rotor), carded", "description": null },
+    { "code": "ring_spun_carded", "name": "Ring-spun, carded", "description": null },
+    { "code": "combed_ring_spun", "name": "Combed ring-spun", "description": null },
+    { "code": "compact_spun", "name": "Compact-spun", "description": null },
+    { "code": "mercerized", "name": "Mercerized", "description": null },
+    { "code": "core_spun", "name": "Core-spun", "description": null },
+    { "code": "melange", "name": "Mélange", "description": null }
+  ],
+  "fiberStandards": [
+    { "code": "conventional", "name": "Conventional", "certifyingBody": null },
+    { "code": "organic_gots", "name": "Organic (GOTS)", "certifyingBody": "Global Organic Textile Standard" },
+    { "code": "bci", "name": "Better Cotton (BCI)", "certifyingBody": "Better Cotton" },
+    { "code": "recycled_post_consumer", "name": "Recycled (post-consumer)", "certifyingBody": null },
+    { "code": "recycled_pet", "name": "Recycled PET", "certifyingBody": null },
+    { "code": "econyl", "name": "ECONYL regenerated nylon", "certifyingBody": "Aquafil" },
+    { "code": "supima_certified", "name": "Supima", "certifyingBody": "Supima" }
+  ],
+  "constructions": [
+    { "code": "single_jersey", "name": "Single jersey knit", "category": "WEFT_KNIT", "structureDescription": "One needle bed, smooth face and looped back.", "typicalGsmMin": 130, "typicalGsmMax": 220, "typicalEndUses": ["T-shirts"] },
+    { "code": "interlock", "name": "Interlock knit", "category": "WEFT_KNIT", "structureDescription": "Two needle beds, identical on both sides, does not curl.", "typicalGsmMin": 180, "typicalGsmMax": 320, "typicalEndUses": ["Babywear", "Tees", "Base layers"] },
+    { "code": "rib", "name": "Rib knit", "category": "WEFT_KNIT", "structureDescription": "Alternating knit and purl columns.", "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": ["Cuffs", "Neckbands", "Fitted tops"] },
+    { "code": "pique", "name": "Piqué / Lacoste knit", "category": "WEFT_KNIT", "structureDescription": "Textured knit with tuck stitches.", "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] },
+    { "code": "french_terry", "name": "French terry", "category": "WEFT_KNIT", "structureDescription": "Loops on one side, smooth on the other.", "typicalGsmMin": 260, "typicalGsmMax": 400, "typicalEndUses": [] },
+    { "code": "fleece", "name": "Brushed fleece", "category": "WEFT_KNIT", "structureDescription": "Knit with brushed loops on the inside.", "typicalGsmMin": 200, "typicalGsmMax": 400, "typicalEndUses": [] },
+    { "code": "polar_fleece", "name": "Polar fleece", "category": "WEFT_KNIT", "structureDescription": null, "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] },
+    { "code": "jacquard_knit", "name": "Jacquard knit", "category": "WEFT_KNIT", "structureDescription": null, "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] },
+    { "code": "flat_knit", "name": "Flat knit", "category": "WEFT_KNIT", "structureDescription": null, "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] },
+    { "code": "knit_other", "name": "Knit (structure not specified)", "category": "OTHER", "structureDescription": null, "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] },
+    { "code": "tricot", "name": "Tricot / powernet warp knit", "category": "WARP_KNIT", "structureDescription": null, "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] },
+    { "code": "warp_lace", "name": "Warp-knit lace", "category": "WARP_KNIT", "structureDescription": null, "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] },
+    { "code": "poplin", "name": "Poplin (plain weave)", "category": "WOVEN", "structureDescription": "Plain weave, fine crosswise rib.", "typicalGsmMin": 100, "typicalGsmMax": 140, "typicalEndUses": ["Shirts", "Dresses", "Blouses"] },
+    { "code": "twill", "name": "Twill weave", "category": "WOVEN", "structureDescription": "Diagonal weave.", "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] },
+    { "code": "denim", "name": "Denim", "category": "WOVEN", "structureDescription": null, "typicalGsmMin": 271, "typicalGsmMax": 475, "typicalEndUses": [] },
+    { "code": "lawn_voile", "name": "Lawn / voile (fine plain weave)", "category": "WOVEN", "structureDescription": "Very fine plain weave; voile is open.", "typicalGsmMin": 80, "typicalGsmMax": 120, "typicalEndUses": ["Blouses", "Summer dresses", "Linings"] },
+    { "code": "chambray", "name": "Chambray", "category": "WOVEN", "structureDescription": "Plain weave with a coloured warp.", "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": ["Shirts", "Summer garments"] },
+    { "code": "flannel", "name": "Flannel", "category": "WOVEN", "structureDescription": "Brushed plain or twill.", "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": ["Shirts", "Pyjamas"] },
+    { "code": "seersucker", "name": "Seersucker", "category": "WOVEN", "structureDescription": "Puckered stripes from alternating tight and slack yarns.", "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": ["Summer shirts", "Suits"] },
+    { "code": "plain_weave", "name": "Plain weave", "category": "WOVEN", "structureDescription": null, "typicalGsmMin": null, "typicalGsmMax": null, "typicalEndUses": [] }
+  ],
+  "finishes": [
+    { "code": "none", "name": "No special finish", "effectDescription": null },
+    { "code": "brushed", "name": "Brushed", "effectDescription": null },
+    { "code": "sueded", "name": "Sueded", "effectDescription": null },
+    { "code": "enzyme_washed", "name": "Enzyme-washed", "effectDescription": null },
+    { "code": "silicone_softened", "name": "Silicone-softened", "effectDescription": null },
+    { "code": "mercerized", "name": "Mercerized", "effectDescription": null },
+    { "code": "sanforized", "name": "Sanforized", "effectDescription": null },
+    { "code": "moisture_wicking", "name": "Moisture-wicking", "effectDescription": null },
+    { "code": "peached", "name": "Peached", "effectDescription": null }
+  ]
+}

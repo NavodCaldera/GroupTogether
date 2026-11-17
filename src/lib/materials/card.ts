@@ -119,6 +119,7 @@ function pick(
 function forSubject(f: FactsForCard, attribute: string): EvidenceLite[] {
   return f.evidence.filter(
     (e) =>
+      e.verified &&
       e.attribute === attribute &&
       ((e.subjectType === "MATERIAL" && e.subjectCode === f.materialCode) ||
         (e.subjectType === "CONSTRUCTION" && e.subjectCode === f.constructionCode)),
@@ -142,6 +143,7 @@ export function moistureLine(
   if (!main || main.pct < 50) return null;
   const ev = f.evidence.find(
     (e) =>
+      e.verified &&
       e.subjectType === "FIBER" &&
       e.subjectCode === main.fiber &&
       e.attribute === "moisture_regain_pct" &&

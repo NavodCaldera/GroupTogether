@@ -1,0 +1,28 @@
+{
+  "feelsLikeAnchor": null,
+  "stretchType": null,
+  "endUses": [],
+  "code": "mj",
+  "displayName": "Cotton-modal jersey",
+  "construction": "single_jersey",
+  "yarnProcess": null,
+  "finish": "none",
+  "gsm": null,
+  "fibers": [
+    {
+      "fiber": "modal",
+      "standard": null,
+      "pct": 50
+    },
+    {
+      "fiber": "cotton_upland",
+      "standard": null,
+      "pct": 50
+    }
+  ],
+  "evidence": [],
+  "todo": [
+    "TODO(evidence): modal softness study (S10) unread, so the modal shift does not apply.",
+    "Default composition is a starting point the factory confirms or edits; it is not shown to buyers as a library fact."
+  ]
+}

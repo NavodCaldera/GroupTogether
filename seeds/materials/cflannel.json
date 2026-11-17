@@ -1,0 +1,53 @@
+{
+  "feelsLikeAnchor": null,
+  "stretchType": null,
+  "endUses": [],
+  "code": "cflannel",
+  "displayName": "Cotton flannel",
+  "construction": "flannel",
+  "yarnProcess": null,
+  "finish": "brushed",
+  "gsm": [
+    180,
+    250
+  ],
+  "fibers": [
+    {
+      "fiber": "cotton_upland",
+      "standard": null,
+      "pct": 100
+    }
+  ],
+  "evidence": [
+    {
+      "code": "EV-CFLANNEL-GSM",
+      "attribute": "typical_gsm",
+      "claim": "Typically 180–250 gsm.",
+      "source": "S15",
+      "locator": "GSM table",
+      "excerpt": "180–250 | Twill, flannel",
+      "valueMin": 180,
+      "valueMax": 250,
+      "unit": "g/m2"
+    },
+    {
+      "code": "EV-CFLANNEL-ADJ-1",
+      "attribute": "haptic_adjective",
+      "claim": "Described as soft.",
+      "source": "S17",
+      "locator": "Types of Cotton Fabric table: Flannel",
+      "excerpt": "Soft, fuzzy, warm",
+      "valueText": "soft"
+    },
+    {
+      "code": "EV-CFLANNEL-ADJ-2",
+      "attribute": "haptic_adjective",
+      "claim": "Described as fuzzy.",
+      "source": "S17",
+      "locator": "Types of Cotton Fabric table: Flannel",
+      "excerpt": "Soft, fuzzy, warm",
+      "valueText": "fuzzy"
+    }
+  ],
+  "todo": []
+}

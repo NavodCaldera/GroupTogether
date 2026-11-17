@@ -1,0 +1,28 @@
+{
+  "feelsLikeAnchor": null,
+  "stretchType": null,
+  "endUses": [],
+  "code": "pe_active",
+  "displayName": "Polyester-elastane activewear",
+  "construction": "knit_other",
+  "yarnProcess": null,
+  "finish": "none",
+  "gsm": null,
+  "fibers": [
+    {
+      "fiber": "polyester",
+      "standard": null,
+      "pct": 85
+    },
+    {
+      "fiber": "elastane",
+      "standard": null,
+      "pct": 15
+    }
+  ],
+  "evidence": [],
+  "todo": [
+    "TODO(evidence): Hayleys synthetic range (S33) not yet read; knit structure unspecified.",
+    "Default composition is a starting point the factory confirms or edits; it is not shown to buyers as a library fact."
+  ]
+}

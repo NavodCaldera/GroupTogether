@@ -1,0 +1,22 @@
+{
+  "feelsLikeAnchor": null,
+  "stretchType": null,
+  "endUses": [],
+  "code": "silk_hl",
+  "displayName": "Handloom silk",
+  "construction": "plain_weave",
+  "yarnProcess": null,
+  "finish": "none",
+  "gsm": null,
+  "fibers": [
+    {
+      "fiber": "silk",
+      "standard": null,
+      "pct": 100
+    }
+  ],
+  "evidence": [],
+  "todo": [
+    "Feel bands not available (owner's spec). TODO(evidence): EDB woven directory (S37) not yet read."
+  ]
+}

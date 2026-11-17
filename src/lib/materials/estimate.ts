@@ -28,9 +28,14 @@ export function holds(when: When, f: FabricFacts): boolean {
   return true;
 }
 
-/** Shifts whose conditions hold and whose cited evidence is all present */
+/** Codes of evidence whose quote was read from the source: the only evidence rules may use */
+export function verifiedCodes(f: { evidence: EvidenceLite[] }): Set<string> {
+  return new Set(f.evidence.filter((e) => e.verified).map((e) => e.code));
+}
+
+/** Shifts whose conditions hold and whose cited evidence is all present and verified */
 function applicable(shifts: Shift[], f: FabricFacts): Shift[] {
-  const have = new Set(f.evidence.map((e) => e.code));
+  const have = verifiedCodes(f);
   return shifts.filter((s) => holds(s.when, f) && s.evidence.every((c) => have.has(c)));
 }
 
@@ -44,7 +49,7 @@ function shifted(band: [number, number], shifts: Shift[]): [number, number] {
 
 /** Material-level descriptor wins over construction-level */
 export function descriptor(attribute: string, f: FabricFacts): EvidenceLite | null {
-  const rows = f.evidence.filter((e) => e.attribute === attribute && e.valueText);
+  const rows = f.evidence.filter((e) => e.verified && e.attribute === attribute && e.valueText);
   return (
     rows.find((e) => e.subjectType === "MATERIAL" && e.subjectCode === f.materialCode) ??
     rows.find((e) => e.subjectType === "CONSTRUCTION" && e.subjectCode === f.constructionCode) ??
@@ -65,7 +70,7 @@ export const estimateSurface = (f: FabricFacts) => fromDescriptor(SURFACE_EST, f
 
 export function estimateBreath(f: FabricFacts): Estimate | null {
   if (!BREATH_EST.categories.includes(f.constructionCategory)) return null;
-  const have = new Set(f.evidence.map((e) => e.code));
+  const have = verifiedCodes(f);
   if (!BREATH_EST.weightEvidence.every((c) => have.has(c))) return null;
   let band: [number, number];
   if (f.gsm != null) {

@@ -103,16 +103,22 @@ export const SURFACE_EST: DescriptorRule = {
   },
   shifts: [
     {
-      when: { yarn: ["combed_ring_spun", "compact_spun"] },
+      when: { yarn: ["combed_ring_spun"] },
       shift: -5,
       evidence: ["EV-YARN-COMBED-SMOOTH"],
-      note: "Combed and compact yarns are smoother, with less hairiness",
+      note: "Combed yarn is smoother",
+    },
+    {
+      when: { yarn: ["compact_spun"] },
+      shift: -5,
+      evidence: ["EV-YARN-COMPACT-SMOOTH"],
+      note: "Compact yarn is the smoothest of open-end, ring-spun and compact",
     },
     {
       when: { yarn: ["open_end_carded"] },
       shift: 5,
-      evidence: ["EV-YARN-OE-COARSE"],
-      note: "Open-end yarn is coarser",
+      evidence: ["EV-YARN-OE-ROUGH"],
+      note: "Open-end cotton feels drier and rougher",
     },
   ],
 };
@@ -123,14 +129,11 @@ export const BREATH_EST = {
   /** Unit weight drives the centre; the band is ± this many points */
   halfWidth: 15,
   weightEvidence: ["EV-KNIT-WEIGHT-AIRPERM"],
-  shifts: [
-    {
-      when: { construction: ["pique"] },
-      shift: 10,
-      evidence: ["EV-KNIT-LACOSTE-LOW-AIRPERM"],
-      note: "Lacoste/pique structures were among the least air-permeable",
-    },
-  ] as Shift[],
+  /**
+   * No structure shifts in v1: the study's abstract calls lacoste least permeable but its body
+   * says tuck stitches raise permeability, so the direction is not settled.
+   */
+  shifts: [] as Shift[],
 };
 
 export const SOFT_MEAS: MeasuredRule = {
@@ -208,8 +211,8 @@ export const RULES: Rule[] = [
     version: 1,
     attribute: "BREATHABLE_INSULATING",
     ruleDescription:
-      "Knits only. A study of knitted fabrics found unit weight the strongest influence on air permeability, so the estimate is centred on the weight position ±15, moved for structures the study found less permeable. 0 is most breathable. Wovens are not estimated.",
-    formula: "weight position ± 15 + sum(construction shifts), clamped to 0–100; knits only",
+      "Knits only. A study of knitted fabrics found unit weight the strongest influence on air permeability, so the estimate is the weight position ±15 points. Knit structure does not move it, because the study's findings on structure disagree with each other. 0 is most breathable. Wovens are not estimated.",
+    formula: "clamp(weight position ± 15, 0, 100); knits only",
     params: { ...BREATH_EST },
   },
   {
