@@ -28,9 +28,15 @@ Newest first.
   Sizes now read in order: S is the tightest, then M, then L, and XL is the loosest. Every
   area with 6 cm or more of room reads 0.5 or below. Each size also simulates about twice as
   fast.
-- The Oxford shirt batch is being re-run with this fix. Its old results are kept, not
-  loaded, in `gb-wt/drapes-out/full-before-xlfix`. The crew tee had the same bug in a milder
-  form and also needs re-running.
+- The Oxford shirt batch was re-run with this fix: 40 of 40 simulated, none failed,
+  72 minutes. It was loaded into the dev DB: 40 drapes and 200 tension rows. On every body
+  the chest reads S tightest and XL loosest. The old results were never loaded and are kept
+  in `gb-wt/drapes-out/full-before-xlfix`. The crew tee had the same bug in a milder form
+  and still needs re-running.
+- Some areas still read Tight, and these are genuine: the chart is smaller than the body.
+  - men-05 and men-08 at S and M.
+  - men-03 and men-09's upper arm at S and M: their arms are 42 cm or more against
+    38-40 cm sleeves.
 - A smaller, separate limit remains. On the fullest shapes (men-08, men-03), sleeve cloth
   squeezed under a lowered arm still reads the upper arm as tight, even when the sleeve has
   room. This is recorded in the cloth-sim README under Known limits.
