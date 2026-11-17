@@ -6,6 +6,20 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Cloth simulation measures the waist and hip as a size chart means them (Phase 6)
+
+- The cloth simulation now tapes a body's waist at its narrowest row and its hip at its widest, the way
+  the standard bodies are listed and a size chart means them. The bands live in one shared file,
+  `tools/body-fitting/bands.py` (moved out of `body.py`). Before, it taped the middle of each part, up to
+  10 cm off the listed values (men-02 hip −10.2, women-08 waist +9.5). All 20 standard bodies now agree on
+  chest, waist and hip within 2 cm or 3 %.
+- A garment's own girth is taped on the garment alone, so a tee is sized round its hem, not the seat below it.
+- Crew tee quick check (men-02, men-03): every area reads tighter to looser from S to XL, and areas with
+  6 cm or more of room read 0.34 or less.
+- Owner decision: the full run covers only two garments for now, the Oxford button-down shirt and the
+  Slim chino (80 runs, about 1.5 h, no internet). The other garments, and a crew tee re-run with this fix,
+  wait. The crew tee drapes in the dev DB are still from before this fix.
+
 ## 2026-11-17 - Standard bodies list their measured upper arm and thigh (Phase 6)
 
 - `clusters.py` used to work out the upper arm (0.314 × chest) and thigh (0.565 × hip) from fixed ratios.
