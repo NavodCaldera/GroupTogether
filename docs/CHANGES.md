@@ -6,6 +6,31 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Phase 6 review and full-batch preparation (built with agents)
+
+- At the owner's request ("create multiple agents and speedup the work"), these ran in parallel:
+  the loose-cloth fix, a read-only review of all the Phase 6 code, and preparation of the full batch.
+- Review: no critical findings. These important ones are being fixed on branch `phase6-reviewfix`:
+  - a Deep Fit job could be re-claimed mid-run by a second worker and never finish;
+  - simulated tensions outlived a fit-data change;
+  - drapes were not dropped when a standard body file changed;
+  - a Blender crash or timeout read as "tight" rather than being retried (fixed on the cloth branch).
+- Minor review fixes in the same branch:
+  - the loader's transaction timeout, product lock and file-copy order;
+  - failed jobs that weren't the buyer's fault no longer count towards the daily limit;
+  - only in-shop products can be tested;
+  - Blender's whole process tree is killed on a timeout;
+  - sizes with spaces are accepted.
+- Exports for the full batch are in `gb-wt/drapes-out/exports`, one per seed garment:
+  - 9 garments are exported;
+  - track pants are left out because the chart isn't approved;
+  - there are about 360 runs, an estimated 4–4.5 h, with no internet data needed.
+- Ruling (lead): bottoms and the dress are simulated too.
+  - Their manifests say `"simulate": false`, but that flag belongs to the old analytic pipeline, which handled tops only. Blender's cloth simulation covers every class.
+- The dev checkout's `node_modules/@prisma/client` was found empty at 09:21. It was restored to the
+  locked 7.10.1 with `npm install --no-save`; package.json and the lockfile are unchanged.
+- The integration suite on main after the Phase 6 merges passed: 305 of 305.
+
 ## 2026-11-17 - Cloth tension recalibrated (Phase 6, SPIKE finding 1)
 
 - The simulated tension readout no longer maxes out at 1.0.
