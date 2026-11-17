@@ -11,6 +11,7 @@ import { deepFitsLeft, getDeepFit, requestDeepFit } from "@/server/deep-fit";
 import {
   claimDeepFit,
   DEEP_FIT_KEEP_MS,
+  DEEP_FIT_STALE_MS,
   garmentKey,
   MAX_ATTEMPTS,
   runDeepFitJob,
@@ -218,6 +219,55 @@ it("a runner that throws three times leaves the job failed and notifies once", a
   expect(await getDeepFit(buyer.id, productId)).toMatchObject({ status: "FAILED", garments: {} });
   // A failed test can be asked for again.
   expect((await requestDeepFit(buyer.id, productId)).jobId).not.toBe(jobId);
+});
+
+it("a running test is not taken again within its run time, and fails after its last attempt", async () => {
+  const buyer = await confirmedBuyer();
+  const { jobId } = await requestDeepFit(buyer.id, await fittedProduct());
+  const before = await db.notification.count({ where: { userId: buyer.id } });
+  let at = Date.now();
+  expect((await claimDeepFit(db, new Date(at)))?.attempts).toBe(1);
+  // A Deep Fit Test takes 6 to 30 minutes: another worker leaves it alone.
+  expect(await claimDeepFit(db, new Date(at + 30 * 60 * 1000))).toBeNull();
+  for (let i = 2; i <= MAX_ATTEMPTS; i++) {
+    at += DEEP_FIT_STALE_MS + 1000;
+    expect((await claimDeepFit(db, new Date(at)))?.attempts).toBe(i);
+  }
+  at += DEEP_FIT_STALE_MS + 1000;
+  expect(await claimDeepFit(db, new Date(at))).toBeNull();
+  const job = await db.deepFitJob.findUniqueOrThrow({ where: { id: jobId } });
+  expect(job).toMatchObject({ status: "FAILED", attempts: MAX_ATTEMPTS, error: "timed out" });
+  expect(await db.notification.count({ where: { userId: buyer.id } })).toBe(before + 1);
+});
+
+it("tests dropped because the body changed don't count against the 5 a day; real failures do", async () => {
+  const buyer = await confirmedBuyer();
+  const rebuilding: SimRunner = async (input) => {
+    await rebuild(buyer.id);
+    return simOk(input);
+  };
+  await requestDeepFit(buyer.id, await fittedProduct());
+  expect(await runOnce(rebuilding)).toBe("failed");
+  await confirmBody(buyer.id);
+  expect(await deepFitsLeft(buyer.id)).toBe(5);
+
+  await requestDeepFit(buyer.id, await fittedProduct());
+  const crash: SimRunner = async () => {
+    throw new Error("blender missing");
+  };
+  for (let i = 1; i <= MAX_ATTEMPTS; i++) await runOnce(crash);
+  expect(await deepFitsLeft(buyer.id)).toBe(4);
+});
+
+it("a product that isn't in the shop can't be tested", async () => {
+  const buyer = await confirmedBuyer();
+  const hidden = await fittedProduct();
+  await db.product.update({ where: { id: hidden }, data: { hiddenAt: new Date() } });
+  await expect(requestDeepFit(buyer.id, hidden)).rejects.toThrow("Product not found");
+  const soldOut = await fittedProduct();
+  await db.variant.updateMany({ where: { productId: soldOut }, data: { available: 0 } });
+  await expect(requestDeepFit(buyer.id, soldOut)).rejects.toThrow("Product not found");
+  expect(await db.deepFitJob.count()).toBe(0);
 });
 
 it("a result finished after the buyer rebuilt their body is discarded", async () => {

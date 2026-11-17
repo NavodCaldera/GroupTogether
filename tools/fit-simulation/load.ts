@@ -84,17 +84,33 @@ export async function loadArchetypes(db: PrismaClient, archetypes: FitManifest["
   });
 }
 
+/** Tension rows written by `loadDrapes`; other notes come from the fit pipeline. */
+export const SIMULATED = "simulated";
+
 /**
  * Points standard shapes at their Anny body files (tools/fit-simulation/anny_bodies.py writes
- * the files and `bodies.json`, name → file). Shapes not named keep what they have.
+ * the files and `bodies.json`, name → file). Shapes not named keep what they have. A shape given
+ * a different body file loses its cluster drapes and simulated tensions: they were simulated on
+ * the old body.
  */
 export async function loadBodyFiles(
   db: PrismaClient,
   files: Record<string, string>,
   baseUrl: string,
 ) {
-  for (const [name, file] of Object.entries(files))
-    await db.bodyArchetype.updateMany({ where: { name }, data: { bodyUrl: `${baseUrl}/${file}` } });
+  for (const [name, file] of Object.entries(files)) {
+    const bodyUrl = `${baseUrl}/${file}`;
+    await db.$transaction(async (tx) => {
+      const [shape] = await tx.$queryRaw<{ id: string; bodyUrl: string | null }[]>`
+        SELECT id, "bodyUrl" FROM "BodyArchetype" WHERE name = ${name} FOR UPDATE`;
+      if (!shape || shape.bodyUrl === bodyUrl) return;
+      await tx.bodyArchetype.update({ where: { id: shape.id }, data: { bodyUrl } });
+      await tx.clusterDrape.deleteMany({ where: { archetypeId: shape.id } });
+      await tx.garmentRegionTension.deleteMany({
+        where: { archetypeId: shape.id, note: SIMULATED },
+      });
+    });
+  }
 }
 
 export async function loadFitManifest(
@@ -177,11 +193,15 @@ export interface DrapeManifest {
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
 const safeName = (s: string) => s.replace(/[^A-Za-z0-9.+-]/g, "_");
 
+/** Per product, the loader's transaction may wait and run this long (many rows per product). */
+const DRAPE_TX = { maxWait: 10_000, timeout: 120_000 };
+
 /**
  * Loads a cloth-sim batch: per product, in one transaction, the simulated tensions replace the
  * standard shapes' `GarmentRegionTension` rows (note "simulated") and a `ClusterDrape` row points
  * at each size's garment, copied to `<assetsDir>/drapes` under a content-hash name. A product
- * whose fit data changed since the batch is skipped, as is a size that did not simulate.
+ * whose fit data changed since the batch is skipped (its row is locked while checked, so a save
+ * cannot slip in), as is a size that did not simulate. Files are copied only once the check passes.
  */
 export async function loadDrapes(
   db: PrismaClient,
@@ -196,27 +216,35 @@ export async function loadDrapes(
   for (const p of manifest.products) {
     const usable = p.drapes.filter((d) => d.garment && d.note !== "unstable");
     // Content-hash names: unchanged files keep their URL and may be cached forever.
-    const urls = new Map<(typeof usable)[number], string>();
+    const files = new Map<(typeof usable)[number], string>();
     for (const d of usable) {
       const bytes = readFileSync(join(outDir, d.garment!));
       const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 10);
-      const file = `${safeName(d.archetype)}-${safeName(d.size)}-${hash}.glb`;
-      urls.set(d, `${base}/${file}`);
-      mkdirSync(target, { recursive: true });
-      if (!existsSync(join(target, file)))
-        copyFileSync(join(outDir, d.garment!), join(target, file));
+      files.set(d, `${safeName(d.archetype)}-${safeName(d.size)}-${hash}.glb`);
     }
-    const reason = await db.$transaction(async (tx) => {
-      const product = await tx.product.findUnique({ where: { id: p.id }, select: FIT_DATA_SELECT });
-      if (!product) return "product not found";
-      if (fitDataHash(product) !== p.fitDataHash) return "fit data changed";
+    type Outcome = { reason: string } | { tensions: number };
+    const outcome = await db.$transaction(async (tx): Promise<Outcome> => {
+      // Locked until commit: a fit data save waits, so the hash below stays true.
+      const locked = await tx.$queryRaw<{ id: string }[]>`
+        SELECT id FROM "Product" WHERE id = ${p.id} FOR UPDATE`;
+      if (!locked.length) return { reason: "product not found" };
+      const product = await tx.product.findUniqueOrThrow({
+        where: { id: p.id },
+        select: FIT_DATA_SELECT,
+      });
+      if (fitDataHash(product) !== p.fitDataHash) return { reason: "fit data changed" };
       const shapes = await tx.bodyArchetype.findMany({
         where: { name: { in: [...new Set(p.drapes.map((d) => d.archetype))] } },
         select: { id: true, name: true },
       });
       const ids = new Map(shapes.map((a) => [a.name, a.id]));
       const missing = p.drapes.find((d) => !ids.has(d.archetype));
-      if (missing) return `unknown standard shape ${missing.archetype}`;
+      if (missing) return { reason: `unknown standard shape ${missing.archetype}` };
+      for (const d of usable) {
+        mkdirSync(target, { recursive: true });
+        const file = join(target, files.get(d)!);
+        if (!existsSync(file)) copyFileSync(join(outDir, d.garment!), file);
+      }
       await tx.clusterDrape.deleteMany({
         where: { productId: p.id, archetypeId: { in: [...ids.values()] } },
       });
@@ -225,7 +253,7 @@ export async function loadDrapes(
           productId: p.id,
           archetypeId: ids.get(d.archetype)!,
           size: d.size,
-          garmentUrl: urls.get(d)!,
+          garmentUrl: `${base}/${files.get(d)!}`,
           fitDataHash: p.fitDataHash,
         })),
       });
@@ -241,17 +269,31 @@ export async function loadDrapes(
           };
           await tx.garmentRegionTension.upsert({
             where: { productId_archetypeId_size_region: key },
-            create: { ...key, baseTension: clamp01(t), note: "simulated" },
-            update: { baseTension: clamp01(t), note: "simulated" },
+            create: { ...key, baseTension: clamp01(t), note: SIMULATED },
+            update: { baseTension: clamp01(t), note: SIMULATED },
           });
           tensions++;
         }
-      loaded.push({ productId: p.id, drapes: usable.length, tensions });
-      return null;
-    });
-    if (reason) skipped.push({ productId: p.id, reason });
+      return { tensions };
+    }, DRAPE_TX);
+    // Counted only once committed.
+    if ("reason" in outcome) skipped.push({ productId: p.id, reason: outcome.reason });
+    else loaded.push({ productId: p.id, drapes: usable.length, tensions: outcome.tensions });
   }
   return { loaded, skipped };
+}
+
+/** What `--drapes` prints; it exits non-zero when any product was skipped. */
+export function drapeSummary({ loaded, skipped }: Awaited<ReturnType<typeof loadDrapes>>) {
+  const lines = [
+    ...loaded.map(
+      (l) => `Loaded ${l.drapes} drapes and ${l.tensions} tension rows for ${l.productId}`,
+    ),
+    ...skipped.map((s) => `Skipped ${s.productId}: ${s.reason}`),
+  ];
+  if (skipped.length)
+    lines.push(`Skipped ${skipped.length} of ${loaded.length + skipped.length} products`);
+  return { lines, exitCode: skipped.length ? 1 : 0 };
 }
 
 async function main() {
@@ -274,9 +316,9 @@ async function main() {
       assetsDir: resolve(opt("--assets-dir") ?? "public/fit-assets"),
       baseUrl: opt("--base-url") ?? "/fit-assets",
     });
-    for (const l of n.loaded)
-      console.log(`Loaded ${l.drapes} drapes and ${l.tensions} tension rows for ${l.productId}`);
-    for (const s of n.skipped) console.log(`Skipped ${s.productId}: ${s.reason}`);
+    const summary = drapeSummary(n);
+    for (const line of summary.lines) console.log(line);
+    process.exitCode = summary.exitCode;
     await db.$disconnect();
     return;
   }

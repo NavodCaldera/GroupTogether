@@ -1,8 +1,11 @@
 import "server-only";
+import type { Prisma } from "@/generated/prisma/client";
 import { readChart } from "@/lib/fit/data";
+import { IN_SHOP } from "./catalogue";
 import { db } from "./db";
 import {
   DEEP_FIT_PER_DAY,
+  DROPPED_ERRORS,
   DEEP_FIT_WINDOW_MS,
   FIT_DATA_SELECT,
   fitDataHash,
@@ -37,11 +40,19 @@ async function basis(userId: string, productId: string) {
   return { bodyFitAt: body, fitDataHash: fitData };
 }
 
-const since = (now: Date) => new Date(now.getTime() - DEEP_FIT_WINDOW_MS);
+/**
+ * Tests that count against the 5 a day: those asked for in the last 24 hours, except ones
+ * dropped because the buyer's body or the product's fit data changed while they waited.
+ */
+const counted = (userId: string, now: Date): Prisma.DeepFitJobWhereInput => ({
+  userId,
+  createdAt: { gte: new Date(now.getTime() - DEEP_FIT_WINDOW_MS) },
+  OR: [{ status: { not: "FAILED" } }, { error: null }, { error: { notIn: [...DROPPED_ERRORS] } }],
+});
 
 /** Tests the buyer can still ask for in the last 24 hours. */
 export async function deepFitsLeft(userId: string, now = new Date()) {
-  const used = await db.deepFitJob.count({ where: { userId, createdAt: { gte: since(now) } } });
+  const used = await db.deepFitJob.count({ where: counted(userId, now) });
   return Math.max(0, DEEP_FIT_PER_DAY - used);
 }
 
@@ -53,6 +64,8 @@ export async function requestDeepFit(
   userId: string,
   productId: string,
 ): Promise<{ jobId: string }> {
+  if (!(await db.product.count({ where: { id: productId, ...IN_SHOP } })))
+    throw new DeepFitError("Product not found");
   const { bodyFitAt, fitDataHash } = await basis(userId, productId);
   if (!bodyFitAt) throw new DeepFitError("Confirm your 3D body first");
   if (!fitDataHash) throw new DeepFitError("This product has no approved size chart");
@@ -72,7 +85,7 @@ export async function requestDeepFit(
     });
     if (existing) return { jobId: existing.id };
     const now = new Date();
-    const used = await tx.deepFitJob.count({ where: { userId, createdAt: { gte: since(now) } } });
+    const used = await tx.deepFitJob.count({ where: counted(userId, now) });
     if (used >= DEEP_FIT_PER_DAY) throw new DeepFitError("You've used today's 5 tests");
     const job = await tx.deepFitJob.create({
       data: { userId, productId, bodyFitAt, fitDataHash },

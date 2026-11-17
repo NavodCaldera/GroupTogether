@@ -37,7 +37,8 @@ type FitFields = {
 /**
  * Saves a product's size chart and fabric details. A factory (`sellerId`) edits only its own
  * listing and any change clears the approval; an admin's save approves it. A change to what the
- * cloth simulation depends on drops the product's cluster drapes, so a stale one is never shown.
+ * cloth simulation depends on drops the product's cluster drapes and simulated tensions, so a stale
+ * one is never shown; the report then uses the other tension rows, or the chart alone.
  */
 export async function saveFitData(
   productId: string,
@@ -66,8 +67,11 @@ export async function saveFitData(
       },
       select: FIT_DATA_SELECT,
     });
-    if (fitDataHash(before) !== fitDataHash(after))
+    if (fitDataHash(before) !== fitDataHash(after)) {
+      // The cloth simulation's tensions go with its drapes; other tension rows stay.
       await tx.clusterDrape.deleteMany({ where: { productId } });
+      await tx.garmentRegionTension.deleteMany({ where: { productId, note: "simulated" } });
+    }
   });
 }
 

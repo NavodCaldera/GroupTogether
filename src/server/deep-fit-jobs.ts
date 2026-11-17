@@ -12,10 +12,25 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 import { fitClass, readChart } from "@/lib/fit/data";
 import { isShort } from "@/lib/fit/drape";
-import { MAX_ATTEMPTS, STALE_MS } from "./body-fit-jobs";
+import { MAX_ATTEMPTS } from "./body-fit-jobs";
 import type { Storage } from "./storage/local";
 
-export { MAX_ATTEMPTS, STALE_MS };
+export { MAX_ATTEMPTS };
+/** Each size's time in tools/cloth-sim/run.py (`timeout_s`), and Blender start-up on top. */
+export const SIM_SIZE_TIMEOUT_MS = 10 * 60 * 1000;
+export const SIM_MARGIN_MS = 5 * 60 * 1000;
+/** Sizes counted towards the worker's timeout; run.py simulates sizes in parallel. */
+export const MAX_SIM_SIZES = 12;
+/** The sim worker's timeout for a garment with this many sizes. */
+export const simTimeoutMs = (sizes: number) =>
+  Math.min(Math.max(1, sizes), MAX_SIM_SIZES) * SIM_SIZE_TIMEOUT_MS + SIM_MARGIN_MS;
+/**
+ * A RUNNING Deep Fit Test not finished in this time belongs to a crashed worker and is taken
+ * again. Longer than the worker's longest timeout, so a live worker's job is never taken.
+ */
+export const DEEP_FIT_STALE_MS = simTimeoutMs(MAX_SIM_SIZES) + 15 * 60 * 1000;
+/** Failures that are not the test's fault: they don't count against the 5 a day. */
+export const DROPPED_ERRORS = ["body changed", "fit data changed"] as const;
 export const DEEP_FIT_PER_DAY = 5;
 export const DEEP_FIT_WINDOW_MS = 24 * 60 * 60 * 1000;
 export const DEEP_FIT_KEEP_MS = 90 * 24 * 60 * 60 * 1000;
@@ -111,18 +126,31 @@ export interface ClaimedDeepFit {
   startedAt: Date;
 }
 
-/** Takes the oldest queued (or stale running) job; safe with several workers. */
+/**
+ * Takes the oldest queued (or stale running) job; safe with several workers. A stale job that
+ * has had all its attempts fails, and the buyer is told.
+ */
 export async function claimDeepFit(
   db: PrismaClient,
   now = new Date(),
 ): Promise<ClaimedDeepFit | null> {
-  const stale = new Date(now.getTime() - STALE_MS);
+  const stale = new Date(now.getTime() - DEEP_FIT_STALE_MS);
+  const spent = await db.$queryRaw<ClaimedDeepFit[]>`
+    UPDATE "DeepFitJob" SET status = 'FAILED', error = 'timed out', "updatedAt" = ${now}
+    WHERE status = 'RUNNING' AND "startedAt" < ${stale} AND attempts >= ${MAX_ATTEMPTS}
+    RETURNING id, "userId", "productId"`;
+  if (spent.length)
+    await db.notification.createMany({
+      data: spent.map((j) => notice(j, false)),
+      skipDuplicates: true,
+    });
   const rows = await db.$queryRaw<ClaimedDeepFit[]>`
     UPDATE "DeepFitJob" SET status = 'RUNNING', attempts = attempts + 1, "startedAt" = ${now},
       "updatedAt" = ${now}
     WHERE id = (
       SELECT id FROM "DeepFitJob"
-      WHERE status = 'QUEUED' OR (status = 'RUNNING' AND "startedAt" < ${stale})
+      WHERE status = 'QUEUED'
+        OR (status = 'RUNNING' AND "startedAt" < ${stale} AND attempts < ${MAX_ATTEMPTS})
       ORDER BY "createdAt" FOR UPDATE SKIP LOCKED LIMIT 1
     )
     RETURNING id, "userId", "productId", attempts, "bodyFitAt", "fitDataHash", "createdAt",
@@ -133,9 +161,11 @@ export async function claimDeepFit(
 export const garmentKey = (userId: string, jobId: string, size: string) =>
   `deep-fit/${userId}/${jobId}/${size}.glb`;
 
-const SIZE_NAME = /^[A-Za-z0-9.+-]{1,16}$/;
+/** A size name tools/cloth-sim/run.py accepts (its `SIZE_NAME`): also a safe file name. */
+const SIZE_NAME = /^[A-Za-z0-9][A-Za-z0-9 ._+-]{0,31}$/;
+export const isSizeName = (size: string) => SIZE_NAME.test(size);
 
-const notice = (job: ClaimedDeepFit, ok: boolean) => ({
+const notice = (job: Pick<ClaimedDeepFit, "id" | "userId" | "productId">, ok: boolean) => ({
   id: `deep-fit:${job.id}`,
   userId: job.userId,
   title: ok ? "Your Deep Fit Test is ready" : "We couldn't finish your Deep Fit Test",
@@ -220,7 +250,7 @@ export async function runDeepFitJob(
   const result: DeepFitResult = { sizes: {}, seconds: Number(out.result.seconds) || 0 };
   const stored: string[] = [];
   for (const [size, s] of Object.entries(out.result.sizes ?? {})) {
-    if (!chart[size] || !SIZE_NAME.test(size)) continue;
+    if (!chart[size] || !isSizeName(size)) continue;
     const tension = Object.fromEntries(
       Object.entries(s.tension ?? {}).flatMap(([k, v]) => {
         const t = clamp01(v);
