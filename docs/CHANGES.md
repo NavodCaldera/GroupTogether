@@ -6,6 +6,27 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Loose sizes no longer read tight (Phase 6)
+
+- The first crew tee batch read loose cloth as tight. In walking, running and sitting, the
+  skinned drape of a tee's side lay inside the arm swinging down against it, and the drape goal
+  pulled the cloth into the arm. `run.clear_of_limbs` now keeps the drape 1 cm outside body parts
+  that do not carry it.
+- On the 10 men's shapes every area now reads S ≥ M ≥ L ≥ XL. The old batch broke this order 11
+  times. Every area with 6 cm or more of room on the body file reads 0.5 or less.
+- A Blender timeout or crash is now a failed size that the batch tries again, instead of reading
+  fully tight.
+- Ruling (lead): men-05 in L reads 0.60 on the chest, the "snug" value, and this is accepted.
+  The chart's 108 cm chest is 2.4 % under the body's 110.6 cm, which is within the jersey's 5 %
+  stretch, so snug is right. Cost if wrong: one size reads snug where a buyer might call it tight.
+- Open: on the men-03 and men-09 body files the upper arm is 7–10 cm thicker than clusters.json
+  lists (41.9 cm against 32.2, and 39.5 against 32.6), so every size's sleeve reads tight on them.
+  An agent is checking all 20 body files against their listed measurements before the full batch.
+- Merged at 9567bf4. 25 fast cloth tests pass on main; the branch passed all 29, Blender included.
+  The crew tee's 40 drapes and 200 tension rows are loaded into the dev DB.
+- Timing: with the machine unloaded a size takes 100–125 s; under load it takes up to 410 s. The
+  9-garment batch is now estimated at 5.5–6 h at `--parallel 2`.
+
 ## 2026-11-17 - Phase 6 review and full-batch preparation (built with agents)
 
 - At the owner's request ("create multiple agents and speedup the work"), these ran in parallel:
