@@ -29,6 +29,12 @@ Newest first.
   Results repeat run to run.
 - A size now takes 35–81 s, so the seed batch estimate drops to about 4–5 hours at
   `--parallel 2`.
+- Trial batch, crew tee on the 10 men's shapes × S/M/L/XL: all 40 sizes simulated in
+  27.5 minutes, none failed.
+  - Problem: on 7 shapes the XL reads tighter than the L, and loose upper arms read 1.0. Loose
+    cloth is being stretched in WALK, RUN and SIT.
+  - Not loaded into the dev DB. Being fixed before the full batch runs.
+  - The two big shapes reading 1.0 in small sizes are correct (body ≥ chart).
 
 ## 2026-11-17 - Cluster drapes (Phase 6, Task 6.4)
 
