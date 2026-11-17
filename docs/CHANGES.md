@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Next.js security upgrade to 16.4.6
+
+- The owner asked to fix the Next.js security warning. `next` and `eslint-config-next` went
+  from 16.4.3 to 16.4.6, the patched release; no code changes were needed. This replaces
+  Dependabot PR #13, which was out of date. `npm run check` and the buyer, fit and material
+  browser tests pass.
+- Separate and still open: `npm audit` reports 5 moderate advisories through `@sentry/nextjs`
+  11.10.0 (fix needs 11.13.0, outside the pinned range).
+
 ## 2026-11-17 - Material Library published, more sourced feel, lab scopes and reference swatches (DEC-022)
 
 - The owner asked to build the Material Library fully: publish all 33 materials (sign-off of
