@@ -6,6 +6,35 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Loose shirts no longer read tight when the arms swing down (Phase 6)
+
+- When the arms swing down while walking, running or sitting, a loose size's side hangs
+  5-7 cm off the body, right where the arm goes. The step that moves cloth out of the arm's
+  way pushed some of it out the arm's far side and the rest out the near side. The arm then
+  cut through the shirt, and the cloth across it stretched to several times its length.
+- Because of this, the Oxford shirt's XL read fully tight across the chest on most men's
+  shapes: on men-01, XL read 1.0 while L read 0.19.
+- The fix: cloth on the body of a top is now always moved to the body's side of the arm,
+  between the arm and the side (`tools/cloth-sim/run.py`). A second bug was fixed with it:
+  the hands and feet share one body part, and a foot no longer counts as a hand.
+- Results for the Oxford shirt's XL chest:
+
+  | Body | Before | After |
+  |---|---|---|
+  | men-01 | 1.00 | 0.10 |
+  | men-04 | 0.89 | 0.08 |
+  | men-06 | 0.70 | 0.08 |
+
+  Sizes now read in order: S is the tightest, then M, then L, and XL is the loosest. Every
+  area with 6 cm or more of room reads 0.5 or below. Each size also simulates about twice as
+  fast.
+- The Oxford shirt batch is being re-run with this fix. Its old results are kept, not
+  loaded, in `gb-wt/drapes-out/full-before-xlfix`. The crew tee had the same bug in a milder
+  form and also needs re-running.
+- A smaller, separate limit remains. On the fullest shapes (men-08, men-03), sleeve cloth
+  squeezed under a lowered arm still reads the upper arm as tight, even when the sleeve has
+  room. This is recorded in the cloth-sim README under Known limits.
+
 ## 2026-11-17 - Cloth simulation measures the waist and hip as a size chart means them (Phase 6)
 
 - The cloth simulation now tapes a body's waist at its narrowest row and its hip at its widest, the way
