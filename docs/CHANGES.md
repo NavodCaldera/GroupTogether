@@ -6,6 +6,20 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Standard bodies list their measured upper arm and thigh (Phase 6)
+
+- `clusters.py` used to work out the upper arm (0.314 × chest) and thigh (0.565 × hip) from fixed ratios.
+  It now measures them on each Anny body (`limb_girths`). The listed upper arm was off on 12 of the 20 shapes,
+  for example men-03 at 32.2 against 41.9 measured and men-09 at 32.6 against 39.5.
+- The cloth sim now measures the thigh at its fullest slice, just below the crotch. It used to measure near the knee.
+- The body files themselves are unchanged (identical hashes), so the crew tee drapes stay valid.
+- Merged at fb34a05. The 20 shapes' measurements are re-loaded into the dev DB with a loader that
+  doesn't truncate (only `loadArchetypes`), and the drapes are kept.
+- The shoulder, neck, wrist and inseam are still ratio estimates.
+- Next: the cloth sim's waist and hip are measured through the middle of those body parts, but
+  the listed values use the narrowest waist and widest hip, a gap of up to 10 cm. This is being
+  fixed on branch `phase6-girth` before the full batch.
+
 ## 2026-11-17 - Loose sizes no longer read tight (Phase 6)
 
 - The first crew tee batch read loose cloth as tight. In walking, running and sitting, the
