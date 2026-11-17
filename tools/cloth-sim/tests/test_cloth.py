@@ -166,6 +166,64 @@ def test_the_drape_is_kept_out_of_an_arm_swinging_down_against_the_side(body_glb
     assert np.array_equal(clear[0], goal[0])  # standing, nothing moves
 
 
+def _edges_across_arms(goal: np.ndarray, g: garment.Garment, body: garment.Body,
+                       frames: list) -> int:
+    """Torso cloth edges (all frames) whose two ends lie on opposite sides of an arm bone, both
+    within 8 cm of it: the arm passes between them."""
+    e = g.edges[np.isin(g.part[g.edges], run._TORSO).all(axis=1)]
+    count = 0
+    for f, (angles, drop) in enumerate(frames):
+        m = pose.skin_matrices(body.names, body.parents, body.heads, angles, drop)
+        for side in "LR":
+            for top, end in (("upperarm01", "lowerarm01"), ("lowerarm01", "wrist")):
+                a, b = ((m[k] @ np.append(body.heads[k], 1))[:3] for k in
+                        (body.names.index(f"{top}.{side}"), body.names.index(f"{end}.{side}")))
+                u = (b - a) / np.linalg.norm(b - a)
+                t = (goal[f] - a) @ u
+                q = goal[f] - a - np.outer(t, u)
+                r = np.linalg.norm(q, axis=1)
+                along = (t > 0) & (t < np.linalg.norm(b - a))
+                cos = (q[e[:, 0]] * q[e[:, 1]]).sum(1) / np.maximum(r[e[:, 0]] * r[e[:, 1]], 1e-9)
+                count += int(((cos < -0.3) & (r[e] < 0.08).all(1) & along[e].all(1)).sum())
+    return count
+
+
+def test_a_loose_shirts_side_is_not_split_round_a_lowered_arm():
+    """The cause of loose shirts reading tight (Oxford shirt batch, 2026-11-17: XL chest 1.0 on
+    men-01, L 0.19): 5-7 cm off the skin, a loose size's side lies where the arm hangs in WALK.
+    Pushed out of the arm along the nearest skin's normal, cloth past the arm's middle went out
+    the far side and its neighbours the near side, so the arm cut through the cloth and the
+    edges across it stretched to several times their length."""
+    bodies = ROOT / "public" / "fit-assets" / "bodies"
+    body = garment.read_body(str(bodies / json.loads((bodies / "bodies.json").read_text("utf-8"))["men-01"]))
+    g = garment.build(body, "top", False, {"chest": 124, "waist": 118, "upperArm": 44})
+    frames = run.timeline(["WALK"])
+    frames = frames[:1] + frames[run.SETTLE::4]
+    bodies_f = np.stack([pose.skin(body.positions, body.joints, body.weights,
+                                   pose.skin_matrices(body.names, body.parents, body.heads, a, d))
+                         for a, d in frames])
+    goal = run.skinned(g.drape, g.joints, g.weights, body, frames)
+    assert _edges_across_arms(goal, g, body, frames) > 50  # the skinned drape alone is cut
+    clear = run.clear_of_limbs(goal, g, body, bodies_f)
+    assert _edges_across_arms(clear, g, body, frames) == 0
+    assert np.array_equal(clear[0], goal[0])
+
+
+def test_arms_raised_clear_of_the_torso_move_no_torso_cloth(body_glb):
+    """At the top of REACH the arms are far above the torso: no torso cloth is in their way (the
+    feet, which share the hands' body part, are not part of an arm)."""
+    body = garment.read_body(body_glb)
+    g = garment.build(body, "top", False, chest(124))
+    frames = [({}, 0.0), (pose.pose_at("REACH", 1.6), 0.0)]
+    bodies_f = np.stack([pose.skin(body.positions, body.joints, body.weights,
+                                   pose.skin_matrices(body.names, body.parents, body.heads, a, d))
+                         for a, d in frames])
+    goal = run.skinned(g.drape, g.joints, g.weights, body, frames)
+    clear = run.clear_of_limbs(goal, g, body, bodies_f)
+    hips = np.flatnonzero(np.isin(g.part, [garment.PART["hip"], garment.PART["waist"]]))
+    assert np.abs(clear[1, hips] - goal[1, hips]).max() < 1e-9
+
+
 # ---- tension from strain -------------------------------------------------------------------
 def test_tension_is_the_95th_percentile_over_the_stretch_capacity():
     region = np.array([0, 0, 0, 3])
