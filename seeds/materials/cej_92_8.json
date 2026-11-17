@@ -42,6 +42,15 @@
       "source": "S14",
       "locator": "Specifications table: Single jersey",
       "excerpt": "100% cotton or 92/8 cotton-elastane"
+    },
+    {
+      "code": "EV-CEJ_92_8-HAND",
+      "attribute": "hand_descriptor",
+      "claim": "Cotton jersey is described as soft and stretchy.",
+      "valueText": "soft",
+      "source": "S16",
+      "locator": "Main types table: Jersey",
+      "excerpt": "Soft, stretchy, edges curl"
     }
   ],
   "todo": []

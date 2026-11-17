@@ -336,8 +336,8 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 
 ### DEC-022 - Material Library and Material Card
 
-**Status:** Built **2026-11-17** (`MAT-001`); library unpublished until the owner signs off the
-rule bands. **Rules:** `MAT-001`, `FIT-001`, `UX-001`, `SUP-002`. How it works:
+**Status:** Built **2026-11-17** (`MAT-001`). The owner signed off the rule bands and asked for
+every material to be published on **2026-11-17**. **Rules:** `MAT-001`, `FIT-001`, `UX-001`, `SUP-002`. How it works:
 [material-system.md](material-system.md). Design: [material library design](superpowers/specs/2026-11-16-material-library-design.md).
 
 The owner asked for a curated fabric library that factories pick from per product, and a buyer
@@ -373,8 +373,15 @@ Claude's calls (owner to confirm):
 9. (Build) A factory's gsm is shown as _declared_, not measured; an accredited mass test
    (ISO 3801, EN 12127, ASTM D3776) makes the weight bar _measured_.
 10. (Build) Every lab's accredited scope is empty because none of the scope documents could be
-    read (404). Until a scope is checked and recorded with its date, no lab result counts as
-    accredited.
+    read (404; SLAB's directory also refuses automated reading). Until a scope is checked and
+    recorded with its date, no lab result counts as accredited.
+11. (Owner, 2026-11-17) Publish all 33 materials; the estimate bands in `rules.ts` are accepted.
+12. (Owner, 2026-11-17) Picking a material no longer rewrites the product's weave text, so it
+    clears fit approval only when the gsm changes.
+13. (Build, 2026-11-17) A Factory admin records a lab's scope in the app (tests listed, date
+    read, document link); the loader keeps an admin check over an older seed one. Saving a scope
+    re-checks that lab's results. Reference swatch sets are built in the app; the measured bars
+    turn on for a test once the active set has 10 swatches with accredited results for it.
 
 ### DEC-021 - Personal body mesh and Deep Fit Test
 

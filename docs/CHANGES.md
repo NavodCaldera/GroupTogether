@@ -6,6 +6,24 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Material Library published, more sourced feel, lab scopes and reference swatches (DEC-022)
+
+- The owner asked to build the Material Library fully: publish all 33 materials (sign-off of
+  the estimate bands), stop the material choice rewriting the product's weave, record lab
+  scopes, build reference swatch sets, and fill "Not yet measured" gaps from sources.
+- Published: the demo seed and `npm run materials:load -- --publish` publish every material.
+- Weave: picking a material sets gsm only, so fit approval clears only when gsm changes.
+- More sourced feel: quoted descriptions from two new sources (My Textile Notes, Huada) and
+  existing ones give softness estimates to cotton jersey (tee, open-end, Pima, cotton-elastane),
+  cotton-modal, French terry, fleece, polar fleece and piqué; surface to rib and polar fleece;
+  gsm ranges to piqué (180–240) and chambray (100–150). Softness now has an estimate for 14 of
+  33 materials (was 6). Interlock, twill, denim, tricot, sweater knit and linen still have no
+  quotable description.
+- Lab scopes: SLAB's directory refused automated reading, so no scope is recorded yet. Factory
+  admins can now record one under **Materials → Labs**; saving re-checks the lab's results.
+- Reference swatches: **Materials → Reference swatches** creates a set, adds swatches and their
+  lab results, and makes it active; measured bars switch on per test at 10 accredited swatches.
+
 ## 2026-11-17 - Material Library and Material Card built (DEC-022)
 
 - The owner asked to finish the Material Library build. Built: seed files (33 materials,

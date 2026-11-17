@@ -7,7 +7,10 @@
   "construction": "chambray",
   "yarnProcess": null,
   "finish": "none",
-  "gsm": null,
+  "gsm": [
+    100,
+    150
+  ],
   "fibers": [
     {
       "fiber": "cotton_upland",
@@ -24,9 +27,20 @@
       "locator": "Types of Cotton Fabric table: Chambray",
       "excerpt": "Light, denim-look",
       "valueText": "light"
+    },
+    {
+      "code": "EV-CHAMBRAY-GSM",
+      "attribute": "typical_gsm",
+      "claim": "Chambray is a light shirting cotton, 100–150 gsm.",
+      "valueMin": 100,
+      "valueMax": 150,
+      "unit": "g/m2",
+      "source": "S17",
+      "locator": "Understanding Cotton Weight table: Light",
+      "excerpt": "Light | 100 to 150 | Poplin, chambray, shirting | Shirts, dresses"
     }
   ],
   "todo": [
-    "TODO(evidence): no gsm range or hand descriptor read for chambray."
+    "TODO(evidence): no hand or surface descriptor read for chambray."
   ]
 }

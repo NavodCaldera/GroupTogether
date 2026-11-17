@@ -2,7 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 import { ZodError } from "zod";
-import { MaterialInputError, parseMaterialForm, parseMeasurementForm } from "@/lib/materials/measure";
+import {
+  MaterialInputError,
+  parseMaterialForm,
+  parseMeasurementForm,
+} from "@/lib/materials/measure";
 import { requireAdmin, requireFactory } from "./auth/session";
 import { flash } from "./flash";
 import {
@@ -21,7 +25,17 @@ import {
   VIDEO_MAX_BYTES,
   VIDEO_TYPES,
 } from "./storage";
-import { publishMaterial, reviewProductMaterial } from "./material-admin";
+import {
+  activateCalibrationSet,
+  addCalibrationSwatch,
+  addSwatchMeasurement,
+  createCalibrationSet,
+  deleteSwatchMeasurement,
+  publishMaterial,
+  reviewProductMaterial,
+  setLabScope,
+} from "./material-admin";
+import { TEST_STANDARDS } from "@/lib/materials/seed";
 
 export type MaterialState = { error?: string };
 
@@ -80,9 +94,17 @@ export async function addMeasurementAction(
     const input = parseMeasurementForm(strings(fd));
     const pdf = file(fd, "report");
     const report = pdf
-      ? await saveUpload(checkUpload(pdf, PDF_TYPES, "lab report", PDF_MAX_BYTES), "lab-reports", PDF_TYPES)
+      ? await saveUpload(
+          checkUpload(pdf, PDF_TYPES, "lab report", PDF_MAX_BYTES),
+          "lab-reports",
+          PDF_TYPES,
+        )
       : null;
-    await addMeasurement(productId, { ...input, report }, { sellerId: user.factoryId, userId: user.id });
+    await addMeasurement(
+      productId,
+      { ...input, report },
+      { sellerId: user.factoryId, userId: user.id },
+    );
   });
   if (res.error) return res;
   refresh(productId);
@@ -150,5 +172,101 @@ export async function reviewProductMaterialAction(
   const res = await attempt(() => reviewProductMaterial(admin.id, str(fd, "productMaterialId")));
   if (res.error) return res;
   revalidatePath("/admin/factory/materials/reports");
+  return {};
+}
+
+const day = (v: string, label: string) => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new MaterialInputError(`Enter the ${label}`);
+  return new Date(`${v}T00:00:00Z`);
+};
+
+/** A lab's accredited scope, as the admin read it from SLAB on a date */
+export async function setLabScopeAction(_p: MaterialState, fd: FormData): Promise<MaterialState> {
+  await requireAdmin("FACTORY");
+  const res = await attempt(async () => {
+    const scope = fd.getAll("scope").map(String);
+    if (scope.some((s) => !(TEST_STANDARDS as readonly string[]).includes(s)))
+      throw new MaterialInputError("Unknown test");
+    const sourceUrl = str(fd, "sourceUrl");
+    if (sourceUrl && !/^https:\/\/\S+$/.test(sourceUrl))
+      throw new MaterialInputError("The scope link must start with https://");
+    await setLabScope(str(fd, "lab"), {
+      scope,
+      checkedOn: day(str(fd, "checkedOn"), "date you read the scope"),
+      accreditationNo: str(fd, "accreditationNo").slice(0, 60),
+      sourceUrl,
+    });
+  });
+  if (res.error) return res;
+  revalidatePath("/admin/factory/materials/library");
+  await flash("Scope saved.");
+  return {};
+}
+
+const CAL = "/admin/factory/materials/calibration";
+
+export async function createCalibrationSetAction(
+  _p: MaterialState,
+  fd: FormData,
+): Promise<MaterialState> {
+  await requireAdmin("FACTORY");
+  const res = await attempt(() => createCalibrationSet(str(fd, "code"), str(fd, "name")));
+  if (res.error) return res;
+  revalidatePath(CAL);
+  return {};
+}
+
+export async function addCalibrationSwatchAction(
+  _p: MaterialState,
+  fd: FormData,
+): Promise<MaterialState> {
+  await requireAdmin("FACTORY");
+  const set = str(fd, "set");
+  const res = await attempt(() => addCalibrationSwatch(set, str(fd, "material"), str(fd, "label")));
+  if (res.error) return res;
+  revalidatePath(`${CAL}/${set}`);
+  return {};
+}
+
+export async function addSwatchMeasurementAction(
+  _p: MaterialState,
+  fd: FormData,
+): Promise<MaterialState> {
+  const admin = await requireAdmin("FACTORY");
+  const set = str(fd, "set");
+  const res = await attempt(async () => {
+    const m = parseMeasurementForm(strings(fd));
+    await addSwatchMeasurement(
+      str(fd, "swatchId"),
+      { kind: m.kind, value: m.value, lab: m.lab, testedOn: m.testedOn, reportRef: m.reportRef },
+      admin.id,
+    );
+  });
+  if (res.error) return res;
+  revalidatePath(`${CAL}/${set}`);
+  return {};
+}
+
+export async function deleteSwatchMeasurementAction(
+  _p: MaterialState,
+  fd: FormData,
+): Promise<MaterialState> {
+  await requireAdmin("FACTORY");
+  const res = await attempt(() => deleteSwatchMeasurement(str(fd, "measurementId")));
+  if (res.error) return res;
+  revalidatePath(`${CAL}/${str(fd, "set")}`);
+  return {};
+}
+
+export async function activateCalibrationSetAction(
+  _p: MaterialState,
+  fd: FormData,
+): Promise<MaterialState> {
+  await requireAdmin("FACTORY");
+  const set = str(fd, "set");
+  const res = await attempt(() => activateCalibrationSet(set, str(fd, "active") === "1"));
+  if (res.error) return res;
+  revalidatePath(CAL);
+  revalidatePath(`${CAL}/${set}`);
   return {};
 }

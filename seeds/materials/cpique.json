@@ -7,7 +7,10 @@
   "construction": "pique",
   "yarnProcess": null,
   "finish": "none",
-  "gsm": null,
+  "gsm": [
+    180,
+    240
+  ],
   "fibers": [
     {
       "fiber": "cotton_upland",
@@ -15,8 +18,18 @@
       "pct": 100
     }
   ],
-  "evidence": [],
-  "todo": [
-    "TODO(evidence): no gsm range or hand descriptor read for piqué."
-  ]
+  "evidence": [
+    {
+      "code": "EV-CPIQUE-GSM",
+      "attribute": "typical_gsm",
+      "claim": "Piqué polo shirts are 180–240 gsm.",
+      "valueMin": 180,
+      "valueMax": 240,
+      "unit": "g/m2",
+      "source": "S50",
+      "locator": "Section 11 table: Polo shirt",
+      "excerpt": "Polo shirt | Pique | 180–240 GSM | Textured, structured, breathable"
+    }
+  ],
+  "todo": []
 }

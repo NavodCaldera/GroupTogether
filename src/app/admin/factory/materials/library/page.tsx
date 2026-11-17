@@ -2,14 +2,9 @@ import type { Metadata } from "next";
 import { param, Table } from "@/app/admin/list-bits";
 import { Badge, PageHeader } from "@/components/ui";
 import { requireAdmin } from "@/server/auth/session";
-import {
-  listCalibrationSets,
-  listEvidence,
-  listLabs,
-  listRules,
-  listSources,
-} from "@/server/material-admin";
+import { listEvidence, listLabs, listRules, listSources } from "@/server/material-admin";
 import { MaterialsNav } from "../materials-nav";
+import { LabScopeForm } from "./lab-scope-form";
 
 export const metadata: Metadata = { title: "Material library" };
 
@@ -18,7 +13,6 @@ const VIEWS = {
   evidence: "Evidence",
   rules: "Rules",
   labs: "Labs",
-  calibration: "Calibration",
 } as const;
 type View = keyof typeof VIEWS;
 
@@ -42,7 +36,6 @@ export default async function LibraryPage({
       {view === "evidence" && <Evidence />}
       {view === "rules" && <Rules />}
       {view === "labs" && <Labs />}
-      {view === "calibration" && <Calibration />}
     </>
   );
 }
@@ -150,62 +143,38 @@ async function Rules() {
 async function Labs() {
   const rows = await listLabs();
   return (
-    <Table
-      head={
-        <>
-          <th>Lab</th>
-          <th>Accreditation</th>
-          <th>Scope checked</th>
-          <th>Tests in scope</th>
-          <th>Results</th>
-        </>
-      }
-    >
-      {rows.map((l) => (
-        <tr key={l.id}>
-          <td>
-            {l.name}
-            <span className="block text-xs text-subtle">{l.city}</span>
-          </td>
-          <td>{l.accreditationNo ?? "—"}</td>
-          <td>{day(l.scopeVerifiedOn)}</td>
-          <td className="max-w-xs whitespace-normal">
-            {l.scope.length ? l.scope.join(", ") : <Badge tone="neutral">None checked</Badge>}
-          </td>
-          <td className="tabular-nums">{l._count.measurements}</td>
-        </tr>
-      ))}
-    </Table>
-  );
-}
-
-async function Calibration() {
-  const sets = await listCalibrationSets();
-  if (!sets.length)
-    return <p className="text-sm text-subtle">No reference swatch set yet: measured sliders are off.</p>;
-  return (
-    <Table
-      head={
-        <>
-          <th>Set</th>
-          <th>Active</th>
-          <th>Swatches</th>
-          <th>Results</th>
-        </>
-      }
-    >
-      {sets.map((s) => (
-        <tr key={s.id}>
-          <td>
-            {s.name} v{s.version}
-          </td>
-          <td>{day(s.activeAt)}</td>
-          <td className="tabular-nums">{s.swatches.length}</td>
-          <td className="tabular-nums">
-            {s.swatches.reduce((n, w) => n + w._count.measurements, 0)}
-          </td>
-        </tr>
-      ))}
-    </Table>
+    <>
+      <Table
+        head={
+          <>
+            <th>Lab</th>
+            <th>Accreditation</th>
+            <th>Scope checked</th>
+            <th>Tests in scope</th>
+            <th>Results</th>
+          </>
+        }
+      >
+        {rows.map((l) => (
+          <tr key={l.id}>
+            <td>
+              {l.name}
+              <span className="block text-xs text-subtle">{l.city}</span>
+            </td>
+            <td>{l.accreditationNo ?? "—"}</td>
+            <td>{day(l.scopeVerifiedOn)}</td>
+            <td className="max-w-xs whitespace-normal">
+              {l.scope.length ? l.scope.join(", ") : <Badge tone="neutral">None checked</Badge>}
+            </td>
+            <td className="tabular-nums">{l._count.measurements}</td>
+          </tr>
+        ))}
+      </Table>
+      <div className="mt-6 flex flex-col gap-3">
+        {rows.map((l) => (
+          <LabScopeForm key={l.id} lab={l} />
+        ))}
+      </div>
+    </>
   );
 }

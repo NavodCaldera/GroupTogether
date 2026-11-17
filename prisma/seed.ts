@@ -44,7 +44,6 @@ import {
 import { saveBodyProfile as saveBodyProfileFor } from "../src/server/fit";
 import { readLibrary } from "../src/lib/materials/seed-files";
 import { loadLibrary } from "../src/server/material-load";
-import { publishMaterial } from "../src/server/material-admin";
 import { getMaterial, libraryComposition, setProductMaterial } from "../src/server/materials";
 import { hashPassword } from "../src/server/auth/password";
 import { setCartItem } from "../src/server/orders/cart";
@@ -712,18 +711,17 @@ async function main() {
       await db.stockOffer.update({ where: { id: offer.id }, data: { approvedRevision: 1 } });
   }
 
-  // Material library (DEC-022): every material loads as a draft; the demo publishes only the
-  // three its products use, so their Material Cards can be seen locally. Set before the fit data
-  // below, which then restores each garment's simulated gsm, weave and approval.
-  await loadLibrary(db, readLibrary());
+  // Material library (DEC-022), published: the owner signed off the rule bands on 2026-11-17.
+  // Three demo products get a material, set before the fit data below, which then restores
+  // each garment's simulated gsm and approval.
+  const factoryAdmin = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.FACTORY } });
+  await loadLibrary(db, readLibrary(), { publish: { by: factoryAdmin.id } });
   const demoMaterials = [
     { title: "Crew-neck cotton tee (3-pack)", code: "cj_crs", gsm: 180 },
     { title: "Polo shirt", code: "cpique", gsm: 220 },
     { title: "Hooded sweatshirt", code: "cfleece", gsm: 320 },
   ];
-  const factoryAdmin = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.FACTORY } });
   for (const d of demoMaterials) {
-    await publishMaterial(factoryAdmin.id, d.code, true);
     const product = await db.product.findFirstOrThrow({
       where: { title: d.title },
       select: { id: true, sellerId: true },
@@ -845,7 +843,6 @@ async function main() {
   ];
   for (const { userId, ...p } of fitProfiles)
     await saveBodyProfileFor(userId, { ...p, captureMeta: { seed: true }, consent: true });
-
 
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}

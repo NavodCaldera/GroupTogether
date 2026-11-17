@@ -7,7 +7,7 @@ const VIEWS = [
   ["/admin/factory/materials/library?view=evidence", "Evidence"],
   ["/admin/factory/materials/library?view=rules", "Rules"],
   ["/admin/factory/materials/library?view=labs", "Labs"],
-  ["/admin/factory/materials/library?view=calibration", "Calibration"],
+  ["/admin/factory/materials/calibration", "Reference swatches"],
 ] as const;
 
 /** The Materials area's own views (DEC-022) */

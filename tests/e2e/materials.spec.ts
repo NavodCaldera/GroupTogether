@@ -61,7 +61,7 @@ test("a visitor sees the Material Card with sourced values only", async ({ page 
   await expect(card.getByRole("heading", { name: "Combed cotton jersey" })).toBeVisible();
   await expect(card.getByText("Estimated from fabric type")).toBeVisible();
   await expect(card.getByText("Feels like an everyday T-shirt")).toBeVisible();
-  await expect(card.getByText("Softness: not yet measured")).toBeAttached();
+  await expect(card.getByText(/^Softness: estimated 5–35 out of 100/)).toBeAttached();
   await expect(card.getByText(/^Weight: 31\.3 from the factory's figure/)).toBeAttached();
   await expect(card.getByText("180 gsm · Light")).toBeVisible();
   await expect(page.getByText(/Breathability \d of 5/)).toHaveCount(0);
@@ -138,14 +138,43 @@ test("another factory cannot open the product or its lab report", async ({ page 
   expect(report.status()).toBe(404);
 });
 
-test("the Factory admin publishes a material and explains a slider", async ({ page }) => {
+test("the Factory admin unpublishes and republishes a material and explains a slider", async ({
+  page,
+}) => {
   await signIn(page, DEMO_ADMINS.FACTORY);
   await page.goto("/admin/factory/materials?q=lawn");
   const row = page.getByRole("row", { name: /Cotton lawn \/ voile/ });
+  await row.getByRole("button", { name: "Unpublish" }).click();
+  await expect(row.getByText("Draft")).toBeVisible();
   await row.getByRole("button", { name: "Publish" }).click();
   await expect(row.getByText("Published")).toBeVisible();
   await page.goto("/admin/factory/materials/clawn");
   await page.getByText("Why this value?").first().click();
   await expect(page.getByText("SOFT_EST v1")).toBeVisible();
+  await noSideScroll(page);
+});
+
+test("the Factory admin records a lab scope and starts a reference swatch set", async ({
+  page,
+}) => {
+  await signIn(page, DEMO_ADMINS.FACTORY);
+  await page.goto("/admin/factory/materials/library?view=labs");
+  await page.getByText("Record checked scope: SGS Lanka").click();
+  const form = page.locator("details", { hasText: "Record checked scope: SGS Lanka" });
+  await form.getByLabel("ISO 3801").check();
+  await form.getByLabel("Scope document link").fill("https://www.slab.lk/scope-sgs.pdf");
+  await form.getByRole("button", { name: "Save scope" }).click();
+  await expect(page.getByRole("row", { name: /SGS Lanka/ }).getByText("ISO_3801")).toBeVisible();
+
+  await page.goto("/admin/factory/materials/calibration");
+  await page.getByLabel("Code").fill("GB-REF-1");
+  await page.getByLabel("Name").fill("GroupBasket Reference Swatch Set");
+  await page.getByRole("button", { name: "Create set" }).click();
+  await page.getByRole("link", { name: "GroupBasket Reference Swatch Set" }).click();
+  await page.getByLabel("Material").selectOption("cj_crs");
+  await page.getByLabel("Label").fill("R01 combed jersey 160");
+  await page.getByRole("button", { name: "Add swatch" }).click();
+  await expect(page.getByRole("heading", { name: "R01 combed jersey 160" })).toBeVisible();
+  await expect(page.getByTestId("swatch-coverage")).toContainText("0 of 10");
   await noSideScroll(page);
 });

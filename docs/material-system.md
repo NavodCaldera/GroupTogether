@@ -53,8 +53,12 @@ ranked against the reference swatch set), **declared** (weight only, from the fa
   word (limp … stiff, smooth … strongly textured) placed on a GroupBasket band, moved by yarn,
   fibre or finish only where a verified source supports the direction.
 - **Breathability** (`BREATH_EST` v1): knits only, weight position ± 15.
-- The measured paths (`SOFT_MEAS`, `SURFACE_MEAS`, `BREATH_MEAS`) stay off until a calibration
-  set has at least 10 accredited swatch results. No set exists yet.
+- The measured paths (`SOFT_MEAS`, `SURFACE_MEAS`, `BREATH_MEAS`) rank an accredited product
+  result against the **active reference swatch set**, and switch on per test once the set has 10
+  swatches with accredited results for that test. Build the set under **Materials → Reference
+  swatches**: create it, add swatches (a library material and a label), enter each swatch's lab
+  results, then make it active. Every product's bars are recomputed on each change. No set
+  exists yet.
 
 The bands are product decisions stated in the rule text, not measurements.
 
@@ -66,10 +70,15 @@ The bands are product decisions stated in the rule text, not measurements.
 
 A lab result counts as accredited only when its lab is in the library and the lab's scope,
 checked on a recorded date, lists the test. All eight seeded labs have an empty scope because
-their scope documents could not be read, so every result is "not accredited" until a Factory
-admin's team checks a scope and records it in `seeds/labs.json`.
+their scope documents could not be read automatically. To record one, read the lab's current
+scope document on slab.lk, then in **Materials → Labs → Record checked scope** tick only the
+tests it lists, give the date read and the document link. Saving re-checks the lab's existing
+results. `npm run materials:load` keeps an admin's check over an older one in `seeds/labs.json`.
 
 ## Factory figures far from the library
+
+Picking a material sets the product's gsm (used by the fit heatmap) but leaves its old weave
+text alone, so fit approval is cleared only when the gsm changes.
 
 A gsm more than 15% outside the material's range, or a composition differing by more than 15
 points, needs a tick from the factory and lands in **Materials → Reports → To check** for a
@@ -84,7 +93,8 @@ Factory admin. The card shows at once (no approval gate, `SUP-002`).
 3. Add `seeds/materials/<code>.json`. Every gsm range, feels-like, stretch type and end use needs
    a verified evidence row on the material with the same value.
 4. `npm run check`, then `npm run materials:load` on each database. New materials load as drafts;
-   publish them in **Materials**.
+   publish them in **Materials**, or run `npm run materials:load -- --publish` to publish every
+   draft. Loading recomputes every product's bars, since new evidence can change them.
 
 ## Changing a rule
 

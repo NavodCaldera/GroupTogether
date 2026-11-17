@@ -24,6 +24,15 @@
       "locator": "Staple length",
       "excerpt": "Long-staple cottons such as Pima, Supima and Egyptian produce smoother, stronger yarn that pills less.",
       "valueText": "smooth"
+    },
+    {
+      "code": "EV-CJ_PIMA-HAND",
+      "attribute": "hand_descriptor",
+      "claim": "Cotton jersey is described as soft and stretchy.",
+      "valueText": "soft",
+      "source": "S16",
+      "locator": "Main types table: Jersey",
+      "excerpt": "Soft, stretchy, edges curl"
     }
   ],
   "todo": [

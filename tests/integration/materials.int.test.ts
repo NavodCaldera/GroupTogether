@@ -5,7 +5,16 @@ import { RULES } from "@/lib/materials/rules";
 import { readLibrary } from "@/lib/materials/seed-files";
 import { db } from "@/server/db";
 import { LibraryLoadError, loadLibrary, loadRules } from "@/server/material-load";
-import { materialReports, publishMaterial, reviewProductMaterial } from "@/server/material-admin";
+import {
+  activateCalibrationSet,
+  addCalibrationSwatch,
+  addSwatchMeasurement,
+  createCalibrationSet,
+  materialReports,
+  publishMaterial,
+  reviewProductMaterial,
+  setLabScope,
+} from "@/server/material-admin";
 import {
   addMeasurement,
   getMaterialCard,
@@ -194,5 +203,92 @@ describe("factory material", () => {
   it("has no card for a product without a material", async () => {
     const { productId } = await factoryProduct();
     expect(await getMaterialCard(productId)).toBeNull();
+  });
+});
+
+describe("owner sign-off, lab scopes and reference swatches", () => {
+  const result = (kind: string, value: number, lab: string) => ({
+    kind: findKind(kind)!,
+    value,
+    lab,
+    labName: "",
+    accreditationNo: "",
+    reportRef: "",
+    testedOn: new Date("2026-10-01"),
+    report: null,
+  });
+
+  it("publishes every draft when the loader is told to", async () => {
+    await loadLibrary(db, lib, { publish: { by: null } });
+    expect(await db.material.count({ where: { status: "DRAFT" } })).toBe(0);
+  });
+
+  it("a checked scope makes the lab's results accredited and survives a reload", async () => {
+    await publishMaterial("admin", "cj_crs", true);
+    const { factory, productId } = await factoryProduct();
+    await setProductMaterial(productId, pick(), { sellerId: factory.id });
+    await addMeasurement(productId, result("ISO_3801:mass_per_area", 176, "sgs"), {
+      sellerId: factory.id,
+      userId: factory.id,
+    });
+    await setLabScope("sgs", {
+      scope: ["ISO_3801"],
+      checkedOn: new Date("2026-11-17"),
+      accreditationNo: "TL 003-03",
+      sourceUrl: "https://www.slab.lk/example-scope.pdf",
+    });
+    let card = (await getMaterialCard(productId))!;
+    expect(card.axes.find((a) => a.axis === "LIGHT_SUBSTANTIAL")!.basis).toBe("MEASURED");
+
+    await loadLibrary(db, lib);
+    const lab = await db.lab.findUniqueOrThrow({ where: { code: "sgs" } });
+    expect(lab.scope).toEqual(["ISO_3801"]);
+    card = (await getMaterialCard(productId))!;
+    expect(card.axes.find((a) => a.axis === "LIGHT_SUBSTANTIAL")!.basis).toBe("MEASURED");
+  });
+
+  it("an active set of 10 accredited swatches turns breathability into a measured point", async () => {
+    await publishMaterial("admin", "cj_crs", true);
+    const admin = await makeUser("ADMIN", "FACTORY");
+    await setLabScope("slsi", {
+      scope: ["ISO_9237"],
+      checkedOn: new Date("2026-11-17"),
+      accreditationNo: "TL 016-06",
+      sourceUrl: "https://www.slab.lk/example-scope.pdf",
+    });
+    await createCalibrationSet("GB-REF-1", "Reference set");
+    for (let i = 1; i <= 10; i++) {
+      await addCalibrationSwatch("GB-REF-1", "cj_crs", `R${i}`);
+      const sw = await db.calibrationSwatch.findFirstOrThrow({ where: { label: `R${i}` } });
+      await addSwatchMeasurement(
+        sw.id,
+        {
+          kind: findKind("ISO_9237:air_permeability")!,
+          value: 50 * i,
+          lab: "slsi",
+          testedOn: new Date("2026-10-01"),
+          reportRef: "",
+        },
+        admin.id,
+      );
+    }
+    const { factory, productId } = await factoryProduct();
+    await setProductMaterial(productId, pick(), { sellerId: factory.id });
+    await addMeasurement(productId, result("ISO_9237:air_permeability", 275, "slsi"), {
+      sellerId: factory.id,
+      userId: factory.id,
+    });
+    let breath = (await getMaterialCard(productId))!.axes.find(
+      (a) => a.axis === "BREATHABLE_INSULATING",
+    )!;
+    expect(breath.basis).not.toBe("MEASURED");
+
+    await activateCalibrationSet("GB-REF-1", true);
+    breath = (await getMaterialCard(productId))!.axes.find(
+      (a) => a.axis === "BREATHABLE_INSULATING",
+    )!;
+    expect(breath.basis).toBe("MEASURED");
+    expect(breath.value).toBeGreaterThan(30);
+    expect(breath.value).toBeLessThan(70);
   });
 });

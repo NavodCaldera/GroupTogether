@@ -38,9 +38,16 @@
       "locator": "Knitted fabrics: Single jersey",
       "excerpt": "120–200 GSM. Lightweight, one-way stretch.",
       "valueText": "lightweight"
+    },
+    {
+      "code": "EV-CJ_OE-HAND",
+      "attribute": "hand_descriptor",
+      "claim": "Cotton jersey is described as soft and stretchy.",
+      "valueText": "soft",
+      "source": "S16",
+      "locator": "Main types table: Jersey",
+      "excerpt": "Soft, stretchy, edges curl"
     }
   ],
-  "todo": [
-    "TODO(evidence): no source read that describes open-end jersey hand; softness not available."
-  ]
+  "todo": []
 }

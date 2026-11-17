@@ -419,11 +419,12 @@ export async function setProductMaterial(
       update: data,
       select: { id: true },
     });
-    // One home for gsm: mirrored to the product for the fit heatmap and cloth simulation.
+    // One home for gsm: mirrored to the product for the fit heatmap and cloth simulation. The
+    // weave text is left alone, so picking a material clears fit approval only if gsm changes.
     const before = await tx.product.findUniqueOrThrow({ where: { id: productId }, select: FIT_DATA_SELECT });
     const after = await tx.product.update({
       where: { id: productId },
-      data: { gsm: input.gsm, weave: material.construction.name },
+      data: { gsm: input.gsm },
       select: FIT_DATA_SELECT,
     });
     if (fitDataHash(before) !== fitDataHash(after)) {
