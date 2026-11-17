@@ -6,6 +6,24 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Cluster drapes (Phase 6, Task 6.4)
+
+- Owner said "keep doing". A new `ClusterDrape` table holds one cloth-simulated garment file for
+  each product, standard shape and size. A drape only counts for the fit data it was simulated
+  from. Migration `20261117150000_cluster_drape`, applied to the dev DB.
+- `tools/cloth-sim/export.ts` writes the approved products and the standard bodies out as jobs.
+  `tools/cloth-sim/batch.py` simulates every size on every shape of the garment's gender, one
+  Blender process per size (`--parallel`, default 2). It can be stopped and resumed. A size
+  whose simulation goes unstable keeps the old estimated tensions and gets no drape.
+- `load.ts --drapes` copies the garments to `public/fit-assets/drapes` under content-hash names.
+  For each product, in one transaction, it stores the simulated tensions (note "simulated") and
+  the drape rows. It refuses a batch made from older fit data.
+- A buyer without a confirmed own body now sees their standard shape wearing the simulated
+  garment in the chosen size. Saving changed fit data removes that product's drapes.
+- The batch over the seed garments has not been run yet. Estimate: about 10 hours at
+  `--parallel 2` for the 10 approved seed garments (400 sizes). It needs no internet data.
+  It waits on the tension recalibration (SPIKE finding 1).
+
 ## 2026-11-16 - Cloth simulation (Phase 6): Blender installed, built with agents
 
 - Owner asked whether the whole system can run on the laptop without hosting (yes: local
