@@ -6,6 +6,13 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Drape files committed and synced with GitHub
+
+- The owner asked to bring the system up to date with GitHub main. Local main already matched
+  origin/main. The 80 cluster drape files in `public/fit-assets/drapes` (two products × 40)
+  were untracked; the dev DB's `ClusterDrape` rows reference all 80, so they are now committed
+  like the body files.
+
 ## 2026-11-17 - Next.js security upgrade to 16.4.6
 
 - The owner asked to fix the Next.js security warning. `next` and `eslint-config-next` went
