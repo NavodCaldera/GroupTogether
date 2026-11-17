@@ -6,6 +6,30 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Cloth tension recalibrated (Phase 6, SPIKE finding 1)
+
+- The simulated tension readout no longer maxes out at 1.0.
+  - The cloth's rest shape is let out by the collider's 0.9 cm.
+  - The cloth is pulled lightly towards where it sits when standing, and skin friction is low,
+    so cloth dragged by a moving arm returns.
+  - Strain counts only what the cloth adds beyond the skin's own stretch. It leaves out the
+    rims of openings and cloth squeezed between the arm and the torso.
+  - A top's hem is held at the chart's waist when the chart has no hip.
+- Ruling (lead, recorded as accepted): tension is the higher of two readings:
+  - strain over the fabric's capacity;
+  - a slack reading from the chart's room on the body, using the app's `snugFrom` and `looseAt`.
+
+  Unstretched cloth reads zero strain however loose it is, so the loose side comes from the
+  chart, not from the simulation.
+- On Dilan, the crew tee reads:
+  - M: chest 0.57, waist 0.33, hip 0.25, upper arm 0.41, shoulder 0.18;
+  - two sizes small: chest 0.89;
+  - XL: chest 0.24.
+
+  Results repeat run to run.
+- A size now takes 35–81 s, so the seed batch estimate drops to about 4–5 hours at
+  `--parallel 2`.
+
 ## 2026-11-17 - Cluster drapes (Phase 6, Task 6.4)
 
 - Owner said "keep doing". A new `ClusterDrape` table holds one cloth-simulated garment file for
