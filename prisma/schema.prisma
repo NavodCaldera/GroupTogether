@@ -216,6 +216,7 @@ model Product {
   regionTensions GarmentRegionTension[]
   fitFeedback    FitFeedback[]
   deepFitJobs    DeepFitJob[]
+  clusterDrapes  ClusterDrape[]
   /// Fabric per role from the material library (DEC-022)
   materials      ProductMaterial[]
 
@@ -1284,6 +1285,7 @@ model BodyArchetype {
   profiles BodyProfile[]
   assets   FitAsset[]
   tensions GarmentRegionTension[]
+  drapes   ClusterDrape[]
 }
 
 /// A buyer's measurements, worked out on their phone. Photos are never uploaded.
@@ -1368,6 +1370,23 @@ model DeepFitJob {
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+}
+
+/// One garment size cloth-simulated on a standard shape's body (DEC-021): a skinned glb on the CDN,
+/// valid only for the fit data it was simulated from
+model ClusterDrape {
+  id          String        @id @default(cuid())
+  productId   String
+  product     Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  archetypeId String
+  archetype   BodyArchetype @relation(fields: [archetypeId], references: [id], onDelete: Cascade)
+  size        String
+  garmentUrl  String
+  /// fitDataHash (src/server/deep-fit-jobs.ts) of the product when simulated
+  fitDataHash String
+  createdAt   DateTime      @default(now())
+
+  @@unique([productId, archetypeId, size])
 }
 
 /// Simulated garment on one archetype in one motion: an animated glTF on the CDN
