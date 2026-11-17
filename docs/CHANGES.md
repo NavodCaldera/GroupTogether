@@ -35,8 +35,10 @@ Newest first.
   and still needs re-running.
 - Some areas still read Tight, and these are genuine: the chart is smaller than the body.
   - men-05 and men-08 at S and M.
-  - men-03 and men-09's upper arm at S and M: their arms are 42 cm or more against
-    38-40 cm sleeves.
+  - men-03's upper arm at S and M: a 41.9 cm arm against 38-40 cm sleeves.
+  - men-09's upper arm at S and M: a 39.5 cm arm, so 0.5 cm or less of room.
+- Two upper-arm readings still say Tight with room to spare, under the known sleeve-pinch
+  limit: men-09 at L (0.92, 2.5 cm of room) and men-08 at L and XL.
 - A smaller, separate limit remains. On the fullest shapes (men-08, men-03), sleeve cloth
   squeezed under a lowered arm still reads the upper arm as tight, even when the sleeve has
   room. This is recorded in the cloth-sim README under Known limits.
