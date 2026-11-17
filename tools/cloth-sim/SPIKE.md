@@ -109,3 +109,59 @@ Lead's criteria, all met and pinned by `test_crew_tee_on_dilan_reads_fit_tight_a
 0.25 (that value is the slack side, from the chart), and the shoulder ordering (0.13 / 0.12 / 0.12).
 Two small reads 0.6 at waist and upper arm because those are the slack side's "no room" value:
 the chart leaves −1.0 and −0.1 cm there, touching, not stretched.
+
+## Loose sizes read tight on the first batch (2026-11-17)
+
+The first real batch (crew tee, 10 men shapes × S/M/L/XL, all four motions) read loose cloth as
+tight: men-03 XL (chest 13 cm of room) read chest and waist 1.0, and several shapes read XL
+tighter than L. The strain side fired, mostly in WALK, RUN and SIT, the motions with the arms
+down at the sides.
+
+**Cause.** The pins and the soft goal pull the cloth towards the drape carried by the skin, and
+skinning carries torso cloth with the torso. When an arm swings down against the side, the
+skinned drape of the tee's side lies inside the arm: on men-03 XL in WALK about 100 of the torso's
+drape vertices were inside the arm in every frame of the clip (0 standing). The goal pulled that
+cloth into the arm, the one-sided collider pushed it back out, and the cloth was stretched round
+the arm (vertices up to 7 cm from where the skin carries them, single edges at 5× their rest
+length). The strained chest vertices were all at the side under the arm (|x| ≈ 0.19 m), 95 % of
+them within 5 cm of the arm. A looser size hangs further out, so more of it lies in the arm's
+way: hence XL tighter than L. Turning the goal off was worse (cloth wound up on the arms, as in
+the spike).
+
+**Fix.** `run.clear_of_limbs`: every frame, each drape vertex that lies inside (or within 1 cm
+of) a body part that does not carry it is moved out along that part's skin normal to 1 cm off it:
+torso cloth off the arms, a sleeve off the torso and the other arm. Only the depth beyond what the
+vertex had standing is moved, so the rest pose and the settled garment are unchanged. The strain's
+reference already follows the drape, so the push itself is not counted as stretch. Pinned by
+`test_the_drape_is_kept_out_of_an_arm_swinging_down_against_the_side` (numpy) and
+`test_a_loose_crew_tee_reads_loose_while_the_arms_swing` (Blender, men-03 XL, WALK).
+
+men-03 XL, WALK alone: chest 1.0 → 0.27, waist 1.0 → 0.15. men-03 L: chest 0.54 → 0.44 (now the
+slack side, 5 cm of room). Dilan's criteria test still passes.
+
+Crew tee batch on the 10 men shapes after the fix (`batch.py`, all four motions, 40 sizes, 86 min
+with `--parallel 2`, mean 252 s per size per process; before the fix 96–104 s, unloaded). Chest /
+waist / upper arm, S / M / L / XL:
+
+| Shape | Chest | Waist | Upper arm |
+|---|---|---|---|
+| men-01 | 0.38 / 0.26 / 0.18 / 0.13 | 0.22 / 0.16 / 0.12 / 0.13 | 0.29 / 0.24 / 0.20 / 0.16 |
+| men-02 | 0.53 / 0.36 / 0.25 / 0.22 | 0.37 / 0.27 / 0.19 / 0.17 | 0.41 / 0.34 / 0.28 / 0.23 |
+| men-03 | 0.94 / 0.60 / 0.44 / 0.27 | 0.44 / 0.32 / 0.23 / 0.19 | 1.00 / 1.00 / 1.00 / 1.00 |
+| men-04 | 0.32 / 0.22 / 0.15 / 0.10 | 0.15 / 0.11 / 0.10 / 0.10 | 0.20 / 0.17 / 0.14 / 0.11 |
+| men-05 | 1.00 / 1.00 / 0.60 / 0.43 | 1.00 / 1.00 / 0.60 / 0.47 | 1.00 / 0.94 / 0.55 / 0.38 |
+| men-06 | 0.43 / 0.29 / 0.20 / 0.12 | 0.28 / 0.20 / 0.15 / 0.10 | 0.27 / 0.22 / 0.18 / 0.15 |
+| men-07 | 0.60 / 0.44 / 0.31 / 0.19 | 0.41 / 0.30 / 0.21 / 0.14 | 0.52 / 0.42 / 0.35 / 0.28 |
+| men-08 | 1.00 / 1.00 / 1.00 / 0.60 | 1.00 / 1.00 / 1.00 / 1.00 | 1.00 / 1.00 / 1.00 / 1.00 |
+| men-09 | 0.95 / 0.60 / 0.48 / 0.29 | 0.48 / 0.34 / 0.24 / 0.16 | 1.00 / 1.00 / 1.00 / 0.87 |
+| men-10 | 0.56 / 0.39 / 0.27 / 0.16 | 0.31 / 0.22 / 0.16 / 0.10 | 0.39 / 0.32 / 0.26 / 0.22 |
+
+Every area of every shape now reads S ≥ M ≥ L ≥ XL (before: 11 inversions), and all 94 areas with
+6 cm or more of room on the body file read ≤ 0.5. Two things the fix does not change:
+
+- men-03 and men-09 read a tight sleeve in every size because their body files' upper arms are
+  41.9 and 39.5 cm (listed 32.2 and 32.6): the room is measured on the body file.
+- A size a little under the body reads the slack side's 0.6, not tight: men-05 L (chest 108 on a
+  110.6 body file, 109.7 listed) reads 0.60, as before the fix. 2.4 % under the body is within the
+  jersey's 5 % stretch, so its strain (≈ 0.02 against a 0.10 capacity) stays below the slack side.
+

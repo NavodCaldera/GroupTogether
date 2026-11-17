@@ -9,8 +9,9 @@ Job: {"body": glb path, "cls": "top"|"outer"|"bottom"|"dress", "short": bool,
       "sizes": {"M": {"chest": 100, ...}}, "fabric": {"gsm", "stretch_pct", "weave"},
       "motions": ["WALK", "RUN", "REACH", "SIT"]}
 Result: {"status": "ok"|"failed", "sizes": {"M": {"tension": {"chest": 0.31, ...},
-         "garment": "M.glb"}}, "seconds": n}  (+ "error" when failed; a size that explodes or
-         times out reads tension 1.0 everywhere with "note": "unstable" and "garment": null)
+         "garment": "M.glb"}}, "seconds": n}  (+ "error" when failed; a size whose cloth blows up
+         reads tension 1.0 everywhere with "note": "unstable" and "garment": null; a size whose
+         Blender times out or crashes has no tension: "failed": true, "note": "timeout"|"crash")
 
 Blender (GPL) runs only as a separate process (`BLENDER_BIN`, else `blender` on the PATH);
 nothing from it is imported here. The garment, the poses and the strain are numpy.
@@ -188,6 +189,12 @@ def unstable(region: np.ndarray) -> dict:
     return {"tension": {n: 1.0 for n in names}, "garment": None, "note": "unstable"}
 
 
+def failed(note: str, error: str | None = None) -> dict:
+    """Blender timed out or crashed: no reading at all (a busy machine, not the garment), so a
+    batch does not keep it and tries the size again."""
+    return {"failed": True, "note": note, "garment": None, **({"error": error} if error else {})}
+
+
 def furthest(traj: np.ndarray, bodies: np.ndarray) -> float:
     """Largest distance from a garment vertex to the nearest (sampled) body vertex, any frame."""
     far = 0.0
@@ -198,13 +205,69 @@ def furthest(traj: np.ndarray, bodies: np.ndarray) -> float:
     return far
 
 
+CLEAR_M = garment.MIN_GAP_CM / 100
+REACH_M = 0.06  # deeper than this inside a limb is not inside it: a limb is thinner
+
+
+def _nearest(p: np.ndarray, q: np.ndarray) -> np.ndarray:
+    """Index into `q` of the nearest point to each of `p`."""
+    p32, q32 = p.astype(np.float32), q.astype(np.float32)
+    qq = (q32 * q32).sum(1)
+    out = np.empty(len(p), dtype=np.int64)
+    for s in range(0, len(p), 512):
+        c = p32[s:s + 512]
+        out[s:s + 512] = (qq[None, :] - 2 * c @ q32.T).argmin(axis=1)
+    return out
+
+
+def clear_of_limbs(goal: np.ndarray, g: garment.Garment, body: garment.Body,
+                   body_frames: np.ndarray) -> np.ndarray:
+    """The skinned drape kept `CLEAR_M` outside the body parts that do not carry it.
+
+    Skinning moves torso cloth with the torso and sleeve cloth with the arm, so where an arm
+    swings down against the side (WALK, RUN, SIT) the torso's drape lies inside the arm and the
+    sleeve's inside the torso. The soft goal and the pins then pull that cloth into a collider
+    that pushes it back out: the cloth is stretched round the arm whatever its size, and the
+    looser the size the more cloth hangs in the arm's way. Each such drape vertex is moved out
+    along the nearest skin vertex's normal of the other part."""
+    out = goal.copy()
+    bp, gp = body.parts, g.part
+    arm = np.isin(bp, _ARM)
+    torso_b = np.isin(bp, _TORSO)
+    groups = [
+        (np.isin(gp, _TORSO), arm),
+        (np.isin(gp, _ARM) & (g.vertices[:, 0] > 0), torso_b | (arm & (body.positions[:, 0] <= 0))),
+        (np.isin(gp, _ARM) & (g.vertices[:, 0] <= 0), torso_b | (arm & (body.positions[:, 0] > 0))),
+    ]
+    normals = [garment.vertex_normals(b, body.faces) for b in body_frames]
+
+    def need(f, ci, oi):
+        b = body_frames[f]
+        k = oi[_nearest(goal[f, ci], b[oi])]
+        d = goal[f, ci] - b[k]
+        off = (d * normals[f][k]).sum(axis=1)
+        inside = (d * d).sum(axis=1) < REACH_M ** 2
+        return np.where(inside, np.maximum(0.0, CLEAR_M - off), 0.0), normals[f][k]
+
+    for cloth, other in groups:
+        ci, oi = np.flatnonzero(cloth), np.flatnonzero(other)
+        if not len(ci) or not len(oi):
+            continue
+        # What already sits that close standing (the seam under the arm) stays where it is.
+        start, _ = need(0, ci, oi)
+        for f in range(1, len(goal)):
+            n, normal = need(f, ci, oi)
+            out[f, ci] += normal * np.maximum(0.0, n - start)[:, None]
+    return out
+
+
 def prepare(body: garment.Body, job: dict, chart: dict, frames: list,
             body_frames: np.ndarray) -> tuple[garment.Garment, dict]:
     """The garment for one size and the arrays simulate.py reads."""
     g = garment.build(body, job["cls"], bool(job.get("short")), chart)
     fab = job.get("fabric") or {}
     params = fabric.params(fab.get("gsm"), fab.get("stretch_pct"), fab.get("weave"))
-    base = skinned(g.drape, g.joints, g.weights, body, frames)
+    base = clear_of_limbs(skinned(g.drape, g.joints, g.weights, body, frames), g, body, body_frames)
     return g, {"body": body_frames.astype(np.float32), "body_faces": body.faces,
                "garment": base.astype(np.float32), "garment_faces": g.faces,
                "rest": g.rest.astype(np.float32), "pin": pinned(g, body, job["cls"]),
@@ -251,9 +314,9 @@ def _one_size(blender: str, body: garment.Body, job: dict, name: str, chart: dic
         try:
             p = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_s)
         except subprocess.TimeoutExpired:
-            return unstable(g.region)
+            return failed("timeout")
         if p.returncode != 0 or not dst.exists():
-            return {**unstable(g.region), "error": (p.stderr or p.stdout)[-500:]}
+            return failed("crash", (p.stderr or p.stdout)[-500:])
         traj = np.load(dst)["traj"].astype(np.float64)
     t = measure(g, body, traj, body_frames, arrays["garment"].astype(np.float64),
                 (job.get("fabric") or {}).get("stretch_pct"), job["cls"])

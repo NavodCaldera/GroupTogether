@@ -43,9 +43,10 @@ Result:
 
 `status` is `"failed"` (with `"error"` and no sizes) only when the job cannot run: a missing or
 skeleton-less body file, an unknown class or motion, a bad size name, or no Blender. A size that
-explodes (a vertex more than 0.5 m from the body, or not finite), crashes or passes `timeout_s`
-reads tension 1.0 in every area with `"note": "unstable"` and `"garment": null`; the other sizes
-still return.
+explodes (a vertex more than 0.5 m from the body, or not finite) reads tension 1.0 in every area
+with `"note": "unstable"` and `"garment": null`. A size whose Blender crashes or passes
+`timeout_s` has no tension: `"failed": true`, `"note": "crash"` or `"timeout"` (a busy machine
+says nothing about the garment). The other sizes still return.
 
 ## How it works
 
@@ -63,7 +64,11 @@ still return.
    a test checks they agree) and linear blend skinning on the body file's 36 bones.
 3. [`run.py`](run.py): a timeline of 30 settle frames, then per motion 12 frames easing in from
    the rest pose, 40 frames of the clip (25 fps) and 12 frames easing out. The body and the
-   `drape` are skinned to every frame and handed to Blender.
+   `drape` are skinned to every frame and handed to Blender. Skinning carries torso cloth with
+   the torso and sleeve cloth with the arm, so where an arm swings down against the side (WALK,
+   RUN, SIT) the skinned drape would lie inside the arm (or a sleeve inside the torso):
+   `clear_of_limbs` moves each such drape vertex out along the other part's skin normal to 1 cm
+   off it, by as much more as it is inside than it was standing (the rest pose is unchanged).
 4. [`simulate.py`](simulate.py) (inside Blender): the body is a one-sided collider animated by a
    shape key per frame; the garment is cloth whose springs take their rest lengths from the
    `rest` shape key, so a tight size is in tension from the start and pushes on the body. The
@@ -93,6 +98,11 @@ Sizes run in parallel, one Blender process (8 threads) per size, as many as the 
 
 ## Known limits
 
+- Room is measured on the body file, not taken from the shape's listed measurements. Some
+  muscular standard shapes have much thicker upper arms in their body file than listed (men-03
+  41.9 cm against 32.2, men-09 39.5 against 32.6), so a crew tee's sleeve is tight on them in
+  every size.
+
 - The shell is the body's skin offset outwards: no seams, no extra cloth under the arm. The strain
   read from it leaves the squeezed underarm out rather than modelling a gusset.
 - The tight side reads the mean of each vertex's edges, so a tight girth (stretched round, not
@@ -116,8 +126,9 @@ npx tsx --conditions=react-server tools/fit-simulation/load.ts --drapes out/drap
 2. [`batch.py`](batch.py) runs one size per Blender process (8 threads), `--parallel` at once
    (default 2, for 16 cores), on every shape of the product's gender. Each finished size is
    `OUT/<product>/<shape>/<size>.json` (+ `<size>.glb`); a rerun skips sizes already there for the
-   same `fitDataHash` and body file, so a stopped batch resumes. A job that cannot run is reported
-   and tried again next time; an unstable size is kept with no garment. `OUT/manifest.json` lists
+   same `fitDataHash` and body file, so a stopped batch resumes. A job that cannot run, or a size
+   whose Blender crashed or timed out, is reported, not written, and tried again next time; an
+   unstable size is kept with no garment. `OUT/manifest.json` lists
    every finished size.
 3. `load.ts --drapes` copies each garment to `public/fit-assets/drapes/<shape>-<size>-<hash>.glb`
    and, per product in one transaction, writes the simulated tensions over the shapes'
@@ -129,8 +140,9 @@ npx tsx --conditions=react-server tools/fit-simulation/load.ts --drapes out/drap
 The product page then draws a buyer's standard shape wearing the simulated garment of the chosen
 size (`FitView.body.garments`) when the buyer has no confirmed own body.
 
-Run time, estimated from [`SPIKE.md`](SPIKE.md) (not yet measured on a batch): one size end to
-end took 58–146 s unloaded for WALK and REACH (158 frames); the export asks for all four motions
-(286 frames), so about 105–265 s, call it 3 min. With `--parallel 2` that is about 1.5 min per
-size: a garment with 4 sizes on its 10 shapes (40 sizes) about an hour, the 10 approved seed
-garments (400 sizes) about 10 hours (6–15 h).
+Run time, measured on the crew tee batch (10 men shapes × 4 sizes, all four motions, 286
+frames, `--parallel 2`, 2026-11-17, other agents' work running alongside): 116–410 s per size
+end to end per process, mean 252 s (the looser and the smaller bodies are faster, men-05 and
+men-08 slowest); the 40 sizes took 86 min, about 2.1 min per size with two at once. The 10
+approved seed garments (400 sizes) would take about 14 hours on a loaded machine. Unloaded, one
+size took 100–125 s (two at once).
