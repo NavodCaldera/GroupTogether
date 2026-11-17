@@ -42,6 +42,10 @@ LIMB_AXIS = {"upperArm": ("upperarm01.L", "lowerarm01.L"), "thigh": ("upperleg01
 # Room between body and shell, cm. The minimum stays above the simulation's collision distances
 # (simulate.py), so the cloth never starts inside the collider's reach.
 MIN_GAP_CM = 1.0
+# The simulated skin is thicker than the real one by the collider's outer thickness plus the
+# cloth's collision distance (simulate.py BODY_THICKNESS + CLOTH_DISTANCE). The rest shape is let
+# out by the same amount, so a chart equal to the body reads as touching, not stretched.
+COLLISION_OFFSET_CM = 0.9
 MAX_GAP_CM = 6.0
 DEFAULT_GAP_CM = 1.2
 # Shrinking past these makes Blender's cloth unstable; a size that tight reads fully tight anyway.
@@ -76,9 +80,12 @@ class Garment:
     weights: np.ndarray  # (n, 4) float32
     scale: np.ndarray  # (n,) per-vertex rest scale, smoothed across part borders
     rest: np.ndarray  # (n, 3) the garment at its size: the shell taken in or let out round the body
+    drape: np.ndarray  # (n, 3) where the cloth sits on the standing body: `rest`, kept MIN_GAP off the skin
+    rim: np.ndarray  # (n,) bool, on an opening (neck, hem, cuff): fewer edges, no strain measured
     rest_scale: dict[int, float]  # REGION_ID -> chart / shell circumference (1.0 without a chart)
     body_girth: dict[str, float]  # cm
     shell_girth: dict[str, float]  # cm
+    room: dict[str, float]  # chart girth minus the body's, cm (negative: smaller than the body)
 
 
 def read_body(path: str) -> Body:
@@ -222,6 +229,14 @@ def _rest_shape(shell: np.ndarray, part: np.ndarray, scale: np.ndarray, body: Bo
     return rest
 
 
+def with_hem(cls: str, chart_row: dict[str, float]) -> dict[str, float]:
+    """A top's chart rarely gives a hip: its hem goes round the hip at the chart's waist (a tee or
+    shirt is cut straight below the chest), so the hip is held to that instead of hanging free."""
+    if cls in ("top", "outer") and "hip" not in chart_row and "waist" in chart_row:
+        return {**chart_row, "hip": chart_row["waist"]}
+    return chart_row
+
+
 def build(body_glb: str | Body, cls: str, short: bool, chart_row: dict[str, float]) -> Garment:
     body = body_glb if isinstance(body_glb, Body) else read_body(body_glb)
     if cls not in COVER:
@@ -235,6 +250,7 @@ def build(body_glb: str | Body, cls: str, short: bool, chart_row: dict[str, floa
     faces = remap[tris]
     part = body.parts[source]
     edges = edges_of(faces)
+    chart_row = with_hem(cls, chart_row)
     measured = [r for r in GIRTHS if r in chart_row and PART[r] in cover]
 
     gap_part = np.full(PART_COUNT, DEFAULT_GAP_CM)
@@ -257,7 +273,17 @@ def build(body_glb: str | Body, cls: str, short: bool, chart_row: dict[str, floa
     # a length), so the garment still hangs from the shoulders.
     scale_part[PART["seat"]] = scale_part[PART["hip"]]
     scale = _smooth(scale_part[part], edges)
-    rest = _rest_shape(shell, part, scale, body)
+    rest = _rest_shape(shell, part, scale, body) + normals * (COLLISION_OFFSET_CM / 100)
+    # Where the size is smaller than the body the cloth cannot take its rest shape: it lies on the
+    # skin. Where it is larger (or the smoothing left the shell wider than the chart) it hangs at
+    # its own size. The simulation pulls the cloth lightly towards this, never towards the shell.
+    skin = body.positions[source]
+    off = ((rest - skin) * normals).sum(axis=1)
+    drape = rest + normals * np.maximum(0.0, MIN_GAP_CM / 100 - off)[:, None]
+    rim = np.zeros(len(source), bool)
+    sorted_e = np.sort(np.concatenate([faces[:, [0, 1]], faces[:, [1, 2]], faces[:, [2, 0]]]), axis=1)
+    uniq, count = np.unique(sorted_e, axis=0, return_counts=True)
+    rim[uniq[count == 1].ravel()] = True
 
     region = np.array([REGION_ID[PART_REGION[p]] if PART_REGION[p] else NEUTRAL for p in part],
                       dtype=np.uint8)
@@ -277,7 +303,10 @@ def build(body_glb: str | Body, cls: str, short: bool, chart_row: dict[str, floa
         weights=body.weights[source].astype(np.float32),
         scale=scale,
         rest=rest,
+        drape=drape,
+        rim=rim,
         rest_scale=rest_scale,
         body_girth=body_girth,
         shell_girth=shell_girth,
+        room={r: float(chart_row[r] - body_girth[r]) for r in measured},
     )

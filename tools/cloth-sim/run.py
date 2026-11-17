@@ -74,23 +74,35 @@ def timeline(motions: list[str]) -> list[tuple[dict, float]]:
 def pinned(g: garment.Garment, body: garment.Body, cls: str) -> np.ndarray:
     """The opening the garment hangs from, which follows the body: the neckline of a top or
     dress, the waistband of a bottom. Without it a tight size slides along the body."""
-    e = np.sort(np.concatenate([g.faces[:, [0, 1]], g.faces[:, [1, 2]], g.faces[:, [2, 0]]]), axis=1)
-    uniq, count = np.unique(e, axis=0, return_counts=True)
-    edge = np.zeros(len(g.vertices), bool)
-    edge[uniq[count == 1].ravel()] = True
     p = g.vertices
     if cls == "bottom":
-        top = p[edge, 1].max()
-        return edge & (p[:, 1] > top - 0.04)
+        return g.rim & (p[:, 1] > p[g.rim, 1].max() - 0.04)
     sh = body.bone("upperarm01.L")
-    return edge & (p[:, 1] > sh[1] - 0.02) & (np.abs(p[:, 0]) < abs(sh[0]) * 0.8)
+    return g.rim & (p[:, 1] > sh[1] - 0.02) & (np.abs(p[:, 0]) < abs(sh[0]) * 0.8)
 
 
-def vertex_strain(rest: np.ndarray, edges: np.ndarray, traj: np.ndarray) -> np.ndarray:
-    """(frames, vertices): mean strain of each vertex's edges against their rest lengths."""
+def skinned(points: np.ndarray, joints: np.ndarray, weights: np.ndarray, body: garment.Body,
+            frames: list) -> np.ndarray:
+    return np.stack([pose.skin(points, joints.astype(int), weights.astype(float),
+                               pose.skin_matrices(body.names, body.parents, body.heads, a, d))
+                     for a, d in frames])
+
+
+def vertex_strain(rest: np.ndarray, edges: np.ndarray, traj: np.ndarray,
+                  follow: np.ndarray | None = None) -> np.ndarray:
+    """(frames, vertices): mean strain of each vertex's edges against their rest lengths.
+
+    `follow` (frames, vertices, 3) is the garment carried by the skin alone (no cloth). Where the
+    moving body stretches its own surface (a shoulder as the arm lifts), an edge's rest length
+    stretches with it: what counts is the strain the cloth adds beyond the skin's own."""
     rest_len = np.linalg.norm(rest[edges[:, 0]] - rest[edges[:, 1]], axis=1)
+    ref = np.broadcast_to(rest_len, (len(traj), len(edges)))
+    if follow is not None:
+        start = np.linalg.norm(follow[0][edges[:, 0]] - follow[0][edges[:, 1]], axis=1)
+        now = np.linalg.norm(follow[:, edges[:, 0]] - follow[:, edges[:, 1]], axis=2)
+        ref = ref * np.maximum(1.0, now / np.maximum(start, 1e-9))
     length = np.linalg.norm(traj[:, edges[:, 0]] - traj[:, edges[:, 1]], axis=2)
-    strain = length / np.maximum(rest_len, 1e-9) - 1
+    strain = length / np.maximum(ref, 1e-9) - 1
     out = np.zeros((len(traj), len(rest)))
     count = np.zeros(len(rest))
     for c in (0, 1):
@@ -99,16 +111,75 @@ def vertex_strain(rest: np.ndarray, edges: np.ndarray, traj: np.ndarray) -> np.n
     return out / np.maximum(count, 1)
 
 
-def tension(strain: np.ndarray, region: np.ndarray, stretch_pct: float | None) -> dict[str, float]:
-    """Per fit area: the 95th percentile of strain over its vertices and all frames, over the
-    fabric's stretch capacity, 0 slack to 1 tight."""
+PINCH_M = 0.025  # cloth this close to two body parts at once is caught between them
+_P = garment.PART
+_ARM = [_P["upperArm"], _P["lowerArm"], _P["end"]]
+_TORSO = [_P["chest"], _P["waist"], _P["hip"], _P["seat"], _P["shoulder"]]
+_LEG = [_P["thigh"], _P["lowerLeg"]]
+
+
+def pinched(traj: np.ndarray, bodies: np.ndarray, body: garment.Body) -> np.ndarray:
+    """(frames, vertices): cloth caught between an arm and the torso, or between the legs. Its
+    strain is the squeeze of two colliding body surfaces, not the garment's size, so it is left
+    out of the tension (the arms hang against the sides in WALK, RUN and SIT)."""
+    parts, x = body.parts, body.positions[:, 0]
+    pairs = [(np.isin(parts, _ARM), np.isin(parts, _TORSO)),
+             (np.isin(parts, _LEG) & (x > 0), np.isin(parts, _LEG) & (x <= 0))]
+    out = np.zeros(traj.shape[:2], bool)
+
+    def near(p, q):
+        d2 = (q * q).sum(1)[None, :] - 2 * p @ q.T + (p * p).sum(1)[:, None]
+        return d2.min(axis=1) < PINCH_M ** 2
+
+    for f in range(len(traj)):
+        p = traj[f].astype(np.float32)
+        for a, b in pairs:
+            qa = bodies[f][a][::2].astype(np.float32)
+            qb = bodies[f][b][::2].astype(np.float32)
+            out[f] |= near(p, qa) & near(p, qb)
+    return out
+
+
+# The loose side of the scale (src/lib/fit/config.ts): `snugFrom`, and per garment type and area
+# the room (cm) past which an area reads loose, `EASE[cls][region].looseAt`. A test keeps these
+# equal to the app's.
+SNUG_FROM = 0.6
+LOOSE_AT = {
+    "top": {"chest": 16, "waist": 18, "hip": 14, "upperArm": 10, "shoulder": 4, "torso": 10},
+    "outer": {"chest": 16, "waist": 18, "hip": 14, "upperArm": 10, "shoulder": 5, "torso": 10},
+    "bottom": {"waist": 6, "hip": 12, "thigh": 10},
+    "dress": {"chest": 14, "waist": 14, "hip": 16, "shoulder": 4, "torso": 10},
+}
+
+
+def slack(room_cm: float, loose_at: float) -> float:
+    """Tension of cloth that is not stretched: `SNUG_FROM` with no room, falling off with the
+    room the chart leaves round the body. Strain cannot tell a comfortable area from a loose
+    one (both hang at zero strain), so this side comes from the garment's room on this body."""
+    return SNUG_FROM * float(np.exp(-max(room_cm, 0.0) / loose_at))
+
+
+def tension(strain: np.ndarray, region: np.ndarray, stretch_pct: float | None,
+            keep: np.ndarray | None = None, room: dict[str, float] | None = None,
+            cls: str = "top") -> dict[str, float]:
+    """Per fit area, 0 slack to 1 tight: the 95th percentile of strain over its vertices and all
+    frames (only where `keep`) over the fabric's stretch capacity, or, where that is lower, the
+    slack reading from the area's `room`."""
     cap = fabric.capacity(stretch_pct)
+    keep = np.ones(strain.shape, bool) if keep is None else keep
     out = {}
     for rid in np.unique(region):
         if int(rid) == garment.NEUTRAL:
             continue
-        p95 = float(np.percentile(strain[:, region == rid], 95))
-        out[REGION_NAME[int(rid)]] = round(float(np.clip(p95 / cap, 0, 1)), 4)
+        name = REGION_NAME[int(rid)]
+        m = region == rid
+        values = strain[:, m][keep[:, m]]
+        if not values.size:
+            values = strain[:, m].ravel()
+        t = float(np.clip(np.percentile(values, 95) / cap, 0, 1))
+        if room and name in room and name in LOOSE_AT.get(cls, {}):
+            t = max(t, slack(room[name], LOOSE_AT[cls][name]))
+        out[name] = round(t, 4)
     return out
 
 
@@ -133,21 +204,29 @@ def prepare(body: garment.Body, job: dict, chart: dict, frames: list,
     g = garment.build(body, job["cls"], bool(job.get("short")), chart)
     fab = job.get("fabric") or {}
     params = fabric.params(fab.get("gsm"), fab.get("stretch_pct"), fab.get("weave"))
-    base = np.stack([pose.skin(g.vertices, g.joints.astype(int), g.weights.astype(float),
-                               pose.skin_matrices(body.names, body.parents, body.heads, a, d))
-                     for a, d in frames])
+    base = skinned(g.drape, g.joints, g.weights, body, frames)
     return g, {"body": body_frames.astype(np.float32), "body_faces": body.faces,
                "garment": base.astype(np.float32), "garment_faces": g.faces,
                "rest": g.rest.astype(np.float32), "pin": pinned(g, body, job["cls"]),
                "fps": FPS, "fabric": json.dumps(params)}
 
 
-def measure(g: garment.Garment, traj: np.ndarray, body_frames: np.ndarray,
-            stretch_pct: float | None) -> dict | None:
+def strain_of(g: garment.Garment, body: garment.Body, traj: np.ndarray, body_frames: np.ndarray,
+              garment_frames: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """Strain and the vertices it is read from, frames from the settled one on."""
+    t, follow = traj[SETTLE - 1:], garment_frames[SETTLE - 1:]
+    strain = vertex_strain(g.rest, g.edges, t, follow)
+    keep = ~pinched(t, body_frames[SETTLE - 1:], body) & ~g.rim[None, :]
+    return strain, keep
+
+
+def measure(g: garment.Garment, body: garment.Body, traj: np.ndarray, body_frames: np.ndarray,
+            garment_frames: np.ndarray, stretch_pct: float | None, cls: str = "top") -> dict | None:
     """Tension per area, or None when the simulation blew up."""
     if not np.isfinite(traj).all() or furthest(traj, body_frames) > EXPLODED_M:
         return None
-    return tension(vertex_strain(g.rest, g.edges, traj[SETTLE - 1:]), g.region, stretch_pct)
+    strain, keep = strain_of(g, body, traj, body_frames, garment_frames)
+    return tension(strain, g.region, stretch_pct, keep, g.room, cls)
 
 
 def write_garment(path: Path, g: garment.Garment, body: garment.Body, traj: np.ndarray) -> None:
@@ -176,7 +255,8 @@ def _one_size(blender: str, body: garment.Body, job: dict, name: str, chart: dic
         if p.returncode != 0 or not dst.exists():
             return {**unstable(g.region), "error": (p.stderr or p.stdout)[-500:]}
         traj = np.load(dst)["traj"].astype(np.float64)
-    t = measure(g, traj, body_frames, (job.get("fabric") or {}).get("stretch_pct"))
+    t = measure(g, body, traj, body_frames, arrays["garment"].astype(np.float64),
+                (job.get("fabric") or {}).get("stretch_pct"), job["cls"])
     if t is None:
         return unstable(g.region)
     write_garment(out / f"{name}.glb", g, body, traj)

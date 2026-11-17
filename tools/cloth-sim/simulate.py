@@ -6,7 +6,8 @@ Blender is GPL and runs only as this separate process; the app never imports it.
 the scene needs comes in `in.npz` (written by run.py, body-file axes: Y up, facing +Z):
   body (frames, n, 3)         the posed body per frame: the collider
   body_faces (m, 3)
-  garment (frames, g, 3)      the garment shell skinned to each frame: the pinned opening
+  garment (frames, g, 3)      the garment where it sits (garment.py drape) skinned to each
+                              frame: the pinned opening
                               follows it, and frame 0 is where the cloth starts
   garment_faces (k, 3)
   rest (g, 3)                 the garment at its size: the springs' rest lengths
@@ -31,11 +32,11 @@ BODY_THICKNESS = 0.004
 CLOTH_DISTANCE = 0.005
 COLLISION_QUALITY = 3
 STEPS = 5  # cloth quality: substeps per frame
-FRICTION = 5.0
-PIN_STIFFNESS = 5.0
-# Every other vertex is pulled lightly towards the garment skinned to the body, so the cloth
-# cannot creep where the arm folds against the torso (WALK lowers the arms into the side).
-SOFT_GOAL = 0.2
+FRICTION = 0.5  # low, so cloth dragged by a moving arm slides back
+PIN_STIFFNESS = 30.0
+# Every other vertex is pulled lightly towards where it sits on the standing body, carried by
+# the skin (garment.py `drape`), so cloth dragged where the arm folds against the torso returns.
+SOFT_GOAL = 0.5
 
 
 def to_blender(p: np.ndarray) -> np.ndarray:
@@ -91,7 +92,7 @@ def run(src: str, dst: str) -> None:
     # One-sided: cloth that gets behind the skin is pushed back out, not held inside.
     body.collision.use_culling = True
     body.collision.use_normal = True
-    body.collision.cloth_friction = FRICTION
+    body.collision.cloth_friction = float(os.environ.get("CLOTH_FRICTION", FRICTION))
     body.collision.damping = 0.0
 
     g = mesh_object("garment", garments[0], d["garment_faces"])

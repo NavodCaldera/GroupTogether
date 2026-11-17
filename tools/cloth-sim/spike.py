@@ -70,9 +70,10 @@ def main(argv: list[str]) -> None:
         simulate.run(str(src), str(dst))
         sim = time.perf_counter() - t1
         traj = np.load(dst)["traj"].astype(np.float64)
-        strain = run.vertex_strain(g.rest, g.edges, traj)
-        motion = slice(run.SETTLE, len(traj))
-        chest = g.part == garment.PART["chest"]
+        follow = arrays["garment"].astype(np.float64)
+        strain, keep = run.strain_of(g, body, traj, bodies, follow)  # from the settled frame
+        motion = slice(1, len(strain))
+        chest = (g.part == garment.PART["chest"]) & ~g.rim
         check = list(range(run.SETTLE - 1, len(traj), 3))
         normals = [garment.vertex_normals(bodies[f], body.faces) for f in check]
         inside = inside_fraction(traj[check], bodies[check], normals)
@@ -86,9 +87,12 @@ def main(argv: list[str]) -> None:
             "max_distance_m": round(run.furthest(traj, bodies), 3),
             "finite": bool(np.isfinite(traj).all()),
             "inside_settled": round(inside[0], 3), "inside_max": round(max(inside), 3),
-            "settled_chest_strain": round(float(strain[run.SETTLE - 1][chest].mean()), 4),
+            "settled_chest_strain": round(float(strain[0][chest].mean()), 4),
             "mean_chest_strain": round(float(strain[motion][:, chest].mean()), 4),
-            "tension": run.tension(strain[run.SETTLE - 1:], g.region, FABRIC["stretch_pct"]),
+            "pinched": round(float(1 - keep[:, ~g.rim].mean()), 3),
+            "strain_tension": run.tension(strain, g.region, FABRIC["stretch_pct"], keep),
+            "tension": run.tension(strain, g.region, FABRIC["stretch_pct"], keep, g.room, "top"),
+            "room": {k: round(v, 1) for k, v in g.room.items()},
             "pinned": int(arrays["pin"].sum()),
         }
         np.savez_compressed(out / f"{name}.npz", strain=strain.astype(np.float32), part=g.part,
