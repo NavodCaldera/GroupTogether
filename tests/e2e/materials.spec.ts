@@ -77,10 +77,10 @@ test("the factory adds a lab result and it shows as not accredited", async ({ pa
   await page.goto(`/seller/products/${tee}`);
   const section = page.getByTestId("factory-material");
   await expect(section.getByRole("radio", { name: /Combed cotton jersey/ })).toBeChecked();
-  await expect(section.getByLabel("GSM")).toHaveValue("180");
+  await expect(section.getByRole("textbox", { name: "GSM", exact: true })).toHaveValue("180");
   await section.getByText("Add a lab result").click();
-  await section.getByLabel("Test").selectOption("ISO_3801:mass_per_area");
-  await section.getByLabel("Result").fill("176");
+  await section.getByLabel("Test", { exact: true }).selectOption("ISO_3801:mass_per_area");
+  await section.getByLabel("Result", { exact: true }).fill("176");
   await section.getByLabel("Tested on").fill("2026-10-01");
   await section.getByLabel("Other lab name").fill("Colombo Test House");
   await section.getByLabel("Report (PDF, up to 10 MB)").setInputFiles({
@@ -96,7 +96,7 @@ test("the factory adds a lab result and it shows as not accredited", async ({ pa
   );
   expect(report.status()).toBe(200);
   expect(report.headers()["content-type"]).toBe("application/pdf");
-  await expect(section.getByText("Factory-declared")).toBeVisible();
+  await expect(section.getByText("Factory-declared").first()).toBeVisible();
   await noSideScroll(page);
 
   // A result from an unchecked lab does not move the weight slider.
@@ -110,7 +110,7 @@ test("figures far from the library need a tick and reach the admin", async ({ pa
   await signIn(page, owner);
   await page.goto(`/seller/products/${tee}`);
   const section = page.getByTestId("factory-material");
-  await section.getByLabel("GSM").fill("300");
+  await section.getByRole("textbox", { name: "GSM", exact: true }).fill("300");
   await section.getByRole("button", { name: "Save material" }).click();
   await expect(section.getByRole("alert")).toContainText("Tick the box to confirm");
   await section.getByRole("checkbox").check();
