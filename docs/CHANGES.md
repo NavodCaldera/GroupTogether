@@ -15,6 +15,10 @@ Newest first.
   - simulated tensions outlived a fit-data change;
   - drapes were not dropped when a standard body file changed;
   - a Blender crash or timeout read as "tight" rather than being retried (fixed on the cloth branch).
+- Merged (f4b93c8): `npm run check` green (210 unit tests), integration 309/309 on the branch.
+  - A Deep Fit job now waits 10 min per size + 5 min (at most 12 sizes) before another worker may
+    take it. After the attempt limit it fails with "timed out" and the buyer is told.
+  - The drape loader prints a skip count and exits 1 when products are skipped.
 - Minor review fixes in the same branch:
   - the loader's transaction timeout, product lock and file-copy order;
   - failed jobs that weren't the buyer's fault no longer count towards the daily limit;
