@@ -14,6 +14,9 @@ from dataclasses import dataclass
 import numpy as np
 import torch
 
+from bands import GIRTH_STEP as _GIRTH_STEP
+from bands import HIP_BAND, WAIST_BAND
+
 PHENOTYPES = ("gender", "age", "muscle", "weight", "height", "proportions")
 
 # Fine-stage controls: the ones a front and side outline, height and a tape can see. Each runs
@@ -42,9 +45,6 @@ LOCAL = (
 # frame as the phone's measuring (src/components/fit/capture/calibration.ts).
 BANDS = tuple(round(0.2 + 0.05 * i, 2) for i in range(18))  # 0.20 .. 1.05
 CHEST_AT = 0.28
-WAIST_BAND = (0.45, 0.8)
-HIP_BAND = (-0.1, 0.25)  # around the hip line
-_GIRTH_STEP = 0.025
 
 _ARM_BONES = ("upperarm", "lowerarm", "wrist", "finger", "metacarpal")
 

@@ -14,10 +14,14 @@ from __future__ import annotations
 import json
 import math
 import struct
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+
+sys.path.append(str(Path(__file__).resolve().parents[1] / "body-fitting"))
+import bands  # noqa: E402  (plain numpy: where a size chart's waist and hip go)
 
 # Same order as src/lib/fit/regions.ts REGION_ID; 255 is neutral (plain garment colour).
 REGION_ID = {"chest": 0, "waist": 1, "hip": 2, "upperArm": 3, "thigh": 4, "shoulder": 5, "torso": 6}
@@ -160,14 +164,18 @@ def hull_perimeter(pts: np.ndarray) -> float:
 
 
 FULLEST = ("thigh",)  # taped round the fullest part (just below the crotch), not the middle
+# Taped as a size chart means them (tools/body-fitting/bands.py): the narrowest waist and the
+# widest hip, by front width, among rows between the shoulder and hip joints.
+CHART_ROW = {"waist": min, "hip": max}
 _SLICE_M = 0.012
 _SCAN_STEP_M = 0.005
 
 
 def girth(points: np.ndarray, parts: np.ndarray, body: Body, region: str) -> float:
     """Tape measure (cm) round `region`: a 2.4 cm slice through the middle of its vertices
-    (the thigh: its fullest slice), across the torso, or across the left limb at right angles to
-    its bone. tools/fit-simulation/clusters.py lists the standard bodies' limbs with this."""
+    (the thigh: its fullest slice; the waist and hip: the rows a size chart means, as
+    tools/fit-simulation/clusters.py lists them), across the torso, or across the left limb at
+    right angles to its bone. clusters.py lists the standard bodies' limbs with this."""
     if region in LIMB_AXIS:
         a, b = (body.bone(n) for n in LIMB_AXIS[region])
         axis = (b - a) / np.linalg.norm(b - a)
@@ -184,13 +192,23 @@ def girth(points: np.ndarray, parts: np.ndarray, body: Body, region: str) -> flo
     u /= np.linalg.norm(u)
     v = np.cross(axis, u)
 
-    def tape(at: float, least: int = 3) -> float:
+    def section(at: float) -> np.ndarray:
         band = pool & (np.abs(along - at) < _SLICE_M)
-        if band.sum() < least:
-            return float("nan")
         q = points[band] - np.outer(along[band], axis)
-        return 100 * hull_perimeter(np.stack([q @ u, q @ v], axis=1))
+        return np.stack([q @ u, q @ v], axis=1)
 
+    def tape(at: float, least: int = 3) -> float:
+        q = section(at)
+        return 100 * hull_perimeter(q) if len(q) >= least else float("nan")
+
+    if region in CHART_ROW:
+        top = (body.bone("upperarm01.L")[1] + body.bone("upperarm01.R")[1]) / 2
+        hips = (body.bone("upperleg01.L")[1] + body.bone("upperleg01.R")[1]) / 2
+        cuts = [q for q in (section(top - t * (top - hips)) for t in bands.rows(region))
+                if len(q) >= 8]
+        if not cuts:
+            return float("nan")
+        return 100 * hull_perimeter(CHART_ROW[region](cuts, key=lambda q: np.ptp(q[:, 0])))
     if region in FULLEST:
         lo, hi = along[sel].min() + _SLICE_M, along[sel].max() - _SLICE_M
         tapes = [tape(t, 8) for t in np.arange(lo, hi, _SCAN_STEP_M)]
@@ -279,9 +297,9 @@ def build(body_glb: str | Body, cls: str, short: bool, chart_row: dict[str, floa
     normals = vertex_normals(body.positions, body.faces)[source]
     shell = body.positions[source] + normals * gap[:, None]
 
-    whole = body.positions.copy()
-    whole[source] = shell
-    shell_girth = {r: girth(whole, body.parts, body, r) for r in measured}
+    # Taped on the garment alone: a top's hem stops above the seat, where the body's hip may be
+    # widest, so the garment's own circumference is what its rest scale compares the chart with.
+    shell_girth = {r: girth(shell, part, body, r) for r in measured}
     scale_part = np.ones(PART_COUNT)
     for r in measured:
         scale_part[PART[r]] = float(np.clip(chart_row[r] / shell_girth[r], *SCALE_RANGE))
