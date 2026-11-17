@@ -14,7 +14,8 @@ npm install
 cp .env.example .env
 npm run db:start      # local PostgreSQL on 5546 (dev) and 5547 (test)
 npx prisma migrate deploy
-npm run db:seed       # demo data, password "password123"
+npm run db:seed       # demo data, password "password123" (loads the material library too)
+npm run materials:load  # material library from seeds/ (safe to re-run; on real data instead of db:seed)
 npm run fit:models    # pose models for on-phone measuring (~15 MB, once)
 npm run dev           # http://localhost:3002
 ```

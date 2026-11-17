@@ -6,6 +6,22 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - Material Library and Material Card built (DEC-022)
+
+- The owner asked to finish the Material Library build. Built: seed files (33 materials,
+  49 sources, quoted evidence, 8 labs), the provenance check in `npm run check`,
+  `npm run materials:load`, services, the buyer Material Card and compare page, the factory
+  Material section, the Factory admin **Materials** tab, demo data and tests (unit,
+  integration, browser). How it works: [material-system.md](material-system.md).
+- The card replaces the old material panel: the comfort temperature range and the
+  "Breathability n of 5" line are gone, and the fit form no longer asks for gsm, weave,
+  comfort temperatures or breathability.
+- New rule `MAT-001`; `FIT-001` and `UX-001` amended; `DEC-022` records four more build calls:
+  library edited in `seeds/` (admin pages read and publish), unquoted evidence never used,
+  factory gsm shown as declared, and no lab counts as accredited until its scope is checked.
+- Waiting for the owner: sign-off on the rule bands before publishing materials; lab scopes;
+  a reference swatch set for measured bars; the sources that could not be read.
+
 ## 2026-11-17 - Loose shirts no longer read tight when the arms swing down (Phase 6)
 
 - When the arms swing down while walking, running or sitting, a loose size's side hangs

@@ -37,6 +37,7 @@ guidance, not business policy. Verify code pointers before editing.
 - Generated client output is `src/generated/prisma`; do not edit it. The development client cache detects a regenerated Prisma client class.
 - Local Postgres uses ports 5546 (`groupbasket`) and 5547 (`groupbasket_test`), with data in `.data/pg`. Test and development database URLs must differ.
 - The main seed clears tables. Treat fixture accounts, agents, baskets in every stage and the demo pickup code as test dependencies (`src/lib/demo-accounts.ts`); inspect the seed and browser setup before changing them.
+- Material library (`DEC-022`): `npm run materials:load` ([material-load.ts](../../src/server/material-load.ts)) upserts `seeds/` by code and never truncates or changes publish status, so it is safe on real data; `db:seed` calls it and publishes only `cj_crs`, `cpique` and `cfleece` for the tee, polo and hoodie. `MethodologyRule` is append-only (trigger): change a rule by raising its version in `src/lib/materials/rules.ts`. `checkLibrary` must pass before any load.
 - The seed loads every committed `public/fit-assets/seed-<name>` (garments in `tools/fit-simulation/seed/garments`, matched by product title) and measures Dilan, Ravindu, Sachini and Ayesha (`DEC-020`); Track pants stays unapproved. Regenerate with `pipeline.py ... --all`. `BodyProfile` stores numbers only, never photos.
 - Demo products and test fixtures use clothing; the legacy SHOES schema enum remains for stored rows. Consult implementation status rather than copying historical fixture inventories.
 

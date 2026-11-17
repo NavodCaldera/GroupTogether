@@ -336,8 +336,9 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 
 ### DEC-022 - Material Library and Material Card
 
-**Status:** Plan approved **2026-11-16**; build in progress. **Rules:** `FIT-001`, `UX-001`,
-`SUP-002`. Design: [material library design](superpowers/specs/2026-11-16-material-library-design.md).
+**Status:** Built **2026-11-17** (`MAT-001`); library unpublished until the owner signs off the
+rule bands. **Rules:** `MAT-001`, `FIT-001`, `UX-001`, `SUP-002`. How it works:
+[material-system.md](material-system.md). Design: [material library design](superpowers/specs/2026-11-16-material-library-design.md).
 
 The owner asked for a curated fabric library that factories pick from per product, and a buyer
 Material Card whose every value is traceable to a lab measurement, a published source or a
@@ -363,6 +364,17 @@ Claude's calls (owner to confirm):
    draft until the owner reviews the tables and publishes them.
 6. **Exception to `UX-001`:** the Material Card may show the verification badge, the word
    _estimate_, _Not yet measured_ and a _How we know this_ disclosure per value.
+7. (Build, 2026-11-17) Sources, evidence, materials, labs and rules are edited in `seeds/` and
+   loaded with `npm run materials:load`, so every change is reviewed in git and the provenance
+   check runs on it. Admin pages show these tables and publish materials; they do not edit them.
+8. (Build) Evidence whose quote could not be read from the source is stored but never used by a
+   rule or the card. Rules that would rest on it stay inactive (the modal, polyester and softener
+   softness shifts; the knit-structure breathability shift, whose source contradicts itself).
+9. (Build) A factory's gsm is shown as _declared_, not measured; an accredited mass test
+   (ISO 3801, EN 12127, ASTM D3776) makes the weight bar _measured_.
+10. (Build) Every lab's accredited scope is empty because none of the scope documents could be
+    read (404). Until a scope is checked and recorded with its date, no lab result counts as
+    accredited.
 
 ### DEC-021 - Personal body mesh and Deep Fit Test
 
