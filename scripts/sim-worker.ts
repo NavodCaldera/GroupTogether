@@ -16,19 +16,20 @@
  *       { "body": "<abs path to the buyer's body.glb>", "cls": "top"|"bottom"|"dress"|"outer",
  *         "short": bool, "sizes": { "M": { "chest": 102, ... }, ... },
  *         "fabric": { "gsm": n|null, "stretch_pct": n|null, "weave": s|null },
- *         "motions": ["WALK","RUN","REACH","SIT"], "out_dir": "<abs path>" }
+ *         "motions": ["WALK","RUN","REACH","SIT"], "timeout_s": 600, "out_dir": "<abs path>" }
  *   - The LAST line of stdout is the result JSON (earlier lines are logs):
  *       { "status": "ok"|"failed", "seconds": n,
  *         "sizes": { "M": { "tension": { "chest": 0.31, ... }, "garment": "M.glb",
  *                           "note"?: "unstable" } } }
  *     Garment paths are relative to out_dir. A size that explodes or times out has every tension
  *     1.0 and "note": "unstable"; other sizes still return.
- *   - A non-zero exit, no parsable last line, or no result in TIMEOUT_MS is a crash: the job is
- *     retried (3 attempts in all). "status": "failed" fails the job at once.
+ *   - A non-zero exit, no parsable last line, or no result in time (`simTimeoutMs`: each size's
+ *     timeout_s times the sizes, plus a start-up margin) is a crash: the job is retried (3 attempts
+ *     in all). On a timeout the simulator and every Blender it started are stopped.
+ *     "status": "failed" fails the job at once.
  * Blender (GPL) runs only as that separate process; nothing from it is imported here.
  */
 import "dotenv/config";
-import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve, sep } from "node:path";
@@ -37,27 +38,33 @@ import { PrismaClient } from "../src/generated/prisma/client";
 import {
   claimDeepFit,
   runDeepFitJob,
+  SIM_SIZE_TIMEOUT_MS,
+  simTimeoutMs,
   type SimResult,
   type SimRunner,
 } from "../src/server/deep-fit-jobs";
+import { killTree, spawnTree } from "../src/server/process-tree";
 import { LocalDiskStorage, storageDir } from "../src/server/storage/local";
 
 const PYTHON = process.env.SIM_PYTHON || "python";
 const SCRIPT = resolve(process.env.SIM_SCRIPT || join("tools", "cloth-sim", "run.py"));
-/** run.py gives each size 600 s; four sizes plus Blender start-up fit well inside this. */
-const TIMEOUT_MS = 60 * 60 * 1000;
 
 /** Runs the simulator once and returns its last stdout line. */
-function runSimulator(job: object): Promise<string> {
+function runSimulator(job: object, timeoutMs: number): Promise<string> {
   return new Promise((done, fail) => {
-    const child = spawn(PYTHON, [SCRIPT], { stdio: ["pipe", "pipe", "inherit"], env: process.env });
+    const child = spawnTree(PYTHON, [SCRIPT], {
+      stdio: ["pipe", "pipe", "inherit"],
+      env: process.env,
+    });
     let out = "";
+    let timedOut = false;
     const timer = setTimeout(() => {
-      child.kill();
-      fail(new Error("simulation timed out"));
-    }, TIMEOUT_MS);
-    child.stdout.setEncoding("utf8");
-    child.stdout.on("data", (chunk: string) => {
+      timedOut = true;
+      // run.py's Blender processes too: child.kill() alone leaves them running.
+      void killTree(child).finally(() => fail(new Error("simulation timed out")));
+    }, timeoutMs);
+    child.stdout!.setEncoding("utf8");
+    child.stdout!.on("data", (chunk: string) => {
       out += chunk;
       if (out.length > 1_000_000) out = out.slice(-500_000); // keep the tail; logs can be long
     });
@@ -67,10 +74,11 @@ function runSimulator(job: object): Promise<string> {
     });
     child.on("close", (code) => {
       clearTimeout(timer);
+      if (timedOut) return fail(new Error("simulation timed out"));
       if (code !== 0) return fail(new Error(`simulator exited with ${code}`));
       done(out.trim().split(/\r?\n/).at(-1) ?? "");
     });
-    child.stdin.end(JSON.stringify(job));
+    child.stdin!.end(JSON.stringify(job));
   });
 }
 
@@ -81,7 +89,9 @@ const simulate: SimRunner = async (input) => {
     const outDir = join(dir, "out");
     await writeFile(body, input.body);
     const { body: _bytes, ...rest } = input;
-    const result = JSON.parse(await runSimulator({ ...rest, body, out_dir: outDir })) as SimResult;
+    const job = { ...rest, body, out_dir: outDir, timeout_s: SIM_SIZE_TIMEOUT_MS / 1000 };
+    const timeout = simTimeoutMs(Object.keys(input.sizes).length);
+    const result = JSON.parse(await runSimulator(job, timeout)) as SimResult;
     const garments: Record<string, Uint8Array> = {};
     for (const [size, s] of Object.entries(result.sizes ?? {})) {
       if (!s.garment) continue;
