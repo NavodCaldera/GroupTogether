@@ -7,3 +7,6 @@ for business scope, participants and stable policy IDs.
 Check [implementation status](docs/implementation-status.md) before claiming a feature
 exists and [decisions](docs/decisions.md) before filling in unresolved commercial rules.
 Specialist files provide technical guidance; historical notes do not override current policy.
+
+Anything new is built on its own branch from `origin/main`, merged through a pull request
+once GitHub checks pass (see the branch rule in [AGENTS.md](AGENTS.md)).

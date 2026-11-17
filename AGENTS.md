@@ -61,6 +61,7 @@ Their presence does not require spawning agents.
 - Validate proportionately: formatting and links for documentation; relevant rule/integration tests for lifecycle, stock, payment or access changes; browser journeys for affected flows. Run required code checks for code changes and report what actually ran.
 - `npm run check` also runs monetary structural checks, tooling safety tests and monetary property tests. Test entry points require a loopback `groupbasket_test` database and reject the same development database even when credentials or URL spelling differ. The development inspector is separate, fixed to `localhost:5546/groupbasket`, and must use the verified read-only role.
 - Format touched files with installed Prettier and preserve unrelated changes. These instructions do not authorize committing, pushing, deploying, resetting data or making external commercial commitments.
+- Branch rule (owner, 2026-11-18): any new work (feature, fix or change) is done on a new branch cut from current `origin/main` (`feature/<name>`, `fix/<name>`, `docs/<name>`), never directly on `main`. When committing is authorized: push the branch, open a pull request, and merge into `main` only after its GitHub checks pass; then delete the branch.
 
 ### Documentation maintenance
 
