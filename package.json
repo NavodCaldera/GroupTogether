@@ -39,7 +39,7 @@
     "materials:load": "tsx --import ./prisma/seed-hooks.mjs scripts/load-materials.ts"
   },
   "dependencies": {
-    "@mediapipe/tasks-vision": "1.1.1",
+    "@mediapipe/tasks-vision": "1.2.3",
     "@prisma/adapter-pg": "^7.10.0",
     "@prisma/client": "^7.10.0",
     "@sentry/nextjs": "11.10.0",
