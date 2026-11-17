@@ -220,6 +220,53 @@ def _nearest(p: np.ndarray, q: np.ndarray) -> np.ndarray:
     return out
 
 
+_ARM_BINS = 6  # slices along an arm segment, each with its own radius
+
+
+def _arm_axis(points: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """An arm segment's skin as a tube: centre, axis, slice ends along it and each slice's
+    radius (90th percentile of the skin's distance from the axis)."""
+    c = points.mean(axis=0)
+    u = np.linalg.svd(points - c, full_matrices=False)[2][0]
+    t = (points - c) @ u
+    r = np.linalg.norm(points - c - np.outer(t, u), axis=1)
+    ends = np.linspace(t.min(), t.max(), _ARM_BINS + 1)
+    k = np.clip(np.searchsorted(ends, t) - 1, 0, _ARM_BINS - 1)
+    radius = np.array([np.percentile(r[k == b], 90) if (k == b).any() else r.max()
+                       for b in range(_ARM_BINS)])
+    return c, u, ends, radius
+
+
+def _torso_out_of_arms(goal: np.ndarray, skin: np.ndarray, body: garment.Body,
+                       body_frame: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """How far (m) and which way each torso goal vertex must move to sit `CLEAR_M` outside every
+    arm segment, always on the torso's side of the arm: towards `skin`, the torso point the cloth
+    was cut from."""
+    need = np.zeros(len(goal))
+    way = np.zeros_like(goal)
+    x = body.positions[:, 0]
+    # The `end` part is the hands and the feet: a hand is the part above the knees.
+    hand = (body.parts == _P["end"]) & (body.positions[:, 1] > body.bone("lowerleg01.L")[1])
+    for part in (body.parts == _P["upperArm"], body.parts == _P["lowerArm"], hand):
+        for left in (True, False):
+            sel = part & ((x > 0) == left)
+            if sel.sum() < 10:
+                continue
+            c, u, ends, radius = _arm_axis(body_frame[sel])
+            t = (goal - c) @ u
+            k = np.clip(np.searchsorted(ends, t) - 1, 0, _ARM_BINS - 1)
+            reach = radius[k] + CLEAR_M
+            q = goal - c - np.outer(t, u)
+            to_skin = skin - c
+            d = to_skin - np.outer(to_skin @ u, u)
+            d /= np.maximum(np.linalg.norm(d, axis=1, keepdims=True), 1e-9)
+            inside = (t >= ends[0]) & (t <= ends[-1]) & (np.linalg.norm(q, axis=1) < reach)
+            n = np.where(inside, np.maximum(0.0, reach - (q * d).sum(axis=1)), 0.0)
+            more = n > need
+            need[more], way[more] = n[more], d[more]
+    return need, way
+
+
 def clear_of_limbs(goal: np.ndarray, g: garment.Garment, body: garment.Body,
                    body_frames: np.ndarray) -> np.ndarray:
     """The skinned drape kept `CLEAR_M` outside the body parts that do not carry it.
@@ -228,14 +275,30 @@ def clear_of_limbs(goal: np.ndarray, g: garment.Garment, body: garment.Body,
     swings down against the side (WALK, RUN, SIT) the torso's drape lies inside the arm and the
     sleeve's inside the torso. The soft goal and the pins then pull that cloth into a collider
     that pushes it back out: the cloth is stretched round the arm whatever its size, and the
-    looser the size the more cloth hangs in the arm's way. Each such drape vertex is moved out
-    along the nearest skin vertex's normal of the other part."""
+    looser the size the more cloth hangs in the arm's way.
+
+    Torso cloth is moved out of each arm segment towards the torso, between the arm and the
+    side. A loose size stands 5-7 cm off the skin, past the middle of a lowered arm: pushed
+    along the nearest skin's normal, some of it went out the arm's far side and its neighbours
+    the near side, so the arm cut through the cloth and stretched the edges across it to several
+    times their length (an Oxford shirt's XL read fully tight). Then every drape vertex still
+    inside a part that does not carry it (torso cloth at the armpit, where the arm is no tube;
+    sleeve cloth against the torso or the other arm) is moved out along the nearest skin
+    vertex's normal of that part."""
     out = goal.copy()
+    torso = np.flatnonzero(np.isin(g.part, _TORSO))
+    if len(torso):
+        skin = [body_frames[f][g.source[torso]] for f in range(len(goal))]
+        # What already sits that close standing (the seam under the arm) stays where it is.
+        start, _ = _torso_out_of_arms(goal[0, torso], skin[0], body, body_frames[0])
+        for f in range(1, len(goal)):
+            n, way = _torso_out_of_arms(goal[f, torso], skin[f], body, body_frames[f])
+            out[f, torso] += way * np.maximum(0.0, n - start)[:, None]
     bp, gp = body.parts, g.part
     arm = np.isin(bp, _ARM)
     torso_b = np.isin(bp, _TORSO)
     groups = [
-        (np.isin(gp, _TORSO), arm),
+        (np.isin(gp, _TORSO), arm),  # what the tube missed: the armpit, where arm meets torso
         (np.isin(gp, _ARM) & (g.vertices[:, 0] > 0), torso_b | (arm & (body.positions[:, 0] <= 0))),
         (np.isin(gp, _ARM) & (g.vertices[:, 0] <= 0), torso_b | (arm & (body.positions[:, 0] > 0))),
     ]
@@ -243,8 +306,8 @@ def clear_of_limbs(goal: np.ndarray, g: garment.Garment, body: garment.Body,
 
     def need(f, ci, oi):
         b = body_frames[f]
-        k = oi[_nearest(goal[f, ci], b[oi])]
-        d = goal[f, ci] - b[k]
+        k = oi[_nearest(out[f, ci], b[oi])]
+        d = out[f, ci] - b[k]
         off = (d * normals[f][k]).sum(axis=1)
         inside = (d * d).sum(axis=1) < REACH_M ** 2
         return np.where(inside, np.maximum(0.0, CLEAR_M - off), 0.0), normals[f][k]

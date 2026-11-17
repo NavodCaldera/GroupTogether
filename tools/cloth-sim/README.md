@@ -72,8 +72,15 @@ says nothing about the garment). The other sizes still return.
    `drape` are skinned to every frame and handed to Blender. Skinning carries torso cloth with
    the torso and sleeve cloth with the arm, so where an arm swings down against the side (WALK,
    RUN, SIT) the skinned drape would lie inside the arm (or a sleeve inside the torso):
-   `clear_of_limbs` moves each such drape vertex out along the other part's skin normal to 1 cm
-   off it, by as much more as it is inside than it was standing (the rest pose is unchanged).
+   `clear_of_limbs` moves each such drape vertex out to 1 cm off the other part, by as much more
+   as it is inside than it was standing (the rest pose is unchanged). Torso cloth goes out of each
+   arm segment (upper arm, forearm, hand, each taken as a tube round its own axis) always on the
+   torso's side, between the arm and the side; whatever is still inside a part that does not
+   carry it (the armpit, sleeves against the torso) goes out along that part's nearest skin
+   normal. A loose size stands 5–7 cm off the skin, past the middle of a lowered arm: pushed by
+   the nearest skin normal alone, some of that cloth went out the arm's far side and its
+   neighbours the near side, so the arm cut through the cloth and stretched the edges across it
+   to several times their length (the Oxford shirt's XL read chest 1.0 on men-01, its L 0.19).
 4. [`simulate.py`](simulate.py) (inside Blender): the body is a one-sided collider animated by a
    shape key per frame; the garment is cloth whose springs take their rest lengths from the
    `rest` shape key, so a tight size is in tension from the start and pushes on the body. The
@@ -113,6 +120,10 @@ Sizes run in parallel, one Blender process (8 threads) per size, as many as the 
 
 - The shell is the body's skin offset outwards: no seams, no extra cloth under the arm. The strain
   read from it leaves the squeezed underarm out rather than modelling a gusset.
+- On full bodies whose lowered arms lie against the sides (men-08, men-03), sleeve cloth under
+  the arm is squeezed 2.5–5 cm from the torso, just past the pinch distance, while the arms are
+  down (WALK, RUN, SIT): the upper arm reads tight even with 7 cm of room (Oxford shirt XL on
+  men-08: 1.0, with almost no strain standing).
 - The tight side reads the mean of each vertex's edges, so a tight girth (stretched round, not
   along) reads lower than its circumferential stretch: Dilan in two sizes small is stretched 11 %
   round the chest and reads 0.885.
