@@ -52,8 +52,13 @@ says nothing about the garment). The other sizes still return.
 
 1. [`garment.py`](garment.py) (numpy): the body parts the class covers (as the browser's drape,
    [`drape.ts`](../../src/lib/fit/drape.ts) `COVER`) are cut from the body file and pushed out
-   along the normals by each area's room from the chart (at least 1 cm, at most 6 cm). The shell's
-   own girths are measured, and `rest_scale` per area = chart ÷ shell girth. The `rest` shape is
+   along the normals by each area's room from the chart (at least 1 cm, at most 6 cm). Room is
+   the chart's girth minus the body's, taped as a size chart means it: the waist at its narrowest
+   and the hip at its widest row (by front width) between the shoulder and hip joints, in the bands
+   of [`bands.py`](../body-fitting/bands.py) that the buyer's measuring and the standard bodies
+   use; the thigh at its fullest slice; chest and upper arm through the middle of their parts.
+   The shell's own girths are taped the same way on the garment alone (a top's hem stops above
+   the seat, where the body's hip may be widest), and `rest_scale` per area = chart ÷ shell girth. The `rest` shape is
    the shell taken in (or let out) round the body by that scale: round the vertical axis for the
    torso, round the bone for sleeves and legs, then let out by the simulation's collision offset
    (0.9 cm, so a chart equal to the body reads as touching). Lengths keep; the shoulder yoke keeps
@@ -98,10 +103,13 @@ Sizes run in parallel, one Blender process (8 threads) per size, as many as the 
 
 ## Known limits
 
-- Room is measured on the body file, not taken from the shape's listed measurements. The listed
-  upper arm and thigh are taped with the same `girth` (tools/fit-simulation/clusters.py), so they
-  agree; chest is within 2 cm, but `girth` tapes waist and hip through the middle of their parts,
-  not at the narrowest waist and widest hip the listed ones use (up to 10 cm apart).
+- Room is measured on the body file, not taken from the shape's listed measurements. They agree
+  within 2 cm or 3 % on every standard body (chest, waist, hip, upper arm, thigh; a test keeps
+  them so): the listed waist and hip are cut through the mesh, the cloth simulation's are a
+  2.4 cm slice of its vertices.
+- A top's chart rarely gives a hip, so its hem is held at the chart's waist and its hip room is
+  that against the body's widest hip, which on a full seat sits below the hem: a tee's hip can
+  read tighter than the cloth at its hem.
 
 - The shell is the body's skin offset outwards: no seams, no extra cloth under the arm. The strain
   read from it leaves the squeezed underarm out rather than modelling a gusset.

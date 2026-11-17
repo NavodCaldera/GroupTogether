@@ -256,6 +256,16 @@ def test_a_top_without_a_hip_is_held_at_the_hip_by_its_waist(body_glb):
     assert "hip" not in bottom.shell_girth
 
 
+def test_a_top_is_sized_round_its_own_hem_not_the_seat_it_does_not_cover():
+    """The body's hip is its widest row (the seat on men-02), which a tee's hem does not reach:
+    the tee's own circumference is measured on the tee, standing off the skin."""
+    bodies = ROOT / "public" / "fit-assets" / "bodies"
+    body = str(bodies / json.loads((bodies / "bodies.json").read_text("utf-8"))["men-02"])
+    g = garment.build(body, "top", False, {"chest": 96, "waist": 92})
+    assert g.shell_girth["hip"] > g.body_girth["hip"] + 2
+    assert g.shell_girth["waist"] > g.body_girth["waist"] + 2
+
+
 @pytest.fixture(scope="session")
 def dilan_glb(tmp_path_factory):
     """Dilan (172 cm, chest 100, waist 88, hip 98) fitted from his measurements."""

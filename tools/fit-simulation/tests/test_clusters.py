@@ -106,6 +106,24 @@ def test_each_body_file_has_the_limb_girths_its_cluster_lists():
     assert off == []
 
 
+def test_each_body_file_has_the_chest_waist_and_hip_its_cluster_lists():
+    """The cloth simulation reads the room round the body file's waist and hip against the size
+    chart: it tapes them as a size chart means them (narrowest waist, widest hip), as listed."""
+    sys.path.insert(0, str(HERE.parent / "cloth-sim"))
+    import garment
+
+    bodies = HERE.parents[1] / "public" / "fit-assets" / "bodies"
+    files = json.loads((bodies / "bodies.json").read_text("utf-8"))
+    off = []
+    for a in json.loads((HERE / "seed" / "clusters.json").read_text("utf-8")):
+        b = garment.read_body(str(bodies / files[a["name"]]))
+        for r in ("chest", "waist", "hip"):
+            v = garment.girth(b.positions, b.parts, b, r)
+            if not _within(a["params"][r], v):
+                off.append((a["name"], r, a["params"][r], round(v, 1)))
+    assert off == []
+
+
 def test_the_thigh_is_taped_round_its_fullest_part_below_the_crotch():
     """Not near the knee: a thigh is about 0.5-0.65 of the hip on every standard body."""
     sys.path.insert(0, str(HERE.parent / "cloth-sim"))
