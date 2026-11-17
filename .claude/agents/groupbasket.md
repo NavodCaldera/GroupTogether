@@ -42,6 +42,7 @@ The promise is low cost for buyers (one shared courier per basket) and fast stoc
 - **Design tests and likes — Parked** (FR-034): approved on 2026-11-07 but not built, then hidden by the area agent model. Factory design history (`SUP-003`) is parked with them.
 - **Preorders — Paused, not built** (`DEC-015`): the owner paused only the preorder part on 2026-11-07. It is not approved policy and must not be built until the owner resumes it and answers Question 25.
 - **Body measurements — Built, uncalibrated** (`FIT-001`, `DEC-020`): personalized fit heatmap.
+- **Own baskets — Built 2026-11-18** (`BSK-008`, `DEC-023`): buyers group together and the basket goes to the owner's address.
 - **Material Library and Material Card — Built and published 2026-11-17** (`MAT-001`, `DEC-022`): all 33 materials are published on the owner's sign-off of the rule bands.
 
 ## 3. Scope, identity and vocabulary
@@ -111,6 +112,7 @@ These are summaries. Rule IDs below define behavior; the [architecture reference
 - **BSK-004 — Factory packing:** factory Packing (or Owner) sees locked baskets with the agent's name and area and the lines by product, size and colour. Packing reports a missing line, then taps Packed. Packing never sees money.
 - **BSK-005 — Courier booking:** an Agents and orders admin books each packed basket by hand, entering the courier fee and the driver's name, phone and vehicle. Packing records Given to driver; the agent then sees it in Arriving today with the fee to pay. After a failed trip Packing records Parcel is back and the admin rebooks. There is no courier provider integration.
 - **BSK-006 — Receipt at the agent:** the agent pays the driver from its agent fees and taps Mark received; there is no courier repayment (`DEC-018`). The orders become received, buyers get their pickup-code notice with the agent fee to bring, and the return window starts for those items. Factory-fault returns waiting at the agent go back with that courier.
+- **BSK-008 — Own baskets (Built 2026-11-18, `DEC-023`):** a buyer can start an own basket for one product instead of using an agent. The owner pays first, gives a delivery address and chooses link-only or public; others buy any size of that product into it at the normal price. No agent fee, no pickup code, no returns. The owner closes it (or it closes after `maxWaitDays`), pays the delivery fee (LKR 400 + 50 per item) within 2 days or everyone is refunded in tokens, and confirms receipt; the factory and courier steps are those of `BSK-004`/`BSK-005`, delivered to the owner's address.
 - **BSK-007 — Missing items:** when Packing reports a line the factory cannot supply, a Factory admin either removes it or dismisses a wrong report. Removal gives the buyer the item price as `MISSING_ITEM` tokens (not the PayHere fee; the cash agent fee is never owed for it), and deducts GroupBasket's loss (the commission, plus the agent fee on older online-fee orders) from the factory's next payout. The factory price is never paid for that line.
 
 ### Payment

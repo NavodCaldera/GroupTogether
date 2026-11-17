@@ -74,21 +74,36 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
       </div>
       {error && <Alert>{error}</Alert>}
 
-      <Card className="flex flex-col gap-1">
-        <h2 className="font-semibold">{order.agent.user.name}</h2>
-        <p className="text-sm">
-          {[order.agent.address, order.agent.city].filter(Boolean).join(", ")}
-        </p>
-        <LinkButton
-          href={mapLink(order.agent)}
-          target="_blank"
-          rel="noopener noreferrer"
-          variant="secondary"
-          className="mt-2 self-start"
-        >
-          Map ↗
-        </LinkButton>
-      </Card>
+      {order.agent ? (
+        <Card className="flex flex-col gap-1">
+          <h2 className="font-semibold">{order.agent.user.name}</h2>
+          <p className="text-sm">
+            {[order.agent.address, order.agent.city].filter(Boolean).join(", ")}
+          </p>
+          <LinkButton
+            href={mapLink(order.agent)}
+            target="_blank"
+            rel="noopener noreferrer"
+            variant="secondary"
+            className="mt-2 self-start"
+          >
+            Map ↗
+          </LinkButton>
+        </Card>
+      ) : (
+        order.basket && (
+          <Card className="flex flex-col gap-1">
+            <h2 className="font-semibold">Own basket</h2>
+            <LinkButton
+              href={`/own-baskets/${order.basket.id}`}
+              variant="secondary"
+              className="mt-2 self-start"
+            >
+              Open basket
+            </LinkButton>
+          </Card>
+        )
+      )}
 
       {order.basket && order.status !== "CANCELLED" && (
         <BasketProgress basket={order.basket} lockAt={lockAt} />

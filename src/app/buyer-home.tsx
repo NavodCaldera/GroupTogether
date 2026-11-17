@@ -138,10 +138,10 @@ export async function BuyerHome({ user }: { user: SessionUser }) {
                   />
                 </div>
                 <p className="text-sm text-subtle">
-                  {o.agent.user.name} · {formatLKR(orderTotal(o))}
+                  {o.agent?.user.name ?? "Own basket"} · {formatLKR(orderTotal(o))}
                 </p>
                 {o.basket && <BasketProgress basket={o.basket} lockAt={home.lockAt} />}
-                {o.basket?.status === "OPEN" && productId && (
+                {o.basket?.status === "OPEN" && o.agentId && productId && (
                   <CopyLinkButton
                     url={appUrl(`/products/${productId}?agent=${o.agentId}`)}
                     label="Share basket"

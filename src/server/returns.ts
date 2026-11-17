@@ -266,10 +266,12 @@ export async function fileReturn(
   for (const file of input.photos) checkUpload(file, IMAGE_TYPES, "return photo");
   const first = await db.orderLine.findUnique({
     where: { id: orderLineId },
-    select: { order: { select: { id: true, buyerId: true, factoryId: true } } },
+    select: { order: { select: { id: true, buyerId: true, factoryId: true, agentId: true } } },
   });
   if (!first || first.order.buyerId !== buyerId)
     throw new ReturnError("Return only your own collected item");
+  // Own baskets have no returns (DEC-023).
+  if (!first.order.agentId) throw new ReturnError("Own-basket items cannot be returned");
   const { factoryId } = first.order;
   const r = await withOrderTransaction([buyerId, factoryId], [first.order.id], async (tx) => {
     const user = await activeUser(tx, buyerId);
@@ -349,11 +351,13 @@ async function toHandover(
     where: { id: r.orderLineId! },
     select: { order: { select: { agentId: true } } },
   });
+  const agentId = line.order.agentId;
+  if (!agentId) throw new ReturnError("Own-basket items cannot be returned");
   // FOR SHARE serializes with closeLeavingAgents (Agent FOR NO KEY UPDATE): an agent is never
   // closed with a return just assigned to it. A LEAVING agent still takes returns until it closes.
-  await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${line.order.agentId} FOR SHARE`;
+  await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${agentId} FOR SHARE`;
   const agent = await tx.agent.findUniqueOrThrow({
-    where: { id: line.order.agentId },
+    where: { id: agentId },
     select: { status: true },
   });
   if (agent.status === "LEFT") throw new ReturnError("The agent for this order has closed");
@@ -364,7 +368,7 @@ async function toHandover(
   const days = r.fault === "BUYER" ? buyerHandoverDays : returnHandoverDays;
   return move(tx, r, "AWAITING_HANDOVER", {
     ...data,
-    handoverAgent: { connect: { id: line.order.agentId } },
+    handoverAgent: { connect: { id: agentId } },
     handoverDueAt: new Date(now.getTime() + days * 86400000),
   });
 }

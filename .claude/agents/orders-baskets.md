@@ -13,7 +13,7 @@ for capabilities, [decisions](../../docs/decisions.md) for unresolved policy and
 [architecture](../../docs/architecture.md) for technical context. This file owns domain
 guidance, not business policy. Verify code pointers before editing.
 
-Policy references: `ORD-001`–`ORD-005`, `RETURN-001`, `BSK-001`–`BSK-003`, `PAY-004`,
+Policy references: `ORD-001`–`ORD-005`, `RETURN-001`, `BSK-001`–`BSK-003`, `BSK-008` (own baskets), `PAY-004`,
 `TOK-001`, `LOC-001`, `RATE-001`. The group-cart model (`CART-*`, `INV-001`) is retired.
 
 Built 2026-11-15: buyer-fault returns are a record with no tokens, resold privately by the agent
@@ -29,6 +29,7 @@ gets no action and no extra return time.
   `src/lib/agent-rules.ts` (nearest agents, clash, opening hours, week ending, pickup-code format).
 - Cart and checkout: `src/server/orders/cart.ts`, `checkout.ts` (`loadCart`, `quoteCheckout`,
   `startCheckout`, shared `assertBuyer`); pages `src/app/cart/`, `src/app/checkout/`.
+- Own baskets (`DEC-023`): `src/server/orders/own-baskets.ts` (`startOwnCheckout`, `closeOwnBasket`, `payDeliveryFee`, `deliveryFeePaid`, `confirmOwnDelivery`, `sweepOwnBaskets`). `Basket.kind` is `AGENT` or `OWN` (a CHECK constraint keeps the shape); own baskets and their orders have `agentId` null, and an own order carries `targetBasketId` until paid. Own baskets lock under the advisory `ownbasket:<basketId>` (`lockOwnBasket`, or `lockBasketOf` for either kind), taken where the agent slot would be. Statuses add `AWAITING_FEE`, `DELIVERED` and `CANCELLED`. Code that reads `order.agent` or `basket.agent` must handle null.
 - Baskets: `src/server/orders/baskets.ts` (`markOrdersPaid`, `lockBasket`, `cancelOrder`,
   `expireOrders`, `releasePendingOrders`).
 - Pickup and handover: `src/server/orders/handover.ts` (`lookupCode`, `handOver`).

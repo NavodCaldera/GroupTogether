@@ -47,7 +47,13 @@ export const BASKET_STAGES: [BasketStatus, string][] = [
   ["WITH_COURIER", "With courier"],
   ["AT_AGENT", "At agent"],
 ];
-export const STAGE_LABEL = Object.fromEntries(BASKET_STAGES) as Record<BasketStatus, string>;
+export const STAGE_LABEL = {
+  ...Object.fromEntries(BASKET_STAGES),
+  // Own baskets (DEC-023)
+  AWAITING_FEE: "Waiting for delivery fee",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
+} as Record<BasketStatus, string>;
 
 const basketSelect = {
   id: true,
@@ -55,6 +61,11 @@ const basketSelect = {
   total: true,
   firstOrderAt: true,
   lockedAt: true,
+  kind: true,
+  deliveryAddress: true,
+  deliveryArea: true,
+  deliveryPhone: true,
+  owner: { select: { name: true } },
   agent: { select: { address: true, city: true, user: { select: { name: true } } } },
   courier: {
     select: { driverName: true, driverPhone: true, vehicleNo: true, givenToDriverAt: true },
@@ -76,7 +87,32 @@ export type BasketCard = Omit<BasketRow, "total"> & {
   total: D;
   pieces: number;
   products: { title: string; lines: BasketLine[] }[];
+  /** Where the basket goes: the agent, or the own-basket owner's address (DEC-023) */
+  dest: { name: string; address: string; phone: string | null; own: boolean };
 };
+
+/** The agent, or for an own basket the owner and their delivery address. */
+export function basketDest(b: {
+  agent: { address: string; city: string | null; user: { name: string } } | null;
+  owner?: { name: string } | null;
+  deliveryAddress?: string | null;
+  deliveryArea?: string | null;
+  deliveryPhone?: string | null;
+}): BasketCard["dest"] {
+  if (b.agent)
+    return {
+      name: b.agent.user.name,
+      address: [b.agent.address, b.agent.city].filter(Boolean).join(", "),
+      phone: null,
+      own: false,
+    };
+  return {
+    name: `Own basket: ${b.owner?.name ?? ""}`,
+    address: [b.deliveryAddress, b.deliveryArea].filter(Boolean).join(", "),
+    phone: b.deliveryPhone ?? null,
+    own: true,
+  };
+}
 
 /** Each basket with its lines grouped by product, then size and colour. */
 async function withLines(baskets: BasketRow[]): Promise<BasketCard[]> {
@@ -125,7 +161,7 @@ async function withLines(baskets: BasketRow[]): Promise<BasketCard[]> {
         reportable: l.order.status === "PAID",
       });
     }
-    return { ...b, total: toD(b.total), pieces, products };
+    return { ...b, total: toD(b.total), pieces, products, dest: basketDest(b) };
   });
 }
 
@@ -445,7 +481,7 @@ export async function factoryInsights(factoryId: string) {
 
   const byCity = new Map<string, number>();
   for (const o of cities)
-    if (o.agent.city) byCity.set(o.agent.city, (byCity.get(o.agent.city) ?? 0) + 1);
+    if (o.agent?.city) byCity.set(o.agent.city, (byCity.get(o.agent.city) ?? 0) + 1);
 
   return {
     rating: { ...ratingDisplay(ratings.map((r) => r.stars)), latest: ratings.slice(0, 10) },

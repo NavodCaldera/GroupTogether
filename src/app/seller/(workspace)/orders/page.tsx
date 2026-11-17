@@ -50,7 +50,7 @@ export default async function FactoryOrdersPage() {
       ) : (
         <ul aria-label="Baskets" className="flex flex-col gap-4">
           {baskets.map((b) => (
-            <li key={b.id} aria-label={b.agent.user.name}>
+            <li key={b.id} aria-label={b.dest.name}>
               <BasketTicket basket={b} money={seesMoney(me.factoryRole)} packs />
             </li>
           ))}

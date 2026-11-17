@@ -7,7 +7,7 @@ import { getSettings } from "../settings";
 import { post } from "../tokens";
 import { CartError } from "@/server/errors";
 import { CheckoutError } from "./checkout";
-import { lockBasketSlot, withOrderTransaction } from "./locks";
+import { lockBasketSlot, lockOwnBasket, withOrderTransaction } from "./locks";
 
 class BasketError extends CartError {}
 
@@ -52,7 +52,7 @@ export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Pro
 
   // Suspension and leave update the Agent row before locking OPEN baskets: holding it FOR SHARE
   // means they either see the basket this call makes, or this call sees their status.
-  const agentIds = [...new Set(orders.map((o) => o.agentId))].sort();
+  const agentIds = [...new Set(orders.flatMap((o) => (o.agentId ? [o.agentId] : [])))].sort();
   for (const id of agentIds) await tx.$queryRaw`SELECT 1 FROM "Agent" WHERE id = ${id} FOR SHARE`;
   const live = new Set(
     (
@@ -63,11 +63,18 @@ export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Pro
     ).map((a) => a.id),
   );
 
-  const slots = [...new Set(orders.map((o) => `${o.agentId}:${o.factoryId}`))].sort();
+  const slots = [
+    ...new Set(orders.flatMap((o) => (o.agentId ? [`${o.agentId}:${o.factoryId}`] : []))),
+  ].sort();
   for (const slot of slots) {
     const [agentId, factoryId] = slot.split(":");
     await lockBasketSlot(tx, agentId, factoryId);
   }
+  // Own baskets (DEC-023): their advisories after the agent slots, sorted.
+  const own = [
+    ...new Set(orders.flatMap((o) => (o.targetBasketId ? [o.targetBasketId] : []))),
+  ].sort();
+  for (const id of own) await lockOwnBasket(tx, id);
 
   // Variant rows after the basket advisories, in variantId order across all orders.
   const perVariant = new Map<string, number>();
@@ -85,6 +92,11 @@ export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Pro
 
   const locked: string[] = [];
   for (const o of orders) {
+    if (o.targetBasketId) {
+      await joinOwnBasket(tx, o, now);
+      continue;
+    }
+    if (!o.agentId) throw new BasketError("Order has no basket");
     let basket = await tx.basket.findFirst({
       where: { agentId: o.agentId, factoryId: o.factoryId, status: "OPEN" },
     });
@@ -118,6 +130,36 @@ export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Pro
   return locked;
 }
 
+/** Caller holds the own basket's advisory. A paid order joins its own basket. The owner's first
+ * paid order opens the basket to joiners (firstOrderAt). Checkout and closing keep the basket
+ * OPEN while an order for it is waiting for payment. */
+async function joinOwnBasket(
+  tx: Tx,
+  o: {
+    id: string;
+    buyerId: string;
+    targetBasketId: string | null;
+    itemsTotal: { toString(): string };
+  },
+  now: Date,
+) {
+  const basket = await tx.basket.findUniqueOrThrow({ where: { id: o.targetBasketId! } });
+  if (basket.status !== "OPEN") throw new BasketError("This basket is closed");
+  if (!basket.firstOrderAt && o.buyerId !== basket.ownerId)
+    throw new BasketError("This basket is not open yet");
+  await tx.basket.update({
+    where: { id: basket.id },
+    data: {
+      total: toD(basket.total).plus(toD(o.itemsTotal)).toFixed(2),
+      firstOrderAt: basket.firstOrderAt ?? now,
+    },
+  });
+  await tx.order.update({
+    where: { id: o.id },
+    data: { status: "PAID", paidAt: now, basketId: basket.id },
+  });
+}
+
 /** Caller holds the buyer advisory and the Order rows. Cancels the orders that are still
  * PENDING: Variant rows (variantId order) reserved -> available, then the token hold is released
  * on the ledger. No basket is touched. Returns how many orders were cancelled.
@@ -129,6 +171,11 @@ export async function releasePendingOrders(tx: Tx, orderIds: string[]): Promise<
     orderBy: { id: "asc" },
   });
   if (!orders.length) return 0;
+  // Own basket advisories before any Variant row (DEC-023).
+  const targets = [
+    ...new Set(orders.flatMap((o) => (o.targetBasketId ? [o.targetBasketId] : []))),
+  ].sort();
+  for (const id of targets) await lockOwnBasket(tx, id);
   const perVariant = new Map<string, number>();
   for (const o of orders)
     for (const line of o.lines)
@@ -145,6 +192,15 @@ export async function releasePendingOrders(tx: Tx, orderIds: string[]): Promise<
     if (!canMoveOrder(o.status, "CANCELLED"))
       throw new BasketError("This order cannot be cancelled");
     await tx.order.update({ where: { id: o.id }, data: { status: "CANCELLED" } });
+  }
+  // An own basket whose owner's first payment never arrived is cancelled with it (DEC-023).
+  for (const id of targets) {
+    const b = await tx.basket.findUniqueOrThrow({ where: { id } });
+    const waiting = await tx.order.count({
+      where: { targetBasketId: id, status: { in: ["PENDING", "PAID"] } },
+    });
+    if (b.status === "OPEN" && !b.firstOrderAt && waiting === 0)
+      await tx.basket.update({ where: { id }, data: { status: "CANCELLED" } });
   }
   for (const o of orders)
     if (toD(o.tokensApplied).gt(0))
@@ -232,10 +288,14 @@ export async function cancelOrder(buyerId: string, orderId: string): Promise<voi
     if (!order || order.buyerId !== buyerId) throw new CheckoutError("Order not found");
     if (order.status !== "PAID" || !order.basketId || !canMoveOrder(order.status, "CANCELLED"))
       throw new CheckoutError("This order can no longer be cancelled");
-    await lockBasketSlot(tx, order.agentId, order.factoryId);
+    if (order.agentId) await lockBasketSlot(tx, order.agentId, order.factoryId);
+    else await lockOwnBasket(tx, order.basketId);
     await tx.$queryRaw`SELECT 1 FROM "Basket" WHERE id = ${order.basketId} FOR UPDATE`;
     const basket = await tx.basket.findUniqueOrThrow({ where: { id: order.basketId } });
     if (basket.status !== "OPEN") throw new CheckoutError("This order can no longer be cancelled");
+    // The owner holds the basket open for everyone; only joiners cancel (DEC-023).
+    if (basket.kind === "OWN" && basket.ownerId === buyerId)
+      throw new CheckoutError("The basket owner cannot cancel their order");
 
     const perVariant = new Map<string, number>();
     for (const line of order.lines)
@@ -277,4 +337,46 @@ export async function cancelOrder(buyerId: string, orderId: string): Promise<voi
         orderId: order.id,
       });
   });
+}
+
+/** Caller holds the basket's advisory and the basket has not reached the factory. Cancels every
+ * PAID order in it and refunds each buyer in full as tokens; Variant rows (variantId order) sold
+ * -> available. Returns how many orders were cancelled. */
+export async function cancelBasketOrders(tx: Tx, basketId: string, note: string): Promise<number> {
+  const orders = await tx.order.findMany({
+    where: { basketId, status: "PAID" },
+    include: { lines: { select: { variantId: true, qty: true } } },
+    orderBy: { id: "asc" },
+  });
+  const perVariant = new Map<string, number>();
+  for (const o of orders)
+    for (const line of o.lines)
+      perVariant.set(line.variantId, (perVariant.get(line.variantId) ?? 0) + line.qty);
+  for (const variantId of [...perVariant.keys()].sort()) {
+    const qty = perVariant.get(variantId)!;
+    const moved = await tx.variant.updateMany({
+      where: { id: variantId, sold: { gte: qty } },
+      data: { sold: { decrement: qty }, available: { increment: qty } },
+    });
+    if (moved.count !== 1) throw new BasketError("Sold stock is missing");
+  }
+  for (const o of orders)
+    await tx.order.update({ where: { id: o.id }, data: { status: "CANCELLED" } });
+  for (const o of [...orders].sort((a, b) => a.buyerId.localeCompare(b.buyerId))) {
+    const refund = cancelRefund({
+      tokensApplied: toD(o.tokensApplied),
+      remainder: toD(o.amountDue).minus(toD(o.gatewayFee)),
+      fee: toD(o.gatewayFee),
+    });
+    if (refund.gt(0))
+      await post(tx, {
+        userId: o.buyerId,
+        amount: refund,
+        kind: "ORDER_CANCEL",
+        eventKey: `cancel:${o.id}`,
+        note,
+        orderId: o.id,
+      });
+  }
+  return orders.length;
 }

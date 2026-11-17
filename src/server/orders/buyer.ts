@@ -37,7 +37,7 @@ const orderSelect = {
   agentId: true,
   agent: { select: { user: { select: { name: true } } } },
   factory: { select: { name: true, company: true } },
-  basket: { select: { id: true, status: true, total: true } },
+  basket: { select: { id: true, status: true, total: true, kind: true, ownerId: true } },
   lines: {
     select: {
       id: true,
@@ -123,7 +123,8 @@ export async function buyerHome(buyerId: string, now = new Date()) {
   const fees = new Map<string, D>();
   for (const l of waiting) {
     const qty = l.qty - l.missingQty;
-    if (qty <= 0) continue;
+    // Own-basket orders have no agent and no pickup code (DEC-023).
+    if (qty <= 0 || !l.order.agentId) continue;
     pieces.set(l.order.agentId, (pieces.get(l.order.agentId) ?? 0) + qty);
     fees.set(
       l.order.agentId,
@@ -188,13 +189,20 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
   const returnUntil = order.receivedAt
     ? new Date(order.receivedAt.getTime() + settings.collectHours * 3600_000)
     : null;
+  // Own baskets have no returns (DEC-023).
   const canReturn =
-    order.status === "RECEIVED" && !!returnUntil && now.getTime() <= returnUntil.getTime();
+    !!order.agentId &&
+    order.status === "RECEIVED" &&
+    !!returnUntil &&
+    now.getTime() <= returnUntil.getTime();
   return {
     order,
     returnUntil,
     canReturn,
-    canCancel: order.status === "PAID" && order.basket?.status === "OPEN",
+    canCancel:
+      order.status === "PAID" &&
+      order.basket?.status === "OPEN" &&
+      !(order.basket.kind === "OWN" && order.basket.ownerId === buyerId),
     lockAt: toD(settings.basketLockAmount),
   };
 }

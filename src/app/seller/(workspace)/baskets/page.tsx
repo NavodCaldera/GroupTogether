@@ -23,7 +23,7 @@ export default async function FillingBasketsPage() {
       ) : (
         <ul aria-label="Filling baskets" className="flex flex-col gap-4">
           {baskets.map((b) => (
-            <li key={b.id} aria-label={b.agent.user.name}>
+            <li key={b.id} aria-label={b.dest.name}>
               <BasketTicket basket={b} money packs={false} />
             </li>
           ))}

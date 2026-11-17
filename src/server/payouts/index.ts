@@ -137,17 +137,20 @@ export async function creditAgentFees(now: Date): Promise<number> {
   const orders = await db.order.findMany({
     where: {
       status: "RECEIVED",
+      agentId: { not: null },
       receivedAt: { gt: new Date(end.getTime() - FEE_CATCH_UP_WEEKS * WEEK_MS), lte: end },
     },
     select: { agentId: true, receivedAt: true, agent: { select: { userId: true } } },
   });
   const due = new Map<string, { agentId: string; userId: string; week: Date }>();
-  for (const o of orders)
+  for (const o of orders) {
+    if (!o.agentId || !o.agent) continue;
     due.set(agentFeeKey(o.agentId, o.receivedAt!), {
       agentId: o.agentId,
       userId: o.agent.userId,
       week: weekOf(o.receivedAt!),
     });
+  }
   const keys = [...due.keys()].sort();
   const done = new Set(
     (

@@ -80,7 +80,7 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
             ) : (
               <ul aria-label="To pack" className="flex flex-col gap-4">
                 {work.toPack.map((b) => (
-                  <li key={b.id} aria-label={b.agent.user.name}>
+                  <li key={b.id} aria-label={b.dest.name}>
                     <BasketTicket basket={b} money={false} packs />
                   </li>
                 ))}
@@ -98,7 +98,7 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
             ) : (
               <ul aria-label="Courier booked" className="flex flex-col gap-4">
                 {work.courierBooked.map((b) => (
-                  <li key={b.id} aria-label={b.agent.user.name}>
+                  <li key={b.id} aria-label={b.dest.name}>
                     <BasketTicket basket={b} money={false} packs />
                   </li>
                 ))}
@@ -120,14 +120,12 @@ export default async function SellerHome({ searchParams }: PageProps<"/seller">)
               {filling.baskets.map((b) => (
                 <li
                   key={b.id}
-                  aria-label={b.agent.user.name}
+                  aria-label={b.dest.name}
                   className="grid grid-cols-[1fr_auto] items-baseline gap-x-3 gap-y-1"
                 >
                   <span className="min-w-0">
-                    <span className="block font-bold break-words">{b.agent.user.name}</span>
-                    <span className="block text-sm text-subtle break-words">
-                      {[b.agent.address, b.agent.city].filter(Boolean).join(", ")}
-                    </span>
+                    <span className="block font-bold break-words">{b.dest.name}</span>
+                    <span className="block text-sm text-subtle break-words">{b.dest.address}</span>
                   </span>
                   <span className="text-right tabular-nums">
                     <span className="block font-bold">{formatLKR(b.total)}</span>

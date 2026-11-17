@@ -29,7 +29,7 @@ export default async function MissingItemsPage() {
                   </h2>
                   <p className="text-sm text-subtle">
                     {l.order.factory.company || l.order.factory.name} →{" "}
-                    {l.order.basket?.agent.user.name} · {l.order.buyer.name}
+                    {l.order.basket?.agent?.user.name ?? "Own basket"} · {l.order.buyer.name}
                   </p>
                 </div>
                 {l.order.basket && <Badge>{BASKET[l.order.basket.status] ?? "Shipped"}</Badge>}

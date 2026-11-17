@@ -5,6 +5,7 @@ import { post } from "../tokens";
 import { markOrdersPaid, releasePendingOrders } from "../orders/baskets";
 import { withOrderTransaction } from "../orders/locks";
 import { agentDepositPaid } from "../agents/deposit";
+import { deliveryFeePaid } from "../orders/own-baskets";
 import { getGateway, type VerifiedNotice } from "./gateway";
 
 type Outcome =
@@ -158,6 +159,8 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
         // A deposit for an agent that is no longer APPROVED takes the late path below.
         let applied = true;
         if (attempt.purpose === "DEPOSIT") applied = await agentDepositPaid(tx, attempt.id);
+        else if (attempt.purpose === "DELIVERY_FEE")
+          applied = await deliveryFeePaid(tx, attempt.id, now);
         else await markOrdersPaid(tx, orderIds, now);
         if (applied) {
           await tx.paymentAttempt.update({
@@ -180,7 +183,9 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
         note:
           attempt.purpose === "DEPOSIT"
             ? "Deposit payment arrived when it was no longer due"
-            : "Payment arrived after the order closed",
+            : attempt.purpose === "DELIVERY_FEE"
+              ? "Delivery fee arrived when the basket no longer needed it"
+              : "Payment arrived after the order closed",
       });
       return "LATE_PAID";
     }

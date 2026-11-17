@@ -13,7 +13,7 @@ import { db, type Tx } from "../db";
 import { notify } from "../notify";
 import { post } from "../tokens";
 import { CartError } from "@/server/errors";
-import { lockBasketSlot, withOrderTransaction } from "./locks";
+import { lockBasketOf, withOrderTransaction } from "./locks";
 
 export class DeliveryError extends CartError {}
 
@@ -52,8 +52,8 @@ async function basketKey(basketId: string) {
 }
 
 /** Caller holds any earlier locks. Takes the basket advisory, then the Basket row. */
-async function lockBasketRow(tx: Tx, b: { id: string; agentId: string; factoryId: string }) {
-  await lockBasketSlot(tx, b.agentId, b.factoryId);
+async function lockBasketRow(tx: Tx, b: { id: string; agentId: string | null; factoryId: string }) {
+  await lockBasketOf(tx, b);
   await tx.$queryRaw`SELECT 1 FROM "Basket" WHERE id = ${b.id} FOR UPDATE`;
   return tx.basket.findUniqueOrThrow({ where: { id: b.id }, include: { courier: true } });
 }

@@ -64,7 +64,8 @@ export default async function SearchPage({ searchParams }: PageProps<"/admin/age
                 </div>
               </div>
               <p>
-                {place(o.factory)} → {o.agent.user.name} · {formatLKR(o.itemsTotal)}
+                {place(o.factory)} → {o.agent?.user.name ?? "Own basket"} ·{" "}
+                {formatLKR(o.itemsTotal)}
                 {o.paidAt ? ` · ${formatDateTime(o.paidAt)}` : ""}
               </p>
               {o.basket && <p className="text-xs break-all text-subtle">Basket {o.basket.id}</p>}
