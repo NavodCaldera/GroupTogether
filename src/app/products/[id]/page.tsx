@@ -15,6 +15,8 @@ import { isBuyerRole } from "@/lib/roles";
 import { getFitView } from "@/server/fit";
 import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 import { FitSection } from "./fit-section";
+import { MaterialSection } from "./material-card";
+import { getMaterialCard, getProvenance } from "@/server/materials";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
   const p = await getProduct((await params).id);
@@ -30,11 +32,13 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     typeof sp.agent === "string" && /^[a-z0-9]{1,40}$/.test(sp.agent) ? sp.agent : undefined;
   const keep = agent ? `?agent=${agent}` : "";
   const buyer = !!user && isBuyerRole(user.role);
-  const [ratings, productScores, fit] = await Promise.all([
+  const [ratings, productScores, fit, materialCard] = await Promise.all([
     ratingSummaries([product.sellerId]),
     productRatingSummaries([product.id]),
     getFitView(product.id, buyer && user ? user.id : null),
+    getMaterialCard(product.id),
   ]);
+  const why = materialCard ? await getProvenance(materialCard) : null;
 
   return (
     <>
@@ -108,7 +112,14 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           </Card>
         </div>
       </div>
-      <FitSection view={fit} productId={product.id} buyer={buyer} />
+      <FitSection
+        view={fit}
+        productId={product.id}
+        buyer={buyer}
+        materialCard={
+          materialCard && <MaterialSection card={materialCard} why={why} productId={product.id} />
+        }
+      />
     </>
   );
 }

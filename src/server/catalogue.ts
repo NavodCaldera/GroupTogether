@@ -344,3 +344,20 @@ export async function setProductHidden(productId: string, hidden: boolean) {
     data: { status: hidden ? "ARCHIVED" : "LIVE" },
   });
 }
+
+/** Shop products with a Material Card, for the compare page (DEC-022) */
+export async function shopProductsWithMaterial(excludeId: string, take = 24, now = new Date()) {
+  return db.product.findMany({
+    where: {
+      id: { not: excludeId },
+      materials: { some: { role: "SHELL" } },
+      AND: [...IN_SHOP.AND, await shopEligibility(now)],
+      hiddenAt: null,
+      status: { not: "ARCHIVED" },
+      variants: IN_SHOP.variants,
+    },
+    select: { id: true, title: true, brand: true },
+    orderBy: { title: "asc" },
+    take,
+  });
+}

@@ -11,7 +11,7 @@ export const LOW_STOCK = 2;
 /** Counts for the admin nav badges; each area counts only its own work. */
 export async function adminBadges(adminId: string, area: OperationalAdminArea) {
   const none = Promise.resolve(0);
-  const [lowStock, brandRewards, fitToCheck] = await Promise.all([
+  const [lowStock, brandRewards, fitToCheck, materials] = await Promise.all([
     area === "FACTORY"
       ? db.variant.count({ where: { available: { lte: LOW_STOCK }, product: IN_SHOP } })
       : none,
@@ -20,6 +20,8 @@ export async function adminBadges(adminId: string, area: OperationalAdminArea) {
     area === "FACTORY"
       ? db.product.count({ where: { fitApprovedAt: null, sizeChart: { not: Prisma.DbNull } } })
       : none,
+    // Product materials far from the library, waiting for a check (DEC-022).
+    area === "FACTORY" ? db.productMaterial.count({ where: { needsReviewAt: { not: null } } }) : none,
   ]);
   const [courier, applications, missing, payouts, buyerReturns] = await Promise.all([
     area === "AGENTS"
@@ -40,6 +42,7 @@ export async function adminBadges(adminId: string, area: OperationalAdminArea) {
     lowStock,
     brandRewards,
     fitToCheck,
+    materials,
     courier,
     applications,
     missing,

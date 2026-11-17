@@ -10,6 +10,7 @@ import { db } from "@/server/db";
 import { factoryStockAction, saveFactoryProductAction } from "@/server/seller-actions";
 import { FitDataForm } from "@/components/fit-data-form";
 import { saveFactoryFitAction } from "@/server/fit-actions";
+import { MaterialSection } from "./material-section";
 
 export const metadata: Metadata = { title: "Edit product" };
 
@@ -51,6 +52,7 @@ export default async function FactoryProductPage({ params }: PageProps<"/seller/
             </div>
             <FitDataForm product={product} action={saveFactoryFitAction} submit="Save fit data" />
           </Card>
+          <MaterialSection productId={product.id} />
         </div>
         <div className="flex flex-col gap-4">
           <Card>

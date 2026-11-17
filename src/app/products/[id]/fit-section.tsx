@@ -1,21 +1,25 @@
 import Link from "next/link";
+import type { ReactNode } from "react";
 import { FitModule } from "@/components/fit/fit-module";
 import { Card } from "@/components/ui";
 import { REGION_LABEL } from "@/lib/fit/regions";
 import type { FitView } from "@/server/fit";
 
-/** Fit and material for a product page (DEC-020). Shows nothing when the factory gave no data. */
+/** Fit and material for a product page (DEC-020, DEC-022). Shows nothing when the factory gave no data. */
 export function FitSection({
   view,
   productId,
   buyer,
+  materialCard,
 }: {
   view: FitView;
   productId: string;
   buyer: boolean;
+  /** The Material Card (DEC-022); when there is one it replaces the stretch and care panel */
+  materialCard?: ReactNode;
 }) {
   const { material, chart, report } = view;
-  if (!material && !chart) return null;
+  if (!material && !chart && !materialCard) return null;
   const fitHref = `/account/fit?next=${encodeURIComponent(`/products/${productId}`)}`;
   const fitted = report?.recommendedSize ? report : null;
   return (
@@ -83,34 +87,20 @@ export function FitSection({
             </div>
           </Card>
         )}
-        {material && <MaterialPanel material={material} />}
+        {materialCard ?? (material && <MaterialPanel material={material} />)}
       </div>
     </section>
   );
 }
 
 function MaterialPanel({ material: m }: { material: NonNullable<FitView["material"]> }) {
-  const fabric = [
-    m.gsm !== null && `${m.gsm} gsm`,
-    m.weave,
-    m.stretchPct !== null && (m.stretchPct ? `${m.stretchPct}% stretch` : "No stretch"),
-  ].filter(Boolean);
-  const range =
-    m.thermalMinC !== null && m.thermalMaxC !== null
-      ? `Comfortable ${m.thermalMinC}–${m.thermalMaxC}°C`
-      : null;
-  // Colombo runs hot and humid (about 24–32°C): call out fabrics made for it.
-  const humid =
-    m.breathability !== null && m.breathability >= 4 && (m.thermalMaxC ?? 0) >= 30
-      ? "breathable for Colombo humidity"
-      : null;
   return (
     <Card>
       <h3 className="mb-2 font-semibold">Material</h3>
       <ul className="flex flex-col gap-1 text-sm">
-        {fabric.length > 0 && <li>{fabric.join(" · ")}</li>}
-        {(range || humid) && <li>{[range, humid].filter(Boolean).join(", ")}</li>}
-        {m.breathability !== null && <li>Breathability {m.breathability} of 5</li>}
+        {m.stretchPct !== null && (
+          <li>{m.stretchPct ? `${m.stretchPct}% stretch` : "No stretch"}</li>
+        )}
         {m.careNotes && <li className="whitespace-pre-line text-subtle">{m.careNotes}</li>}
       </ul>
     </Card>

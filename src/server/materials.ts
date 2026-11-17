@@ -522,3 +522,26 @@ export async function setMaterialVideo(
   });
   if (pm.videoKey) await storage().delete(pm.videoKey);
 }
+
+/** A library material's own feel estimate (no product gsm) and the evidence behind it, for admin */
+export async function libraryProfile(code: string) {
+  const m = await getMaterial(code);
+  if (!m) return null;
+  const composition = libraryComposition(m);
+  const pm = { material: m, measurements: [], actualGsm: null } as unknown as PmRow;
+  const evidence = await evidenceFor(db, pm, composition);
+  const facts: FabricFacts = { ...factsOf(pm, evidence, composition), gsm: null, measurements: [] };
+  const axes = computeProfile(facts, await calibrationValues());
+  const rows = await db.evidence.findMany({
+    where: { code: { in: evidence.map((e) => e.code) } },
+    include: { source: { select: { code: true, title: true, publisher: true, url: true, tier: true } } },
+    orderBy: [{ subjectType: "asc" }, { code: "asc" }],
+  });
+  const rules = await db.methodologyRule.findMany({
+    where: {
+      OR: axes.flatMap((a) => (a.rule ? [{ code: a.rule.code, version: a.rule.version }] : [])),
+    },
+    select: { code: true, version: true, ruleDescription: true, formula: true },
+  });
+  return { material: m, composition, axes, evidence: rows, rules };
+}

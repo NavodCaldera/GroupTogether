@@ -202,16 +202,11 @@ function archetypeParams(json: unknown): Partial<Record<Region, number>> {
 // ─── The product page fit module ──────────────────────────────────────────
 
 export interface FitView {
-  /** Fabric and care, shown whenever the factory gave any. */
-  material: {
-    gsm: number | null;
-    weave: string | null;
-    stretchPct: number | null;
-    thermalMinC: number | null;
-    thermalMaxC: number | null;
-    breathability: number | null;
-    careNotes: string | null;
-  } | null;
+  /**
+   * Declared stretch and care, shown when the product has no Material Card (DEC-022 replaced the
+   * gsm, comfort temperature and breathability lines with the card).
+   */
+  material: { stretchPct: number | null; careNotes: string | null } | null;
   /** Approved garment measurements, sizes smallest first. */
   chart: {
     sizes: string[];
@@ -275,11 +270,9 @@ export async function getFitView(productId: string, userId: string | null): Prom
         sizeChart: true,
         fitApprovedAt: true,
         fabricStretchPct: true,
+        // gsm and weave feed the fit data hash (cloth simulation); not shown.
         gsm: true,
         weave: true,
-        thermalMinC: true,
-        thermalMaxC: true,
-        breathability: true,
         careNotes: true,
         variants: { select: { size: true } },
       },
@@ -308,10 +301,11 @@ export async function getFitView(productId: string, userId: string | null): Prom
       body: null,
       deepFit: null,
     };
-  const { sizeChart, fitApprovedAt, kind, variants, fabricStretchPct, ...rest } = product;
-  const material = [fabricStretchPct, ...Object.values(rest)].some((v) => v !== null)
-    ? { ...rest, stretchPct: fabricStretchPct }
-    : null;
+  const { sizeChart, fitApprovedAt, kind, variants, fabricStretchPct, careNotes } = product;
+  const material =
+    fabricStretchPct !== null || careNotes !== null
+      ? { stretchPct: fabricStretchPct, careNotes }
+      : null;
   const cells = fitApprovedAt ? readChart(sizeChart) : {};
   const sizes = sizeOrder(kind, [...variants.map((v) => v.size), ...Object.keys(cells)]).filter(
     (s) => cells[s],

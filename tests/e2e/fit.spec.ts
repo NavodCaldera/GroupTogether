@@ -52,7 +52,7 @@ test("a measured buyer sees the heatmap and switching size shifts the areas", as
   await fit.scrollIntoViewIfNeeded();
   await expect(page.getByTestId("fit-recommended")).toHaveText(/^(S|M|L|XL)$/);
   await expect(fit.getByText("Guidance, not a guarantee")).toBeVisible();
-  await expect(fit.getByText("Comfortable 22–32°C, breathable for Colombo humidity")).toBeVisible();
+  await expect(fit.getByTestId("material-card")).toBeVisible();
 
   const regions = page.getByTestId("fit-regions");
   await fit.getByRole("button", { name: "S", exact: true }).click();

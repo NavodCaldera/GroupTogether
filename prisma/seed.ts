@@ -42,6 +42,10 @@ import {
   type FitManifest,
 } from "../tools/fit-simulation/load";
 import { saveBodyProfile as saveBodyProfileFor } from "../src/server/fit";
+import { readLibrary } from "../src/lib/materials/seed-files";
+import { loadLibrary } from "../src/server/material-load";
+import { publishMaterial } from "../src/server/material-admin";
+import { getMaterial, libraryComposition, setProductMaterial } from "../src/server/materials";
 import { hashPassword } from "../src/server/auth/password";
 import { setCartItem } from "../src/server/orders/cart";
 import { startCheckout } from "../src/server/orders/checkout";
@@ -812,6 +816,34 @@ async function main() {
   ];
   for (const { userId, ...p } of fitProfiles)
     await saveBodyProfileFor(userId, { ...p, captureMeta: { seed: true }, consent: true });
+
+  // Material library (DEC-022): every material loads as a draft; the demo publishes only the
+  // three its products use, so their Material Cards can be seen locally.
+  await loadLibrary(db, readLibrary());
+  const demoMaterials = [
+    { title: "Crew-neck cotton tee (3-pack)", code: "cj_crs", gsm: 180 },
+    { title: "Polo shirt", code: "cpique", gsm: 200 },
+    { title: "Hooded sweatshirt", code: "cfleece", gsm: 300 },
+  ];
+  const factoryAdmin = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.FACTORY } });
+  for (const d of demoMaterials) {
+    await publishMaterial(factoryAdmin.id, d.code, true);
+    const product = await db.product.findFirstOrThrow({
+      where: { title: d.title },
+      select: { id: true, sellerId: true },
+    });
+    const material = await getMaterial(d.code);
+    await setProductMaterial(
+      product.id,
+      {
+        materialCode: d.code,
+        gsm: d.gsm,
+        composition: libraryComposition(material!),
+        confirmRange: false,
+      },
+      { sellerId: product.sellerId! },
+    );
+  }
 
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}

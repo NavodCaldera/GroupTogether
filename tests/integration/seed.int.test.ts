@@ -141,4 +141,14 @@ describe("demo seed", () => {
     const reserved = await db.variant.aggregate({ _sum: { reserved: true } });
     expect(reserved._sum.reserved ?? 0).toBe(0);
   });
+
+  it("loads the material library and gives three demo products a Material Card", async () => {
+    expect(await db.material.count()).toBe(33);
+    expect(
+      (await db.material.findMany({ where: { status: "PUBLISHED" }, select: { code: true } }))
+        .map((m) => m.code)
+        .sort(),
+    ).toEqual(["cfleece", "cj_crs", "cpique"]);
+    expect(await db.feelProfile.count()).toBe(3);
+  });
 });

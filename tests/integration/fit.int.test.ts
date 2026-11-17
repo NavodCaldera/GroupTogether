@@ -82,7 +82,7 @@ it("a factory's fit data waits for approval and only its own listing can be edit
   await saveBodyProfile(buyer.id, profile);
   // Unapproved: material shows, the size chart and report do not.
   let view = await getFitView(variant.productId, buyer.id);
-  expect(view.material?.gsm).toBe(180);
+  expect(view.material?.stretchPct).toBe(5);
   expect(view.chart).toBeNull();
   expect(view.report).toBeNull();
 
