@@ -102,7 +102,8 @@ test("a buyer runs a Deep Fit Test and sees the garment simulated on their body"
 
   runSimWorker();
   await page.reload();
-  await fit.scrollIntoViewIfNeeded();
+  // The section is taller than the screen: scroll to the viewer, which loads when in view.
+  await fit.getByRole("group", { name: "Motion" }).scrollIntoViewIfNeeded();
   await expect(fit.getByText("Simulated on your body")).toBeVisible();
   await expect(fit.getByText("Testing…")).toBeHidden();
   await expect(fit.locator("canvas")).toBeVisible({ timeout: 30_000 });

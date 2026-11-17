@@ -55,7 +55,12 @@ export function FitSection({
         {chart && (
           <Card>
             <h3 className="mb-2 font-semibold">Size chart (cm)</h3>
-            <div className="-mx-1 overflow-x-auto px-1">
+            <div
+              className="-mx-1 overflow-x-auto px-1"
+              role="region"
+              aria-label="Size chart (cm)"
+              tabIndex={0}
+            >
               <table className="w-full text-sm tabular-nums">
                 <thead>
                   <tr className="text-left text-subtle">

@@ -6,6 +6,21 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-17 - CI browser checks fixed
+
+- The owner asked to fix the failing GitHub checks. The same 5 browser tests failed on main and
+  on every Dependabot branch:
+  - Agent deposit and buyer checkout (desktop and mobile): CI never set `PAYMENT_GATEWAY`, which
+    locally comes from `.env`. The Playwright web server now sets `PAYMENT_GATEWAY=demo`.
+  - Fit heatmap: axe `scrollable-region-focusable` on the product page's size chart scroll box.
+    It is now a keyboard-focusable region named "Size chart (cm)".
+  - Deep Fit Test: since the Material Card the Fit section is taller than the test screen, so
+    scrolling to the section left the 3D viewer out of view and it never loaded. The test now
+    scrolls to the viewer's controls.
+- Still failing: the Security check. `npm audit --audit-level=high` reports GHSA-fc5q-39xc-vjpf
+  (picomatch ReDoS), which affects every picomatch version and has no fix yet. It reaches the
+  app only through build and test tools. Whether to allowlist it is left to the owner.
+
 ## 2026-11-17 - Drape files committed and synced with GitHub
 
 - The owner asked to bring the system up to date with GitHub main. Local main already matched

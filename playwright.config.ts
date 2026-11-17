@@ -48,6 +48,7 @@ export default defineConfig({
       STORAGE_DIR: ".data/test-uploads",
       APP_URL: `http://localhost:${PORT}`,
       GROUPBASKET_E2E: "1",
+      PAYMENT_GATEWAY: "demo",
     },
   },
 });
