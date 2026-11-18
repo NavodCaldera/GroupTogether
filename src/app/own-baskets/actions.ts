@@ -8,7 +8,6 @@ import { flash } from "@/server/flash";
 import {
   closeOwnBasket,
   confirmOwnDelivery,
-  payDeliveryFee,
   setOwnVisibility,
   startOwnCheckout,
   type OwnLineInput,
@@ -107,17 +106,4 @@ export async function closeOwnBasketAction(fd: FormData) {
 
 export async function confirmDeliveryAction(fd: FormData) {
   await ownerStep(fd, (u, b) => confirmOwnDelivery(u, b));
-}
-
-export async function payDeliveryFeeAction(fd: FormData) {
-  const basketId = str(fd, "basketId");
-  const user = await requireUser([...BUYER_ROLES], `/own-baskets/${basketId}`);
-  let url: string;
-  try {
-    url = await payDeliveryFee(user.id, basketId);
-  } catch (e) {
-    if (!(e instanceof CartError)) throw e;
-    redirect(`/own-baskets/${basketId}?${new URLSearchParams({ error: e.message })}`);
-  }
-  redirect(url);
 }

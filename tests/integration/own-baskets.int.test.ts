@@ -6,10 +6,8 @@ import { cancelOrder, expireOrders } from "@/server/orders/baskets";
 import {
   closeOwnBasket,
   confirmOwnDelivery,
-  deliveryFeeFor,
   myOwnBaskets,
   ownBasketView,
-  payDeliveryFee,
   publicOwnBaskets,
   setOwnVisibility,
   startOwnCheckout,
@@ -33,6 +31,8 @@ beforeEach(async () => {
 });
 afterAll(() => db.$disconnect());
 
+const setMin = (ownMinItems: number) =>
+  db.settings.update({ where: { id: 1 }, data: { ownMinItems } });
 const money = (v: { toFixed(n: number): string }) => v.toFixed(2);
 const ADDRESS = { address: "12 Lake Rd", area: "Kandy", phone: "0771234567" };
 let key = 0;
@@ -204,32 +204,25 @@ describe("cancelling and closing", () => {
     expect(money(b.total)).toBe("1100.00");
   });
 
-  it("close works out the delivery fee; paying it locks the basket for the factory", async () => {
+  it("the owner places the order only once the basket holds the minimum items", async () => {
+    await setMin(5);
     const f = await makeFactory();
     const { owner, basketId } = await startPaid(f, "PUBLIC", 2);
-    await joinPaid(basketId, f.variant.id, undefined, 3);
     const stranger = await makeBuyer();
     await expect(closeOwnBasket(stranger.id, basketId)).rejects.toThrow("Basket not found");
+    await expect(closeOwnBasket(owner.id, basketId)).rejects.toThrow("at least 5 items");
+    await joinPaid(basketId, f.variant.id, undefined, 3);
     await closeOwnBasket(owner.id, basketId);
-    let b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
-    // 400 + 5 items x 50
-    expect([b.status, money(b.deliveryFee!)]).toEqual(["AWAITING_FEE", "650.00"]);
-    expect(deliveryFeeFor(5, new D(400), new D(50)).toFixed(2)).toBe("650.00");
+    const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
+    // No delivery fee: the owner pays the courier on delivery.
+    expect([b.status, b.lockReason, b.deliveryFee]).toEqual(["LOCKED", "OWNER", null]);
+    expect(await db.paymentAttempt.count({ where: { basketId } })).toBe(0);
+    expect(money(await tokenBalance(owner.id))).toBe("0.00");
     await expect(joinPaid(basketId, f.variant.id)).rejects.toThrow("This basket is not open");
-
-    await payDeliveryFee(owner.id, basketId);
-    const attempt = await db.paymentAttempt.findFirstOrThrow({
-      where: { basketId, purpose: "DELIVERY_FEE" },
-    });
-    // 650 plus the gateway fee
-    expect(new D(attempt.amount.toString()).gt(650)).toBe(true);
-    await payAttempt(attempt.id);
-    b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
-    expect([b.status, b.lockReason]).toEqual(["LOCKED", "OWNER"]);
-    expect(b.feePaidAt).not.toBeNull();
   });
 
   it("close waits while someone is still paying to join", async () => {
+    await setMin(1);
     const f = await makeFactory();
     const { owner, basketId } = await startPaid(f, "PUBLIC");
     const joiner = await makeBuyer();
@@ -242,31 +235,44 @@ describe("cancelling and closing", () => {
     await expect(closeOwnBasket(owner.id, basketId)).rejects.toThrow("Someone is paying");
   });
 
-  it("an unpaid delivery fee past its due date cancels and refunds everyone", async () => {
-    const f = await makeFactory();
-    const { owner, basketId } = await startPaid(f, "PUBLIC");
-    const j = await joinPaid(basketId, f.variant.id);
-    await closeOwnBasket(owner.id, basketId);
-    const r = await sweepOwnBaskets(new Date(Date.now() + 3 * 86_400_000));
-    expect(r.ownCancelled).toBe(1);
-    const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
-    expect(b.status).toBe("CANCELLED");
-    expect(money(await tokenBalance(owner.id))).toBe("1100.00");
-    expect(
-      await db.notification.count({ where: { userId: j.buyer.id, title: "Basket cancelled" } }),
-    ).toBe(1);
-    expect(money(await tokenBalance(j.buyer.id))).toBe("1100.00");
-    const v = await db.variant.findUniqueOrThrow({ where: { id: f.variant.id } });
-    expect([v.available, v.sold]).toEqual([50, 0]);
-  });
-
-  it("the maximum wait closes an own basket on its own", async () => {
+  it("a payment that arrives after the hold ran out comes back as tokens less the PayHere fee", async () => {
     const f = await makeFactory();
     const { basketId } = await startPaid(f, "PUBLIC");
+    const joiner = await makeBuyer();
+    const r = await startOwnCheckout(joiner.id, {
+      basketId,
+      lines: [{ variantId: f.variant.id, qty: 1 }],
+      tokens: "0",
+      requestKey: k(),
+    });
+    expect(await expireOrders(new Date(Date.now() + 60 * 60_000))).toBe(1);
+    const order = await db.order.findUniqueOrThrow({ where: { id: r.orderId } });
+    await payAttempt(order.paymentAttemptId!);
+    const back = new D(order.amountDue.toString()).minus(order.gatewayFee.toString());
+    expect(new D(order.gatewayFee.toString()).gt(0)).toBe(true);
+    expect(money(await tokenBalance(joiner.id))).toBe(money(back));
+    expect(money(back)).toBe("1100.00");
+  });
+
+  it("past the maximum wait, a full basket is ordered and a short one is cancelled", async () => {
+    await setMin(2);
+    const f = await makeFactory();
+    const full = await startPaid(f, "PUBLIC", 2);
+    const short = await startPaid(f, "PUBLIC", 1);
+    const j = await joinPaid(short.basketId, f.variant.id);
+    const one = await startPaid(f, "PUBLIC", 1);
+    await cancelOrder(j.buyer.id, j.orderId);
     const r = await sweepOwnBaskets(new Date(Date.now() + 61 * 86_400_000));
-    expect(r.ownClosed).toBe(1);
-    const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
-    expect(b.status).toBe("AWAITING_FEE");
+    expect(r).toEqual({ ownClosed: 1, ownCancelled: 2 });
+    const status = async (id: string) =>
+      (await db.basket.findUniqueOrThrow({ where: { id } })).status;
+    expect(await status(full.basketId)).toBe("LOCKED");
+    expect(await status(short.basketId)).toBe("CANCELLED");
+    expect(await status(one.basketId)).toBe("CANCELLED");
+    expect(money(await tokenBalance(one.owner.id))).toBe("1100.00");
+    expect(
+      await db.notification.count({ where: { userId: one.owner.id, title: "Basket cancelled" } }),
+    ).toBe(1);
   });
 });
 
@@ -275,10 +281,8 @@ describe("delivery to the owner", () => {
     const f = await makeFactory();
     const { owner, basketId } = await startPaid(f, "PUBLIC");
     const j = await joinPaid(basketId, f.variant.id);
+    await setMin(2);
     await closeOwnBasket(owner.id, basketId);
-    await payDeliveryFee(owner.id, basketId);
-    const attempt = await db.paymentAttempt.findFirstOrThrow({ where: { basketId } });
-    await payAttempt(attempt.id);
 
     await expect(confirmOwnDelivery(owner.id, basketId)).rejects.toThrow();
     const admin = await makeUser("ADMIN", "AGENTS");
@@ -299,9 +303,9 @@ describe("delivery to the owner", () => {
       (await db.notification.findMany({ where: { userId }, orderBy: { createdAt: "asc" } })).map(
         (n) => n.title,
       );
-    expect(await titles(owner.id)).toEqual(["Pay the delivery fee", "Basket on the way"]);
+    expect(await titles(owner.id)).toEqual(["Order placed", "Basket on the way"]);
     expect(await titles(j.buyer.id)).toEqual([
-      "Basket closed",
+      "Basket ordered",
       "Basket on the way",
       "Collect from the basket owner",
     ]);

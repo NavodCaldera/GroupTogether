@@ -3,7 +3,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BackLink, CopyLinkButton } from "@/components/client";
 import { Alert, Badge, Button, Card, Field, Select } from "@/components/ui";
-import { formatDateTime, formatLKR } from "@/lib/format";
 import { isBuyerRole } from "@/lib/roles";
 import { getCurrentUser } from "@/server/auth/session";
 import { appUrl } from "@/server/notify";
@@ -12,7 +11,6 @@ import {
   closeOwnBasketAction,
   confirmDeliveryAction,
   joinOwnBasketAction,
-  payDeliveryFeeAction,
   setVisibilityAction,
 } from "../actions";
 import { OWN_STATUS, SizeQuantities, TokensField } from "../own-bits";
@@ -76,25 +74,16 @@ export default async function OwnBasketPage({
                   Save
                 </Button>
               </form>
-              <form action={closeOwnBasketAction}>
+              <form action={closeOwnBasketAction} className="flex flex-wrap items-center gap-3">
                 <input type="hidden" name="basketId" value={b.id} />
-                <Button type="submit">Close and ship</Button>
+                <Button type="submit" disabled={b.items < b.minItems}>
+                  Place order
+                </Button>
+                <span className="text-sm text-subtle tabular-nums">
+                  {b.items} / {b.minItems}
+                </span>
               </form>
             </>
-          )}
-          {b.status === "AWAITING_FEE" && b.deliveryFee && (
-            <form action={payDeliveryFeeAction} className="flex flex-col gap-2">
-              <input type="hidden" name="basketId" value={b.id} />
-              <p className="text-lg font-semibold tabular-nums">
-                Delivery fee {formatLKR(b.deliveryFee)}
-              </p>
-              {b.feeDueAt && (
-                <p className="text-sm text-subtle">Pay by {formatDateTime(b.feeDueAt)}</p>
-              )}
-              <Button type="submit" className="self-start">
-                Pay delivery fee
-              </Button>
-            </form>
           )}
           {b.status === "WITH_COURIER" && (
             <form action={confirmDeliveryAction}>

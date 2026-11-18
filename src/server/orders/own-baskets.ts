@@ -1,7 +1,7 @@
 import "server-only";
 import { randomBytes, randomUUID } from "node:crypto";
 import { D, toD } from "@/lib/decimal";
-import { gatewayFee, orderTotals, splitCheckout } from "@/lib/agent-money";
+import { orderTotals, splitCheckout } from "@/lib/agent-money";
 import { canMoveBasket, canMoveOrder } from "@/lib/order-rules";
 import { db, type Tx } from "../db";
 import { getSettings } from "../settings";
@@ -14,8 +14,9 @@ import { lockOwnBasket, withOrderTransaction } from "./locks";
 import { validCommission } from "@/lib/price-rules";
 
 /** Own baskets (DEC-023): a buyer starts a basket for one product, others buy that product into
- * it, and the whole basket goes to the owner's address. No agent, no agent fee, no returns. The
- * owner closes it and pays the delivery fee; unpaid by feeDueAt, every order is refunded. */
+ * it, and the whole basket goes to the owner's address. No agent, no agent or courier fee, no
+ * returns. Once it holds ownMinItems items the owner places the order; the owner pays the courier
+ * on delivery, outside GroupBasket. */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const MAX_LINES = 20;
@@ -55,11 +56,6 @@ function parseTokens(tokens: string): D {
   if (typeof tokens !== "string" || !validCommission(tokens.trim()))
     throw new CheckoutError("Enter tokens as an amount with at most two decimals");
   return new D(tokens.trim());
-}
-
-/** The delivery fee the owner pays at close: base + per item, on the items still in the basket. */
-export function deliveryFeeFor(items: number, base: D, perItem: D): D {
-  return base.plus(perItem.times(items)).toDecimalPlaces(2);
 }
 
 /** Loads the product and the chosen variants; every variant must belong to the product. */
@@ -337,28 +333,27 @@ export async function setOwnVisibility(
   });
 }
 
-/** Caller holds the basket advisory. OPEN -> AWAITING_FEE with the fee worked out from the items
- * now in the basket. Refuses while someone is still paying to join. */
+/** Items in an own basket's paid orders. */
+async function basketItems(tx: Tx, basketId: string): Promise<number> {
+  const lines = await tx.orderLine.findMany({
+    where: { order: { basketId, status: "PAID" } },
+    select: { qty: true },
+  });
+  return lines.reduce((s, l) => s + l.qty, 0);
+}
+
+/** Caller holds the basket advisory. OPEN -> LOCKED once the basket holds ownMinItems items;
+ * the order then goes to the factory. Refuses while someone is still paying to join. */
 async function closeBasket(tx: Tx, basketId: string, now: Date): Promise<boolean> {
   const b = await tx.basket.findUniqueOrThrow({ where: { id: basketId } });
   if (b.status !== "OPEN" || !b.firstOrderAt) return false;
   if (await tx.order.count({ where: { targetBasketId: b.id, status: "PENDING" } })) return false;
-  const lines = await tx.orderLine.findMany({
-    where: { order: { basketId: b.id, status: "PAID" } },
-    select: { qty: true },
-  });
-  const items = lines.reduce((s, l) => s + l.qty, 0);
-  if (!items || !canMoveBasket(b.status, "AWAITING_FEE")) return false;
-  const s = await getSettings(tx);
-  const fee = deliveryFeeFor(items, toD(s.ownDeliveryBase), toD(s.ownDeliveryPerItem));
+  const { ownMinItems } = await getSettings(tx);
+  if ((await basketItems(tx, b.id)) < ownMinItems || !canMoveBasket(b.status, "LOCKED"))
+    return false;
   await tx.basket.update({
     where: { id: b.id },
-    data: {
-      status: "AWAITING_FEE",
-      closedAt: now,
-      deliveryFee: fee.toFixed(2),
-      feeDueAt: new Date(now.getTime() + s.ownFeeDays * DAY_MS),
-    },
+    data: { status: "LOCKED", closedAt: now, lockedAt: now, lockReason: "OWNER" },
   });
   return true;
 }
@@ -373,7 +368,6 @@ export async function announceOwnBasket(basketId: string, event: OwnEvent): Prom
     select: {
       kind: true,
       ownerId: true,
-      deliveryFee: true,
       product: { select: { title: true } },
       orders: {
         where: { status: event === "cancelled" ? "CANCELLED" : { in: ["PAID", "RECEIVED"] } },
@@ -387,13 +381,8 @@ export async function announceOwnBasket(basketId: string, event: OwnEvent): Prom
   const joiners = b.orders.map((o) => o.buyerId).filter((id) => id !== b.ownerId);
   const key = `own:${basketId}:${event}`;
   if (event === "closed") {
-    const fee = b.deliveryFee ? toD(b.deliveryFee).toFixed(2) : "";
-    await notify(
-      [b.ownerId],
-      { title: "Pay the delivery fee", body: `${title} · LKR ${fee}`, href },
-      key,
-    );
-    await notify(joiners, { title: "Basket closed", body: title, href }, `${key}:j`);
+    await notify([b.ownerId], { title: "Order placed", body: title, href }, key);
+    await notify(joiners, { title: "Basket ordered", body: title, href }, `${key}:j`);
   } else if (event === "shipped") {
     await notify([b.ownerId, ...joiners], { title: "Basket on the way", body: title, href }, key);
   } else if (event === "delivered") {
@@ -407,74 +396,20 @@ export async function announceOwnBasket(basketId: string, event: OwnEvent): Prom
   }
 }
 
-/** The owner presses Close and ship. */
+/** The owner places the order once the basket holds enough items. */
 export async function closeOwnBasket(ownerId: string, basketId: string): Promise<void> {
   await withOrderTransaction([ownerId], [], async (tx) => {
     const b = await ownerBasket(tx, ownerId, basketId);
     if (b.status !== "OPEN") throw new CheckoutError("This basket is already closed");
     if (await tx.order.count({ where: { targetBasketId: b.id, status: "PENDING" } }))
       throw new CheckoutError("Someone is paying to join. Try again in a few minutes");
+    const { ownMinItems } = await getSettings(tx);
+    if ((await basketItems(tx, b.id)) < ownMinItems)
+      throw new CheckoutError(`The basket needs at least ${ownMinItems} items`);
     if (!(await closeBasket(tx, b.id, new Date())))
-      throw new CheckoutError("This basket cannot be closed yet");
+      throw new CheckoutError("This basket cannot be ordered yet");
   });
   await announceOwnBasket(basketId, "closed");
-}
-
-/** The owner pays the delivery fee (plus the gateway fee) for an AWAITING_FEE basket. */
-export async function payDeliveryFee(ownerId: string, basketId: string): Promise<string> {
-  const out = await withOrderTransaction([ownerId], [], async (tx) => {
-    const b = await ownerBasket(tx, ownerId, basketId);
-    if (b.status !== "AWAITING_FEE" || !b.deliveryFee)
-      throw new CheckoutError("No delivery fee is due");
-    const owner = await assertBuyer(tx, ownerId);
-    const s = await getSettings(tx);
-    const now = new Date();
-    const open = await tx.paymentAttempt.findFirst({
-      where: { basketId: b.id, purpose: "DELIVERY_FEE", status: "PENDING", expiresAt: { gt: now } },
-    });
-    if (open) return { id: open.id, amount: toD(open.amount).toFixed(2), owner };
-    const fee = toD(b.deliveryFee);
-    const amount = fee.plus(gatewayFee(fee, toD(s.gatewayFeeRate)));
-    const attempt = await tx.paymentAttempt.create({
-      data: {
-        purpose: "DELIVERY_FEE",
-        buyerId: ownerId,
-        basketId: b.id,
-        amount: amount.toFixed(2),
-        currency: "LKR",
-        gatewayRef: `ga_${randomUUID()}`,
-        expiresAt: new Date(now.getTime() + s.paymentHoldMinutes * 60_000),
-      },
-    });
-    return { id: attempt.id, amount: amount.toFixed(2), owner };
-  });
-  const { redirectUrl } = await getGateway().createCheckout({
-    attemptId: out.id,
-    amount: out.amount,
-    currency: "LKR",
-    returnUrl: appUrl(`/checkout/return/${out.id}`),
-    notifyUrl: appUrl("/api/payments/notify"),
-    buyer: out.owner,
-  });
-  return redirectUrl;
-}
-
-/** Payment notice for a delivery fee; caller holds the owner advisory. AWAITING_FEE -> LOCKED.
- * Returns false when the basket is no longer waiting (the money then goes back as tokens). */
-export async function deliveryFeePaid(tx: Tx, attemptId: string, now: Date): Promise<boolean> {
-  const attempt = await tx.paymentAttempt.findUniqueOrThrow({
-    where: { id: attemptId },
-    select: { basketId: true, status: true },
-  });
-  if (!attempt.basketId || attempt.status !== "PENDING") return false;
-  await lockOwnBasket(tx, attempt.basketId);
-  const b = await tx.basket.findUniqueOrThrow({ where: { id: attempt.basketId } });
-  if (b.status !== "AWAITING_FEE" || !canMoveBasket(b.status, "LOCKED")) return false;
-  await tx.basket.update({
-    where: { id: b.id },
-    data: { status: "LOCKED", lockedAt: now, lockReason: "OWNER", feePaidAt: now },
-  });
-  return true;
 }
 
 /** The owner confirms the courier delivered: WITH_COURIER -> DELIVERED, every paid order is
@@ -511,8 +446,8 @@ export async function confirmOwnDelivery(ownerId: string, basketId: string): Pro
   await announceOwnBasket(basketId, "delivered");
 }
 
-/** Sweep: own baskets past the maximum wait close on their own; closed baskets whose fee is not
- * paid by feeDueAt are cancelled and every buyer is refunded in tokens. */
+/** Sweep: an own basket past the maximum wait is ordered if it holds ownMinItems items;
+ * otherwise it is cancelled and every buyer gets what they paid back as tokens. */
 export async function sweepOwnBaskets(
   now: Date,
 ): Promise<{ ownClosed: number; ownCancelled: number }> {
@@ -522,63 +457,40 @@ export async function sweepOwnBaskets(
   let ownCancelled = 0;
   const waited = await db.basket.findMany({
     where: { kind: "OWN", status: "OPEN", firstOrderAt: { lte: cutoff } },
-    select: { id: true, ownerId: true },
-    orderBy: { id: "asc" },
-  });
-  for (const b of waited)
-    try {
-      if (
-        await withOrderTransaction([b.ownerId!], [], async (tx) => {
-          await lockOwnBasket(tx, b.id);
-          return closeBasket(tx, b.id, now);
-        })
-      ) {
-        ownClosed++;
-        await announceOwnBasket(b.id, "closed");
-      }
-    } catch (error) {
-      console.error("Own basket close will retry", b.id, error);
-    }
-
-  const unpaid = await db.basket.findMany({
-    where: { kind: "OWN", status: "AWAITING_FEE", feeDueAt: { lte: now } },
     select: {
       id: true,
       orders: { where: { status: "PAID" }, select: { id: true, buyerId: true } },
     },
     orderBy: { id: "asc" },
   });
-  for (const b of unpaid)
+  for (const b of waited)
     try {
-      const cancelled = await withOrderTransaction(
+      const result = await withOrderTransaction(
         b.orders.map((o) => o.buyerId),
         b.orders.map((o) => o.id),
-        async (tx) => {
+        async (tx): Promise<"closed" | "cancelled" | null> => {
           await lockOwnBasket(tx, b.id);
+          if (await closeBasket(tx, b.id, now)) return "closed";
           const row = await tx.basket.findUniqueOrThrow({ where: { id: b.id } });
-          if (row.status !== "AWAITING_FEE" || !row.feeDueAt || row.feeDueAt > now) return false;
-          if (
-            await tx.paymentAttempt.count({
-              where: {
-                basketId: b.id,
-                purpose: "DELIVERY_FEE",
-                status: "PENDING",
-                expiresAt: { gt: now },
-              },
-            })
-          )
-            return false;
+          if (row.status !== "OPEN") return null;
+          if (await tx.order.count({ where: { targetBasketId: b.id, status: "PENDING" } }))
+            return null;
+          const paid = await tx.order.findMany({
+            where: { basketId: b.id, status: "PAID" },
+            select: { id: true },
+          });
+          // A buyer who joined after the list was read is not locked: retry next sweep.
+          if (paid.some((o) => !b.orders.some((x) => x.id === o.id))) return null;
           await tx.basket.update({ where: { id: b.id }, data: { status: "CANCELLED" } });
-          await cancelBasketOrders(tx, b.id, "Own basket cancelled: the delivery fee was not paid");
-          return true;
+          await cancelBasketOrders(tx, b.id, "Own basket cancelled: too few items");
+          return "cancelled";
         },
       );
-      if (cancelled) {
-        ownCancelled++;
-        await announceOwnBasket(b.id, "cancelled");
-      }
+      if (result === "closed") ownClosed++;
+      if (result === "cancelled") ownCancelled++;
+      if (result) await announceOwnBasket(b.id, result);
     } catch (error) {
-      console.error("Own basket cancel will retry", b.id, error);
+      console.error("Own basket sweep will retry", b.id, error);
     }
   return { ownClosed, ownCancelled };
 }
@@ -676,8 +588,7 @@ export async function ownBasketView(
     shareCode: isOwner ? b.shareCode : null,
     address: isOwner ? b.deliveryAddress : null,
     phone: isOwner ? b.deliveryPhone : null,
-    deliveryFee: b.deliveryFee,
-    feeDueAt: b.feeDueAt,
+    minItems: (await getSettings()).ownMinItems,
     product: b.product,
     items: b.orders.reduce((s, o) => s + o.lines.reduce((t, l) => t + l.qty, 0), 0),
     // The owner sees who bought what, to hand items over; others see only their own.

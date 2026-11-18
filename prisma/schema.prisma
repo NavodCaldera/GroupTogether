@@ -463,11 +463,8 @@ model Settings {
   agentRadiusM        Int       @default(1000)
   agentGapM           Int       @default(2000)
   agentDeposit        Decimal   @default(200000) @db.Decimal(14, 2)
-  /// Own baskets (DEC-023): delivery fee the owner pays at close = base + per item
-  ownDeliveryBase     Decimal   @default(400) @db.Decimal(14, 2)
-  ownDeliveryPerItem  Decimal   @default(50) @db.Decimal(14, 2)
-  /// Days the owner has to pay the delivery fee after closing before the basket is cancelled
-  ownFeeDays          Int       @default(2)
+  /// Own baskets (DEC-023): items the basket must hold before the owner can place the order
+  ownMinItems         Int       @default(10)
   /// The last week end (Saturday 23:59:59.999 Asia/Colombo) whose payouts and agent fees were built
   payoutsBuiltThrough DateTime?
 }

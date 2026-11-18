@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-18 - Own baskets: no fee, minimum items
+
+- The owner changed `DEC-023`: an own basket has no delivery, courier or agent fee (those show
+  only when an agent is chosen); the owner pays the courier on delivery. The owner can place the
+  order only once the basket holds the minimum items (`ownMinItems`, 10, Claude's call). A joiner
+  whose payment arrives after the hold ran out gets tokens equal to the payment less the PayHere
+  fee. Past `maxWaitDays`, a short basket is cancelled and refunded (Claude's call). The
+  delivery-fee payment, `ownDeliveryBase`, `ownDeliveryPerItem` and `ownFeeDays` are removed.
+
 ## 2026-11-18 - Own basket notices
 
 - Continuing own baskets (`DEC-023` point 11): in-app notices on close, shipping, delivery and

@@ -355,23 +355,26 @@ it is shared by link or public. Normal price.
 4. **Price.** Normal price. No agent, so no 5% agent fee and no pickup code.
 5. **Cancelling.** Joiners can cancel while the basket is open (full tokens, as `ORD-004`). The
    owner cannot cancel their own order, because the basket is theirs (Claude's call).
-6. **Closing.** The owner presses **Close and ship**, or the basket closes on its own after
-   `maxWaitDays` (60). It does not close while someone is still paying to join. Closing works out
-   the delivery fee: `ownDeliveryBase` LKR 400 + `ownDeliveryPerItem` LKR 50 per item (Claude's
-   call, changeable in Settings). The owner pays it online plus the PayHere fee; tokens are not
-   accepted for it (Claude's call).
-7. **Unpaid fee.** If the fee is not paid within `ownFeeDays` (2) of closing, the basket is
-   cancelled and every buyer, the owner included, gets everything they paid back as tokens.
+6. **Placing the order** (changed by the owner 2026-11-18). The owner presses **Place order**,
+   which works only once the basket holds `ownMinItems` items (10, Claude's call, changeable in
+   Settings). It does not go while someone is still paying to join. GroupBasket charges no
+   delivery, courier or agent fee for an own basket; those are shown only when an agent is chosen.
+   The owner pays the courier when the courier delivers, outside GroupBasket.
+7. **Maximum wait.** After `maxWaitDays` (60) the basket is ordered if it holds enough items;
+   otherwise it is cancelled and every buyer, the owner included, gets everything back as tokens
+   (Claude's call).
+7a. **Late payment** (owner, 2026-11-18). A joiner whose payment arrives after their stock hold
+   ran out, when the items may have sold meanwhile, gets the payment back as tokens less the
+   PayHere fee. Agent-basket late payments are unchanged.
 8. **Shipping.** A paid basket locks and goes through factory packing and manual courier booking
    (`BSK-004`, `BSK-005`) to the owner's address, which the factory and the admin see.
 9. **Receipt.** The owner taps **Received**. Every order is received and collected at once; the
    owner hands the items to the joiners. GroupBasket keeps no handover record.
 10. **No returns.** No return of any kind, factory fault included. Factory payouts follow the
     usual timing from receipt.
-11. **Notices** (Claude's call): the owner is told to pay the fee at close; joiners that it
-    closed; everyone when it ships or is cancelled; joiners to collect from the owner on delivery.
-12. **Courier fee.** The admin still records what the courier costs; the owner's delivery fee is
-    what GroupBasket charges for it.
+11. **Notices** (Claude's call): the owner that the order is placed; joiners that it was ordered; everyone when it ships or is cancelled; joiners to collect from the owner on delivery.
+12. **Courier fee.** The admin still records the courier booking; the owner pays the courier
+    directly on delivery.
 
 ### DEC-022 - Material Library and Material Card
 
