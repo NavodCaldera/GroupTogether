@@ -252,6 +252,9 @@ describe("cancelling and closing", () => {
     const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
     expect(b.status).toBe("CANCELLED");
     expect(money(await tokenBalance(owner.id))).toBe("1100.00");
+    expect(
+      await db.notification.count({ where: { userId: j.buyer.id, title: "Basket cancelled" } }),
+    ).toBe(1);
     expect(money(await tokenBalance(j.buyer.id))).toBe("1100.00");
     const v = await db.variant.findUniqueOrThrow({ where: { id: f.variant.id } });
     expect([v.available, v.sold]).toEqual([50, 0]);
@@ -292,6 +295,16 @@ describe("delivery to the owner", () => {
 
     const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
     expect(b.status).toBe("DELIVERED");
+    const titles = async (userId: string) =>
+      (await db.notification.findMany({ where: { userId }, orderBy: { createdAt: "asc" } })).map(
+        (n) => n.title,
+      );
+    expect(await titles(owner.id)).toEqual(["Pay the delivery fee", "Basket on the way"]);
+    expect(await titles(j.buyer.id)).toEqual([
+      "Basket closed",
+      "Basket on the way",
+      "Collect from the basket owner",
+    ]);
     const order = await db.order.findUniqueOrThrow({
       where: { id: j.orderId },
       include: { lines: true },
