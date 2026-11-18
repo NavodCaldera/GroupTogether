@@ -7,7 +7,7 @@ import { db, type Tx } from "../db";
 import { getSettings } from "../settings";
 import { assertTokenHolder, post, tokenBalance } from "../tokens";
 import { getGateway } from "../payments/gateway";
-import { appUrl } from "../notify";
+import { appUrl, notify } from "../notify";
 import { assertBuyer, CheckoutError, ratesOf } from "./checkout";
 import { cancelBasketOrders, markOrdersPaid } from "./baskets";
 import { lockOwnBasket, withOrderTransaction } from "./locks";
@@ -363,6 +363,50 @@ async function closeBasket(tx: Tx, basketId: string, now: Date): Promise<boolean
   return true;
 }
 
+export type OwnEvent = "closed" | "shipped" | "delivered" | "cancelled";
+
+/** After commit: tells the owner and every buyer in an own basket what happened (DEC-023).
+ * Deduplicated per basket and event, so a retry sends nothing twice. */
+export async function announceOwnBasket(basketId: string, event: OwnEvent): Promise<void> {
+  const b = await db.basket.findUnique({
+    where: { id: basketId },
+    select: {
+      kind: true,
+      ownerId: true,
+      deliveryFee: true,
+      product: { select: { title: true } },
+      orders: {
+        where: { status: event === "cancelled" ? "CANCELLED" : { in: ["PAID", "RECEIVED"] } },
+        select: { buyerId: true },
+      },
+    },
+  });
+  if (!b || b.kind !== "OWN" || !b.ownerId) return;
+  const href = `/own-baskets/${basketId}`;
+  const title = b.product?.title ?? "Own basket";
+  const joiners = b.orders.map((o) => o.buyerId).filter((id) => id !== b.ownerId);
+  const key = `own:${basketId}:${event}`;
+  if (event === "closed") {
+    const fee = b.deliveryFee ? toD(b.deliveryFee).toFixed(2) : "";
+    await notify(
+      [b.ownerId],
+      { title: "Pay the delivery fee", body: `${title} · LKR ${fee}`, href },
+      key,
+    );
+    await notify(joiners, { title: "Basket closed", body: title, href }, `${key}:j`);
+  } else if (event === "shipped") {
+    await notify([b.ownerId, ...joiners], { title: "Basket on the way", body: title, href }, key);
+  } else if (event === "delivered") {
+    await notify(joiners, { title: "Collect from the basket owner", body: title, href }, key);
+  } else {
+    await notify(
+      [b.ownerId, ...joiners],
+      { title: "Basket cancelled", body: `${title} · refunded as tokens`, href },
+      key,
+    );
+  }
+}
+
 /** The owner presses Close and ship. */
 export async function closeOwnBasket(ownerId: string, basketId: string): Promise<void> {
   await withOrderTransaction([ownerId], [], async (tx) => {
@@ -373,6 +417,7 @@ export async function closeOwnBasket(ownerId: string, basketId: string): Promise
     if (!(await closeBasket(tx, b.id, new Date())))
       throw new CheckoutError("This basket cannot be closed yet");
   });
+  await announceOwnBasket(basketId, "closed");
 }
 
 /** The owner pays the delivery fee (plus the gateway fee) for an AWAITING_FEE basket. */
@@ -463,6 +508,7 @@ export async function confirmOwnDelivery(ownerId: string, basketId: string): Pro
       data: { collectedAt: now },
     });
   });
+  await announceOwnBasket(basketId, "delivered");
 }
 
 /** Sweep: own baskets past the maximum wait close on their own; closed baskets whose fee is not
@@ -486,8 +532,10 @@ export async function sweepOwnBaskets(
           await lockOwnBasket(tx, b.id);
           return closeBasket(tx, b.id, now);
         })
-      )
+      ) {
         ownClosed++;
+        await announceOwnBasket(b.id, "closed");
+      }
     } catch (error) {
       console.error("Own basket close will retry", b.id, error);
     }
@@ -502,13 +550,13 @@ export async function sweepOwnBaskets(
   });
   for (const b of unpaid)
     try {
-      await withOrderTransaction(
+      const cancelled = await withOrderTransaction(
         b.orders.map((o) => o.buyerId),
         b.orders.map((o) => o.id),
         async (tx) => {
           await lockOwnBasket(tx, b.id);
           const row = await tx.basket.findUniqueOrThrow({ where: { id: b.id } });
-          if (row.status !== "AWAITING_FEE" || !row.feeDueAt || row.feeDueAt > now) return;
+          if (row.status !== "AWAITING_FEE" || !row.feeDueAt || row.feeDueAt > now) return false;
           if (
             await tx.paymentAttempt.count({
               where: {
@@ -519,12 +567,16 @@ export async function sweepOwnBaskets(
               },
             })
           )
-            return;
+            return false;
           await tx.basket.update({ where: { id: b.id }, data: { status: "CANCELLED" } });
           await cancelBasketOrders(tx, b.id, "Own basket cancelled: the delivery fee was not paid");
-          ownCancelled++;
+          return true;
         },
       );
+      if (cancelled) {
+        ownCancelled++;
+        await announceOwnBasket(b.id, "cancelled");
+      }
     } catch (error) {
       console.error("Own basket cancel will retry", b.id, error);
     }

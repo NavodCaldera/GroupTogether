@@ -368,7 +368,9 @@ it is shared by link or public. Normal price.
    owner hands the items to the joiners. GroupBasket keeps no handover record.
 10. **No returns.** No return of any kind, factory fault included. Factory payouts follow the
     usual timing from receipt.
-11. **Courier fee.** The admin still records what the courier costs; the owner's delivery fee is
+11. **Notices** (Claude's call): the owner is told to pay the fee at close; joiners that it
+    closed; everyone when it ships or is cancelled; joiners to collect from the owner on delivery.
+12. **Courier fee.** The admin still records what the courier costs; the owner's delivery fee is
     what GroupBasket charges for it.
 
 ### DEC-022 - Material Library and Material Card

@@ -6,6 +6,11 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-18 - Own basket notices
+
+- Continuing own baskets (`DEC-023` point 11): in-app notices on close, shipping, delivery and
+  cancel.
+
 ## 2026-11-18 - Own baskets
 
 - The owner asked for a second way to buy: buyers group together and the garments go to the

@@ -14,6 +14,7 @@ import { notify } from "../notify";
 import { post } from "../tokens";
 import { CartError } from "@/server/errors";
 import { lockBasketOf, withOrderTransaction } from "./locks";
+import { announceOwnBasket } from "./own-baskets";
 
 export class DeliveryError extends CartError {}
 
@@ -127,6 +128,7 @@ export async function givenToDriver(userId: string, basketId: string): Promise<v
     });
     await tx.basket.update({ where: { id: basket.id }, data: { status: "WITH_COURIER" } });
   });
+  if (!key.agentId) await announceOwnBasket(basketId, "shipped");
 }
 
 async function lineContext(orderLineId: string) {
