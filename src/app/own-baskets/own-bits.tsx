@@ -4,6 +4,11 @@ import { formatLKR } from "@/lib/format";
 type Money = { toString(): string };
 type Variant = { id: string; size: string; colour: string; available: number };
 
+/** "1 item", "3 items". */
+export function itemsLabel(n: number) {
+  return `${n} ${n === 1 ? "item" : "items"}`;
+}
+
 export const OWN_STATUS: Record<string, string> = {
   OPEN: "Filling",
   LOCKED: "Packing",

@@ -75,3 +75,6 @@ __pycache__/
 # Python virtual environments and test caches (tools/body-fitting)
 .venv/
 .pytest_cache/
+
+# Local QA screenshots and browser snapshots
+/qa-output/

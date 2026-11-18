@@ -17,6 +17,7 @@ import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 import { FitSection } from "./fit-section";
 import { MaterialSection } from "./material-card";
 import { getMaterialCard, getProvenance } from "@/server/materials";
+import { itemsLabel } from "@/app/own-baskets/own-bits";
 import { publicOwnBaskets } from "@/server/orders/own-baskets";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
@@ -130,7 +131,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                         {b.area}
                       </Link>
                       <span className="text-sm text-subtle">
-                        {b.owner} · {b.items} items
+                        {b.owner} · {itemsLabel(b.items)}
                       </span>
                     </li>
                   ))}

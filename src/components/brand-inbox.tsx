@@ -145,7 +145,7 @@ export async function BrandInbox({ actorId, search }: { actorId: string; search:
             </RewardForm>
           )}
           <BrandThreadHistory
-            key={conversation?.id || "new"}
+            key={`history-${conversation?.id ?? "new"}`}
             thread={conversation?.id}
             through={messages.at(-1)?.createdAt.toISOString()}
           >
@@ -185,7 +185,7 @@ export async function BrandInbox({ actorId, search }: { actorId: string; search:
               Load full conversation history →
             </Link>
           )}
-          <BrandMessageForm key={context?.contextKey || "new"}>
+          <BrandMessageForm key={`form-${context?.contextKey || "new"}`}>
             {conversation && <input type="hidden" name="thread" value={conversation.id} />}
             <input type="hidden" name="requestKey" value={randomUUID()} />
             <input type="hidden" name="kind" value={context?.kind || "GENERAL"} />

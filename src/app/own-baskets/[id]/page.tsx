@@ -13,7 +13,7 @@ import {
   joinOwnBasketAction,
   setVisibilityAction,
 } from "../actions";
-import { OWN_STATUS, SizeQuantities, TokensField } from "../own-bits";
+import { itemsLabel, OWN_STATUS, SizeQuantities, TokensField } from "../own-bits";
 
 export const metadata: Metadata = { title: "Own basket" };
 
@@ -43,7 +43,7 @@ export default async function OwnBasketPage({
           </Badge>
         </div>
         <p className="text-sm text-subtle">
-          {b.owner} · {b.area} · {b.items} items
+          {b.owner} · {b.area} · {itemsLabel(b.items)}
         </p>
       </div>
       {error && <Alert>{error}</Alert>}
@@ -76,12 +76,19 @@ export default async function OwnBasketPage({
               </form>
               <form action={closeOwnBasketAction} className="flex flex-wrap items-center gap-3">
                 <input type="hidden" name="basketId" value={b.id} />
-                <Button type="submit" disabled={b.items < b.minItems}>
+                <Button
+                  type="submit"
+                  disabled={b.items < b.minItems}
+                  aria-describedby={b.items < b.minItems ? "own-needed" : undefined}
+                >
                   Place order
                 </Button>
-                <span className="text-sm text-subtle tabular-nums">
-                  {b.items} / {b.minItems}
-                </span>
+                {b.items < b.minItems && (
+                  <span id="own-needed" className="text-sm text-subtle tabular-nums">
+                    {b.minItems - b.items} more {b.minItems - b.items === 1 ? "item" : "items"}{" "}
+                    needed · {b.items} of {b.minItems}
+                  </span>
+                )}
               </form>
             </>
           )}

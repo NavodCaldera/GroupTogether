@@ -4,7 +4,7 @@ import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { myOwnBaskets } from "@/server/orders/own-baskets";
-import { OWN_STATUS } from "./own-bits";
+import { itemsLabel, OWN_STATUS } from "./own-bits";
 
 export const metadata: Metadata = { title: "Own baskets" };
 
@@ -29,7 +29,7 @@ export default async function OwnBasketsPage() {
                     {b.title}
                   </Link>
                   <p className="text-sm text-subtle">
-                    {b.owner ? "Yours" : "Joined"} · {b.area} · {b.items} items
+                    {b.owner ? "Yours" : "Joined"} · {b.area} · {itemsLabel(b.items)}
                   </p>
                 </div>
                 <Badge>{OWN_STATUS[b.status] ?? b.status}</Badge>

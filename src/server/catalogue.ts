@@ -9,6 +9,7 @@ import { db } from "./db";
 import { canSell, canSellIn, sellingFactoryWhere } from "./agreements";
 import { buyerPrice } from "@/lib/price-rules";
 import { getSettings } from "./settings";
+import { sizeOrder } from "@/lib/fit/data";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
 export class CatalogueError extends Error {}
@@ -127,7 +128,7 @@ export async function shopFacets(now = new Date()) {
 
 /** One product with its sizes. Opens even when sold out, so links from carts keep working. */
 export async function getProduct(id: string, now = new Date()) {
-  return db.product.findFirst({
+  const product = await db.product.findFirst({
     where: {
       id,
       hiddenAt: null,
@@ -139,6 +140,14 @@ export async function getProduct(id: string, now = new Date()) {
       seller: { select: { name: true, company: true } },
     },
   });
+  if (!product) return null;
+  // Sizes small to large (S, M, L, XL), not alphabetical; colours stay in order within a size.
+  const order = sizeOrder(
+    product.kind,
+    product.variants.map((v) => v.size),
+  );
+  product.variants.sort((x, y) => order.indexOf(x.size) - order.indexOf(y.size));
+  return product;
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────

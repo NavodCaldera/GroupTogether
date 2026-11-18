@@ -193,6 +193,17 @@ test("Agents and orders books a courier for the packed basket", async ({ page })
     has: page.getByRole("heading", { name: `${DEMO_FACTORIES.ceylon.company} → Suresh Kumar` }),
   });
   await expect(card.getByText("Packed", { exact: true })).toBeVisible();
+  // A rejected field keeps everything else the admin typed (React resets forms after actions).
+  await card.getByLabel("Courier fee (LKR)").fill("abc");
+  await card.getByLabel("Driver", { exact: true }).fill("Kamal Perera");
+  await card.getByLabel("Driver phone").fill("0779876543");
+  await card.getByLabel("Vehicle").fill("WP-CAB-1122");
+  await card.getByRole("button", { name: "Book" }).click();
+  await expect(
+    card.getByText("Enter a positive courier fee with at most two decimals"),
+  ).toBeVisible();
+  await expect(card.getByLabel("Driver", { exact: true })).toHaveValue("Kamal Perera");
+  await expect(card.getByLabel("Vehicle")).toHaveValue("WP-CAB-1122");
   await card.getByLabel("Courier fee (LKR)").fill("1350");
   await card.getByLabel("Driver", { exact: true }).fill("Kamal Perera");
   await card.getByLabel("Driver phone").fill("0779876543");

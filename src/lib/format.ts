@@ -9,9 +9,21 @@ const lkr = new Intl.NumberFormat("en-LK", {
   maximumFractionDigits: 2,
 });
 
-/** Display an amount in LKR. Formatting is exact: the string never becomes a float. */
+const lkrCents = new Intl.NumberFormat("en-LK", {
+  style: "currency",
+  currency: "LKR",
+  currencyDisplay: "code",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 2,
+});
+
+/** Display an amount in LKR: whole rupees without cents, otherwise always two decimals
+ * (LKR 1,600 and LKR 109.20, never LKR 109.2). Formatting is exact: the string never becomes a
+ * float. */
 export function formatLKR(value: Decimal.Value | { toString(): string }): string {
-  return lkr.format(roundMoney(value.toString()).toFixed(2) as unknown as number);
+  const rounded = roundMoney(value.toString());
+  const fmt = rounded.isInteger() ? lkr : lkrCents;
+  return fmt.format(rounded.toFixed(2) as unknown as number);
 }
 
 export function formatDateTime(date: Date | string | null | undefined): string {
