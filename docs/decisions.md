@@ -372,7 +372,7 @@ it is shared by link or public. Normal price.
    owner hands the items to the joiners. GroupBasket keeps no handover record.
 10. **No returns.** No return of any kind, factory fault included. Factory payouts follow the
     usual timing from receipt.
-11. **Notices** (Claude's call): the owner that the order is placed; joiners that it was ordered; everyone when it ships or is cancelled; joiners to collect from the owner on delivery.
+11. **Notices** (Claude's call): the owner each time someone joins and that the order is placed; joiners that it was ordered; everyone when it ships or is cancelled; joiners to collect from the owner on delivery.
 12. **Courier fee.** The admin still records the courier booking; the owner pays the courier
     directly on delivery.
 

@@ -6,6 +6,13 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-19 - Own basket join notice and browser test
+
+- The owner asked to build the remaining own-basket pieces: the owner is notified each time a
+  buyer joins, and a browser spec covers start, join and Place order. The owner restated that an
+  own basket holds sizes of one product only, which `BSK-008` already enforces. The demo payment
+  gateway (`PAYMENT_GATEWAY=demo`, `/demo-pay`) already exists for testing.
+
 ## 2026-11-18 - Own baskets: no fee, minimum items
 
 - The owner changed `DEC-023`: an own basket has no delivery, courier or agent fee (those show

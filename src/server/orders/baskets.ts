@@ -158,6 +158,31 @@ async function joinOwnBasket(
     where: { id: o.id },
     data: { status: "PAID", paidAt: now, basketId: basket.id },
   });
+  // The owner hears of each joiner, in the same transaction so a join is never missed.
+  if (basket.ownerId && o.buyerId !== basket.ownerId) {
+    // One query at a time: an interactive transaction runs on one connection.
+    const buyer = await tx.user.findUniqueOrThrow({
+      where: { id: o.buyerId },
+      select: { name: true },
+    });
+    const lines = await tx.orderLine.findMany({ where: { orderId: o.id }, select: { qty: true } });
+    const product = basket.productId
+      ? await tx.product.findUnique({ where: { id: basket.productId }, select: { title: true } })
+      : null;
+    const items = lines.reduce((n, l) => n + l.qty, 0);
+    await tx.notification.createMany({
+      data: [
+        {
+          id: `own:${basket.id}:joined:${o.id}:${basket.ownerId}`,
+          userId: basket.ownerId,
+          title: "Someone joined your basket",
+          body: `${buyer.name} · ${items} ${items === 1 ? "item" : "items"} · ${product?.title ?? ""}`,
+          href: `/own-baskets/${basket.id}`,
+        },
+      ],
+      skipDuplicates: true,
+    });
+  }
 }
 
 /** Caller holds the buyer advisory and the Order rows. Cancels the orders that are still

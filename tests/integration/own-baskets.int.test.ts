@@ -303,7 +303,11 @@ describe("delivery to the owner", () => {
       (await db.notification.findMany({ where: { userId }, orderBy: { createdAt: "asc" } })).map(
         (n) => n.title,
       );
-    expect(await titles(owner.id)).toEqual(["Order placed", "Basket on the way"]);
+    expect(await titles(owner.id)).toEqual([
+      "Someone joined your basket",
+      "Order placed",
+      "Basket on the way",
+    ]);
     expect(await titles(j.buyer.id)).toEqual([
       "Basket ordered",
       "Basket on the way",
