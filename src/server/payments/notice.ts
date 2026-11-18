@@ -5,7 +5,6 @@ import { post } from "../tokens";
 import { markOrdersPaid, releasePendingOrders } from "../orders/baskets";
 import { withOrderTransaction } from "../orders/locks";
 import { agentDepositPaid } from "../agents/deposit";
-import { deliveryFeePaid } from "../orders/own-baskets";
 import { getGateway, type VerifiedNotice } from "./gateway";
 
 type Outcome =
@@ -114,7 +113,12 @@ export async function handleNotice(raw: string, headers: Headers): Promise<{ sta
 async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Promise<Outcome> {
   const attempt = await tx.paymentAttempt.findUniqueOrThrow({
     where: { id: notice.attemptId },
-    include: { orders: { select: { id: true, status: true }, orderBy: { id: "asc" } } },
+    include: {
+      orders: {
+        select: { id: true, status: true, targetBasketId: true, gatewayFee: true },
+        orderBy: { id: "asc" },
+      },
+    },
   });
   // Checkout stores a placeholder; the first verified notice records the gateway's payment id.
   if (attempt.gatewayRef.startsWith("ga_"))
@@ -159,8 +163,6 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
         // A deposit for an agent that is no longer APPROVED takes the late path below.
         let applied = true;
         if (attempt.purpose === "DEPOSIT") applied = await agentDepositPaid(tx, attempt.id);
-        else if (attempt.purpose === "DELIVERY_FEE")
-          applied = await deliveryFeePaid(tx, attempt.id, now);
         else await markOrdersPaid(tx, orderIds, now);
         if (applied) {
           await tx.paymentAttempt.update({
@@ -175,9 +177,14 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
           where: { id: attempt.id },
           data: { status: "LATE_PAID" },
         });
+      // Own-basket orders (DEC-023) get the payment back less the PayHere fee.
+      const ownOrders = attempt.orders.some((o) => o.targetBasketId);
+      const keptFee = ownOrders
+        ? attempt.orders.reduce((s, o) => s.plus(toD(o.gatewayFee)), new D(0))
+        : new D(0);
       await post(tx, {
         userId: payerId,
-        amount: toD(attempt.amount),
+        amount: D.max(toD(attempt.amount).minus(keptFee), new D(0)),
         kind: "LATE_PAYMENT",
         eventKey: lateKey,
         note:
@@ -185,7 +192,9 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
             ? "Deposit payment arrived when it was no longer due"
             : attempt.purpose === "DELIVERY_FEE"
               ? "Delivery fee arrived when the basket no longer needed it"
-              : "Payment arrived after the order closed",
+              : ownOrders
+                ? "Payment arrived after the items sold out; PayHere fee kept"
+                : "Payment arrived after the order closed",
       });
       return "LATE_PAID";
     }

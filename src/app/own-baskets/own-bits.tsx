@@ -6,7 +6,6 @@ type Variant = { id: string; size: string; colour: string; available: number };
 
 export const OWN_STATUS: Record<string, string> = {
   OPEN: "Filling",
-  AWAITING_FEE: "Waiting for delivery fee",
   LOCKED: "Packing",
   PACKED: "Packed",
   WITH_COURIER: "On the way",
