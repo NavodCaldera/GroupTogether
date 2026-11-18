@@ -1,4 +1,5 @@
 import "server-only";
+import { basketDest } from "../factory-dashboard";
 import type { Prisma } from "@/generated/prisma/client";
 import { distanceKm } from "@/lib/distance";
 import { db } from "../db";
@@ -12,6 +13,14 @@ const agentLabel = { select: { address: true, city: true, user: { select: { name
 const factoryLabel = { select: { name: true, company: true } };
 
 /** PACKED baskets waiting for the admin to book (or re-book) a courier, oldest lock first. */
+/** An own basket's owner and address, for basketDest (DEC-023). */
+const OWN_DEST = {
+  owner: { select: { name: true } },
+  deliveryAddress: true,
+  deliveryArea: true,
+  deliveryPhone: true,
+} as const;
+
 export async function courierToBook(adminId: string) {
   await requireAgentsAdmin(adminId);
   const baskets = await db.basket.findMany({
@@ -23,6 +32,7 @@ export async function courierToBook(adminId: string) {
       lockedAt: true,
       agent: agentLabel,
       factory: factoryLabel,
+      ...OWN_DEST,
       courier: { select: { fee: true, driverName: true, driverPhone: true, vehicleNo: true } },
       orders: {
         where: { status: "PAID" },
@@ -32,6 +42,7 @@ export async function courierToBook(adminId: string) {
   });
   return baskets.map(({ orders, ...b }) => ({
     ...b,
+    dest: basketDest(b),
     pieces: orders.reduce(
       (n, o) => n + o.lines.reduce((m, l) => m + Math.max(l.qty - l.missingQty, 0), 0),
       0,
@@ -158,6 +169,7 @@ export async function oldOpenBaskets(adminId: string, now = new Date()) {
         firstOrderAt: true,
         agent: agentLabel,
         factory: factoryLabel,
+        ...OWN_DEST,
       },
     }),
   ]);
@@ -165,6 +177,7 @@ export async function oldOpenBaskets(adminId: string, now = new Date()) {
     maxWaitDays,
     baskets: baskets.map((b) => ({
       ...b,
+      dest: basketDest(b),
       days: Math.floor((now.getTime() - b.firstOrderAt!.getTime()) / DAY_MS),
     })),
   };

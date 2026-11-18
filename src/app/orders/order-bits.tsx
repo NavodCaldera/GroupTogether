@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Badge } from "@/components/ui";
 import { D } from "@/lib/decimal";
 import { formatLKR } from "@/lib/format";
@@ -18,6 +19,9 @@ const BASKET_LABEL = {
   PACKED: "Packed",
   WITH_COURIER: "On the way",
   AT_AGENT: "At agent",
+  AWAITING_FEE: "Waiting for delivery fee",
+  DELIVERED: "Delivered",
+  CANCELLED: "Cancelled",
 } as const;
 
 export function OrderBadge({
@@ -68,9 +72,18 @@ export function BasketProgress({
   basket,
   lockAt,
 }: {
-  basket: { status: keyof typeof BASKET_LABEL; total: Money };
+  basket: { id?: string; status: keyof typeof BASKET_LABEL; total: Money; kind?: string };
   lockAt: Money;
 }) {
+  if (basket.kind === "OWN")
+    return (
+      <p className="text-sm">
+        <Link href={`/own-baskets/${basket.id}`} className="underline-offset-2 hover:underline">
+          Own basket
+        </Link>{" "}
+        <strong>{BASKET_LABEL[basket.status]}</strong>
+      </p>
+    );
   if (basket.status !== "OPEN")
     return (
       <p className="text-sm">

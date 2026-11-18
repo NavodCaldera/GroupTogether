@@ -36,11 +36,11 @@ export default async function AgentsAdminHome() {
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="font-semibold">
-                      {place(b.factory)} → {b.agent.user.name}
+                      {place(b.factory)} → {b.dest.name}
                     </h3>
                     <p className="text-sm text-subtle">
-                      {b.agent.address}
-                      {b.agent.city ? `, ${b.agent.city}` : ""}
+                      {b.dest.address}
+                      {b.dest.phone ? ` · ${b.dest.phone}` : ""}
                     </p>
                   </div>
                   {b.courier ? <Badge tone="info">Booked</Badge> : <Badge>Packed</Badge>}

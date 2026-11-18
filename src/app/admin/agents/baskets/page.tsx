@@ -30,7 +30,7 @@ export default async function OldBasketsPage() {
                 {b.days} / {maxWaitDays} days
               </p>
               <h2 className="font-semibold">
-                {place(b.factory)} → {b.agent.user.name}
+                {place(b.factory)} → {b.dest.name}
               </h2>
               <p className="text-sm">
                 {formatLKR(b.total)} · {formatDate(b.firstOrderAt)}

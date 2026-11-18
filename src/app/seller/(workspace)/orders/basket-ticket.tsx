@@ -10,6 +10,9 @@ const TONE = {
   PACKED: "neutral",
   WITH_COURIER: "neutral",
   AT_AGENT: "good",
+  AWAITING_FEE: "neutral",
+  DELIVERED: "good",
+  CANCELLED: "bad",
 } as const;
 
 /**
@@ -31,7 +34,7 @@ export function BasketTicket({
       tone={b.status === "LOCKED" ? "accent" : "ink"}
       head={
         <>
-          <span className="min-w-0 text-xl font-bold break-words">{b.agent.user.name}</span>
+          <span className="min-w-0 text-xl font-bold break-words">{b.dest.name}</span>
           <Badge tone={TONE[b.status]}>{STAGE_LABEL[b.status]}</Badge>
         </>
       }
@@ -76,7 +79,8 @@ export function BasketTicket({
       }
     >
       <p className="mb-2 text-sm text-subtle break-words">
-        {[b.agent.address, b.agent.city].filter(Boolean).join(", ")}
+        {b.dest.address}
+        {b.dest.phone && <> · {b.dest.phone}</>}
       </p>
       {b.products.map((p) => (
         <div key={p.title} className="border-t border-line py-2 first-of-type:border-t-0">

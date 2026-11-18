@@ -8,11 +8,15 @@ const ORDER_MOVES: Record<OrderStatus, OrderStatus[]> = {
 };
 
 const BASKET_MOVES: Record<BasketStatus, BasketStatus[]> = {
-  OPEN: ["LOCKED"],
+  // Own baskets (DEC-023) go OPEN -> AWAITING_FEE -> LOCKED and end DELIVERED, or CANCELLED unpaid.
+  OPEN: ["LOCKED", "AWAITING_FEE", "CANCELLED"],
+  AWAITING_FEE: ["LOCKED", "CANCELLED"],
   LOCKED: ["PACKED"],
   PACKED: ["WITH_COURIER"],
-  WITH_COURIER: ["AT_AGENT"],
+  WITH_COURIER: ["AT_AGENT", "DELIVERED"],
   AT_AGENT: [],
+  DELIVERED: [],
+  CANCELLED: [],
 };
 
 export function canMoveOrder(a: OrderStatus, b: OrderStatus): boolean {

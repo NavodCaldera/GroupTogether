@@ -40,6 +40,7 @@ enum Role {
 }
 
 model User {
+  ownBaskets     Basket[]           @relation("BasketOwner")
   holdMessages   FaultHoldMessage[]
   factoryFaults  FactoryFault[]
   faultHolds     FaultHold[]
@@ -156,6 +157,7 @@ enum ProductStatus {
 }
 
 model Product {
+  ownBaskets     Basket[]
   productRatings ProductRating[]
   hiddenAt       DateTime?
   hiddenById     String?
@@ -461,6 +463,11 @@ model Settings {
   agentRadiusM        Int       @default(1000)
   agentGapM           Int       @default(2000)
   agentDeposit        Decimal   @default(200000) @db.Decimal(14, 2)
+  /// Own baskets (DEC-023): delivery fee the owner pays at close = base + per item
+  ownDeliveryBase     Decimal   @default(400) @db.Decimal(14, 2)
+  ownDeliveryPerItem  Decimal   @default(50) @db.Decimal(14, 2)
+  /// Days the owner has to pay the delivery fee after closing before the basket is cancelled
+  ownFeeDays          Int       @default(2)
   /// The last week end (Saturday 23:59:59.999 Asia/Colombo) whose payouts and agent fees were built
   payoutsBuiltThrough DateTime?
 }
@@ -991,20 +998,40 @@ enum BasketStatus {
   PACKED
   WITH_COURIER
   AT_AGENT
+  /// Own baskets: closed by the owner (or max wait), waiting for the delivery fee
+  AWAITING_FEE
+  /// Own baskets: delivered to the owner's address
+  DELIVERED
+  /// Own baskets: the owner never paid; every paid order was refunded in tokens
+  CANCELLED
 }
 
 enum BasketLockReason {
   AMOUNT
   MAX_WAIT
   SUSPENDED
+  /// Own baskets: the owner closed it and paid the delivery fee
+  OWNER
+}
+
+enum BasketKind {
+  AGENT
+  OWN
+}
+
+enum BasketVisibility {
+  LINK
+  PUBLIC
 }
 
 /// The partial unique index "Basket_one_open" (one OPEN per agent and factory) is added by hand
 /// in the migration SQL; Prisma cannot express it.
 model Basket {
   id           String            @id @default(cuid())
-  agentId      String
-  agent        Agent             @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  kind         BasketKind        @default(AGENT)
+  /// Agent baskets only
+  agentId      String?
+  agent        Agent?            @relation(fields: [agentId], references: [id], onDelete: Restrict)
   factoryId    String
   factory      User              @relation("BasketFactory", fields: [factoryId], references: [id], onDelete: Restrict)
   status       BasketStatus      @default(OPEN)
@@ -1015,13 +1042,33 @@ model Basket {
   lockReason   BasketLockReason?
   createdAt    DateTime          @default(now())
 
+  // Own baskets (DEC-023): one product, delivered to the owner, no agent, no returns
+  ownerId         String?
+  owner           User?             @relation("BasketOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  productId       String?
+  product         Product?          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  visibility      BasketVisibility?
+  shareCode       String?           @unique
+  deliveryAddress String?
+  deliveryArea    String?
+  deliveryPhone   String?
+  deliveryFee     Decimal?          @db.Decimal(14, 2)
+  closedAt        DateTime?
+  feeDueAt        DateTime?
+  feePaidAt       DateTime?
+  deliveredAt     DateTime?
+
   orders          Order[]
+  targetOrders    Order[]          @relation("OrderTargetBasket")
+  feeAttempts     PaymentAttempt[] @relation("AttemptBasket")
   courier         CourierBooking?
   sentBackReturns ReturnRequest[] @relation("ReturnSentBack")
 
   @@index([status])
   @@index([agentId, status])
   @@index([factoryId, status])
+  @@index([kind, status, productId])
+  @@index([ownerId])
 }
 
 enum OrderStatus {
@@ -1035,8 +1082,12 @@ model Order {
   id               String          @id @default(cuid())
   buyerId          String
   buyer            User            @relation("OrderBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
-  agentId          String
-  agent            Agent           @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  /// Null for own-basket orders (DEC-023)
+  agentId          String?
+  agent            Agent?          @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  /// Own-basket orders: the basket the order joins when paid
+  targetBasketId   String?
+  targetBasket     Basket?         @relation("OrderTargetBasket", fields: [targetBasketId], references: [id], onDelete: Restrict)
   factoryId        String
   factory          User            @relation("OrderFactory", fields: [factoryId], references: [id], onDelete: Restrict)
   /// Set when paid
@@ -1068,6 +1119,7 @@ model Order {
   @@index([agentId, status])
   @@index([factoryId, status])
   @@index([status, holdUntil])
+  @@index([targetBasketId, status])
 }
 
 model OrderLine {
@@ -1110,6 +1162,8 @@ model OrderLine {
 enum PaymentPurpose {
   ORDERS
   DEPOSIT
+  /// An own basket's delivery fee, paid by the owner at close
+  DELIVERY_FEE
 }
 
 enum PaymentAttemptStatus {
@@ -1131,6 +1185,9 @@ model PaymentAttempt {
   amount           Decimal              @db.Decimal(14, 2)
   /// Deposits only: the deposit charged, without the gateway fee; returned on leaving
   depositPrincipal Decimal?             @db.Decimal(14, 2)
+  /// Delivery fees only
+  basketId         String?
+  basket           Basket?              @relation("AttemptBasket", fields: [basketId], references: [id], onDelete: Restrict)
   currency         String               @default("LKR")
   status           PaymentAttemptStatus @default(PENDING)
   gatewayRef       String               @unique

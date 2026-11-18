@@ -11,6 +11,7 @@ import { remindAgreements } from "./agreements";
 import { enforceHold } from "./fault-holds";
 import { removeFactory } from "./quality";
 import { expireOrders, lockBasket } from "./orders/baskets";
+import { sweepOwnBaskets } from "./orders/own-baskets";
 import { lockBasketSlot, withOrderTransaction } from "./orders/locks";
 import { buildWeeklyPayouts, creditAgentFees } from "./payouts";
 import { escalateOverdue, flushReturnNotices, lapseReturns } from "./returns";
@@ -24,7 +25,12 @@ async function lockWaitedBaskets(now: Date): Promise<number> {
   const { maxWaitDays } = await getSettings();
   const cutoff = new Date(now.getTime() - maxWaitDays * DAY_MS);
   const due = await db.basket.findMany({
-    where: { status: "OPEN", firstOrderAt: { lte: cutoff }, orders: { some: { status: "PAID" } } },
+    where: {
+      kind: "AGENT",
+      status: "OPEN",
+      firstOrderAt: { lte: cutoff },
+      orders: { some: { status: "PAID" } },
+    },
     select: { id: true, agentId: true, factoryId: true },
     orderBy: { id: "asc" },
   });
@@ -32,7 +38,7 @@ async function lockWaitedBaskets(now: Date): Promise<number> {
   for (const b of due) {
     try {
       locked += await withOrderTransaction([], [], async (tx) => {
-        await lockBasketSlot(tx, b.agentId, b.factoryId);
+        await lockBasketSlot(tx, b.agentId!, b.factoryId);
         const row = await tx.basket.findUniqueOrThrow({
           where: { id: b.id },
           select: { status: true, firstOrderAt: true },
@@ -117,6 +123,7 @@ export async function runSweep(now = new Date()): Promise<Record<string, number>
   };
   await step("expiredOrders", () => expireOrders(now));
   await step("maxWaitLocked", () => lockWaitedBaskets(now));
+  await step("ownBaskets", () => sweepOwnBaskets(now));
   await step("escalatedReturns", () => escalateOverdue(now));
   await step("lapsedReturns", () => lapseReturns(now));
   await step("agentsClosed", () => closeLeavingAgents(now));

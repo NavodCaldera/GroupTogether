@@ -29,6 +29,21 @@ export async function lockBasketSlot(tx: Tx, agentId: string, factoryId: string)
   await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${key}))) AS l`;
 }
 
+/** The advisory of one own basket (DEC-023); it takes the place of the agent basket slot. */
+export async function lockOwnBasket(tx: Tx, basketId: string) {
+  const key = `ownbasket:${basketId}`;
+  await tx.$queryRaw`SELECT 1 FROM (SELECT pg_advisory_xact_lock(hashtext(${key}))) AS l`;
+}
+
+/** The basket's advisory: the agent slot for an agent basket, its own key for an own basket. */
+export async function lockBasketOf(
+  tx: Tx,
+  b: { id: string; agentId: string | null; factoryId: string },
+) {
+  if (b.agentId) await lockBasketSlot(tx, b.agentId, b.factoryId);
+  else await lockOwnBasket(tx, b.id);
+}
+
 /** User advisories (sorted) -> Order rows (sorted) -> work. Retries serialization conflicts. */
 export async function withOrderTransaction<T>(
   userIds: string[],

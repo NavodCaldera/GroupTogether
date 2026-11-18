@@ -6,6 +6,19 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-18 - Own baskets
+
+- The owner asked for a second way to buy: buyers group together and the garments go to the
+  basket owner's delivery address. The owner pays first and creates the basket; others buy the
+  same product (any size) into it at the normal price. No returns; the owner pays the delivery
+  fee; the owner chooses link-only or public. The owner told Claude to decide the rest and build
+  it. Recorded as `DEC-023` and `BSK-008`; Claude's calls are marked there (fee LKR 400 + 50 per
+  item, 2 days to pay, owner cannot cancel, address shown to the owner only).
+- Built on branch `feat/own-baskets`: migration `20261118100000_own_baskets`, server module
+  `src/server/orders/own-baskets.ts`, `/own-baskets` pages, product-page section, factory and
+  admin screens, sweep steps and integration tests. Updated `groupbasket.md`,
+  `orders-baskets.md` and implementation status.
+
 ## 2026-11-18 - New work on its own branch
 
 - The owner said that anything new must be done on a new branch. New work now starts on a

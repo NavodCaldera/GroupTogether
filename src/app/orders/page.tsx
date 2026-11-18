@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, EmptyState, PageHeader } from "@/components/ui";
+import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { formatDateTime, formatLKR } from "@/lib/format";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
@@ -14,7 +14,14 @@ export default async function OrdersPage() {
   const { orders, lockAt } = await buyerOrders(user.id);
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <PageHeader title="Orders" />
+      <PageHeader
+        title="Orders"
+        actions={
+          <LinkButton href="/own-baskets" variant="secondary">
+            Own baskets
+          </LinkButton>
+        }
+      />
       {orders.length === 0 ? (
         <EmptyState title="No orders yet">
           <Link href="/shop" className="font-medium text-accent underline">
@@ -39,7 +46,8 @@ export default async function OrdersPage() {
                   />
                 </div>
                 <p className="text-sm text-subtle">
-                  {formatDateTime(o.createdAt)} · {o.agent.user.name} · {formatLKR(orderTotal(o))}
+                  {formatDateTime(o.createdAt)} · {o.agent?.user.name ?? "Own basket"} ·{" "}
+                  {formatLKR(orderTotal(o))}
                 </p>
                 {o.basket && o.status !== "CANCELLED" && (
                   <BasketProgress basket={o.basket} lockAt={lockAt} />

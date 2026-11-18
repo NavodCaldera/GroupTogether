@@ -334,6 +334,43 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-023 - Own baskets delivered to the owner
+
+**Status:** Built **2026-11-18** (`BSK-008`). The owner asked for it and told Claude to decide the
+open points and build it as recommended. **Rules:** `BSK-008`, `BSK-004`, `BSK-005`, `ORD-004`.
+
+Owner's words, in short: buyers can group together and have the garments delivered to the basket
+owner's delivery address. One person pays and creates their own basket and puts their item in it;
+other buyers buy the same product into that basket. No returns. The owner pays the delivery fee.
+The basket holds one design only (the same T-shirt), in different sizes. The owner chooses whether
+it is shared by link or public. Normal price.
+
+1. **One product.** An own basket is for one product; joiners buy any size or colour of it.
+2. **Starting.** The owner buys into a new basket with their address, town or area and phone,
+   and picks **People with the link** or **Anyone**. The basket opens to others only once the
+   owner's payment arrives; if it never does, the basket is cancelled with the unpaid order.
+3. **Who sees what.** Public baskets list on the product page by town or area and owner name;
+   the address and phone are shown to the owner only (Claude's call). The owner can switch
+   visibility while the basket is open.
+4. **Price.** Normal price. No agent, so no 5% agent fee and no pickup code.
+5. **Cancelling.** Joiners can cancel while the basket is open (full tokens, as `ORD-004`). The
+   owner cannot cancel their own order, because the basket is theirs (Claude's call).
+6. **Closing.** The owner presses **Close and ship**, or the basket closes on its own after
+   `maxWaitDays` (60). It does not close while someone is still paying to join. Closing works out
+   the delivery fee: `ownDeliveryBase` LKR 400 + `ownDeliveryPerItem` LKR 50 per item (Claude's
+   call, changeable in Settings). The owner pays it online plus the PayHere fee; tokens are not
+   accepted for it (Claude's call).
+7. **Unpaid fee.** If the fee is not paid within `ownFeeDays` (2) of closing, the basket is
+   cancelled and every buyer, the owner included, gets everything they paid back as tokens.
+8. **Shipping.** A paid basket locks and goes through factory packing and manual courier booking
+   (`BSK-004`, `BSK-005`) to the owner's address, which the factory and the admin see.
+9. **Receipt.** The owner taps **Received**. Every order is received and collected at once; the
+   owner hands the items to the joiners. GroupBasket keeps no handover record.
+10. **No returns.** No return of any kind, factory fault included. Factory payouts follow the
+    usual timing from receipt.
+11. **Courier fee.** The admin still records what the courier costs; the owner's delivery fee is
+    what GroupBasket charges for it.
+
 ### DEC-022 - Material Library and Material Card
 
 **Status:** Built **2026-11-17** (`MAT-001`). The owner signed off the rule bands and asked for
