@@ -17,6 +17,10 @@
  *             PACKED      Kotahena × Ceylon: Sachini, for the admin to book a courier
  *             OPEN        Wellawatte × Lanka: Nimali (Tharindu cancelled his order: his tokens)
  *             OPEN        Kollupitiya × Ceylon: Ravindu
+ *   Own       OPEN public Kasun's Oxford shirts, 5 of 10 (Dinithi joined)
+ *             OPEN public Ishara's polo shirts, 9 of 10 (Malith joined): one more reaches 10
+ *             OPEN link   Dinithi's running shorts, 2 of 10 (share code printed at the end)
+ *             LOCKED      Malith's slim chinos, 10 (Kasun joined), for Packing to pack
  *
  * Runs with prisma/seed-hooks.mjs preloaded (prisma.config.ts) so the server modules load.
  */
@@ -49,6 +53,7 @@ import { hashPassword } from "../src/server/auth/password";
 import { setCartItem } from "../src/server/orders/cart";
 import { startCheckout } from "../src/server/orders/checkout";
 import { cancelOrder } from "../src/server/orders/baskets";
+import { closeOwnBasket, startOwnCheckout } from "../src/server/orders/own-baskets";
 import {
   bookCourier,
   givenToDriver,
@@ -444,6 +449,44 @@ async function main() {
     79.8506,
   );
 
+  // Buyers for own baskets (DEC-023), in and around Colombo and Kandy.
+  const kasun = await person(
+    "Kasun Rathnayake",
+    DEMO_BUYERS.kasun,
+    "0771111007",
+    "45 High Level Road",
+    "Maharagama",
+    6.848,
+    79.9265,
+  );
+  const dinithi = await person(
+    "Dinithi Fernando",
+    DEMO_BUYERS.dinithi,
+    "0771111008",
+    "9 Templers Road",
+    "Mount Lavinia",
+    6.839,
+    79.8653,
+  );
+  const ishara = await person(
+    "Ishara Wijesinghe",
+    DEMO_BUYERS.ishara,
+    "0771111009",
+    "102 Peradeniya Road",
+    "Kandy",
+    7.2906,
+    80.6337,
+  );
+  const malith = await person(
+    "Malith Peiris",
+    DEMO_BUYERS.malith,
+    "0771111010",
+    "17 Station Road",
+    "Nugegoda",
+    6.8721,
+    79.8997,
+  );
+
   // ─── Agents: apply, approval (the 2 km gap check), deposit through the gateway, hours ──
   async function agent(
     name: string,
@@ -593,6 +636,62 @@ async function main() {
   // ─── OPEN: Kollupitiya × Ceylon. Ravindu starts the next basket ──
   await buy(ravindu.id, kollupitiya.id, [[C[3][3], 2]]);
   await basketOf(kollupitiya.id, ceylon.owner.id, "OPEN");
+
+  // ─── Own baskets (DEC-023): started and joined through the real service, paid by demo notice ──
+  let ownNo = 0;
+  const productOf = async (variantId: string) =>
+    (await db.variant.findUniqueOrThrow({ where: { id: variantId }, select: { productId: true } }))
+      .productId;
+  async function own(
+    buyer: { id: string; address: string | null; city: string | null; phone: string | null },
+    target:
+      { start: string; visibility: "PUBLIC" | "LINK" } | { basketId: string; shareCode?: string },
+    lines: [variantId: string, qty: number][],
+  ): Promise<string> {
+    const { basketId, orderId } = await startOwnCheckout(buyer.id, {
+      ...("start" in target
+        ? {
+            create: {
+              productId: await productOf(target.start),
+              visibility: target.visibility,
+              address: buyer.address!,
+              area: buyer.city!,
+              phone: buyer.phone!,
+            },
+          }
+        : { basketId: target.basketId, shareCode: target.shareCode }),
+      lines: lines.map(([variantId, qty]) => ({ variantId, qty })),
+      tokens: "0",
+      requestKey: `seed-own-${++ownNo}`,
+    });
+    const order = await db.order.findUniqueOrThrow({
+      where: { id: orderId },
+      select: { paymentAttemptId: true },
+    });
+    if (order.paymentAttemptId) await payAttempt(order.paymentAttemptId);
+    return basketId;
+  }
+  // OPEN, public: Kasun's Oxford shirts, 5 of 10 (Dinithi joined). Anyone can join.
+  const kasunBasket = await own(kasun, { start: C[0][0], visibility: "PUBLIC" }, [
+    [C[0][1], 2],
+    [C[0][2], 1],
+  ]);
+  await own(dinithi, { basketId: kasunBasket }, [[C[0][2], 2]]);
+  // OPEN, public: Ishara's polo shirts, 9 of 10 (Malith joined). One more item reaches the minimum.
+  const isharaBasket = await own(ishara, { start: L[2][0], visibility: "PUBLIC" }, [
+    [L[2][0], 3],
+    [L[2][1], 5],
+  ]);
+  await own(malith, { basketId: isharaBasket }, [[L[2][2], 1]]);
+  // OPEN, link only: Dinithi's running shorts, 2 of 10. Join with the share code.
+  const dinithiBasket = await own(dinithi, { start: L[3][0], visibility: "LINK" }, [[L[3][1], 2]]);
+  // LOCKED: Malith's chinos reached 10 (Kasun joined) and Malith placed the order.
+  const malithBasket = await own(malith, { start: C[1][0], visibility: "PUBLIC" }, [[C[1][1], 6]]);
+  await own(kasun, { basketId: malithBasket }, [[C[1][2], 4]]);
+  await closeOwnBasket(malith.id, malithBasket);
+  const shareCode = (
+    await db.basket.findUniqueOrThrow({ where: { id: dinithiBasket }, select: { shareCode: true } })
+  ).shareCode;
 
   // ─── A luxury brand (product owner, 2026-10-24): fictional, on a reserved .example domain ──
   // Brands are parked, not removed: its live product and two submissions stay.
@@ -848,6 +947,7 @@ async function main() {
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}
   Return to hand over: ${DEMO_BUYERS.sachini} at ${DEMO_AGENTS.kollupitiya}
   Tokens: ${DEMO_BUYERS.tharindu}
+  Own baskets to join: Kasun's (5 of 10) and Ishara's (9 of 10) are public; Dinithi's is link-only, /own-baskets/${dinithiBasket}?code=${shareCode}
   Fit heatmap: ${DEMO_BUYERS.dilan}, ${DEMO_BUYERS.sachini} (and Ravindu, Ayesha) are measured; ${DEMO_BUYERS.tharindu} is not`);
 }
 

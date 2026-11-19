@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BackLink } from "@/components/client";
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
 import { Alert, Badge, Card, LinkButton, PageHeader } from "@/components/ui";
@@ -19,7 +20,10 @@ export default async function AgentApplyPage() {
   if (!user)
     return (
       <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-        <PageHeader title="Become an agent" />
+        <div>
+          <BackLink fallback="/" />
+          <PageHeader title="Become an agent" />
+        </div>
         <Card className="flex flex-wrap gap-2">
           <LinkButton href="/sign-in?next=%2Fagents%2Fapply">Sign in</LinkButton>
           <LinkButton href="/sign-up" variant="secondary">
@@ -34,9 +38,12 @@ export default async function AgentApplyPage() {
 
   const frame = (children: ReactNode, badge?: ReactNode) => (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Become an agent</h1>
-        {badge}
+      <div>
+        <BackLink fallback="/" />
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Become an agent</h1>
+          {badge}
+        </div>
       </div>
       {children}
     </div>

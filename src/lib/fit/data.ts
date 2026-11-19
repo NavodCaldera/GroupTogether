@@ -26,7 +26,23 @@ export function kindRegions(kind: string | null | undefined): Region[] {
 export function sizeOrder(kind: string | null | undefined, sizes: string[]): string[] {
   const known = sizesFor(kind ?? undefined);
   const unique = [...new Set(sizes)];
-  return [...known.filter((s) => unique.includes(s)), ...unique.filter((s) => !known.includes(s))];
+  const rest = unique.filter((s) => !known.includes(s)).sort(compareSizes);
+  return [...known.filter((s) => unique.includes(s)), ...rest];
+}
+
+const LETTER_SIZES = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "2XL", "XXXL", "3XL", "4XL", "5XL"];
+
+/** Sizes the garment kind does not list: letter sizes small to large, then numbers, then text. */
+export function compareSizes(a: string, b: string): number {
+  const rank = (s: string) => {
+    const letter = LETTER_SIZES.indexOf(s.trim().toUpperCase());
+    if (letter >= 0) return [0, letter] as const;
+    const n = Number.parseFloat(s);
+    return Number.isFinite(n) ? ([1, n] as const) : ([2, 0] as const);
+  };
+  const [ga, va] = rank(a);
+  const [gb, vb] = rank(b);
+  return ga - gb || va - vb || a.localeCompare(b);
 }
 
 const cm = z.coerce.number().positive().max(300);

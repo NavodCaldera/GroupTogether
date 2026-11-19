@@ -31,6 +31,10 @@ describe("demo logins on the sign-in page", () => {
       "buyer4@example.com",
       "buyer5@example.com",
       "buyer6@example.com",
+      "buyer7@example.com",
+      "buyer8@example.com",
+      "buyer9@example.com",
+      "buyer10@example.com",
     ]);
   });
 });

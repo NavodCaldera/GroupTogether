@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { BackLink } from "@/components/client";
 import Link from "next/link";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { myOwnBaskets } from "@/server/orders/own-baskets";
-import { OWN_STATUS } from "./own-bits";
+import { itemsLabel, OWN_STATUS } from "./own-bits";
 
 export const metadata: Metadata = { title: "Own baskets" };
 
@@ -13,7 +14,10 @@ export default async function OwnBasketsPage() {
   const baskets = await myOwnBaskets(user.id);
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
-      <PageHeader title="Own baskets" />
+      <div>
+        <BackLink fallback="/orders" />
+        <PageHeader title="Own baskets" />
+      </div>
       {baskets.length === 0 ? (
         <EmptyState title="No own baskets" />
       ) : (
@@ -29,7 +33,7 @@ export default async function OwnBasketsPage() {
                     {b.title}
                   </Link>
                   <p className="text-sm text-subtle">
-                    {b.owner ? "Yours" : "Joined"} · {b.area} · {b.items} items
+                    {b.owner ? "Yours" : "Joined"} · {b.area} · {itemsLabel(b.items)}
                   </p>
                 </div>
                 <Badge>{OWN_STATUS[b.status] ?? b.status}</Badge>

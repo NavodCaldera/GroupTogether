@@ -5,6 +5,7 @@ import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
+import { removeFromCart } from "@/server/orders/cart";
 import {
   closeOwnBasket,
   confirmOwnDelivery,
@@ -28,7 +29,16 @@ function linesOf(fd: FormData): OwnLineInput[] {
   return lines;
 }
 
-async function finish(result: { basketId: string; redirectUrl: string | null }) {
+async function finish(
+  userId: string,
+  lines: OwnLineInput[],
+  result: { basketId: string; redirectUrl: string | null },
+) {
+  // Like agent checkout, sizes ordered into a basket leave the cart.
+  await removeFromCart(
+    userId,
+    lines.map((l) => l.variantId),
+  );
   if (result.redirectUrl) redirect(result.redirectUrl);
   await flash("Paid");
   redirect(`/own-baskets/${result.basketId}`);
@@ -38,6 +48,7 @@ async function finish(result: { basketId: string; redirectUrl: string | null }) 
 export async function startOwnBasketAction(fd: FormData) {
   const productId = str(fd, "productId");
   const user = await requireUser([...BUYER_ROLES], `/own-baskets/new?product=${productId}`);
+  const lines = linesOf(fd);
   let result: Awaited<ReturnType<typeof startOwnCheckout>>;
   try {
     result = await startOwnCheckout(user.id, {
@@ -48,7 +59,7 @@ export async function startOwnBasketAction(fd: FormData) {
         area: str(fd, "area"),
         phone: str(fd, "phone"),
       },
-      lines: linesOf(fd),
+      lines,
       tokens: str(fd, "tokens") || "0",
       requestKey: str(fd, "requestKey"),
     });
@@ -56,7 +67,7 @@ export async function startOwnBasketAction(fd: FormData) {
     if (!(e instanceof CartError)) throw e;
     redirect(`/own-baskets/new?${new URLSearchParams({ product: productId, error: e.message })}`);
   }
-  await finish(result);
+  await finish(user.id, lines, result);
 }
 
 /** Buys the same product into someone's own basket. */
@@ -65,12 +76,13 @@ export async function joinOwnBasketAction(fd: FormData) {
   const code = str(fd, "code");
   const back = `/own-baskets/${basketId}${code ? `?code=${encodeURIComponent(code)}` : ""}`;
   const user = await requireUser([...BUYER_ROLES], back);
+  const lines = linesOf(fd);
   let result: Awaited<ReturnType<typeof startOwnCheckout>>;
   try {
     result = await startOwnCheckout(user.id, {
       basketId,
       shareCode: code || undefined,
-      lines: linesOf(fd),
+      lines,
       tokens: str(fd, "tokens") || "0",
       requestKey: str(fd, "requestKey"),
     });
@@ -79,7 +91,7 @@ export async function joinOwnBasketAction(fd: FormData) {
     const q = new URLSearchParams({ error: e.message, ...(code ? { code } : {}) });
     redirect(`/own-baskets/${basketId}?${q}`);
   }
-  await finish(result);
+  await finish(user.id, lines, result);
 }
 
 async function ownerStep(fd: FormData, work: (userId: string, basketId: string) => Promise<void>) {

@@ -6,6 +6,57 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-19 - Demo own baskets in the seed
+
+- The owner asked for already-open demo baskets to test joining. The seed adds buyers Kasun,
+  Dinithi, Ishara and Malith (buyer7–10@example.com) and four own baskets made through the real
+  service: two public and open (5 of 10 and 9 of 10), one link-only (code printed by the seed)
+  and one placed (LOCKED) for Packing.
+
+## 2026-11-19 - Back on every inner page
+
+- The owner asked for Back wherever it is needed. Added the green Back link to Cart (to Shop),
+  Checkout (to Cart), My own baskets (to Orders), Become an agent, the agent deposit page and
+  the factory return detail; the factory application detail's "Back to applications" now uses
+  the same Back link. Pages opened from the header, tab bar or a workspace menu have none.
+
+## 2026-11-19 - Choose delivery on the Cart
+
+- The owner moved own baskets off the product page. The Cart now has "Get it by": Agent pickup
+  (the 3 nearest agents, then Checkout) and, for each product in the cart, an Own basket card
+  with Join for open public baskets of that product and Start own basket. The start and join
+  forms prefill sizes and quantities from the cart; those sizes leave the cart once the
+  basket order is created, as agent checkout already does. My own baskets stays under Orders.
+
+## 2026-11-19 - Own basket address from the profile
+
+- The owner asked that starting an own basket fill Delivery address, Town or area and Phone
+  from the buyer's profile. They are prefilled and can still be changed for that basket; the
+  profile itself is not changed.
+
+## 2026-11-19 - Cart quantity steppers
+
+- The owner asked to drop the cart's Update button. Each line now has − and + buttons around
+  the quantity; a tap saves at once, and a typed number saves when the field loses focus or on
+  Enter. Remove stays. Quantity stays between 1 and 999.
+
+## 2026-11-19 - Top bar fits 360 px with the Cart icon
+
+- CI found the account icon pushed off a 360 px screen once the Cart icon was added. On
+  phones the top bar icons have less side padding and the logo is a size smaller.
+
+## 2026-11-19 - Cart in the header
+
+- The owner found the cart was reachable only from the "Added to cart" toast. Shoppers now
+  have a Cart icon with an item count in the top bar on every page (phone and desktop); the
+  Orders tab has its own parcel icon. QA-009 in `docs/qa/full-system-browser-audit.md`.
+
+## 2026-11-19 - Quieter Back link
+
+- The owner asked to fix the green Back button: it competed with each page's main action and
+  stretched across the row. Back is now green text (no fill), only as wide as its label, with a
+  44 px tap target on phones. Recorded as QA-008 in `docs/qa/full-system-browser-audit.md`.
+
 ## 2026-11-19 - Own basket join notice and browser test
 
 - The owner asked to build the remaining own-basket pieces: the owner is notified each time a

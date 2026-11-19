@@ -79,7 +79,35 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await page.getByRole("link", { name: "View cart" }).click();
   await expect(page).toHaveURL(/\/cart$/);
   await inspect(page);
-  await page.getByRole("link", { name: "Checkout" }).click();
+  // The cart is reachable from every page, not only from the toast.
+  await page.goto("/shop");
+  await page.getByRole("link", { name: /^Cart, [1-9]\d* items?$/ }).click();
+  await expect(page).toHaveURL(/\/cart$/);
+  // + and − save at once; there is no Update button.
+  const qty = page.getByLabel(/^Quantity of /).first();
+  const before = Number(await qty.inputValue());
+  const units = async () =>
+    Number(
+      (await page.getByRole("link", { name: /^Cart, / }).getAttribute("aria-label"))!.match(
+        /\d+/,
+      )![0],
+    );
+  const total = await units();
+  await page
+    .getByRole("button", { name: /^One more / })
+    .first()
+    .click();
+  await expect.poll(units).toBe(total + 1);
+  await page.reload();
+  await expect(page.getByLabel(/^Quantity of /).first()).toHaveValue(String(before + 1));
+  await page
+    .getByRole("button", { name: /^One less / })
+    .first()
+    .click();
+  await expect.poll(units).toBe(total);
+  await page.reload();
+  await expect(page.getByLabel(/^Quantity of /).first()).toHaveValue(String(before));
+  await page.getByRole("button", { name: "Checkout" }).click();
 
   await expect(page.getByRole("heading", { name: "Checkout", level: 1 })).toBeVisible();
   const nearest = page.getByRole("radio", { name: new RegExp(ids.agentName) });

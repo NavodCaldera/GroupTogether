@@ -68,7 +68,10 @@ export function BackLink({ fallback }: { fallback: string }) {
           window.history.back();
         }
       }}
-      className="mb-3 inline-flex min-h-11 items-center gap-1 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent transition hover:opacity-90 sm:min-h-10"
+      // Green text, not a filled button: Back is secondary and must not compete with the page's
+      // main action. min-h-11 keeps a 44 px tap target; -ml-2 + px-2 lines the arrow up with the
+      // page edge while keeping the hit area.
+      className="-ml-2 mb-2 inline-flex w-fit self-start min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-accent underline-offset-4 transition hover:underline focus-visible:ring-2 focus-visible:ring-ink/30 focus-visible:outline-none sm:min-h-10"
     >
       <span aria-hidden>←</span> Back
     </Link>

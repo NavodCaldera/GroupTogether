@@ -193,6 +193,17 @@ test("Agents and orders books a courier for the packed basket", async ({ page })
     has: page.getByRole("heading", { name: `${DEMO_FACTORIES.ceylon.company} → Suresh Kumar` }),
   });
   await expect(card.getByText("Packed", { exact: true })).toBeVisible();
+  // A rejected field keeps everything else the admin typed (React resets forms after actions).
+  await card.getByLabel("Courier fee (LKR)").fill("abc");
+  await card.getByLabel("Driver", { exact: true }).fill("Kamal Perera");
+  await card.getByLabel("Driver phone").fill("0779876543");
+  await card.getByLabel("Vehicle").fill("WP-CAB-1122");
+  await card.getByRole("button", { name: "Book" }).click();
+  await expect(
+    card.getByText("Enter a positive courier fee with at most two decimals"),
+  ).toBeVisible();
+  await expect(card.getByLabel("Driver", { exact: true })).toHaveValue("Kamal Perera");
+  await expect(card.getByLabel("Vehicle")).toHaveValue("WP-CAB-1122");
   await card.getByLabel("Courier fee (LKR)").fill("1350");
   await card.getByLabel("Driver", { exact: true }).fill("Kamal Perera");
   await card.getByLabel("Driver phone").fill("0779876543");
@@ -215,7 +226,7 @@ test("Factory admin dismisses one missing report and removes the other line", as
     `UPDATE "OrderLine" SET "missingReportedQty" = 1, "missingNote" = 'Out of stock',
        "missingReportedAt" = now()
      WHERE id IN (SELECT l.id FROM "OrderLine" l JOIN "Order" o ON o.id = l."orderId"
-       JOIN "Basket" b ON b.id = o."basketId" WHERE b.status = 'LOCKED' AND o.status = 'PAID')`,
+       JOIN "Basket" b ON b.id = o."basketId" WHERE b.status = 'LOCKED' AND b.kind = 'AGENT' AND o.status = 'PAID')`,
   );
   await signIn(page, DEMO_ADMINS.FACTORY);
   await page
@@ -234,7 +245,7 @@ test("Factory admin dismisses one missing report and removes the other line", as
   const lines = await sql(
     `SELECT l."missingQty", l."missingReportedQty" FROM "OrderLine" l
      JOIN "Order" o ON o.id = l."orderId" JOIN "Basket" b ON b.id = o."basketId"
-     WHERE b.status = 'LOCKED' AND o.status = 'PAID' ORDER BY l."missingQty"`,
+     WHERE b.status = 'LOCKED' AND b.kind = 'AGENT' AND o.status = 'PAID' ORDER BY l."missingQty"`,
   );
   expect(lines.map((l) => [l.missingQty, l.missingReportedQty])).toEqual([
     [0, 0],

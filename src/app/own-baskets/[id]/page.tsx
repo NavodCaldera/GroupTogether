@@ -13,7 +13,8 @@ import {
   joinOwnBasketAction,
   setVisibilityAction,
 } from "../actions";
-import { OWN_STATUS, SizeQuantities, TokensField } from "../own-bits";
+import { cartQtyForProduct } from "@/server/orders/cart";
+import { itemsLabel, OWN_STATUS, SizeQuantities, TokensField } from "../own-bits";
 
 export const metadata: Metadata = { title: "Own basket" };
 
@@ -28,6 +29,7 @@ export default async function OwnBasketPage({
   const b = await ownBasketView(id, user?.id ?? null, code);
   if (!b) notFound();
   const buyer = !!user && isBuyerRole(user.role);
+  const inCart = user && b.canJoin ? await cartQtyForProduct(user.id, b.product.id) : {};
   const here = `/own-baskets/${b.id}${code ? `?code=${encodeURIComponent(code)}` : ""}`;
 
   return (
@@ -43,7 +45,7 @@ export default async function OwnBasketPage({
           </Badge>
         </div>
         <p className="text-sm text-subtle">
-          {b.owner} · {b.area} · {b.items} items
+          {b.owner} · {b.area} · {itemsLabel(b.items)}
         </p>
       </div>
       {error && <Alert>{error}</Alert>}
@@ -76,12 +78,19 @@ export default async function OwnBasketPage({
               </form>
               <form action={closeOwnBasketAction} className="flex flex-wrap items-center gap-3">
                 <input type="hidden" name="basketId" value={b.id} />
-                <Button type="submit" disabled={b.items < b.minItems}>
+                <Button
+                  type="submit"
+                  disabled={b.items < b.minItems}
+                  aria-describedby={b.items < b.minItems ? "own-needed" : undefined}
+                >
                   Place order
                 </Button>
-                <span className="text-sm text-subtle tabular-nums">
-                  {b.items} / {b.minItems}
-                </span>
+                {b.items < b.minItems && (
+                  <span id="own-needed" className="text-sm text-subtle tabular-nums">
+                    {b.minItems - b.items} more {b.minItems - b.items === 1 ? "item" : "items"}{" "}
+                    needed · {b.items} of {b.minItems}
+                  </span>
+                )}
               </form>
             </>
           )}
@@ -123,7 +132,11 @@ export default async function OwnBasketPage({
               <input type="hidden" name="basketId" value={b.id} />
               {code && <input type="hidden" name="code" value={code} />}
               <input type="hidden" name="requestKey" value={randomUUID()} />
-              <SizeQuantities price={b.product.price} variants={b.product.variants} />
+              <SizeQuantities
+                price={b.product.price}
+                variants={b.product.variants}
+                initial={inCart}
+              />
               <TokensField />
               <Button type="submit" className="self-start">
                 Pay and add

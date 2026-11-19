@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { BackLink } from "@/components/client";
 import Link from "next/link";
 import { randomUUID } from "node:crypto";
 import { Alert, Badge, Button, Card, EmptyState, Input, PageHeader } from "@/components/ui";
@@ -45,7 +46,10 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
   if (cart.factories.length === 0)
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-        <PageHeader title="Checkout" />
+        <div>
+          <BackLink fallback="/cart" />
+          <PageHeader title="Checkout" />
+        </div>
         <EmptyState title="Your cart is empty">
           <Link href="/shop" className="font-medium text-accent underline">
             Shop
@@ -88,7 +92,10 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
-      <PageHeader title="Checkout" />
+      <div>
+        <BackLink fallback="/cart" />
+        <PageHeader title="Checkout" />
+      </div>
       {error && <Alert>{error}</Alert>}
       {!chosen ? (
         <EmptyState title="No agent is taking orders" />

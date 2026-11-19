@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { ProductImage } from "@/components/cart-bits";
-import { Card, LinkButton } from "@/components/ui";
+import { Card } from "@/components/ui";
 import { siteName } from "@/lib/brand-rules";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
@@ -17,7 +17,6 @@ import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 import { FitSection } from "./fit-section";
 import { MaterialSection } from "./material-card";
 import { getMaterialCard, getProvenance } from "@/server/materials";
-import { publicOwnBaskets } from "@/server/orders/own-baskets";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
   const p = await getProduct((await params).id);
@@ -33,12 +32,11 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     typeof sp.agent === "string" && /^[a-z0-9]{1,40}$/.test(sp.agent) ? sp.agent : undefined;
   const keep = agent ? `?agent=${agent}` : "";
   const buyer = !!user && isBuyerRole(user.role);
-  const [ratings, productScores, fit, materialCard, ownBaskets] = await Promise.all([
+  const [ratings, productScores, fit, materialCard] = await Promise.all([
     ratingSummaries([product.sellerId]),
     productRatingSummaries([product.id]),
     getFitView(product.id, buyer && user ? user.id : null),
     getMaterialCard(product.id),
-    publicOwnBaskets(product.id),
   ]);
   const why = materialCard ? await getProvenance(materialCard) : null;
 
@@ -112,41 +110,6 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
               </div>
             )}
           </Card>
-
-          {product.status === "LIVE" && (buyer || ownBaskets.length > 0) && (
-            <Card className="flex flex-col gap-3">
-              <h2 className="font-semibold">Own baskets</h2>
-              {ownBaskets.length > 0 && (
-                <ul className="flex flex-col divide-y divide-line">
-                  {ownBaskets.map((b) => (
-                    <li
-                      key={b.id}
-                      className="flex flex-wrap items-center justify-between gap-2 py-1"
-                    >
-                      <Link
-                        href={`/own-baskets/${b.id}`}
-                        className="inline-flex min-h-11 items-center font-medium text-accent underline sm:min-h-10"
-                      >
-                        {b.area}
-                      </Link>
-                      <span className="text-sm text-subtle">
-                        {b.owner} · {b.items} items
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {buyer && (
-                <LinkButton
-                  href={`/own-baskets/new?product=${product.id}`}
-                  variant="secondary"
-                  className="self-start"
-                >
-                  Start own basket
-                </LinkButton>
-              )}
-            </Card>
-          )}
         </div>
       </div>
       <FitSection

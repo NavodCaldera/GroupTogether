@@ -47,6 +47,10 @@ export const DEMO_BUYERS = {
   nimali: "buyer4@example.com",
   ravindu: "buyer5@example.com",
   ayesha: "buyer6@example.com",
+  kasun: "buyer7@example.com",
+  dinithi: "buyer8@example.com",
+  ishara: "buyer9@example.com",
+  malith: "buyer10@example.com",
 } as const;
 
 /** Dilan's pickup code at the main agent: his parcel waits there, uncollected. */
@@ -143,6 +147,10 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   { role: "Buyer", name: "Nimali Jayasuriya", email: DEMO_BUYERS.nimali, lands: "/" },
   { role: "Buyer", name: "Ravindu Bandara", email: DEMO_BUYERS.ravindu, lands: "/" },
   { role: "Buyer", name: "Ayesha Nazeer", email: DEMO_BUYERS.ayesha, lands: "/" },
+  { role: "Buyer", name: "Kasun Rathnayake", email: DEMO_BUYERS.kasun, lands: "/" },
+  { role: "Buyer", name: "Dinithi Fernando", email: DEMO_BUYERS.dinithi, lands: "/" },
+  { role: "Buyer", name: "Ishara Wijesinghe", email: DEMO_BUYERS.ishara, lands: "/" },
+  { role: "Buyer", name: "Malith Peiris", email: DEMO_BUYERS.malith, lands: "/" },
 ];
 
 /** Demo logins show in development, or anywhere with SHOW_DEMO_LOGINS=true (never by default in production). */

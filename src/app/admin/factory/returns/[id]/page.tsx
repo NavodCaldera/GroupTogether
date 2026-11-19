@@ -1,3 +1,4 @@
+import { BackLink } from "@/components/client";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/server/auth/session";
 import { adminReturn, listReturnMessages, escalateOverdue } from "@/server/returns";
@@ -15,7 +16,10 @@ export default async function ReturnPage({ params }: { params: Promise<{ id: str
   const messages = await listReturnMessages(user.id, id);
   return (
     <div className="mx-auto flex w-full min-w-0 max-w-2xl flex-col gap-4">
-      <PageHeader title="Return" />
+      <div>
+        <BackLink fallback="/admin/factory/returns" />
+        <PageHeader title="Return" />
+      </div>
       <ReturnCard request={r} viewer="admin" canChangeFault={user.adminArea === "FACTORY"}>
         <ReturnThread id={id} messages={messages} canPost={r.status === "WITH_ADMIN"} />
       </ReturnCard>
