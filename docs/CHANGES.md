@@ -6,6 +6,13 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-19 - Demo own baskets in the seed
+
+- The owner asked for already-open demo baskets to test joining. The seed adds buyers Kasun,
+  Dinithi, Ishara and Malith (buyer7–10@example.com) and four own baskets made through the real
+  service: two public and open (5 of 10 and 9 of 10), one link-only (code printed by the seed)
+  and one placed (LOCKED) for Packing.
+
 ## 2026-11-19 - Back on every inner page
 
 - The owner asked for Back wherever it is needed. Added the green Back link to Cart (to Shop),
