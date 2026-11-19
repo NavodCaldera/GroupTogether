@@ -1,5 +1,5 @@
+import { BackLink } from "@/components/client";
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { Card, Field, Input, PageHeader, Select, Textarea } from "@/components/ui";
 import { PartnerForm } from "@/components/partner-form";
 import { APPLICATION_FIELDS, DOCUMENT_LABELS, bankNameMatches } from "@/lib/partner-rules";
@@ -32,12 +32,7 @@ export default async function ApplicationPage({ params }: { params: Promise<{ id
   const match = bankNameMatches(a.accountName, a.businessName, a.ownerName);
   return (
     <div className="max-w-2xl">
-      <Link
-        href="/admin/factory/applications"
-        className="mb-4 inline-flex min-h-11 items-center underline"
-      >
-        Back to applications
-      </Link>
+      <BackLink fallback="/admin/factory/applications" />
       <PageHeader title={a.businessName} />
       <div className="grid gap-4">
         <Card>

@@ -107,7 +107,7 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await expect.poll(units).toBe(total);
   await page.reload();
   await expect(page.getByLabel(/^Quantity of /).first()).toHaveValue(String(before));
-  await page.getByRole("link", { name: "Checkout" }).click();
+  await page.getByRole("button", { name: "Checkout" }).click();
 
   await expect(page.getByRole("heading", { name: "Checkout", level: 1 })).toBeVisible();
   const nearest = page.getByRole("radio", { name: new RegExp(ids.agentName) });

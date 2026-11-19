@@ -6,6 +6,21 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-19 - Back on every inner page
+
+- The owner asked for Back wherever it is needed. Added the green Back link to Cart (to Shop),
+  Checkout (to Cart), My own baskets (to Orders), Become an agent, the agent deposit page and
+  the factory return detail; the factory application detail's "Back to applications" now uses
+  the same Back link. Pages opened from the header, tab bar or a workspace menu have none.
+
+## 2026-11-19 - Choose delivery on the Cart
+
+- The owner moved own baskets off the product page. The Cart now has "Get it by": Agent pickup
+  (the 3 nearest agents, then Checkout) and, for each product in the cart, an Own basket card
+  with Join for open public baskets of that product and Start own basket. The start and join
+  forms prefill sizes and quantities from the cart; those sizes leave the cart once the
+  basket order is created, as agent checkout already does. My own baskets stays under Orders.
+
 ## 2026-11-19 - Own basket address from the profile
 
 - The owner asked that starting an own basket fill Delivery address, Town or area and Phone

@@ -50,3 +50,21 @@ export async function cartCount(buyerId: string): Promise<number> {
   const r = await db.cartItem.aggregate({ where: { buyerId }, _sum: { qty: true } });
   return r._sum.qty ?? 0;
 }
+
+/** The buyer's cart quantities for one product, by variant (to prefill own-basket sizes). */
+export async function cartQtyForProduct(
+  buyerId: string,
+  productId: string,
+): Promise<Record<string, number>> {
+  const rows = await db.cartItem.findMany({
+    where: { buyerId, variant: { productId } },
+    select: { variantId: true, qty: true },
+  });
+  return Object.fromEntries(rows.map((r) => [r.variantId, r.qty]));
+}
+
+/** Drops these sizes from the cart once they are ordered into an own basket. */
+export async function removeFromCart(buyerId: string, variantIds: string[]): Promise<void> {
+  if (variantIds.length === 0) return;
+  await db.cartItem.deleteMany({ where: { buyerId, variantId: { in: variantIds } } });
+}

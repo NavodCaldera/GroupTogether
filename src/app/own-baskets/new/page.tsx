@@ -7,6 +7,7 @@ import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { getProduct } from "@/server/catalogue";
+import { cartQtyForProduct } from "@/server/orders/cart";
 import { startOwnBasketAction } from "../actions";
 import { SizeQuantities, TokensField } from "../own-bits";
 
@@ -22,10 +23,13 @@ export default async function NewOwnBasketPage({ searchParams }: PageProps<"/own
   const product = productId ? await getProduct(productId) : null;
   if (!product || product.status !== "LIVE") notFound();
   // Prefilled from the profile; the owner can change them for this basket.
-  const profile = await db.user.findUnique({
-    where: { id: user.id },
-    select: { address: true, city: true, phone: true },
-  });
+  const [profile, inCart] = await Promise.all([
+    db.user.findUnique({
+      where: { id: user.id },
+      select: { address: true, city: true, phone: true },
+    }),
+    cartQtyForProduct(user.id, product.id),
+  ]);
   const error = typeof sp.error === "string" ? sp.error : null;
 
   return (
@@ -42,6 +46,7 @@ export default async function NewOwnBasketPage({ searchParams }: PageProps<"/own
           <input type="hidden" name="requestKey" value={randomUUID()} />
           <SizeQuantities
             price={product.price}
+            initial={inCart}
             variants={product.variants.map((v) => ({
               id: v.id,
               size: v.size,

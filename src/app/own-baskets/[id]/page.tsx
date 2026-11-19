@@ -13,6 +13,7 @@ import {
   joinOwnBasketAction,
   setVisibilityAction,
 } from "../actions";
+import { cartQtyForProduct } from "@/server/orders/cart";
 import { itemsLabel, OWN_STATUS, SizeQuantities, TokensField } from "../own-bits";
 
 export const metadata: Metadata = { title: "Own basket" };
@@ -28,6 +29,7 @@ export default async function OwnBasketPage({
   const b = await ownBasketView(id, user?.id ?? null, code);
   if (!b) notFound();
   const buyer = !!user && isBuyerRole(user.role);
+  const inCart = user && b.canJoin ? await cartQtyForProduct(user.id, b.product.id) : {};
   const here = `/own-baskets/${b.id}${code ? `?code=${encodeURIComponent(code)}` : ""}`;
 
   return (
@@ -130,7 +132,11 @@ export default async function OwnBasketPage({
               <input type="hidden" name="basketId" value={b.id} />
               {code && <input type="hidden" name="code" value={code} />}
               <input type="hidden" name="requestKey" value={randomUUID()} />
-              <SizeQuantities price={b.product.price} variants={b.product.variants} />
+              <SizeQuantities
+                price={b.product.price}
+                variants={b.product.variants}
+                initial={inCart}
+              />
               <TokensField />
               <Button type="submit" className="self-start">
                 Pay and add
