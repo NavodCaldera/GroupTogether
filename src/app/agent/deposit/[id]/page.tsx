@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { BackLink } from "@/components/client";
 import { notFound } from "next/navigation";
 import { Card, LinkButton } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
@@ -41,10 +40,7 @@ export default async function DepositReturnPage({ params }: PageProps<"/agent/de
 
   return (
     <div className="mx-auto flex w-full max-w-sm flex-col gap-4">
-      <div>
-        <BackLink fallback="/agent" />
-        <h1 className="text-2xl font-semibold tracking-tight">{LABEL[state]}</h1>
-      </div>
+      <h1 className="text-2xl font-semibold tracking-tight">{LABEL[state]}</h1>
       <Card className="flex flex-col gap-4">
         <p className="text-3xl font-semibold tabular-nums">{formatLKR(attempt.amount)}</p>
         {state === "SUCCEEDED" ? (

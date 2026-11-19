@@ -50,6 +50,13 @@ QA and UX audit of GroupBasket in a visible (headed) browser, with fixes. Update
 | Buyer home after handover | Buyer | 1280 | Pass |
 | Every nav page for Agents and orders, Apparel and factories, Core, Brand rewards admins, factory owner and factory sales | Admins, factory | 1280 and 360 | No horizontal overflow, no failed requests; one console error, QA-007 |
 | Site icon | All | 1280 | Pass after QA-005 |
+| Cart: header Cart link and count, − / + save at once, Remove, Back | Buyer | 1280, 360 | Pass after QA-009 |
+| Cart "Get it by": 3 nearest agents → Checkout keeps the chosen agent | Buyer | 1280, 360 | Pass |
+| Join seeded public basket from the Cart (sizes prefilled, address hidden, cart emptied) | Ravindu | 360 | Pass |
+| Link-only basket: no code and wrong code 404, right code joins | Ravindu | 360 | Pass |
+| Owner below minimum sees "1 more item needed · 9 of 10"; joiner reaches 10; owner places; basket leaves the Cart list | Ishara, Sachini | 360 | Pass |
+| Owner switches Who can join to link-only and back; Copy basket link | Kasun | 1280 | Pass |
+| Back on Cart, Checkout, My own baskets, Become an agent | Buyer | 1280 | Pass after QA-010 |
 
 ## Issues
 
@@ -157,6 +164,14 @@ QA and UX audit of GroupBasket in a visible (headed) browser, with fixes. Update
 - **Test:** `tests/e2e/buyer.spec.ts` opens the cart from the header on Shop. `buyer` and
   `accessibility` specs: 12 passed, headed.
 
+### QA-010 · Become an agent had no Back for a signed-in buyer (Low · fixed)
+
+- **Steps:** buyer2, open `/agents/apply`. The signed-out view had Back; the signed-in views
+  (form, applied, rejected, left) use a separate frame without it.
+- **Fix:** `src/app/agents/apply/page.tsx` frame includes Back. **Retest:** Back present.
+- Payment-return pages (order paid, agent deposit) keep no Back, so it cannot lead back into a
+  payment.
+
 ## Added coverage
 
 - `tests/e2e/own-baskets.spec.ts` (from PR #19, adapted): two buyers; owner starts a public
@@ -167,6 +182,13 @@ QA and UX audit of GroupBasket in a visible (headed) browser, with fixes. Update
 - `tests/e2e/visual.spec.ts`: screenshot comparisons of the Material Card and the checkout
   summary at 360 px, light mode, reduced motion. Skipped on CI: baselines are per platform and
   only Windows baselines have been reviewed.
+
+- `tests/e2e/own-basket-joins.spec.ts`: joins the seeded own baskets: the Cart lists only open
+  public baskets of its products, link-only needs the right code, the owner is blocked below 10
+  with the reason, a joiner reaches 10 and the owner places it.
+- Seed (`prisma/seed.ts`): four buyers and four own baskets (two public open, one link-only,
+  one placed). `factory.spec.ts` and `admin-workspaces.spec.ts` now name the agent basket they
+  act on instead of assuming it is the only one.
 
 ## Not a bug
 
@@ -180,6 +202,8 @@ QA and UX audit of GroupBasket in a visible (headed) browser, with fixes. Update
 - **Throttled network and slow responses:** not reproduced under throttling in this run.
 - **Keyboard-only pass and dialog focus return:** axe ran on every e2e screen; a manual
   keyboard walk of every flow was not done.
+- **Factory return detail page:** no return reaches the factory in the demo data, so its Back
+  link was checked by type check only.
 - **Other browsers:** Chromium only; no Firefox or WebKit.
 - **Parked features (not bugs):** preorders (`DEC-015`), premium-brand partnership
   communication, Parcel is back / courier rebooking (`DEC-016`).

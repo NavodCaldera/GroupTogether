@@ -38,9 +38,12 @@ export default async function AgentApplyPage() {
 
   const frame = (children: ReactNode, badge?: ReactNode) => (
     <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-2">
-        <h1 className="text-2xl font-semibold tracking-tight">Become an agent</h1>
-        {badge}
+      <div>
+        <BackLink fallback="/" />
+        <div className="flex flex-wrap items-center gap-2">
+          <h1 className="text-2xl font-semibold tracking-tight">Become an agent</h1>
+          {badge}
+        </div>
       </div>
       {children}
     </div>
