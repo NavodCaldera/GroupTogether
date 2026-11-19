@@ -81,6 +81,9 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   await page.getByRole("link", { name: "Start own basket" }).click();
   await expect(page.getByRole("heading", { name: "Start own basket", level: 1 })).toBeVisible();
   await inspect(page);
+  // Prefilled from the profile; the owner may change them for this basket.
+  await expect(page.getByLabel("Delivery address")).not.toHaveValue("");
+  await expect(page.getByLabel("Phone")).not.toHaveValue("");
   await page.getByLabel("Delivery address").fill("12 Lake Road, Kandy");
   await page.getByLabel("Town or area").fill("Kandy");
   await page.getByLabel("Phone").fill("0771234567");

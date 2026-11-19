@@ -6,6 +6,12 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-19 - Own basket address from the profile
+
+- The owner asked that starting an own basket fill Delivery address, Town or area and Phone
+  from the buyer's profile. They are prefilled and can still be changed for that basket; the
+  profile itself is not changed.
+
 ## 2026-11-19 - Cart quantity steppers
 
 - The owner asked to drop the cart's Update button. Each line now has − and + buttons around

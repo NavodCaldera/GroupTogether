@@ -5,6 +5,7 @@ import { BackLink } from "@/components/client";
 import { Alert, Button, Card, Field, Input, Select, Textarea } from "@/components/ui";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
+import { db } from "@/server/db";
 import { getProduct } from "@/server/catalogue";
 import { startOwnBasketAction } from "../actions";
 import { SizeQuantities, TokensField } from "../own-bits";
@@ -14,9 +15,17 @@ export const metadata: Metadata = { title: "Start own basket" };
 export default async function NewOwnBasketPage({ searchParams }: PageProps<"/own-baskets/new">) {
   const sp = await searchParams;
   const productId = typeof sp.product === "string" ? sp.product : "";
-  await requireUser([...BUYER_ROLES], `/own-baskets/new?product=${encodeURIComponent(productId)}`);
+  const user = await requireUser(
+    [...BUYER_ROLES],
+    `/own-baskets/new?product=${encodeURIComponent(productId)}`,
+  );
   const product = productId ? await getProduct(productId) : null;
   if (!product || product.status !== "LIVE") notFound();
+  // Prefilled from the profile; the owner can change them for this basket.
+  const profile = await db.user.findUnique({
+    where: { id: user.id },
+    select: { address: true, city: true, phone: true },
+  });
   const error = typeof sp.error === "string" ? sp.error : null;
 
   return (
@@ -41,14 +50,34 @@ export default async function NewOwnBasketPage({ searchParams }: PageProps<"/own
             }))}
           />
           <Field label="Delivery address" name="address">
-            <Textarea id="address" name="address" maxLength={300} rows={3} required />
+            <Textarea
+              id="address"
+              name="address"
+              maxLength={300}
+              rows={3}
+              required
+              defaultValue={profile?.address ?? ""}
+            />
           </Field>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="Town or area" name="area">
-              <Input id="area" name="area" maxLength={60} required />
+              <Input
+                id="area"
+                name="area"
+                maxLength={60}
+                required
+                defaultValue={profile?.city ?? ""}
+              />
             </Field>
             <Field label="Phone" name="phone">
-              <Input id="phone" name="phone" type="tel" maxLength={30} required />
+              <Input
+                id="phone"
+                name="phone"
+                type="tel"
+                maxLength={30}
+                required
+                defaultValue={profile?.phone ?? ""}
+              />
             </Field>
           </div>
           <Field label="Who can join" name="visibility">
