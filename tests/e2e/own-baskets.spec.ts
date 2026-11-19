@@ -154,9 +154,11 @@ test("another buyer joins from the cart without an agent", async ({ page }) => {
   await chooseOneAndPay(page, "Pay and add");
 });
 
-test("at the minimum the owner places the order", async ({ page }) => {
+test("the owner hears of the join and places the order", async ({ page }) => {
   test.setTimeout(120_000);
   await signIn(page, DEMO_BUYERS.nimali);
+  await page.goto("/notifications");
+  await expect(page.getByText("Someone joined your basket").first()).toBeVisible();
   await page.goto(`/own-baskets/${ids.basket}`);
   await expect(page.getByText(/more item/)).toHaveCount(0);
   await page.getByRole("button", { name: "Place order" }).click();
