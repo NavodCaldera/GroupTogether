@@ -76,7 +76,10 @@ test("packing: marks the locked basket packed, then gives it to the driver", asy
   await page.screenshot({ path: "test-results/factory-packing-mobile.png", fullPage: true });
 
   await basket.getByRole("button", { name: "Mark packed" }).click();
-  await expect(page.getByText("Nothing to pack")).toBeVisible();
+  // The seeded own basket (Malith Peiris) stays to pack; the agent basket has gone.
+  await expect(toPack.getByRole("listitem", { name: "Fathima Rizwan", exact: true })).toHaveCount(
+    0,
+  );
 
   // The Agents and orders admin books the courier (its screen is another task's).
   await sql(
@@ -107,7 +110,8 @@ test("packing: marks the locked basket packed, then gives it to the driver", asy
   await expect(stages).toHaveText(
     ["Filling", "Locked", "Packed", "With courier", "At agent"].map((s) => new RegExp(s)),
   );
-  await expect(page.getByRole("listitem", { name: "Locked: 0" })).toBeVisible();
+  // The seeded own basket (Malith Peiris) is still locked.
+  await expect(page.getByRole("listitem", { name: "Locked: 1" })).toBeVisible();
   await expect(page.getByRole("listitem", { name: "With courier: 1" })).toBeVisible();
   await expect(
     page.getByRole("list", { name: "Baskets" }).getByRole("listitem", {

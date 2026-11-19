@@ -226,7 +226,7 @@ test("Factory admin dismisses one missing report and removes the other line", as
     `UPDATE "OrderLine" SET "missingReportedQty" = 1, "missingNote" = 'Out of stock',
        "missingReportedAt" = now()
      WHERE id IN (SELECT l.id FROM "OrderLine" l JOIN "Order" o ON o.id = l."orderId"
-       JOIN "Basket" b ON b.id = o."basketId" WHERE b.status = 'LOCKED' AND o.status = 'PAID')`,
+       JOIN "Basket" b ON b.id = o."basketId" WHERE b.status = 'LOCKED' AND b.kind = 'AGENT' AND o.status = 'PAID')`,
   );
   await signIn(page, DEMO_ADMINS.FACTORY);
   await page
@@ -245,7 +245,7 @@ test("Factory admin dismisses one missing report and removes the other line", as
   const lines = await sql(
     `SELECT l."missingQty", l."missingReportedQty" FROM "OrderLine" l
      JOIN "Order" o ON o.id = l."orderId" JOIN "Basket" b ON b.id = o."basketId"
-     WHERE b.status = 'LOCKED' AND o.status = 'PAID' ORDER BY l."missingQty"`,
+     WHERE b.status = 'LOCKED' AND b.kind = 'AGENT' AND o.status = 'PAID' ORDER BY l."missingQty"`,
   );
   expect(lines.map((l) => [l.missingQty, l.missingReportedQty])).toEqual([
     [0, 0],
