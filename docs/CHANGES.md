@@ -6,6 +6,12 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-19 - Quieter Back link
+
+- The owner asked to fix the green Back button: it competed with each page's main action and
+  stretched across the row. Back is now green text (no fill), only as wide as its label, with a
+  44 px tap target on phones. Recorded as QA-008 in `docs/qa/full-system-browser-audit.md`.
+
 ## 2026-11-18 - Own baskets: no fee, minimum items
 
 - The owner changed `DEC-023`: an own basket has no delivery, courier or agent fee (those show

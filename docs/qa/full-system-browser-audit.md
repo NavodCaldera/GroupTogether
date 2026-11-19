@@ -128,12 +128,21 @@ QA and UX audit of GroupBasket in a visible (headed) browser, with fixes. Update
   the same fallback key `"new"` when no conversation is open.
 - **Fix:** keys `history-…` and `form-…`. **Retest:** no console error across the four tabs.
 
-## Needs a decision
+### QA-008 · Green Back button competes with the main action (Medium · fixed)
 
-- **Green Back button competes with the main action.** `BackLink` is a filled accent button on
-  every inner page, as strong as Place order or Pay. It was made green on purpose
-  (`763993c`, "Make the Back button green"), so it is left as is. Option: a quiet text link
-  ("← Back") keeps the main action as the only filled button on the page.
+- **User impact:** `BackLink` was a filled accent button on every inner page, as strong as Add
+  to cart, Pay or Place order, so first-time users saw two equal "main" buttons. Inside flex
+  columns it also stretched the full row width (measured 1128 × 40 px on the product page at
+  1280 px), showing as a solid green bar across the page.
+- **Root cause:** filled `bg-accent` styling, and `inline-flex` stretched by `align-items:
+  stretch` in a column parent.
+- **Fix (owner asked 2026-11-19):** `src/components/client.tsx`. Back stays green, as the owner
+  chose in `763993c`, but as text with no fill, `w-fit self-start` so it is only as wide as
+  its label, a 44 px tap height at 360 px (40 px on wider screens, as the other controls) and a
+  visible focus ring. Measured after: 62 × 44 px at 360 px, 62 × 40 px at 1280 px.
+- **Retest:** product page at 1280 and 360 px (`qa-output/01-product.png` before,
+  `26-back-after-1280.png` and `27-back-focus-360.png` after); Back still returns to Shop.
+  `accessibility`, `buyer` and `own-baskets` specs: 15 passed.
 
 ## Added coverage
 
