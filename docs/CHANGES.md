@@ -6,6 +6,12 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-19 - Cart in the header
+
+- The owner found the cart was reachable only from the "Added to cart" toast. Shoppers now
+  have a Cart icon with an item count in the top bar on every page (phone and desktop); the
+  Orders tab has its own parcel icon. QA-009 in `docs/qa/full-system-browser-audit.md`.
+
 ## 2026-11-19 - Quieter Back link
 
 - The owner asked to fix the green Back button: it competed with each page's main action and

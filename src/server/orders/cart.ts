@@ -44,3 +44,9 @@ export async function cartView(buyerId: string): Promise<{
   const rates = ratesOf(await getSettings());
   return { factories: await loadCart(db, buyerId, rates) };
 }
+
+/** Units in the buyer's cart, for the header badge. */
+export async function cartCount(buyerId: string): Promise<number> {
+  const r = await db.cartItem.aggregate({ where: { buyerId }, _sum: { qty: true } });
+  return r._sum.qty ?? 0;
+}

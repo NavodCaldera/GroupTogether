@@ -20,5 +20,5 @@ export async function setQtyAction(fd: FormData) {
     if (e instanceof CartError) redirect(`/cart?${keep}error=${encodeURIComponent(e.message)}`);
     throw e;
   }
-  revalidatePath("/cart");
+  revalidatePath("/", "layout"); // header cart badge
 }

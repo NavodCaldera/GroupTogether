@@ -79,6 +79,10 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await page.getByRole("link", { name: "View cart" }).click();
   await expect(page).toHaveURL(/\/cart$/);
   await inspect(page);
+  // The cart is reachable from every page, not only from the toast.
+  await page.goto("/shop");
+  await page.getByRole("link", { name: /^Cart, [1-9]\d* items?$/ }).click();
+  await expect(page).toHaveURL(/\/cart$/);
   await page.getByRole("link", { name: "Checkout" }).click();
 
   await expect(page.getByRole("heading", { name: "Checkout", level: 1 })).toBeVisible();

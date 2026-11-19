@@ -144,6 +144,19 @@ QA and UX audit of GroupBasket in a visible (headed) browser, with fixes. Update
   `26-back-after-1280.png` and `27-back-focus-360.png` after); Back still returns to Shop.
   `accessibility`, `buyer` and `own-baskets` specs: 15 passed.
 
+### QA-009 · No way back to the cart except the toast (High · fixed)
+
+- **User impact:** after "Added to cart" closed, a buyer had no visible route to the cart; the
+  Orders tab led there only through a button, and the cart was not in the top bar or tab bar.
+- **Why the audit missed it:** every scripted cart visit used the toast's View cart link or
+  went to `/cart` directly, so the test path always had a way in. The audit checked each screen
+  but not "can I get back here from anywhere" as a navigation question.
+- **Fix:** `src/components/site-header.tsx` adds a Cart icon with a unit count beside the bell
+  for shoppers on every page, phone and desktop; Orders gets its own parcel icon. Add to cart and
+  quantity changes revalidate the layout so the count updates.
+- **Test:** `tests/e2e/buyer.spec.ts` opens the cart from the header on Shop. `buyer` and
+  `accessibility` specs: 12 passed, headed.
+
 ## Added coverage
 
 - `tests/e2e/own-baskets.spec.ts` (from PR #19, adapted): two buyers; owner starts a public

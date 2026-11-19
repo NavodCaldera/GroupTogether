@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { getCurrentUser } from "@/server/auth/session";
 import { NavLink } from "./nav-link";
 import { unreadCount } from "@/server/notify";
+import { cartCount } from "@/server/orders/cart";
 import { currentTheme } from "@/server/theme";
 import { toggleThemeAction } from "@/server/theme-actions";
 
@@ -28,7 +29,11 @@ export function hasTabBar(user: { role: string } | null) {
 export async function SiteHeader() {
   const [user, theme] = await Promise.all([getCurrentUser(), currentTheme()]);
   const inbox = !!user;
-  const unread = user ? await unreadCount(user.id) : 0;
+  const shopper = !!user && !(user.role in STAFF_HOME);
+  const [unread, inCart] = await Promise.all([
+    user ? unreadCount(user.id) : 0,
+    shopper ? cartCount(user.id) : 0,
+  ]);
   const tap = "min-h-11 items-center rounded-md px-2.5 hover:bg-muted sm:min-h-9";
   const link = `inline-flex ${tap}`;
   const underline =
@@ -48,8 +53,8 @@ export async function SiteHeader() {
           {
             href: "/orders",
             label: "Orders",
-            also: ["/cart", "/checkout"],
-            icon: <path d="M3 4h2l2.4 11h11L21 7H6.2M9 20h.01M18 20h.01" />,
+            also: ["/checkout"],
+            icon: <path d="M21 8 12 3 3 8v8l9 5 9-5zM3 8l9 5 9-5M12 13v8" />,
           },
           {
             href: "/tokens",
@@ -141,6 +146,35 @@ export async function SiteHeader() {
           </form>
           {user ? (
             <>
+              {shopper && (
+                <NavLink
+                  href="/cart"
+                  className={link}
+                  activeClassName={underline}
+                  aria-label={`Cart, ${inCart} ${inCart === 1 ? "item" : "items"}`}
+                  title="Cart"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="20"
+                    height="20"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                    className="text-ink"
+                  >
+                    <path d="M3 4h2l2.4 11h11L21 7H6.2M9 20h.01M18 20h.01" />
+                  </svg>
+                  {inCart > 0 && (
+                    <span className="ml-1 rounded-full bg-accent px-1.5 text-xs font-semibold text-on-accent">
+                      {inCart}
+                    </span>
+                  )}
+                </NavLink>
+              )}
               {inbox && (
                 <>
                   <NavLink

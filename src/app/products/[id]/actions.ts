@@ -26,6 +26,6 @@ export async function addToCartAction(_p: AddState, fd: FormData): Promise<AddSt
     if (e instanceof CartError) return { error: e.message };
     throw e;
   }
-  revalidatePath("/cart");
+  revalidatePath("/", "layout"); // header cart badge
   return { ok: "Added to cart", at: Date.now() };
 }
