@@ -40,6 +40,11 @@ Newest first.
   the quantity; a tap saves at once, and a typed number saves when the field loses focus or on
   Enter. Remove stays. Quantity stays between 1 and 999.
 
+## 2026-11-19 - Top bar fits 360 px with the Cart icon
+
+- CI found the account icon pushed off a 360 px screen once the Cart icon was added. On
+  phones the top bar icons have less side padding and the logo is a size smaller.
+
 ## 2026-11-19 - Cart in the header
 
 - The owner found the cart was reachable only from the "Added to cart" toast. Shoppers now

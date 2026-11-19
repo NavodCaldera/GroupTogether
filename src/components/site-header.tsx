@@ -34,10 +34,10 @@ export async function SiteHeader() {
     user ? unreadCount(user.id) : 0,
     shopper ? cartCount(user.id) : 0,
   ]);
-  const tap = "min-h-11 items-center rounded-md px-2.5 hover:bg-muted sm:min-h-9";
+  const tap = "min-h-11 items-center rounded-md px-2 hover:bg-muted sm:min-h-9 sm:px-2.5";
   const link = `inline-flex ${tap}`;
   const underline =
-    "relative text-ink after:absolute after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
+    "relative text-ink after:absolute after:inset-x-2 sm:after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
   const sections: { href: string; label: string; icon: ReactNode; also?: string[] }[] = [
     // Admins and factory logins have no buyer home, shop, orders or tokens tabs.
     ...(user && user.role in STAFF_HOME
@@ -98,7 +98,7 @@ export async function SiteHeader() {
         <nav className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-1.5 text-sm sm:py-2.5">
           <Link
             href={(user && STAFF_HOME[user.role]) ?? "/"}
-            className="mr-3 text-lg font-bold tracking-tight"
+            className="mr-1 text-base font-bold tracking-tight sm:mr-3 sm:text-lg"
           >
             Group<span className="text-accent">Basket</span>
           </Link>
