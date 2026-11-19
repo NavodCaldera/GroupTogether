@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Alert, Button, Card, EmptyState, Input, LinkButton, PageHeader } from "@/components/ui";
+import { Alert, Button, Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { cartView } from "@/server/orders/cart";
 import { setQtyAction } from "./actions";
+import { QtyStepper } from "./qty-stepper";
 
 export const metadata: Metadata = { title: "Cart" };
 
@@ -57,26 +58,14 @@ export default async function CartPage({ searchParams }: PageProps<"/cart">) {
                         {formatLKR(l.unitPrice.times(l.qty))}
                       </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <form action={setQtyAction} className="flex gap-2">
-                        <input type="hidden" name="variantId" value={l.variantId} />
-                        <input type="hidden" name="agent" value={agent} />
-                        <label htmlFor={`qty-${l.itemId}`} className="sr-only">
-                          Quantity of {l.title} {l.size}
-                        </label>
-                        <Input
-                          id={`qty-${l.itemId}`}
-                          name="qty"
-                          type="number"
-                          min={1}
-                          max={999}
-                          defaultValue={l.qty}
-                          className="w-20"
-                        />
-                        <Button type="submit" variant="secondary">
-                          Update
-                        </Button>
-                      </form>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <QtyStepper
+                        key={l.qty}
+                        variantId={l.variantId}
+                        agent={agent}
+                        qty={l.qty}
+                        label={`${l.title} ${l.size}`}
+                      />
                       <form action={setQtyAction}>
                         <input type="hidden" name="variantId" value={l.variantId} />
                         <input type="hidden" name="agent" value={agent} />

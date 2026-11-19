@@ -6,6 +6,12 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-19 - Cart quantity steppers
+
+- The owner asked to drop the cart's Update button. Each line now has − and + buttons around
+  the quantity; a tap saves at once, and a typed number saves when the field loses focus or on
+  Enter. Remove stays. Quantity stays between 1 and 999.
+
 ## 2026-11-19 - Cart in the header
 
 - The owner found the cart was reachable only from the "Added to cart" toast. Shoppers now
