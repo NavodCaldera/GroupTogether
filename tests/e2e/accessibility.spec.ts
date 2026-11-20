@@ -30,8 +30,8 @@ test("home leads with clothing without excluded wording, overflow or Axe violati
     .toBe(true);
   const scan = await new AxeBuilder({ page }).analyze();
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
-  await page.getByRole("link", { name: /Shop all/ }).focus();
-  await expect(page.getByRole("link", { name: /Shop all/ })).toBeFocused();
+  await page.getByRole("link", { name: "Shop and save" }).focus();
+  await expect(page.getByRole("link", { name: "Shop and save" })).toBeFocused();
   await page.screenshot({
     path: "test-results/home-" + test.info().project.name + ".png",
     fullPage: true,

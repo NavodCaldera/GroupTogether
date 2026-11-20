@@ -38,14 +38,9 @@ export default async function HomePage() {
 
       {products.length > 0 && (
         <section aria-labelledby="home-savings">
-          <div className="mb-4 flex items-end justify-between">
-            <h2 id="home-savings" className="text-xl font-semibold">
-              Biggest savings
-            </h2>
-            <Link href="/shop" className="text-sm font-medium text-accent">
-              Shop all →
-            </Link>
-          </div>
+          <h2 id="home-savings" className="mb-4 text-xl font-semibold">
+            Biggest savings
+          </h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {products.map((p) => {
               const off = savingPercent(p.price, p.retailPrice);
