@@ -342,12 +342,14 @@ because the middleman is gone, not that the goods are cheap.
 
 1. **Headline.** "Direct from factory to you. No more middlemen." (owner's line, "consumer" made
    personal).
-2. **Proof, not prose.** A label-only chain Factory → Importer → Wholesaler → Shop → You plays on
-   a loop (about every 6.5 s, with a small pause button for WCAG 2.2.2): each middleman shakes with a red edge and turns to dust (tiny pieces drifting
-   off), its slot closes, then the top “Biggest savings” product's price counts down from retail
-   to ours with the struck retail price and −% badge. CSS animation plus one small client counter;
-   reduced motion shows the end state. No explainer sentences. The average “% below retail”
-   figure was tried and removed.
+2. **Proof, not prose.** Factory and You sit at the two ends of an arrow line
+   (Factory → Importer → Wholesaler → Shop → You). On a loop (about every 9.5 s), each middleman shakes with a red
+   edge and turns to dust (tiny pieces drifting off), the line fills green, You pulses, then the
+   top “Biggest savings” product (name shown, links to it) counts down from retail to our price
+   with the struck retail price and −% badge. CSS animation plus small client code for the
+   counter and the replay. Reduced motion shows the end state. The owner removed the pause
+   button (2026-11-21), so the loop has no on-page pause (WCAG 2.2.2 trade-off accepted). No
+   explainer sentences. The average “% below retail” figure was tried and removed.
 3. **Removed** the "Clothing from partner factories" box and the four numbered steps.
 4. **Biggest savings.** The signed-out product row ranks by saving below retail (then cheapest
    for products without a higher retail price), with a −% badge and the struck retail price.
