@@ -342,8 +342,8 @@ because the middleman is gone, not that the goods are cheap.
 
 1. **Headline.** "Direct from factory to you. No more middlemen." (owner's line, "consumer" made
    personal).
-2. **Proof, not prose.** A label-only chain Factory → Importer → Wholesaler → Shop → You plays
-   once on load: each middleman shakes with a red edge and turns to dust (tiny pieces drifting
+2. **Proof, not prose.** A label-only chain Factory → Importer → Wholesaler → Shop → You plays on
+   a loop (about every 6.5 s, with a small pause button for WCAG 2.2.2): each middleman shakes with a red edge and turns to dust (tiny pieces drifting
    off), its slot closes, then the top “Biggest savings” product's price counts down from retail
    to ours with the struck retail price and −% badge. CSS animation plus one small client counter;
    reduced motion shows the end state. No explainer sentences. The average “% below retail”

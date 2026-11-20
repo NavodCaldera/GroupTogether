@@ -193,6 +193,19 @@ body {
     transform: scale(0.6);
   }
 }
+/* Between replays (hero-replay.tsx): fade the chain and price out, then back in. */
+.fc-leave {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+.fc-enter {
+  animation: fc-fade-in 0.3s ease-out;
+}
+@keyframes fc-fade-in {
+  from {
+    opacity: 0;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .fc-mm {
     display: none;

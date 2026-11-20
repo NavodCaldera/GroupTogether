@@ -11,7 +11,8 @@ Newest first.
 - The owner wanted new buyers to feel they save money because the middleman is gone, not that
   the clothing is cheap (`DEC-024`). The signed-out home now leads with "Direct from factory to
   you. No more middlemen.", an animated Factory → Importer → Wholesaler → Shop → You chain in
-  which each middleman turns to dust, then the top deal's price counts down from retail to ours,
+  which each middleman turns to dust, then the top deal's price counts down from retail to ours
+  (replays every 6.5 s; an icon button pauses it),
   and Shop now. The "Clothing from partner factories" box, the four numbered steps and the
   average "% below retail" figure are gone. "Affordable prices" became "Biggest savings",
   ranked by saving with a −% badge and the struck retail price.

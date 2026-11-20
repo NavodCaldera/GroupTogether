@@ -9,6 +9,7 @@ import { formatLKR } from "@/lib/format";
 import { listProducts } from "@/server/catalogue";
 import { savingPercent } from "@/lib/price-rules";
 import { PriceDrop } from "./price-drop";
+import { HeroReplay } from "./hero-replay";
 
 export default async function HomePage() {
   // The home page is for shoppers; admins go straight to the back office, packing staff to
@@ -103,6 +104,8 @@ const MIDDLEMEN = [
 /** When the last middleman is gone and the price starts to drop, and how long it takes. */
 const DROP_AT_MS = 2900;
 const DROP_MS = 800;
+/** The whole story takes about 4 s; hold the end state, then play it again. */
+const CYCLE_MS = 6500;
 
 type Deal = { price: { toString(): string }; retailPrice: { toString(): string }; off: number };
 
@@ -116,64 +119,66 @@ function FactoryHero({ deal }: { deal: Deal | null }) {
   const arrow = "self-center text-lg leading-none font-bold text-accent";
   const middleman = `${chip} border border-line bg-paper text-subtle`;
   return (
-    <section className="rounded-2xl bg-muted px-4 py-8 text-center sm:px-8 sm:py-12">
+    <section className="relative rounded-2xl bg-muted px-4 py-8 text-center sm:px-8 sm:py-12">
       <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-4xl">
         Direct from factory to you. <span className="text-accent">No more middlemen.</span>
       </h1>
-      <div
-        className="fc mt-8 flex flex-col items-center gap-1.5 sm:flex-row sm:justify-center sm:gap-2"
-        aria-hidden
-      >
-        <span className={`${chip} bg-accent text-on-accent`}>Factory</span>
-        {MIDDLEMEN.map((m) => (
-          <span
-            key={m.name}
-            className="fc-mm"
-            style={{ "--d": `${m.at}s`, "--s": m.spread, "--t": m.turn } as React.CSSProperties}
-          >
-            <Arrow className={`fc-arrow ${arrow}`} />
-            <span className="fc-chip relative inline-flex rounded-full">
-              <span className={`fc-whole ${middleman}`}>{m.name}</span>
-              {PIECES.map((p) => (
-                <span
-                  key={p.clip}
-                  className={`fc-piece absolute inset-0 flex items-center justify-center ${middleman}`}
-                  style={
-                    {
-                      clipPath: p.clip,
-                      "--x": `${p.x}px`,
-                      "--y": `${p.y}px`,
-                      "--r": `${p.r}deg`,
-                      "--pd": `${p.delay}s`,
-                    } as React.CSSProperties
-                  }
-                >
-                  {m.name}
-                </span>
-              ))}
-            </span>
-          </span>
-        ))}
-        <Arrow className={`fc-link ${arrow}`} />
-        <span className={`${chip} bg-accent text-on-accent`}>You</span>
-      </div>
       <p className="sr-only">Factory to you, with no importer, wholesaler or shop in between.</p>
-      {deal && (
-        <p className="fc-price mt-6 flex flex-wrap items-center justify-center gap-x-2 text-2xl font-bold">
-          <PriceDrop
-            from={deal.retailPrice.toString()}
-            to={deal.price.toString()}
-            startMs={DROP_AT_MS}
-            durationMs={DROP_MS}
-          />
-          <span className="fc-after text-base font-medium text-subtle line-through decoration-danger decoration-2">
-            {formatLKR(deal.retailPrice)}
-          </span>
-          <span className="fc-after rounded-md bg-accent px-1.5 py-0.5 text-sm text-on-accent">
-            −{deal.off}%
-          </span>
-        </p>
-      )}
+      <HeroReplay cycleMs={CYCLE_MS}>
+        <div
+          className="fc mt-8 flex flex-col items-center gap-1.5 sm:flex-row sm:justify-center sm:gap-2"
+          aria-hidden
+        >
+          <span className={`${chip} bg-accent text-on-accent`}>Factory</span>
+          {MIDDLEMEN.map((m) => (
+            <span
+              key={m.name}
+              className="fc-mm"
+              style={{ "--d": `${m.at}s`, "--s": m.spread, "--t": m.turn } as React.CSSProperties}
+            >
+              <Arrow className={`fc-arrow ${arrow}`} />
+              <span className="fc-chip relative inline-flex rounded-full">
+                <span className={`fc-whole ${middleman}`}>{m.name}</span>
+                {PIECES.map((p) => (
+                  <span
+                    key={p.clip}
+                    className={`fc-piece absolute inset-0 flex items-center justify-center ${middleman}`}
+                    style={
+                      {
+                        clipPath: p.clip,
+                        "--x": `${p.x}px`,
+                        "--y": `${p.y}px`,
+                        "--r": `${p.r}deg`,
+                        "--pd": `${p.delay}s`,
+                      } as React.CSSProperties
+                    }
+                  >
+                    {m.name}
+                  </span>
+                ))}
+              </span>
+            </span>
+          ))}
+          <Arrow className={`fc-link ${arrow}`} />
+          <span className={`${chip} bg-accent text-on-accent`}>You</span>
+        </div>
+        {deal && (
+          <p className="fc-price mt-6 flex flex-wrap items-center justify-center gap-x-2 text-2xl font-bold">
+            <PriceDrop
+              from={deal.retailPrice.toString()}
+              to={deal.price.toString()}
+              startMs={DROP_AT_MS}
+              durationMs={DROP_MS}
+            />
+            <span className="fc-after text-base font-medium text-subtle line-through decoration-danger decoration-2">
+              {formatLKR(deal.retailPrice)}
+            </span>
+            <span className="fc-after rounded-md bg-accent px-1.5 py-0.5 text-sm text-on-accent">
+              −{deal.off}%
+            </span>
+          </p>
+        )}
+      </HeroReplay>
       <Link
         href="/shop"
         className="mt-8 inline-flex min-h-11 items-center rounded-lg bg-accent px-6 font-semibold text-on-accent hover:opacity-90"
