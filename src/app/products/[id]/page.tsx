@@ -1,13 +1,12 @@
 import { ProductScore } from "@/components/product-score";
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { ProductImage } from "@/components/cart-bits";
 import { Card } from "@/components/ui";
 import { siteName } from "@/lib/brand-rules";
 import { formatLKR } from "@/lib/format";
-import { getCurrentUser } from "@/server/auth/session";
+import { requireUser } from "@/server/auth/session";
 import { getProduct } from "@/server/catalogue";
 import { ratingSummaries, productRatingSummaries } from "@/server/ratings";
 import { FactoryRating } from "@/components/factory-rating";
@@ -25,17 +24,20 @@ export async function generateMetadata({ params }: PageProps<"/products/[id]">):
 
 export default async function ProductPage({ params, searchParams }: PageProps<"/products/[id]">) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
-  const [product, user] = await Promise.all([getProduct(id), getCurrentUser()]);
-  if (!product) notFound();
   // A shared basket link carries its agent through the cart to checkout.
   const agent =
     typeof sp.agent === "string" && /^[a-z0-9]{1,40}$/.test(sp.agent) ? sp.agent : undefined;
   const keep = agent ? `?agent=${agent}` : "";
-  const buyer = !!user && isBuyerRole(user.role);
+  // Product pages are for signed-in users; visitors sign in and come straight back (owner,
+  // 2026-11-21).
+  const user = await requireUser([], `/products/${id}${keep}`);
+  const product = await getProduct(id);
+  if (!product) notFound();
+  const buyer = isBuyerRole(user.role);
   const [ratings, productScores, fit, materialCard] = await Promise.all([
     ratingSummaries([product.sellerId]),
     productRatingSummaries([product.id]),
-    getFitView(product.id, buyer && user ? user.id : null),
+    getFitView(product.id, buyer ? user.id : null),
     getMaterialCard(product.id),
   ]);
   const why = materialCard ? await getProvenance(materialCard) : null;
@@ -99,14 +101,6 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                     available: v.available,
                   }))}
                 />
-                {!user && (
-                  <Link
-                    href={`/sign-in?next=${encodeURIComponent(`/products/${product.id}${keep}`)}`}
-                    className="inline-flex min-h-11 items-center text-sm font-medium text-accent underline sm:min-h-10"
-                  >
-                    Sign in to buy
-                  </Link>
-                )}
               </div>
             )}
           </Card>

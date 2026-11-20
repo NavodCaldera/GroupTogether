@@ -16,6 +16,9 @@ async function inspect(page: Page) {
 test("home leads with clothing without excluded wording, overflow or Axe violations", async ({
   page,
 }) => {
+  // Scan the settled hero: mid-animation the decorative dust pieces (aria-hidden) are briefly
+  // grey on grey, which Axe would sample.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(
     page.getByRole("heading", {

@@ -24,6 +24,10 @@ Newest first.
   arrow, whose hover underline split in two. Back now returns to the previous GroupBasket page
   only; a visitor who arrived from a shared link or search result goes to the page's fallback
   instead of leaving the site.
+- Product pages (and material compare) need sign-in: a visitor who opens an item signs in and
+  comes straight back to it, so the "Sign in to buy" link is gone. Shop and home stay public.
+- Signing out no longer shows a "Signed out" message.
+- Buyer home: the Tokens card is gone; the balance stays on /tokens.
 - Dependency audit: `effect` (via Prisma config) pinned to 3.22.5 by an npm override for
   GHSA-7589-6fvf-x4pw.
 

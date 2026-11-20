@@ -6,6 +6,7 @@ import { MaterialCardView } from "@/components/materials/material-card-view";
 import { Card, PageHeader } from "@/components/ui";
 import { getProduct, shopProductsWithMaterial } from "@/server/catalogue";
 import { getMaterialCard } from "@/server/materials";
+import { requireUser } from "@/server/auth/session";
 
 export const metadata: Metadata = { title: "Compare materials" };
 
@@ -16,6 +17,10 @@ export default async function ComparePage({
 }: PageProps<"/products/[id]/compare">) {
   const [{ id }, sp] = await Promise.all([params, searchParams]);
   const withId = typeof sp.with === "string" ? sp.with : null;
+  await requireUser(
+    [],
+    `/products/${id}/compare${withId ? `?with=${encodeURIComponent(withId)}` : ""}`,
+  );
   const [product, card] = await Promise.all([getProduct(id), getMaterialCard(id)]);
   if (!product || !card) notFound();
   const other = withId && withId !== id ? await getProduct(withId) : null;

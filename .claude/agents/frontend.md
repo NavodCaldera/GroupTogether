@@ -42,6 +42,7 @@ guidance, not business policy. Verify code pointers before editing.
 ## Role and journey boundaries
 
 - `BackLink` (components/client.tsx) uses browser history only when `NavDepth` (root layout) has counted an in-app page behind this one; otherwise it opens its fallback, so Back never leaves the site.
+- Product and compare pages call `requireUser` with `next` (2026-11-21); only Home and Shop are open to visitors.
 - Signed-out visitors get no section links (top bar or tab bar) until they sign in (2026-11-21).
 - Buyer home is `/` (`/dashboard` redirects there), with the phone tab bar Home, Shop, Orders, Tokens. Agents are buyers too: they keep the buyer bar and reach `/agent` sections through an in-page tab row, not a second bottom bar (open, `DEC-016`). Factories use `/seller`; admins their area home. Backend role guards remain required, and agent pages also gate on `Agent.status`.
 - Theme (2026-11-04): light (white) is the default; dark only when the `gt_theme` cookie says so (`data-theme="dark"` on `<html>`). Keep colours as `light-dark()` tokens in `globals.css`; never use `prefers-color-scheme`.

@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { Pool } from "pg";
 import { assertTestDatabase } from "../../scripts/test-database.mjs";
-import { DEMO_ADMINS, DEMO_PASSWORD } from "../../src/lib/demo-accounts";
+import { DEMO_ADMINS, DEMO_BUYERS, DEMO_PASSWORD } from "../../src/lib/demo-accounts";
 import { seedBrowserFixtures } from "./seed-fixtures";
 
 // Material Card (DEC-022) on the seeded tee: combed cotton jersey, 180 gsm, library composition.
@@ -54,7 +54,11 @@ const noSideScroll = (page: Page) =>
     .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
     .toBe(true);
 
-test("a visitor sees the Material Card with sourced values only", async ({ page }) => {
+test("a buyer sees the Material Card with sourced values only", async ({ page }) => {
+  // Product pages need sign-in (2026-11-21); a visitor is sent to sign in and back.
+  await page.goto(`/products/${tee}`);
+  await expect(page).toHaveURL(new RegExp(`/sign-in\\?next=%2Fproducts%2F${tee}`));
+  await signIn(page, DEMO_BUYERS.tharindu);
   await page.goto(`/products/${tee}`);
   const card = page.getByTestId("material-card");
   await card.scrollIntoViewIfNeeded();
