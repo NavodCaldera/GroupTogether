@@ -113,6 +113,8 @@ const DROP_AT_MS = 5100;
 const DROP_MS = 1200;
 /** The whole story takes about 6.5 s; hold the end state, then play it again. */
 const CYCLE_MS = 9500;
+/** Plays in all, then it rests on the end state (owner, 2026-11-21). */
+const PLAYS = 3;
 
 type Deal = {
   id: string;
@@ -138,7 +140,7 @@ function FactoryHero({ deal }: { deal: Deal | null }) {
         Direct from factory to you. <span className="text-accent">No more middlemen.</span>
       </h1>
       <p className="sr-only">Factory to you, with no importer, wholesaler or shop in between.</p>
-      <HeroReplay cycleMs={CYCLE_MS}>
+      <HeroReplay cycleMs={CYCLE_MS} plays={PLAYS}>
         <div className="mx-auto mt-8 flex max-w-xl flex-col items-center sm:flex-row" aria-hidden>
           <span className={end}>Factory</span>
           <div className="relative flex min-h-44 flex-1 flex-col items-center justify-evenly self-stretch sm:min-h-0 sm:flex-row sm:px-2">
@@ -190,9 +192,9 @@ function FactoryHero({ deal }: { deal: Deal | null }) {
           <div className="fc-price mt-6">
             <Link
               href={`/products/${deal.id}`}
-              className="inline-flex flex-col items-center rounded-xl px-3 py-1 hover:bg-paper"
+              className="inline-flex max-w-full flex-col items-center rounded-xl px-3 py-1 hover:bg-paper"
             >
-              <span className="text-sm text-subtle">{deal.title}</span>
+              <span className="max-w-full truncate text-sm text-subtle">{deal.title}</span>
               <span className="flex flex-wrap items-center justify-center gap-x-2 text-2xl font-bold">
                 <PriceDrop
                   from={deal.retailPrice.toString()}
@@ -200,7 +202,7 @@ function FactoryHero({ deal }: { deal: Deal | null }) {
                   startMs={DROP_AT_MS}
                   durationMs={DROP_MS}
                 />
-                <span className="fc-after text-base font-medium text-subtle line-through decoration-danger decoration-2">
+                <span className="fc-after text-base font-medium text-subtle tabular-nums line-through decoration-danger decoration-2">
                   {formatLKR(deal.retailPrice)}
                 </span>
                 <span className="fc-after rounded-md bg-accent px-1.5 py-0.5 text-sm text-on-accent">

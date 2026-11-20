@@ -39,5 +39,13 @@ export function PriceDrop({
       el.textContent = formatLKR(to);
     };
   }, [from, to, startMs, durationMs]);
-  return <span ref={ref}>{formatLKR(to)}</span>;
+  // Screen readers get the final price only, never a number mid-count.
+  return (
+    <>
+      <span ref={ref} className="tabular-nums" aria-hidden>
+        {formatLKR(to)}
+      </span>
+      <span className="sr-only">{formatLKR(to)}</span>
+    </>
+  );
 }

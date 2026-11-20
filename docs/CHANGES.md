@@ -13,7 +13,8 @@ Newest first.
   you. No more middlemen.", a looping animation and Shop and save. In the animation Factory and You
   stay at the ends of a line; Importer, Wholesaler and Shop on it each turn to dust, the line
   fills green, then the top deal (name shown, linked) counts down from retail to our price. It
-  replays about every 9.5 s, with no pause button at the owner's request.
+  plays three times (about 9.5 s apart, held while hovered or focused) and then rests, with
+  no pause button, at the owner's request.
 - Removed: the "Clothing from partner factories" box, the four numbered steps and the average
   "% below retail" figure. "Affordable prices" became "Biggest savings", ranked by saving
   with a −% badge and the struck retail price.
