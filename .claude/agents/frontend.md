@@ -41,6 +41,7 @@ guidance, not business policy. Verify code pointers before editing.
 
 ## Role and journey boundaries
 
+- Signed-out visitors get no section links (top bar or tab bar) until they sign in (2026-11-21).
 - Buyer home is `/` (`/dashboard` redirects there), with the phone tab bar Home, Shop, Orders, Tokens. Agents are buyers too: they keep the buyer bar and reach `/agent` sections through an in-page tab row, not a second bottom bar (open, `DEC-016`). Factories use `/seller`; admins their area home. Backend role guards remain required, and agent pages also gate on `Agent.status`.
 - Theme (2026-11-04): light (white) is the default; dark only when the `gt_theme` cookie says so (`data-theme="dark"` on `<html>`). Keep colours as `light-dark()` tokens in `globals.css`; never use `prefers-color-scheme`.
 - Factory pages use `FactoryShell` with the login's `factoryRole`: it shows only that job's sections (`src/lib/factory-roles.ts`) as a bottom tab bar on phones and top tabs from `sm` up (2026-11-04). Hide rupee figures unless `seesMoney(role)`. Guard factory pages and actions with `requireFactory(section)` and use its `factoryId`, never the login id, for factory data.

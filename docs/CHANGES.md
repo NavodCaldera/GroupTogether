@@ -18,6 +18,8 @@ Newest first.
 - Removed: the "Clothing from partner factories" box, the four numbered steps and the average
   "% below retail" figure. "Affordable prices" became "Biggest savings", ranked by saving
   with a −% badge and the struck retail price, and no "Shop all" link.
+- Visitors no longer see Shop, Orders and Tokens in the top bar or the phone tab bar; they
+  appear after sign-in.
 - Dependency audit: `effect` (via Prisma config) pinned to 3.22.5 by an npm override for
   GHSA-7589-6fvf-x4pw.
 
