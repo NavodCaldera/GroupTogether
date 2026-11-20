@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Home hero: direct from factory, no middlemen
+
+- The owner wanted new buyers to feel they save money because the middleman is gone, not that
+  the clothing is cheap (`DEC-024`). The signed-out home now leads with "Direct from factory to
+  you. No more middlemen.", the average % below retail, a Factory → ~~Importer~~ →
+  ~~Wholesaler~~ → ~~Shop~~ → You chain and Shop now. The "Clothing from partner factories" box
+  and the four numbered steps are gone. "Affordable prices" became "Biggest
+  savings", ranked by saving with a −% badge and the struck retail price.
+
 ## 2026-11-19 - Demo own baskets in the seed
 
 - The owner asked for already-open demo baskets to test joining. The seed adds buyers Kasun,

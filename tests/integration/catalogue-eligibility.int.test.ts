@@ -68,3 +68,40 @@ describe("independent public catalogue brand exclusion", () => {
     expect(await getProduct(products[0].id)).toMatchObject({ id: products[0].id });
   });
 });
+
+describe("saving order", () => {
+  it("ranks by saving below retail, then fills cheapest first", async () => {
+    const make = (title: string, price: string, retailPrice: string | null) =>
+      db.product.create({
+        data: {
+          title,
+          brand: "Ordinary",
+          category: "APPAREL",
+          audience: "MEN",
+          kind: "men-shirts",
+          stockType: "FACTORY_SURPLUS",
+          status: "LIVE",
+          price,
+          retailPrice,
+          variants: { create: { size: "M", available: 5 } },
+        },
+      });
+    const small = await make("Small saving", "900", "1000");
+    const big = await make("Big saving", "400", "1000");
+    const none = await make("No retail", "300", null);
+    const above = await make("Retail below ours", "500", "450");
+    const pricey = await make("Pricey, no retail", "2000", null);
+    expect((await listProducts({}, 10, "saving")).map((p) => p.id)).toEqual([
+      big.id,
+      small.id,
+      none.id,
+      above.id,
+      pricey.id,
+    ]);
+    expect((await listProducts({}, 3, "saving")).map((p) => p.id)).toEqual([
+      big.id,
+      small.id,
+      none.id,
+    ]);
+  });
+});

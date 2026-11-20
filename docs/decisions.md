@@ -334,6 +334,21 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-024 - Home hero: factory to you, no middlemen
+
+**Status:** Built **2026-11-21**. The owner proposed "Direct factory to Consumer. No more middle
+man" and asked for the best plan: a new buyer should feel they are *saving* on the real thing
+because the middleman is gone, not that the goods are cheap.
+
+1. **Headline.** "Direct from factory to you. No more middlemen." (owner's line, "consumer" made
+   personal).
+2. **Proof, not prose.** The average saving from `retailSaving()` shown large ("57% below
+   retail"); hidden when fewer than 3 products qualify. A label-only chain Factory → Importer →
+   Wholesaler → Shop → You with the middle three cut by a red line. No explainer sentences.
+3. **Removed** the "Clothing from partner factories" box and the four numbered steps.
+4. **Biggest savings.** The signed-out product row ranks by saving below retail (then cheapest
+   for products without a higher retail price), with a −% badge and the struck retail price.
+
 ### DEC-023 - Own baskets delivered to the owner
 
 **Status:** Built **2026-11-18** (`BSK-008`). The owner asked for it and told Claude to decide the

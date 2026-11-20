@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/server/auth/session";
@@ -6,6 +7,7 @@ import { BuyerHome } from "./buyer-home";
 import { ProductImage } from "@/components/cart-bits";
 import { formatLKR } from "@/lib/format";
 import { listProducts, retailSaving } from "@/server/catalogue";
+import { savingPercent } from "@/lib/price-rules";
 
 export default async function HomePage() {
   // The home page is for shoppers; admins go straight to the back office, packing staff to
@@ -15,46 +17,48 @@ export default async function HomePage() {
   if (role === "ADMIN") redirect("/admin");
   if (role === "SELLER") redirect("/seller");
   if (user && isBuyerRole(user.role)) return <BuyerHome user={user} />;
-  const [products, saving] = await Promise.all([listProducts({}, 8, "cheapest"), retailSaving()]);
+  const [products, saving] = await Promise.all([listProducts({}, 8, "saving"), retailSaving()]);
   return (
     <div className="flex flex-col gap-12">
-      <section>
-        <h1 className="mb-4 text-xl font-semibold">Buy clothing from partner factories together</h1>
-        <ol className="grid gap-4 sm:grid-cols-4">
-          {["Add your items", "Pick an agent near you", "Pay online", "Collect with your code"].map(
-            (t, i) => (
-              <li key={t} className="rounded-xl border border-line p-4">
-                <span className="text-sm font-bold text-accent">{i + 1}</span>
-                <p className="mt-1 font-semibold">{t}</p>
-              </li>
-            ),
-          )}
-        </ol>
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-xl font-semibold">Clothing from partner factories</h2>
-        <WhyCheap saving={saving} />
-      </section>
+      <FactoryHero saving={saving} />
 
       {products.length > 0 && (
-        <section>
+        <section aria-labelledby="home-savings">
           <div className="mb-4 flex items-end justify-between">
-            <h2 className="text-xl font-semibold">Affordable prices</h2>
+            <h2 id="home-savings" className="text-xl font-semibold">
+              Biggest savings
+            </h2>
             <Link href="/shop" className="text-sm font-medium text-accent">
               Shop all →
             </Link>
           </div>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {products.map((p) => (
-              <Link key={p.id} href={`/products/${p.id}`} className="group">
-                <ProductImage {...p} />
-                <p className="mt-2 line-clamp-1 text-sm font-medium group-hover:underline">
-                  {p.title}
-                </p>
-                <p className="text-sm font-semibold">{formatLKR(p.price)}</p>
-              </Link>
-            ))}
+            {products.map((p) => {
+              const off = savingPercent(p.price, p.retailPrice);
+              return (
+                <Link key={p.id} href={`/products/${p.id}`} className="group">
+                  <div className="relative">
+                    <ProductImage {...p} />
+                    {off !== null && (
+                      <span className="absolute top-2 left-2 rounded-md bg-accent px-1.5 py-0.5 text-xs font-bold text-on-accent">
+                        −{off}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 line-clamp-1 text-sm font-medium group-hover:underline">
+                    {p.title}
+                  </p>
+                  <p className="text-sm">
+                    <strong>{formatLKR(p.price)}</strong>
+                    {off !== null && p.retailPrice && (
+                      <span className="ml-1.5 text-xs text-subtle line-through">
+                        {formatLKR(p.retailPrice)}
+                      </span>
+                    )}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
@@ -62,73 +66,51 @@ export default async function HomePage() {
   );
 }
 
-/** Why prices are low: factory bulk buying feeds area baskets. Pure markup, no client JS. */
-function WhyCheap({ saving }: { saving: number | null }) {
-  const icon = "mt-0.5 h-6 w-6 shrink-0 text-accent sm:h-8 sm:w-8";
-  const box = "flex flex-1 gap-3 rounded-xl border border-line bg-paper p-3 sm:p-4";
+/** Factory straight to the buyer, with the middle of the usual chain struck out. No client JS. */
+function FactoryHero({ saving }: { saving: number | null }) {
+  const chip = "rounded-full px-3 py-1 text-sm font-semibold";
+  const arrow = "self-center text-lg leading-none font-bold text-accent";
   return (
-    <div className="rounded-2xl bg-muted p-3 sm:p-6">
-      <div className="flex flex-col items-stretch gap-1 md:flex-row md:items-center md:gap-4">
-        <div className={box}>
-          <svg
-            className={icon}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M3 21V10l5 3V10l5 3V10l5 3V4h3v17H3z" />
-            <path d="M7 17h2M11 17h2M15 17h2" />
-          </svg>
-          <div>
-            <p className="font-semibold">Direct from partner factories</p>
-            <p className="mt-1 text-sm text-subtle">
-              Clothing comes directly from our partner factories.
-            </p>
-          </div>
-        </div>
-
-        <span
-          className="self-center text-xl leading-none font-bold text-accent md:text-2xl"
-          aria-hidden
-        >
-          <span className="md:hidden">↓</span>
-          <span className="hidden md:inline">→</span>
-        </span>
-
-        <div className={box}>
-          <svg
-            className={icon}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            aria-hidden
-          >
-            <circle cx="9" cy="8" r="3" />
-            <circle cx="17" cy="9" r="2.5" />
-            <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.5c.6-.3 1.3-.5 2-.5 2.5 0 4.5 2 4.5 4.5" />
-          </svg>
-          <div>
-            <p className="font-semibold">Consumer group buying</p>
-            <p className="mt-1 text-sm text-subtle">
-              Orders near you travel together in one basket.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <p className="mt-3 text-center font-semibold text-accent sm:mt-4">
-        <span
-          className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-accent align-middle"
-          aria-hidden
-        />
-        {saving !== null ? `On average ${saving}% below retail.` : "Lower prices for you."} No
-        middlemen, no small-order costs.
+    <section className="rounded-2xl bg-muted px-4 py-8 text-center sm:px-8 sm:py-12">
+      <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-4xl">
+        Direct from factory to you. <span className="text-accent">No more middlemen.</span>
+      </h1>
+      {saving !== null && (
+        <p className="mt-6">
+          <span className="block text-5xl font-extrabold text-accent sm:text-6xl">{saving}%</span>
+          <span className="mt-1 block text-lg font-semibold">below retail</span>
+        </p>
+      )}
+      <p className="mt-8 flex flex-col items-center gap-1.5 sm:flex-row sm:justify-center sm:gap-2">
+        <span className={`${chip} bg-accent text-on-accent`}>Factory</span>
+        {["Importer", "Wholesaler", "Shop"].map((m) => (
+          <Fragment key={m}>
+            <Arrow className={arrow} />
+            <del
+              className={`${chip} border border-line bg-paper text-subtle line-through decoration-danger decoration-2`}
+            >
+              {m}
+            </del>
+          </Fragment>
+        ))}
+        <Arrow className={arrow} />
+        <span className={`${chip} bg-accent text-on-accent`}>You</span>
       </p>
-    </div>
+      <Link
+        href="/shop"
+        className="mt-8 inline-flex min-h-11 items-center rounded-lg bg-accent px-6 font-semibold text-on-accent hover:opacity-90"
+      >
+        Shop now
+      </Link>
+    </section>
+  );
+}
+
+function Arrow({ className }: { className: string }) {
+  return (
+    <span className={className} aria-hidden>
+      <span className="sm:hidden">↓</span>
+      <span className="hidden sm:inline">→</span>
+    </span>
   );
 }

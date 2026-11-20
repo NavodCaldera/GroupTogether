@@ -9,7 +9,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: { default: "GroupBasket", template: "%s · GroupBasket" },
   description:
-    "Buy clothing from partner factories together and collect it from an agent near you.",
+    "Clothing direct from the factory to you, below retail with no middlemen. Collect it from an agent near you.",
 };
 
 const viewport: Viewport = {

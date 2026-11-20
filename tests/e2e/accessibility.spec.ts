@@ -20,7 +20,7 @@ test("home leads with clothing without excluded wording, overflow or Axe violati
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Buy clothing from partner factories together",
+      name: "Direct from factory to you. No more middlemen.",
       exact: true,
     }),
   ).toBeVisible();
