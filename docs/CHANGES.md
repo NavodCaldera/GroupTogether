@@ -10,10 +10,13 @@ Newest first.
 
 - The owner wanted new buyers to feel they save money because the middleman is gone, not that
   the clothing is cheap (`DEC-024`). The signed-out home now leads with "Direct from factory to
-  you. No more middlemen.", the average % below retail, a Factory → ~~Importer~~ →
-  ~~Wholesaler~~ → ~~Shop~~ → You chain and Shop now. The "Clothing from partner factories" box
-  and the four numbered steps are gone. "Affordable prices" became "Biggest
-  savings", ranked by saving with a −% badge and the struck retail price.
+  you. No more middlemen.", an animated Factory → Importer → Wholesaler → Shop → You chain in
+  which each middleman turns to dust, then the top deal's price counts down from retail to ours,
+  and Shop now. The "Clothing from partner factories" box, the four numbered steps and the
+  average "% below retail" figure are gone. "Affordable prices" became "Biggest savings",
+  ranked by saving with a −% badge and the struck retail price.
+- Dependency audit: `effect` (via Prisma config) pinned to 3.22.5 by an npm override for
+  GHSA-7589-6fvf-x4pw.
 
 ## 2026-11-19 - Demo own baskets in the seed
 

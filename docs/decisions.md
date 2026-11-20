@@ -342,9 +342,12 @@ because the middleman is gone, not that the goods are cheap.
 
 1. **Headline.** "Direct from factory to you. No more middlemen." (owner's line, "consumer" made
    personal).
-2. **Proof, not prose.** The average saving from `retailSaving()` shown large ("57% below
-   retail"); hidden when fewer than 3 products qualify. A label-only chain Factory → Importer →
-   Wholesaler → Shop → You with the middle three cut by a red line. No explainer sentences.
+2. **Proof, not prose.** A label-only chain Factory → Importer → Wholesaler → Shop → You plays
+   once on load: each middleman shakes with a red edge and turns to dust (tiny pieces drifting
+   off), its slot closes, then the top “Biggest savings” product's price counts down from retail
+   to ours with the struck retail price and −% badge. CSS animation plus one small client counter;
+   reduced motion shows the end state. No explainer sentences. The average “% below retail”
+   figure was tried and removed.
 3. **Removed** the "Clothing from partner factories" box and the four numbered steps.
 4. **Biggest savings.** The signed-out product row ranks by saving below retail (then cheapest
    for products without a higher retail price), with a −% badge and the struck retail price.
