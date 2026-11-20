@@ -215,7 +215,7 @@ function FactoryHero({ deal }: { deal: Deal | null }) {
         href="/shop"
         className="mt-8 inline-flex min-h-11 items-center rounded-lg bg-accent px-6 font-semibold text-on-accent hover:opacity-90"
       >
-        Shop now
+        Shop and save
       </Link>
     </section>
   );

@@ -341,7 +341,7 @@ man" and asked for the best plan: a new buyer should feel they are *saving* on t
 because the middleman is gone, not that the goods are cheap.
 
 1. **Headline.** "Direct from factory to you. No more middlemen." (owner's line, "consumer" made
-   personal).
+   personal). The button below it reads "Shop and save" (owner's choice).
 2. **Proof, not prose.** Factory and You sit at the two ends of an arrow line
    (Factory → Importer → Wholesaler → Shop → You). On a loop (about every 9.5 s), each middleman shakes with a red
    edge and turns to dust (tiny pieces drifting off), the line fills green, You pulses, then the
