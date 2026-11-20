@@ -75,6 +75,5 @@ function safeNext(v: FormDataEntryValue | null) {
 
 export async function signOutAction() {
   await signOut();
-  await flash("Signed out");
   redirect("/");
 }

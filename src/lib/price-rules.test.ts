@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buyerPrice, validCommission } from "./price-rules";
+import { buyerPrice, savingPercent, validCommission } from "./price-rules";
 
 describe("factory commission", () => {
   it("adds the snapshot exactly", () =>
@@ -8,5 +8,17 @@ describe("factory commission", () => {
     expect(validCommission("0")).toBe(true);
     for (const v of ["-1", "1.001", "1.000", "NaN", "Infinity", "1000000000000"])
       expect(validCommission(v)).toBe(false);
+  });
+});
+
+describe("savingPercent", () => {
+  it("rounds the saving down to a whole percent", () => {
+    expect(savingPercent("1000", "2000")).toBe(50);
+    expect(savingPercent("1299", "3000")).toBe(56);
+  });
+  it("is null without a retail price above ours", () => {
+    expect(savingPercent("1000", null)).toBeNull();
+    expect(savingPercent("1000", "1000")).toBeNull();
+    expect(savingPercent("1000", "900")).toBeNull();
   });
 });

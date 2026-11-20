@@ -1,3 +1,4 @@
+import type React from "react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/server/auth/session";
@@ -5,7 +6,10 @@ import { isBuyerRole } from "@/lib/roles";
 import { BuyerHome } from "./buyer-home";
 import { ProductImage } from "@/components/cart-bits";
 import { formatLKR } from "@/lib/format";
-import { listProducts, retailSaving } from "@/server/catalogue";
+import { listProducts } from "@/server/catalogue";
+import { savingPercent } from "@/lib/price-rules";
+import { PriceDrop } from "./price-drop";
+import { HeroReplay } from "./hero-replay";
 
 export default async function HomePage() {
   // The home page is for shoppers; admins go straight to the back office, packing staff to
@@ -15,46 +19,55 @@ export default async function HomePage() {
   if (role === "ADMIN") redirect("/admin");
   if (role === "SELLER") redirect("/seller");
   if (user && isBuyerRole(user.role)) return <BuyerHome user={user} />;
-  const [products, saving] = await Promise.all([listProducts({}, 8, "cheapest"), retailSaving()]);
+  const products = await listProducts({}, 8, "saving");
+  const top = products[0];
+  const topOff = top ? savingPercent(top.price, top.retailPrice) : null;
+  const deal =
+    top?.retailPrice && topOff !== null
+      ? {
+          id: top.id,
+          title: top.title,
+          price: top.price,
+          retailPrice: top.retailPrice,
+          off: topOff,
+        }
+      : null;
   return (
     <div className="flex flex-col gap-12">
-      <section>
-        <h1 className="mb-4 text-xl font-semibold">Buy clothing from partner factories together</h1>
-        <ol className="grid gap-4 sm:grid-cols-4">
-          {["Add your items", "Pick an agent near you", "Pay online", "Collect with your code"].map(
-            (t, i) => (
-              <li key={t} className="rounded-xl border border-line p-4">
-                <span className="text-sm font-bold text-accent">{i + 1}</span>
-                <p className="mt-1 font-semibold">{t}</p>
-              </li>
-            ),
-          )}
-        </ol>
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-xl font-semibold">Clothing from partner factories</h2>
-        <WhyCheap saving={saving} />
-      </section>
+      <FactoryHero deal={deal} />
 
       {products.length > 0 && (
-        <section>
-          <div className="mb-4 flex items-end justify-between">
-            <h2 className="text-xl font-semibold">Affordable prices</h2>
-            <Link href="/shop" className="text-sm font-medium text-accent">
-              Shop all →
-            </Link>
-          </div>
+        <section aria-labelledby="home-savings">
+          <h2 id="home-savings" className="mb-4 text-xl font-semibold">
+            Biggest savings
+          </h2>
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {products.map((p) => (
-              <Link key={p.id} href={`/products/${p.id}`} className="group">
-                <ProductImage {...p} />
-                <p className="mt-2 line-clamp-1 text-sm font-medium group-hover:underline">
-                  {p.title}
-                </p>
-                <p className="text-sm font-semibold">{formatLKR(p.price)}</p>
-              </Link>
-            ))}
+            {products.map((p) => {
+              const off = savingPercent(p.price, p.retailPrice);
+              return (
+                <Link key={p.id} href={`/products/${p.id}`} className="group">
+                  <div className="relative">
+                    <ProductImage {...p} />
+                    {off !== null && (
+                      <span className="absolute top-2 left-2 rounded-md bg-accent px-1.5 py-0.5 text-xs font-bold text-on-accent">
+                        −{off}%
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-2 line-clamp-1 text-sm font-medium group-hover:underline">
+                    {p.title}
+                  </p>
+                  <p className="text-sm">
+                    <strong>{formatLKR(p.price)}</strong>
+                    {off !== null && p.retailPrice && (
+                      <span className="ml-1.5 text-xs text-subtle line-through">
+                        {formatLKR(p.retailPrice)}
+                      </span>
+                    )}
+                  </p>
+                </Link>
+              );
+            })}
           </div>
         </section>
       )}
@@ -62,73 +75,145 @@ export default async function HomePage() {
   );
 }
 
-/** Why prices are low: factory bulk buying feeds area baskets. Pure markup, no client JS. */
-function WhyCheap({ saving }: { saving: number | null }) {
-  const icon = "mt-0.5 h-6 w-6 shrink-0 text-accent sm:h-8 sm:w-8";
-  const box = "flex flex-1 gap-3 rounded-xl border border-line bg-paper p-3 sm:p-4";
+// Each middleman turns to dust: a COLS x ROWS grid of tiny clipped copies of the chip. Each piece
+// drifts off to the right on a fixed pseudo-random path, left columns first.
+const COLS = 12;
+const ROWS = 4;
+const rand = (n: number) => {
+  const x = Math.sin(n * 12.9898) * 43758.5453;
+  return x - Math.floor(x);
+};
+const pct = (n: number) => `${+n.toFixed(2)}%`;
+const PIECES = Array.from({ length: COLS * ROWS }, (_, i) => {
+  const col = i % COLS;
+  const row = Math.floor(i / COLS);
+  const w = 100 / COLS;
+  const h = 100 / ROWS;
+  return {
+    clip: `inset(${pct(row * h)} ${pct(100 - (col + 1) * w)} ${pct(100 - (row + 1) * h)} ${pct(col * w)})`,
+    x: Math.round(14 + rand(i) * 46),
+    y: Math.round(-34 + rand(i + 101) * 40),
+    r: Math.round(-200 + rand(i + 7) * 400),
+    delay: +(col * 0.05 + rand(i + 3) * 0.12).toFixed(3),
+  };
+});
+const MIDDLEMEN = [
+  { name: "Importer", at: 0.8, spread: 1, turn: 1 },
+  { name: "Wholesaler", at: 1.9, spread: 1.25, turn: -1 },
+  { name: "Shop", at: 3.0, spread: 0.9, turn: 1 },
+];
+/** When the line has turned green and the price starts to drop, and how long it takes. The
+ * matching CSS times (fc-fill, fc-you, fc-after) live in globals.css. */
+const DROP_AT_MS = 5100;
+const DROP_MS = 1200;
+/** The whole story takes about 6.5 s; hold the end state, then play it again. */
+const CYCLE_MS = 9500;
+/** Plays in all, then it rests on the end state (owner, 2026-11-21). */
+const PLAYS = 3;
+
+type Deal = {
+  id: string;
+  title: string;
+  price: { toString(): string };
+  retailPrice: { toString(): string };
+  off: number;
+};
+
+/**
+ * Factory straight to the buyer. Factory and You stay put at the two ends of a line; the
+ * middlemen on it turn to dust one by one, the line fills green, then the top deal's price counts
+ * down from retail to ours. CSS animation (globals.css, `fc-*`), replayed by HeroReplay; reduced
+ * motion shows the end state.
+ */
+function FactoryHero({ deal }: { deal: Deal | null }) {
+  const chip = "rounded-full px-3 py-1 text-sm font-semibold";
+  const end = `${chip} relative z-10 shrink-0 bg-accent text-on-accent`;
+  const middleman = `${chip} border border-line bg-paper text-subtle`;
   return (
-    <div className="rounded-2xl bg-muted p-3 sm:p-6">
-      <div className="flex flex-col items-stretch gap-1 md:flex-row md:items-center md:gap-4">
-        <div className={box}>
-          <svg
-            className={icon}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinejoin="round"
-            aria-hidden
-          >
-            <path d="M3 21V10l5 3V10l5 3V10l5 3V4h3v17H3z" />
-            <path d="M7 17h2M11 17h2M15 17h2" />
-          </svg>
-          <div>
-            <p className="font-semibold">Direct from partner factories</p>
-            <p className="mt-1 text-sm text-subtle">
-              Clothing comes directly from our partner factories.
-            </p>
+    <section className="relative rounded-2xl bg-muted px-4 py-8 text-center sm:px-8 sm:py-12">
+      <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-4xl">
+        Direct from factory to you. <span className="text-accent">No more middlemen.</span>
+      </h1>
+      <p className="sr-only">Factory to you, with no importer, wholesaler or shop in between.</p>
+      <HeroReplay cycleMs={CYCLE_MS} plays={PLAYS}>
+        <div className="mx-auto mt-8 flex max-w-xl flex-col items-center sm:flex-row" aria-hidden>
+          <span className={end}>Factory</span>
+          <div className="relative flex min-h-44 flex-1 flex-col items-center justify-evenly self-stretch sm:min-h-0 sm:flex-row sm:px-2">
+            <span className="absolute inset-y-0 left-1/2 w-0.5 -translate-x-1/2 bg-line sm:inset-x-0 sm:top-1/2 sm:bottom-auto sm:left-0 sm:h-0.5 sm:w-auto sm:translate-x-0 sm:-translate-y-1/2">
+              <span className="fc-fill absolute inset-0 bg-accent" />
+              <svg
+                viewBox="0 0 10 10"
+                className="fc-head absolute bottom-0 left-1/2 h-3 w-3 -translate-x-1/2 rotate-90 sm:top-1/2 sm:right-0 sm:bottom-auto sm:left-auto sm:translate-x-0 sm:-translate-y-1/2 sm:rotate-0"
+              >
+                <path d="M0 0L10 5L0 10z" fill="currentColor" />
+              </svg>
+            </span>
+            {MIDDLEMEN.map((m) => (
+              <span
+                key={m.name}
+                className="fc-chip relative inline-flex rounded-full"
+                style={{ "--d": `${m.at}s`, "--s": m.spread, "--t": m.turn } as React.CSSProperties}
+              >
+                <svg
+                  viewBox="0 0 10 10"
+                  className="fc-whole absolute bottom-full left-1/2 mb-0.5 h-3 w-3 -translate-x-1/2 rotate-90 text-line sm:top-1/2 sm:right-full sm:bottom-auto sm:left-auto sm:mr-0.5 sm:mb-0 sm:translate-x-0 sm:-translate-y-1/2 sm:rotate-0"
+                >
+                  <path d="M0 0L10 5L0 10z" fill="currentColor" />
+                </svg>
+                <span className={`fc-whole ${middleman}`}>{m.name}</span>
+                {PIECES.map((p) => (
+                  <span
+                    key={p.clip}
+                    className={`fc-piece absolute inset-0 flex items-center justify-center ${middleman}`}
+                    style={
+                      {
+                        clipPath: p.clip,
+                        "--x": `${p.x}px`,
+                        "--y": `${p.y}px`,
+                        "--r": `${p.r}deg`,
+                        "--pd": `${p.delay}s`,
+                      } as React.CSSProperties
+                    }
+                  >
+                    {m.name}
+                  </span>
+                ))}
+              </span>
+            ))}
           </div>
+          <span className={`fc-you ${end}`}>You</span>
         </div>
-
-        <span
-          className="self-center text-xl leading-none font-bold text-accent md:text-2xl"
-          aria-hidden
-        >
-          <span className="md:hidden">↓</span>
-          <span className="hidden md:inline">→</span>
-        </span>
-
-        <div className={box}>
-          <svg
-            className={icon}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            aria-hidden
-          >
-            <circle cx="9" cy="8" r="3" />
-            <circle cx="17" cy="9" r="2.5" />
-            <path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6M15 14.5c.6-.3 1.3-.5 2-.5 2.5 0 4.5 2 4.5 4.5" />
-          </svg>
-          <div>
-            <p className="font-semibold">Consumer group buying</p>
-            <p className="mt-1 text-sm text-subtle">
-              Orders near you travel together in one basket.
-            </p>
+        {deal && (
+          <div className="fc-price mt-6">
+            <Link
+              href={`/products/${deal.id}`}
+              className="inline-flex max-w-full flex-col items-center rounded-xl px-3 py-1 hover:bg-paper"
+            >
+              <span className="max-w-full truncate text-sm text-subtle">{deal.title}</span>
+              <span className="flex flex-wrap items-center justify-center gap-x-2 text-2xl font-bold">
+                <PriceDrop
+                  from={deal.retailPrice.toString()}
+                  to={deal.price.toString()}
+                  startMs={DROP_AT_MS}
+                  durationMs={DROP_MS}
+                />
+                <span className="fc-after text-base font-medium text-subtle tabular-nums line-through decoration-danger decoration-2">
+                  {formatLKR(deal.retailPrice)}
+                </span>
+                <span className="fc-after rounded-md bg-accent px-1.5 py-0.5 text-sm text-on-accent">
+                  −{deal.off}%
+                </span>
+              </span>
+            </Link>
           </div>
-        </div>
-      </div>
-
-      <p className="mt-3 text-center font-semibold text-accent sm:mt-4">
-        <span
-          className="mr-2 inline-block h-2.5 w-2.5 rounded-full bg-accent align-middle"
-          aria-hidden
-        />
-        {saving !== null ? `On average ${saving}% below retail.` : "Lower prices for you."} No
-        middlemen, no small-order costs.
-      </p>
-    </div>
+        )}
+      </HeroReplay>
+      <Link
+        href="/shop"
+        className="mt-8 inline-flex min-h-11 items-center rounded-lg bg-accent px-6 font-semibold text-on-accent hover:opacity-90"
+      >
+        Shop and save
+      </Link>
+    </section>
   );
 }

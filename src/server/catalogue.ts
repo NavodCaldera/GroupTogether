@@ -55,12 +55,39 @@ async function shopEligibility(now: Date) {
   } satisfies Prisma.ProductWhereInput;
 }
 
-/** Products in the shop. Sizes with no free stock are still listed but marked sold out. */
+/**
+ * Products in the shop. Sizes with no free stock are still listed but marked sold out.
+ * "saving" ranks by how far below retail the price is; products without a retail price above ours
+ * fill any remaining places cheapest first.
+ */
 export async function listProducts(
   f: ProductFilters = {},
   take = 60,
-  order: "newest" | "cheapest" = "newest",
+  order: "newest" | "cheapest" | "saving" = "newest",
   now = new Date(),
+) {
+  if (order === "saving") {
+    const all = await findShopProducts(f, undefined, "cheapest", now);
+    const ratio = (p: (typeof all)[number]) =>
+      p.retailPrice && toD(p.retailPrice).gt(toD(p.price))
+        ? toD(p.retailPrice).minus(toD(p.price)).div(toD(p.retailPrice))
+        : null;
+    const ranked = all
+      .map((p) => ({ p, r: ratio(p) }))
+      .filter((x) => x.r !== null)
+      .sort((a, b) => b.r!.comparedTo(a.r!))
+      .map((x) => x.p);
+    const rest = all.filter((p) => ratio(p) === null);
+    return [...ranked, ...rest].slice(0, take);
+  }
+  return findShopProducts(f, take, order, now);
+}
+
+async function findShopProducts(
+  f: ProductFilters,
+  take: number | undefined,
+  order: "newest" | "cheapest",
+  now: Date,
 ) {
   return db.product.findMany({
     where: {

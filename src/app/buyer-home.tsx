@@ -10,7 +10,7 @@ import { appUrl } from "@/server/notify";
 import { buyerHome, orderTotal } from "@/server/orders/buyer";
 import { BasketProgress, OrderBadge, factoryName } from "./orders/order-bits";
 
-/** Buyer home, most important first: ready to collect, returns to hand over, orders, tokens, shop. */
+/** Buyer home, most important first: ready to collect, returns to hand over, orders, shop. Tokens live on /tokens (owner removed the home card, 2026-11-21). */
 export async function BuyerHome({ user }: { user: SessionUser }) {
   const [home, products] = await Promise.all([buyerHome(user.id), listProducts({}, 4, "cheapest")]);
   const shop = (
@@ -153,18 +153,6 @@ export async function BuyerHome({ user }: { user: SessionUser }) {
           })}
         </section>
       )}
-
-      <section aria-labelledby="home-tokens" className="flex flex-col gap-3">
-        <h2 id="home-tokens" className="text-lg font-semibold">
-          Tokens
-        </h2>
-        <Card className="flex flex-wrap items-center justify-between gap-3">
-          <p className="text-2xl font-semibold tabular-nums">{formatLKR(home.balance)}</p>
-          <LinkButton href="/tokens" variant="secondary">
-            Send
-          </LinkButton>
-        </Card>
-      </section>
 
       {!noOrders && shop}
     </div>

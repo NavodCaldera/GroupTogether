@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SiteHeader, hasTabBar } from "@/components/site-header";
 import { FlashToast } from "@/components/toast";
+import { NavDepth } from "@/components/client";
 import { isBuyerRole } from "@/lib/roles";
 import { getCurrentUser } from "@/server/auth/session";
 import { currentTheme } from "@/server/theme";
@@ -9,7 +10,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: { default: "GroupBasket", template: "%s · GroupBasket" },
   description:
-    "Buy clothing from partner factories together and collect it from an agent near you.",
+    "Clothing direct from the factory to you, below retail with no middlemen. Collect it from an agent near you.",
 };
 
 const viewport: Viewport = {
@@ -46,6 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </footer>
         )}
         <FlashToast />
+        <NavDepth />
       </body>
     </html>
   );

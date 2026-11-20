@@ -16,11 +16,14 @@ async function inspect(page: Page) {
 test("home leads with clothing without excluded wording, overflow or Axe violations", async ({
   page,
 }) => {
+  // Scan the settled hero: mid-animation the decorative dust pieces (aria-hidden) are briefly
+  // grey on grey, which Axe would sample.
+  await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: "Buy clothing from partner factories together",
+      name: "Direct from factory to you. No more middlemen.",
       exact: true,
     }),
   ).toBeVisible();
@@ -30,8 +33,8 @@ test("home leads with clothing without excluded wording, overflow or Axe violati
     .toBe(true);
   const scan = await new AxeBuilder({ page }).analyze();
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
-  await page.getByRole("link", { name: /Shop all/ }).focus();
-  await expect(page.getByRole("link", { name: /Shop all/ })).toBeFocused();
+  await page.getByRole("link", { name: "Shop and save" }).focus();
+  await expect(page.getByRole("link", { name: "Shop and save" })).toBeFocused();
   await page.screenshot({
     path: "test-results/home-" + test.info().project.name + ".png",
     fullPage: true,

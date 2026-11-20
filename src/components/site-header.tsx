@@ -14,11 +14,12 @@ const STAFF_HOME: Record<string, string> = {
 };
 
 /**
- * The phone tab bar is for shoppers. Admins and factory sellers have one section,
- * which the logo already opens, so they get no tab bar.
+ * The phone tab bar is for signed-in shoppers. Visitors see no sections until they sign in
+ * (owner, 2026-11-21). Admins and factory sellers have one section, which the logo already
+ * opens, so they get no tab bar.
  */
 export function hasTabBar(user: { role: string } | null) {
-  return !(user && user.role in STAFF_HOME);
+  return !!user && !(user.role in STAFF_HOME);
 }
 
 /**
@@ -39,8 +40,9 @@ export async function SiteHeader() {
   const underline =
     "relative text-ink after:absolute after:inset-x-2 sm:after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
   const sections: { href: string; label: string; icon: ReactNode; also?: string[] }[] = [
-    // Admins and factory logins have no buyer home, shop, orders or tokens tabs.
-    ...(user && user.role in STAFF_HOME
+    // Visitors (until they sign in), admins and factory logins have no buyer home, shop, orders
+    // or tokens tabs.
+    ...(!user || user.role in STAFF_HOME
       ? []
       : [
           { href: "/", label: "Home", icon: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" /> },

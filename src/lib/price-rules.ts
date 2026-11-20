@@ -17,3 +17,18 @@ export function buyerPrice(factoryPrice: Decimal.Value, commission: Decimal.Valu
   if (!validCommission(price)) throw new Error("Buyer price is too large");
   return price;
 }
+
+/**
+ * Whole percent our price sits below the listed retail price (rounded down), or null when there is
+ * no retail price or it isn't above ours.
+ */
+export function savingPercent(
+  price: { toString(): string },
+  retailPrice: { toString(): string } | null | undefined,
+): number | null {
+  if (retailPrice == null) return null;
+  const rp = new D(retailPrice.toString());
+  const p = new D(price.toString());
+  if (rp.lte(p) || rp.lte(0)) return null;
+  return rp.minus(p).div(rp).times(100).toDecimalPlaces(0, D.ROUND_DOWN).toNumber();
+}

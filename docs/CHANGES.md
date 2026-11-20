@@ -6,6 +6,31 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Home hero: direct from factory, no middlemen
+
+- The owner wanted new buyers to feel they save money because the middleman is gone, not that
+  the clothing is cheap (`DEC-024`). The signed-out home now leads with "Direct from factory to
+  you. No more middlemen.", a looping animation and Shop and save. In the animation Factory and You
+  stay at the ends of a line; Importer, Wholesaler and Shop on it each turn to dust, the line
+  fills green, then the top deal (name shown, linked) counts down from retail to our price. It
+  plays three times (about 9.5 s apart, held while hovered or focused) and then rests, with
+  no pause button, at the owner's request.
+- Removed: the "Clothing from partner factories" box, the four numbered steps and the average
+  "% below retail" figure. "Affordable prices" became "Biggest savings", ranked by saving
+  with a −% badge and the struck retail price, and no "Shop all" link.
+- Visitors no longer see Shop, Orders and Tokens in the top bar or the phone tab bar; they
+  appear after sign-in.
+- Back (every page that has it): a drawn chevron and a soft hover background replace the text
+  arrow, whose hover underline split in two. Back now returns to the previous GroupBasket page
+  only; a visitor who arrived from a shared link or search result goes to the page's fallback
+  instead of leaving the site.
+- Product pages (and material compare) need sign-in: a visitor who opens an item signs in and
+  comes straight back to it, so the "Sign in to buy" link is gone. Shop and home stay public.
+- Signing out no longer shows a "Signed out" message.
+- Buyer home: the Tokens card is gone; the balance stays on /tokens.
+- Dependency audit: `effect` (via Prisma config) pinned to 3.22.5 by an npm override for
+  GHSA-7589-6fvf-x4pw.
+
 ## 2026-11-19 - Demo own baskets in the seed
 
 - The owner asked for already-open demo baskets to test joining. The seed adds buyers Kasun,

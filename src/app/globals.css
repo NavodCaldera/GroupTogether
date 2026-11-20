@@ -83,3 +83,144 @@ body {
     animation: none;
   }
 }
+
+/* Home hero (DEC-024): Factory and You stay at the ends of a line; each middleman on it (sets
+   --d start, --s spread, --t turn) shakes red and turns to dust, the line fills green, You pulses
+   and the price drops (price-drop.tsx). hero-replay.tsx replays it; keep times in step with
+   DROP_AT_MS in page.tsx. */
+.fc-chip {
+  animation: fc-shake 0.3s ease-in-out var(--d);
+}
+@keyframes fc-shake {
+  25% {
+    transform: translateX(-2px) rotate(-2deg);
+    box-shadow: 0 0 0 2px var(--danger);
+  }
+  75% {
+    transform: translateX(2px) rotate(2deg);
+    box-shadow: 0 0 0 2px var(--danger);
+  }
+}
+.fc-whole {
+  animation: fc-gone 0.01s linear calc(var(--d) + 0.3s) forwards;
+}
+@keyframes fc-gone {
+  to {
+    opacity: 0;
+  }
+}
+/* Pieces sit exactly over the chip (fill-mode both) until their own start, then drift off. */
+.fc-piece {
+  animation: fc-dust 1.3s cubic-bezier(0.3, 0.5, 0.5, 1) calc(var(--d) + 0.3s + var(--pd)) both;
+}
+@keyframes fc-dust {
+  0% {
+    opacity: 1;
+    transform: none;
+  }
+  25% {
+    opacity: 1;
+    background-color: var(--subtle);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(calc(var(--x) * var(--s)), var(--y)) rotate(calc(var(--r) * var(--t)))
+      scale(0.3);
+  }
+}
+/* The line fills green from Factory to You once the middlemen are gone. */
+.fc-fill {
+  transform: scaleY(0);
+  transform-origin: top;
+  animation: fc-fill-y 0.7s ease-out 4.4s forwards;
+}
+@media (min-width: 40rem) {
+  .fc-fill {
+    transform: scaleX(0);
+    transform-origin: left;
+    animation-name: fc-fill-x;
+  }
+}
+@keyframes fc-fill-y {
+  to {
+    transform: scaleY(1);
+  }
+}
+@keyframes fc-fill-x {
+  to {
+    transform: scaleX(1);
+  }
+}
+/* Arrowhead at the You end: grey until the green fill reaches it. */
+.fc-head {
+  color: var(--line);
+  animation: fc-head-on 0.2s ease-out 5s forwards;
+}
+@keyframes fc-head-on {
+  to {
+    color: var(--accent);
+  }
+}
+.fc-you {
+  animation: fc-pulse 0.5s ease-out 5.1s;
+}
+@keyframes fc-pulse {
+  50% {
+    transform: scale(1.15);
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--accent) 25%, transparent);
+  }
+}
+.fc-price {
+  animation: fc-pop 0.3s ease-out 0.15s both;
+}
+@keyframes fc-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+/* Old price and badge grow in from no width so the price stays centred until then. */
+.fc-after {
+  max-width: 8rem;
+  overflow: hidden;
+  white-space: nowrap;
+  animation: fc-grow 0.35s cubic-bezier(0.3, 1.6, 0.5, 1) 6.3s both;
+}
+@keyframes fc-grow {
+  from {
+    opacity: 0;
+    max-width: 0;
+    transform: scale(0.6);
+  }
+}
+/* Between replays (hero-replay.tsx): fade the chain and price out, then back in. */
+.fc-leave {
+  opacity: 0;
+  transition: opacity 0.3s ease-in;
+}
+.fc-enter {
+  animation: fc-fade-in 0.3s ease-out;
+}
+@keyframes fc-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .fc-chip {
+    visibility: hidden;
+  }
+  .fc-fill {
+    transform: none;
+  }
+  .fc-head {
+    color: var(--accent);
+  }
+  .fc-fill,
+  .fc-head,
+  .fc-you,
+  .fc-price,
+  .fc-after {
+    animation: none;
+  }
+}
