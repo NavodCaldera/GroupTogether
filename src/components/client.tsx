@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "./ui";
 
@@ -57,23 +58,61 @@ export function CopyLinkButton({
   );
 }
 
-/** "← Back": the previous page when there is one in this tab, otherwise `fallback`. */
+// How many GroupBasket pages sit behind this one in the tab's history, so Back never leaves the
+// site for a page the visitor came from (a shared link, a search result). Kept in memory: a full
+// reload starts again at 0, which only means Back uses its fallback.
+let depth = 0;
+let popped = false;
+let last: string | null = null;
+
+/** Mounted once in the root layout: counts in-app moves (forward +1, browser back -1). */
+export function NavDepth() {
+  const pathname = usePathname();
+  useEffect(() => {
+    const onPop = () => {
+      popped = true;
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, []);
+  useEffect(() => {
+    if (last !== null && last !== pathname) depth = popped ? Math.max(0, depth - 1) : depth + 1;
+    popped = false;
+    last = pathname;
+  }, [pathname]);
+  return null;
+}
+
+/** "‹ Back": the previous GroupBasket page when there is one in this tab, otherwise `fallback`. */
 export function BackLink({ fallback }: { fallback: string }) {
   return (
     <Link
       href={fallback}
       onClick={(e) => {
-        if (window.history.length > 1) {
+        if (depth > 0) {
           e.preventDefault();
           window.history.back();
         }
       }}
       // Green text, not a filled button: Back is secondary and must not compete with the page's
-      // main action. min-h-11 keeps a 44 px tap target; -ml-2 + px-2 lines the arrow up with the
-      // page edge while keeping the hit area.
-      className="-ml-2 mb-2 inline-flex w-fit self-start min-h-11 items-center gap-1 rounded-lg px-2 text-sm font-medium text-accent underline-offset-4 transition hover:underline focus-visible:ring-2 focus-visible:ring-ink/30 focus-visible:outline-none sm:min-h-10"
+      // main action. A drawn chevron (a text arrow sits off the baseline and splits the underline)
+      // and a soft hover background like the header links. min-h-11 keeps a 44 px tap target;
+      // -ml-2 lines the chevron up with the page edge while keeping the hit area.
+      className="-ml-2 mb-2 inline-flex min-h-11 w-fit items-center gap-0.5 self-start rounded-lg pr-2.5 pl-1 text-sm font-medium text-accent transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ink/30 focus-visible:outline-none sm:min-h-10"
     >
-      <span aria-hidden>←</span> Back
+      <svg
+        viewBox="0 0 24 24"
+        className="h-4 w-4 shrink-0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.25"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden
+      >
+        <path d="M15 18l-6-6 6-6" />
+      </svg>
+      Back
     </Link>
   );
 }

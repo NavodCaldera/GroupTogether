@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { SiteHeader, hasTabBar } from "@/components/site-header";
 import { FlashToast } from "@/components/toast";
+import { NavDepth } from "@/components/client";
 import { isBuyerRole } from "@/lib/roles";
 import { getCurrentUser } from "@/server/auth/session";
 import { currentTheme } from "@/server/theme";
@@ -46,6 +47,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           </footer>
         )}
         <FlashToast />
+        <NavDepth />
       </body>
     </html>
   );

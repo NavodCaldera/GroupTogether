@@ -20,6 +20,10 @@ Newest first.
   with a −% badge and the struck retail price, and no "Shop all" link.
 - Visitors no longer see Shop, Orders and Tokens in the top bar or the phone tab bar; they
   appear after sign-in.
+- Back (every page that has it): a drawn chevron and a soft hover background replace the text
+  arrow, whose hover underline split in two. Back now returns to the previous GroupBasket page
+  only; a visitor who arrived from a shared link or search result goes to the page's fallback
+  instead of leaving the site.
 - Dependency audit: `effect` (via Prisma config) pinned to 3.22.5 by an npm override for
   GHSA-7589-6fvf-x4pw.
 
