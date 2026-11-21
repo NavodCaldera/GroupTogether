@@ -154,10 +154,11 @@ export async function agentDeposits(adminId: string) {
   });
 }
 
-/** OPEN baskets with a paid order, oldest first, with the days since their first order. */
+/** OPEN baskets with a paid order, oldest first, with the days since their first order and the
+ * wait limit for their kind (own baskets `ownMaxWaitDays`, DEC-026; agent baskets `maxWaitDays`). */
 export async function oldOpenBaskets(adminId: string, now = new Date()) {
   await requireAgentsAdmin(adminId);
-  const [{ maxWaitDays }, baskets] = await Promise.all([
+  const [{ maxWaitDays, ownMaxWaitDays }, baskets] = await Promise.all([
     getSettings(),
     db.basket.findMany({
       where: { status: "OPEN", firstOrderAt: { not: null } },
@@ -165,6 +166,7 @@ export async function oldOpenBaskets(adminId: string, now = new Date()) {
       take: 100,
       select: {
         id: true,
+        kind: true,
         total: true,
         firstOrderAt: true,
         agent: agentLabel,
@@ -179,6 +181,7 @@ export async function oldOpenBaskets(adminId: string, now = new Date()) {
       ...b,
       dest: basketDest(b),
       days: Math.floor((now.getTime() - b.firstOrderAt!.getTime()) / DAY_MS),
+      limit: b.kind === "OWN" ? ownMaxWaitDays : maxWaitDays,
     })),
   };
 }

@@ -6,7 +6,6 @@ import { db, type Tx } from "../db";
 import { getSettings } from "../settings";
 import { post } from "../tokens";
 import { CartError } from "@/server/errors";
-import { CheckoutError } from "./checkout";
 import { lockBasketSlot, lockOwnBasket, withOrderTransaction } from "./locks";
 
 class BasketError extends CartError {}
@@ -298,70 +297,6 @@ export async function expireOrders(now: Date): Promise<number> {
       console.error("Order expiry will retry", buyerId, error);
     }
   return cancelled;
-}
-
-/** The buyer cancels a paid order while its basket is still OPEN; everything paid comes back as
- * tokens. Lock order: buyer advisory -> Order row -> basket advisory -> Basket row -> Variant rows
- * (variantId order) -> ledger.
- */
-export async function cancelOrder(buyerId: string, orderId: string): Promise<void> {
-  await withOrderTransaction([buyerId], [orderId], async (tx) => {
-    const order = await tx.order.findUnique({
-      where: { id: orderId },
-      include: { lines: { select: { variantId: true, qty: true } } },
-    });
-    if (!order || order.buyerId !== buyerId) throw new CheckoutError("Order not found");
-    if (order.status !== "PAID" || !order.basketId || !canMoveOrder(order.status, "CANCELLED"))
-      throw new CheckoutError("This order can no longer be cancelled");
-    if (order.agentId) await lockBasketSlot(tx, order.agentId, order.factoryId);
-    else await lockOwnBasket(tx, order.basketId);
-    await tx.$queryRaw`SELECT 1 FROM "Basket" WHERE id = ${order.basketId} FOR UPDATE`;
-    const basket = await tx.basket.findUniqueOrThrow({ where: { id: order.basketId } });
-    if (basket.status !== "OPEN") throw new CheckoutError("This order can no longer be cancelled");
-    // The owner holds the basket open for everyone; only joiners cancel (DEC-023).
-    if (basket.kind === "OWN" && basket.ownerId === buyerId)
-      throw new CheckoutError("The basket owner cannot cancel their order");
-
-    const perVariant = new Map<string, number>();
-    for (const line of order.lines)
-      perVariant.set(line.variantId, (perVariant.get(line.variantId) ?? 0) + line.qty);
-    for (const variantId of [...perVariant.keys()].sort()) {
-      const qty = perVariant.get(variantId)!;
-      const moved = await tx.variant.updateMany({
-        where: { id: variantId, sold: { gte: qty } },
-        data: { sold: { decrement: qty }, available: { increment: qty } },
-      });
-      if (moved.count !== 1) throw new BasketError("Sold stock is missing");
-    }
-
-    await tx.order.update({ where: { id: order.id }, data: { status: "CANCELLED" } });
-    const earliest = await tx.order.findFirst({
-      where: { basketId: basket.id, status: "PAID" },
-      orderBy: [{ paidAt: "asc" }, { id: "asc" }],
-      select: { paidAt: true },
-    });
-    const total = toD(basket.total).minus(toD(order.itemsTotal));
-    if (total.lt(0)) throw new BasketError("Basket total would go below zero");
-    await tx.basket.update({
-      where: { id: basket.id },
-      data: { total: total.toFixed(2), firstOrderAt: earliest?.paidAt ?? null },
-    });
-
-    const refund = cancelRefund({
-      tokensApplied: toD(order.tokensApplied),
-      remainder: toD(order.amountDue).minus(toD(order.gatewayFee)),
-      fee: toD(order.gatewayFee),
-    });
-    if (refund.gt(0))
-      await post(tx, {
-        userId: order.buyerId,
-        amount: refund,
-        kind: "ORDER_CANCEL",
-        eventKey: `cancel:${order.id}`,
-        note: "Order cancelled before the basket locked",
-        orderId: order.id,
-      });
-  });
 }
 
 /** Caller holds the basket's advisory and the basket has not reached the factory. Cancels every

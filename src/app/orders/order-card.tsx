@@ -2,43 +2,14 @@ import Link from "next/link";
 import { ProductImage } from "@/components/cart-bits";
 import { CopyLinkButton } from "@/components/client";
 import { StepTrack } from "@/components/step-track";
-import { Badge } from "@/components/ui";
 import { D, toD } from "@/lib/decimal";
 import { formatDate, formatLKR } from "@/lib/format";
+import { STAGE_LABEL, STAGES, TRACK, orderStage, type Stage } from "@/lib/order-stage";
 import { appUrl } from "@/server/notify";
 import type { OwnProgress, buyerOrders } from "@/server/orders/buyer";
 import { orderTotal } from "@/server/orders/buyer";
 
 export type Order = Awaited<ReturnType<typeof buyerOrders>>["orders"][number];
-
-/** 0 Paid, 1 Filling, 2 On the way, 3 Ready / Delivered; null while unpaid. */
-export function stepOf(o: Order): number | null {
-  if (o.status === "PENDING") return null;
-  if (o.status === "RECEIVED") return 3;
-  switch (o.basket?.status) {
-    case "OPEN":
-      return 1;
-    case "AT_AGENT":
-    case "DELIVERED":
-      return 3;
-    case undefined:
-      return 0;
-    default:
-      return 2;
-  }
-}
-
-/** Finished: collected, delivered or cancelled. */
-export function endOf(o: Order): { label: string; tone: "good" | "bad" } | null {
-  if (o.status === "CANCELLED" || o.basket?.status === "CANCELLED")
-    return { label: "Cancelled", tone: "bad" };
-  if (o.basket?.status === "DELIVERED") return { label: "Delivered", tone: "good" };
-  if (o.status === "RECEIVED" && o.lines.every((l) => l.collectedAt || l.status !== "ACTIVE"))
-    return { label: "Collected", tone: "good" };
-  return null;
-}
-
-const done = (o: Order) => endOf(o) !== null;
 
 export type OrderGroup = "pickup" | "mine" | "joined";
 
@@ -48,23 +19,28 @@ export function groupOf(o: Order, viewerId: string): OrderGroup {
   return o.basket && o.basket.ownerId !== viewerId ? "joined" : "mine";
 }
 
-/** Orders page: what is still moving, then the finished ones (both newest first). */
-export function splitOrders(orders: Order[]) {
-  return { active: sortActive(orders.filter((o) => !done(o))), past: orders.filter(done) };
+/** The Orders page's groups, in stage order, empty ones left out (DEC-026). */
+export function groupByStage(orders: Order[]) {
+  return STAGES.map((stage) => ({
+    stage,
+    orders: orders.filter((o) => orderStage(o) === stage),
+  })).filter((g) => g.orders.length > 0);
 }
 
-function sortActive(orders: Order[]) {
-  const rank = (o: Order) => {
-    const s = stepOf(o);
-    return s === null ? 0 : s === 3 ? 1 : s === 1 ? 2 : 3;
-  };
-  return orders
-    .map((o, i) => ({ o, i }))
-    .sort((a, b) => rank(a.o) - rank(b.o) || a.i - b.i)
-    .map((x) => x.o);
+/** The order's products, sizes of one product counted together: the first, its pieces, and how
+ * many other products there are ("+N more"). */
+export function productsOf(o: Pick<Order, "lines">) {
+  const first = o.lines[0];
+  const ids = new Set(o.lines.map((l) => l.variant.product.id));
+  const qty = first
+    ? o.lines
+        .filter((l) => l.variant.product.id === first.variant.product.id)
+        .reduce((n, l) => n + l.qty, 0)
+    : 0;
+  return { first, qty, more: Math.max(ids.size - 1, 0) };
 }
 
-/** One order, item first: photo, product × qty, total, where it goes, and its progress. */
+/** One order, item first: photo, product × qty, total, where it goes, and its stage. */
 export function OrderCard({
   order: o,
   own,
@@ -78,11 +54,9 @@ export function OrderCard({
   lockAt: D;
   viewerId: string;
 }) {
-  const first = o.lines[0];
-  const more = o.lines.length - 1;
-  const end = endOf(o);
-  const step = end ? null : stepOf(o);
-  const { next, share } = nextOf(o, step, own, ownMinItems, lockAt);
+  const { first, qty, more } = productsOf(o);
+  const stage = orderStage(o);
+  const { next, share } = nextOf(o, stage, own, ownMinItems, lockAt);
 
   return (
     <div className="relative flex flex-col gap-3 rounded-xl border border-line bg-paper p-4 hover:border-subtle">
@@ -100,7 +74,7 @@ export function OrderCard({
             >
               <span className="line-clamp-2">
                 {first?.variant.product.title ?? "Order"}
-                {first && first.qty > 1 && ` × ${first.qty}`}
+                {qty > 1 && ` × ${qty}`}
               </span>
             </Link>
             <span className="shrink-0 text-sm font-semibold tabular-nums">
@@ -117,16 +91,11 @@ export function OrderCard({
               .filter(Boolean)
               .join(" · ")}
           </p>
-          {(end || step === null) && (
-            <span className="self-start">
-              <Badge tone={end?.tone ?? "bad"}>{end?.label ?? "Unpaid"}</Badge>
-            </span>
-          )}
         </div>
       </div>
 
-      {step !== null && (
-        <OrderSteps order={o} step={step} fill={fillOf(o, step, own, ownMinItems, lockAt)} />
+      {stage && stage !== "refunded" && (
+        <OrderSteps stage={stage} fill={fillOf(o, stage, own, ownMinItems, lockAt)} />
       )}
 
       {(next || share) && (
@@ -139,21 +108,21 @@ export function OrderCard({
   );
 }
 
-/** What comes next for a filling or ready order, and the basket's share link. */
+/** While filling: how far the basket has got, and its share link. */
 export function nextOf(
   o: Order,
-  step: number | null,
+  stage: Stage | null,
   own: OwnProgress,
   ownMinItems: number,
   lockAt: D,
 ) {
-  const isOwn = o.basket?.kind === "OWN";
-  const ownInfo = o.basket ? own.get(o.basket.id) : undefined;
-  const productId = o.lines[0]?.variant.product.id;
   let next: React.ReactNode = null;
   let share: string | null = null;
-  if (step === 1 && o.basket) {
-    if (isOwn && ownInfo) {
+  if (stage !== "filling" || !o.basket) return { next, share };
+  const productId = o.lines[0]?.variant.product.id;
+  if (o.basket.kind === "OWN") {
+    const ownInfo = own.get(o.basket.id);
+    if (ownInfo) {
       const need = Math.max(ownMinItems - ownInfo.items, 0);
       next = (
         <>
@@ -163,30 +132,28 @@ export function nextOf(
       );
       if (ownInfo.shareCode)
         share = appUrl(`/own-baskets/${o.basket.id}?code=${ownInfo.shareCode}`);
-    } else if (!isOwn) {
-      next = (
-        <>
-          <strong className="text-ink">{formatLKR(o.basket.total)}</strong> of {formatLKR(lockAt)}
-        </>
-      );
-      if (o.agentId && productId) share = appUrl(`/products/${productId}?agent=${o.agentId}`);
     }
-  } else if (step === 3 && !isOwn) {
-    next = <>Collect from {o.agent?.user.name}</>;
+  } else {
+    next = (
+      <>
+        <strong className="text-ink">{formatLKR(o.basket.total)}</strong> of {formatLKR(lockAt)}
+      </>
+    );
+    if (o.agentId && productId) share = appUrl(`/products/${productId}?agent=${o.agentId}`);
   }
   return { next, share };
 }
 
 /** How full a filling basket is (0 to 1): items against the minimum, or value against the lock
- * amount. Null when the order is not at the Filling step. */
+ * amount. Null unless the order is filling. */
 export function fillOf(
   o: Order,
-  step: number | null,
+  stage: Stage | null,
   own: OwnProgress,
   ownMinItems: number,
   lockAt: D,
 ): number | null {
-  if (step !== 1 || !o.basket) return null;
+  if (stage !== "filling" || !o.basket) return null;
   if (o.basket.kind === "OWN") {
     const items = own.get(o.basket.id)?.items;
     return items === undefined ? null : items / Math.max(ownMinItems, 1);
@@ -194,23 +161,23 @@ export function fillOf(
   return lockAt.lte(0) ? 1 : toD(o.basket.total).div(lockAt).toNumber();
 }
 
-/** Paid → Filling → On the way → Ready (Delivered for own baskets). */
+/** Filling → Packing → On the way → Delivered (DEC-026). */
 export function OrderSteps({
-  order,
-  step,
+  stage,
   fill,
   dates,
 }: {
-  order: Order;
-  step: number;
+  stage: Exclude<Stage, "refunded">;
   fill?: number | null;
   dates?: (string | null | undefined)[];
 }) {
-  const steps = [
-    "Paid",
-    "Filling",
-    "On the way",
-    order.basket?.kind === "OWN" ? "Delivered" : "Ready",
-  ];
-  return <StepTrack steps={steps} step={step} label="Order progress" fill={fill} dates={dates} />;
+  return (
+    <StepTrack
+      steps={TRACK.map((s) => STAGE_LABEL[s])}
+      step={TRACK.indexOf(stage)}
+      label="Order progress"
+      fill={fill}
+      dates={dates}
+    />
+  );
 }

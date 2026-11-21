@@ -19,6 +19,7 @@ const agentSettingsSchema = z.object({
   basketLockAmount: money("basket lock amount"),
   agentDeposit: money("agent deposit"),
   maxWaitDays: whole(1, 365),
+  ownMaxWaitDays: whole(1, 365),
   paymentHoldMinutes: whole(1, 240),
   collectHours: whole(1, 720),
   returnHandoverDays: whole(1, 60),

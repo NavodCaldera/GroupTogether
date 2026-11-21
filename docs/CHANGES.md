@@ -6,6 +6,24 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Orders in four stages, no cancelling, 10-day own baskets (DEC-026)
+
+- Every order now moves through **Filling → Packing → On the way → Delivered**; the Paid step is
+  gone. An own basket only moves to Packing when its owner places the order.
+- Inside each Orders tab (Agent pickup, My baskets, Joined baskets) orders are grouped by stage
+  with counts; own baskets cancelled by the wait rule appear under **Refunded**. Orders that were
+  never paid are not listed.
+- **No cancelling after payment**: the Cancel button and the buyer cancel are removed.
+- **Own baskets wait 10 days** (new setting `ownMaxWaitDays`): placed automatically if full,
+  otherwise cancelled and everyone refunded in full as tokens.
+- The order page's heading is the stage. Agent orders show the pickup code, pieces and cash fee
+  when at the agent, plus the agent's open-now and hours. Own baskets show a **Buyers** card:
+  each buyer's sizes, and for the owner every buyer's items, PayHere fee and paid amount with the
+  basket's items, PayHere fees, total and courier fee on delivery.
+- Demo data: Tharindu's tokens now come from an own basket refunded after 10 days.
+- Built with the three frameworks: research agents (BMAD-style review), Spec Kit spec
+  `specs/004-orders-four-stages`, Superpowers plan `docs/superpowers/plans/2026-11-21-orders-four-stages.md`.
+
 ## 2026-11-21 - Order page: one tracker with dates; who else is in the basket
 
 - The order page had two bars (steps and fill) and a dates list that repeated Ordered and Paid.

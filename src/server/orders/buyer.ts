@@ -45,6 +45,10 @@ const orderSelect = {
       kind: true,
       ownerId: true,
       owner: { select: { name: true } },
+      visibility: true,
+      lockedAt: true,
+      deliveredAt: true,
+      courier: { select: { givenToDriverAt: true } },
     },
   },
   lines: {
@@ -92,19 +96,60 @@ export function orderTotal(o: {
   return toD(o.tokensApplied).plus(toD(o.amountDue));
 }
 
+/** Pickup codes ready at each agent: pieces and the cash agent fee to bring (DEC-019). One code
+ * per buyer and agent covers every uncollected item there, whatever the order. */
+async function readyPickups(buyerId: string, now: Date) {
+  const waiting = await db.orderLine.findMany({
+    where: { collectedAt: null, status: "ACTIVE", order: { buyerId, status: "RECEIVED" } },
+    select: {
+      qty: true,
+      missingQty: true,
+      cashFeeEach: true,
+      order: { select: { agentId: true } },
+    },
+  });
+  const pieces = new Map<string, number>();
+  const fees = new Map<string, D>();
+  for (const l of waiting) {
+    const qty = l.qty - l.missingQty;
+    // Own-basket orders have no agent and no pickup code (DEC-023).
+    if (qty <= 0 || !l.order.agentId) continue;
+    pieces.set(l.order.agentId, (pieces.get(l.order.agentId) ?? 0) + qty);
+    fees.set(
+      l.order.agentId,
+      (fees.get(l.order.agentId) ?? new D(0)).plus(toD(l.cashFeeEach).times(qty)),
+    );
+  }
+  const agentIds = [...pieces.keys()].sort();
+  if (!agentIds.length) return [];
+  const [codes, agents] = await Promise.all([
+    db.pickupCode.findMany({
+      where: { buyerId, agentId: { in: agentIds } },
+      select: { agentId: true, code: true },
+    }),
+    db.agent.findMany({ where: { id: { in: agentIds } }, select: agentSelect }),
+  ]);
+  return agentIds.flatMap((id) => {
+    const code = codes.find((c) => c.agentId === id)?.code;
+    const agent = agents.find((a) => a.id === id);
+    if (!code || !agent) return [];
+    return [
+      {
+        code,
+        pieces: pieces.get(id) ?? 0,
+        fee: fees.get(id) ?? new D(0),
+        agent,
+        open: openNow(agent.hours, now),
+      },
+    ];
+  });
+}
+
 /** The buyer home: codes ready to collect and returns to hand over. */
 export async function buyerHome(buyerId: string, now = new Date()) {
   await assertBuyerAccount(buyerId);
-  const [waiting, handovers] = await Promise.all([
-    db.orderLine.findMany({
-      where: { collectedAt: null, status: "ACTIVE", order: { buyerId, status: "RECEIVED" } },
-      select: {
-        qty: true,
-        missingQty: true,
-        cashFeeEach: true,
-        order: { select: { agentId: true } },
-      },
-    }),
+  const [ready, handovers] = await Promise.all([
+    readyPickups(buyerId, now),
     db.returnRequest.findMany({
       where: { buyerId, status: "AWAITING_HANDOVER" },
       select: {
@@ -119,48 +164,18 @@ export async function buyerHome(buyerId: string, now = new Date()) {
       orderBy: { handoverDueAt: "asc" },
     }),
   ]);
-  const pieces = new Map<string, number>();
-  // The cash agent fee the buyer brings to each agent (DEC-019).
-  const fees = new Map<string, D>();
-  for (const l of waiting) {
-    const qty = l.qty - l.missingQty;
-    // Own-basket orders have no agent and no pickup code (DEC-023).
-    if (qty <= 0 || !l.order.agentId) continue;
-    pieces.set(l.order.agentId, (pieces.get(l.order.agentId) ?? 0) + qty);
-    fees.set(
-      l.order.agentId,
-      (fees.get(l.order.agentId) ?? new D(0)).plus(toD(l.cashFeeEach).times(qty)),
-    );
-  }
-  const agentIds = [...pieces.keys()].sort();
-  const [codes, agents] = await Promise.all([
-    db.pickupCode.findMany({
-      where: { buyerId, agentId: { in: agentIds } },
-      select: { agentId: true, code: true },
-    }),
-    db.agent.findMany({ where: { id: { in: agentIds } }, select: agentSelect }),
-  ]);
-  const ready = agentIds.flatMap((id) => {
-    const code = codes.find((c) => c.agentId === id)?.code;
-    const agent = agents.find((a) => a.id === id);
-    if (!code || !agent) return [];
-    return [
-      {
-        code,
-        pieces: pieces.get(id) ?? 0,
-        fee: fees.get(id) ?? new D(0),
-        agent,
-        open: openNow(agent.hours, now),
-      },
-    ];
-  });
   return { ready, handovers };
 }
 
 export async function buyerOrders(buyerId: string) {
   await assertBuyerAccount(buyerId);
   const [orders, settings] = await Promise.all([
-    db.order.findMany({ where: { buyerId }, select: orderSelect, orderBy: { createdAt: "desc" } }),
+    // Orders never paid are not the buyer's orders (DEC-026).
+    db.order.findMany({
+      where: { buyerId, paidAt: { not: null } },
+      select: orderSelect,
+      orderBy: { createdAt: "desc" },
+    }),
     getSettings(),
   ]);
   return {
@@ -214,25 +229,14 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
     where: { id: orderId, buyerId },
     select: {
       ...orderSelect,
-      agent: {
-        select: {
-          address: true,
-          city: true,
-          lat: true,
-          lng: true,
-          user: { select: { name: true } },
-        },
-      },
+      agent: { select: agentSelect },
       productRatings: { select: { productId: true, stars: true } },
       basket: {
         select: {
           ...orderSelect.basket.select,
-          lockedAt: true,
-          deliveredAt: true,
           deliveryArea: true,
           deliveryAddress: true,
           deliveryPhone: true,
-          owner: { select: { name: true } },
         },
       },
     },
@@ -243,7 +247,13 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
     order.basket.deliveryAddress = null;
     order.basket.deliveryPhone = null;
   }
-  const [settings, own] = await Promise.all([getSettings(), ownProgress(buyerId, [order])]);
+  const [settings, own, ready] = await Promise.all([
+    getSettings(),
+    ownProgress(buyerId, [order]),
+    order.agentId && order.status === "RECEIVED" ? readyPickups(buyerId, now) : [],
+  ]);
+  // The code at this order's agent, with every piece waiting there and the cash fee for them.
+  const pickup = ready.find((r) => r.agent.id === order.agentId) ?? null;
   const returnUntil = order.receivedAt
     ? new Date(order.receivedAt.getTime() + settings.collectHours * 3600_000)
     : null;
@@ -257,13 +267,10 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
     order,
     returnUntil,
     canReturn,
-    canCancel:
-      order.status === "PAID" &&
-      order.basket?.status === "OPEN" &&
-      !(order.basket.kind === "OWN" && order.basket.ownerId === buyerId),
     lockAt: toD(settings.basketLockAmount),
     own,
     ownMinItems: settings.ownMinItems,
+    pickup,
   };
 }
 

@@ -1,14 +1,12 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import type { ReportReason } from "@/lib/quality-rules";
 import type { BuyerFaultReason } from "@/lib/return-rules";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
-import { cancelOrder } from "@/server/orders/baskets";
 import { rateProduct } from "@/server/ratings";
 import { fileReturn } from "@/server/returns";
 import { UploadError } from "@/server/storage";
@@ -34,20 +32,6 @@ async function attempt(fn: () => Promise<void>, ok: string): Promise<State> {
   await flash(ok);
   refresh();
   return {};
-}
-
-/** Cancels a paid order while its basket is OPEN; everything paid comes back as tokens. */
-export async function cancelOrderAction(fd: FormData) {
-  const user = await requireUser([...BUYER_ROLES], "/orders");
-  const orderId = str(fd, "orderId");
-  try {
-    await cancelOrder(user.id, orderId);
-  } catch (e) {
-    if (!(e instanceof CartError)) throw e;
-    redirect(`/orders/${encodeURIComponent(orderId)}?error=${encodeURIComponent(e.message)}`);
-  }
-  await flash("Order cancelled");
-  refresh();
 }
 
 /** `id` is the order line; the service checks it is the buyer's and inside the window. */

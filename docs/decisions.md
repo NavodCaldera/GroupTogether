@@ -334,6 +334,36 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-026 - Orders in four stages, no cancelling, 10-day own baskets
+
+**Status:** Built **2026-11-21** (`specs/004-orders-four-stages`). The owner's words: "Filling,
+Packing, On the way, Delivered … there is nothing called cancel because after making a payment
+you can't cancel it … reduce that to 10 days, then that order will get cancelled, they will get
+the tokens back automatically."
+
+1. **Four stages** everywhere a buyer sees an order: **Filling** (basket open), **Packing**
+   (locked or packed), **On the way** (with the courier), **Delivered** (at the agent or
+   collected; own basket delivered). The old Paid step is gone. An own basket cancelled by the
+   wait rule shows as **Refunded**. Orders never paid are not listed.
+2. **No buyer cancelling.** Once paid, an order cannot be cancelled by anyone who bought it:
+   the Cancel button and the buyer cancel path are removed. Replaces the buyer cancel in
+   `ORD-004` and `DEC-023` §5. Refunds now come only from the system (wait rule, missing items,
+   returns, late payment).
+3. **Own basket wait: 10 days** (`ownMaxWaitDays`, Settings, default 10; agent baskets keep
+   `maxWaitDays` 60). At 10 days from the first payment an own basket the owner has not placed is
+   placed automatically if it holds `ownMinItems`, otherwise cancelled and every buyer gets
+   everything they paid back as `ORDER_CANCEL` tokens, PayHere fee included. Replaces
+   `DEC-023` §7's 60 days. The owner still places the order (Packing starts only then).
+4. **Orders page:** tabs Agent pickup, My baskets, Joined baskets; inside each, groups Filling,
+   Packing, On the way, Delivered, Refunded with counts, empty groups hidden.
+5. **Order page:** the stage is the heading; one card with the tracker (a date under each reached
+   stage), the fill, and what can be done now (Share, Place order, Who can join while Filling;
+   Received while On the way; the pickup code, pieces and cash fee when it is at the agent);
+   then the pickup point or delivery; then for an own basket a **Buyers** card: you first, then
+   everyone else with their sizes. The owner sees each buyer's items, PayHere fee, tokens and paid
+   amount, and the basket totals (items, PayHere fees, total, courier fee on delivery); a joiner
+   sees only their own money and other buyers' first names and sizes.
+
 ### DEC-025 - Personal shop: the buyer's own audience
 
 **Status:** Built **2026-11-21**. The owner removed the shop's Audience box (Men, Women, Girl,
@@ -394,14 +424,14 @@ it is shared by link or public. Normal price.
    order page (owner, 2026-11-21). The owner sees full names; joiners see first names only
    (Claude's call); the owner is marked Owner.
 4. **Price.** Normal price. No agent, so no 5% agent fee and no pickup code.
-5. **Cancelling.** Joiners can cancel while the basket is open (full tokens, as `ORD-004`). The
-   owner cannot cancel their own order, because the basket is theirs (Claude's call).
+5. **Cancelling.** ~~Joiners can cancel while the basket is open.~~ Replaced by `DEC-026`
+   (2026-11-21): nobody can cancel a paid order.
 6. **Placing the order** (changed by the owner 2026-11-18). The owner presses **Place order**,
    which works only once the basket holds `ownMinItems` items (10, Claude's call, changeable in
    Settings). It does not go while someone is still paying to join. GroupBasket charges no
    delivery, courier or agent fee for an own basket; those are shown only when an agent is chosen.
    The owner pays the courier when the courier delivers, outside GroupBasket.
-7. **Maximum wait.** After `maxWaitDays` (60) the basket is ordered if it holds enough items;
+7. **Maximum wait.** After `ownMaxWaitDays` (10, `DEC-026`; was 60) the basket is ordered if it holds enough items;
    otherwise it is cancelled and every buyer, the owner included, gets everything back as tokens
    (Claude's call).
 7a. **Late payment** (owner, 2026-11-18). A joiner whose payment arrives after their stock hold

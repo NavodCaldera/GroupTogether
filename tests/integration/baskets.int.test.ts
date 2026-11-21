@@ -2,8 +2,8 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 import { tokenBalance } from "@/server/tokens";
 import { setCartItem } from "@/server/orders/cart";
-import { CheckoutError, startCheckout } from "@/server/orders/checkout";
-import { cancelOrder, expireOrders } from "@/server/orders/baskets";
+import { startCheckout } from "@/server/orders/checkout";
+import { expireOrders } from "@/server/orders/baskets";
 import { handleNotice } from "@/server/payments/notice";
 import { signNotice } from "@/server/payments/demo";
 import { fundTokens, makeAgent, makeBuyer, makeFactory, resetDb } from "./helpers";
@@ -114,76 +114,6 @@ describe("basket fill and lock", () => {
       data: { agentId: agent.id, factoryId: f.factory.id, status: "LOCKED" },
     });
     expect(await db.basket.count()).toBe(2);
-  });
-});
-
-describe("cancel before lock", () => {
-  it("refunds everything as tokens, lowers the total and moves firstOrderAt", async () => {
-    const { agent } = await makeAgent();
-    const f = await makeFactory();
-    const first = await paid(agent.id, f.variant.id, "160");
-    const second = await paid(agent.id, f.variant.id);
-    const firstOrder = await db.order.findUniqueOrThrow({ where: { id: first.orderId } });
-    const secondOrder = await db.order.findUniqueOrThrow({ where: { id: second.orderId } });
-    const before = await db.basket.findUniqueOrThrow({ where: { id: firstOrder.basketId! } });
-    expect(before.firstOrderAt!.getTime()).toBe(firstOrder.paidAt!.getTime());
-    expect(money(before.total)).toBe("2200.00");
-
-    await cancelOrder(first.buyer.id, first.orderId);
-
-    const basket = await db.basket.findUniqueOrThrow({ where: { id: before.id } });
-    expect([basket.status, money(basket.total)]).toEqual(["OPEN", "1100.00"]);
-    expect(basket.firstOrderAt!.getTime()).toBe(secondOrder.paidAt!.getTime());
-    // 160 tokens + 972.08 paid (940 + 32.08 fee)
-    expect(money(await tokenBalance(first.buyer.id))).toBe("1132.08");
-    const entry = await db.tokenEntry.findUniqueOrThrow({
-      where: { eventKey: `cancel:${first.orderId}` },
-    });
-    expect([entry.kind, money(entry.amount)]).toEqual(["ORDER_CANCEL", "1132.08"]);
-    expect((await db.order.findUniqueOrThrow({ where: { id: first.orderId } })).status).toBe(
-      "CANCELLED",
-    );
-    const v = await variant(f.variant.id);
-    expect([v.available, v.reserved, v.sold]).toEqual([49, 0, 1]);
-    await expect(cancelOrder(first.buyer.id, first.orderId)).rejects.toThrow(CheckoutError);
-    expect(money(await tokenBalance(first.buyer.id))).toBe("1132.08");
-  });
-
-  it("cancelling the only order clears firstOrderAt", async () => {
-    const { agent } = await makeAgent();
-    const f = await makeFactory();
-    const only = await paid(agent.id, f.variant.id);
-    await cancelOrder(only.buyer.id, only.orderId);
-    const basket = await db.basket.findFirstOrThrow();
-    expect([basket.status, money(basket.total), basket.firstOrderAt]).toEqual([
-      "OPEN",
-      "0.00",
-      null,
-    ]);
-    expect(money(await tokenBalance(only.buyer.id))).toBe(money(only.attempt.amount));
-  });
-
-  it("refuses after the basket locks, for another buyer and for an unpaid order", async () => {
-    await db.settings.update({ where: { id: 1 }, data: { basketLockAmount: "1100" } });
-    const { agent } = await makeAgent();
-    const f = await makeFactory();
-    const locked = await paid(agent.id, f.variant.id);
-    expect((await db.basket.findFirstOrThrow()).status).toBe("LOCKED");
-    await expect(cancelOrder(locked.buyer.id, locked.orderId)).rejects.toThrow(CheckoutError);
-
-    await db.settings.update({ where: { id: 1 }, data: { basketLockAmount: "50000" } });
-    const open = await paid(agent.id, f.variant.id);
-    const stranger = await makeBuyer();
-    await expect(cancelOrder(stranger.id, open.orderId)).rejects.toThrow(CheckoutError);
-    const unpaid = await pending(agent.id, f.variant.id);
-    await expect(cancelOrder(unpaid.buyer.id, unpaid.orderId)).rejects.toThrow(CheckoutError);
-
-    expect(await db.order.count({ where: { status: "PAID" } })).toBe(2);
-    expect(
-      await db.tokenEntry.count({
-        where: { kind: "ORDER_CANCEL", eventKey: { startsWith: "cancel:" } },
-      }),
-    ).toBe(0);
   });
 });
 

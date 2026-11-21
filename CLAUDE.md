@@ -10,7 +10,9 @@ the courier on delivery) and can be ordered only once they hold `ownMinItems` it
 ("Get it by"), not the product page.
 
 Buyers give gender and date of birth at sign-up (`DEC-025`, 2026-11-21); the shop shows only
-their own audience plus unisex products, with no Audience box. `main` is protected on GitHub:
+their own audience plus unisex products, with no Audience box. Orders show four stages (Filling,
+Packing, On the way, Delivered; Refunded for own baskets past their 10-day wait) and a paid order
+can never be cancelled by a buyer (`DEC-026`, 2026-11-21). `main` is protected on GitHub:
 changes land only through a pull request with green, up-to-date checks.
 
 Check [implementation status](docs/implementation-status.md) before claiming a feature

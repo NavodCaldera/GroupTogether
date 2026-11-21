@@ -143,8 +143,12 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   // The owner runs the basket from the order page too, with no extra page to open.
   await page.getByRole("link", { name: /^You/ }).click();
   await expect(page).toHaveURL(/\/orders\/[^/?]+$/);
+  await expect(page.getByRole("heading", { name: "Filling", level: 1 })).toBeVisible();
   await expect(page.getByRole("button", { name: "Place order" })).toBeDisabled();
   await expect(page.getByLabel("Who can join")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Buyers" })).toBeVisible();
+  await expect(page.getByText("Total", { exact: true })).toBeVisible();
+  await expect(page.getByText(/cancel/i)).toHaveCount(0);
   await expect(page.getByText("12 Lake Road, Kandy", { exact: false })).toBeVisible();
   await expect(page.getByRole("link", { name: /Manage basket|View basket/ })).toHaveCount(0);
   await inspect(page);
