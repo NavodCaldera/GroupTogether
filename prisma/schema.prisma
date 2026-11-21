@@ -136,9 +136,87 @@ model Session {
 
 // ─── Catalogue ─────────────────────────────────────────────────────────────
 
-enum Category {
+/// The old two-value category (was `enum Category`); still written, removed once every reader uses
+/// `Product.categoryId` (DEC-029)
+enum LegacyCategory {
   SHOES
   APPAREL
+}
+
+/// The category tree (DEC-029, CATG-001): Clothing > Men > Shirts. Fields left null or empty are
+/// inherited from the parent (src/lib/categories.ts)
+model Category {
+  id            String              @id @default(cuid())
+  parentId      String?
+  parent        Category?           @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children      Category[]          @relation("CategoryTree")
+  /// Segments from the root: "clothing/men/shirts"
+  slug          String              @unique
+  name          String
+  /// Materialised ids from the root, "/<rootId>/<id>/", for subtree queries
+  path          String
+  sortOrder     Int                 @default(0)
+  active        Boolean             @default(true)
+  commissionPct Decimal?            @db.Decimal(5, 2)
+  minCommission Decimal?            @db.Decimal(14, 2)
+  /// Add-ons switched on for this subtree: "fit", "materials", "audience"
+  features      String[]
+  needsApproval Boolean             @default(false)
+  /// Return and report reasons for this category on top of the general ones
+  returnReasons String[]
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  attributes    CategoryAttribute[]
+  products      Product[]
+
+  @@index([parentId, sortOrder])
+  @@index([path])
+}
+
+enum AttributeType {
+  TEXT
+  NUMBER
+  ENUM
+  BOOL
+}
+
+/// A property any product may have: "size", "colour", "pages", "volume_ml"
+model AttributeDef {
+  id         String              @id @default(cuid())
+  key        String              @unique
+  label      String
+  type       AttributeType
+  unit       String?
+  options    AttributeOption[]
+  categories CategoryAttribute[]
+}
+
+model AttributeOption {
+  id        String       @id @default(cuid())
+  defId     String
+  def       AttributeDef @relation(fields: [defId], references: [id], onDelete: Cascade)
+  value     String
+  label     String
+  sortOrder Int          @default(0)
+
+  @@unique([defId, value])
+}
+
+/// An attribute a category's products carry; inherited by every category below it
+model CategoryAttribute {
+  categoryId    String
+  category      Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  defId         String
+  def           AttributeDef @relation(fields: [defId], references: [id], onDelete: Cascade)
+  required      Boolean      @default(false)
+  /// The buyer picks it (size, colour, pages, flavour)
+  isVariantAxis Boolean      @default(false)
+  /// Shown as a shop filter
+  filterable    Boolean      @default(false)
+  sortOrder     Int          @default(0)
+
+  @@id([categoryId, defId])
+  @@index([defId])
 }
 
 enum StockType {
@@ -179,7 +257,12 @@ model Product {
   title          String
   brand          String
   description    String          @default("")
-  category       Category
+  category       LegacyCategory
+  /// The category tree node (DEC-029); `category`, `audience` and `kind` are still written
+  categoryId     String
+  categoryRef    Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  /// Product-level attribute values, checked against the category's attributes
+  specs          Json            @default("{}")
   /// Who it is for and the finer category (ids in src/lib/taxonomy.ts); null on older products
   audience       Audience?
   kind           String?
@@ -238,6 +321,8 @@ model Product {
   @@index([status, category])
   @@index([sellerId])
   @@index([status, audience, kind])
+  @@index([categoryId])
+  @@index([specs(ops: JsonbPathOps)], type: Gin)
 }
 
 /// One option set of a product (DEC-029). available + reserved + sold is everything ever stocked.

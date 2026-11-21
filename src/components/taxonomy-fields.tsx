@@ -1,85 +1,68 @@
 "use client";
 
 import { useState } from "react";
-import { AUDIENCES, type Audience, isAudience, kindFits, kindsFor, sizesFor } from "@/lib/taxonomy";
+import type { CategoryGroup } from "@/lib/categories";
 
 type Props = {
-  audience?: string | null;
-  kind?: string | null;
+  /** Leaf categories from the tree, grouped under their parents (src/server/categories.ts). */
+  groups: CategoryGroup[];
+  /** The chosen category: an id in the product form, a slug in the shop. */
+  category?: string | null;
   size?: string | null;
-  /**
-   * Shop filter: no audience box (the buyer's own audience is passed in, or none for everything),
-   * every choice is optional and a size box follows.
-   */
+  /** Shop filter: the category is optional, posted as `category`, and a size box follows. */
   withSize?: boolean;
   selectClass: string;
 };
 
 /**
- * Audience, then a category that follows it, then (in the shop) a size that follows the category.
- * Each box stays disabled until the one before it has a choice. The shop has no audience box.
- * Plain named selects, so the surrounding GET/POST form needs nothing else.
+ * A category from the tree, then (in the shop) a size that follows it. The size box stays disabled
+ * until a category is chosen. Plain named selects, so the surrounding GET/POST form needs nothing else.
  */
-export function TaxonomyFields({ audience, kind, size, withSize = false, selectClass }: Props) {
-  const [a, setA] = useState<Audience | "">(isAudience(audience) ? audience : "");
-  const [k, setK] = useState(
-    kind && kindsFor(isAudience(audience) ? audience : "").some((x) => x.id === kind) ? kind : "",
-  );
-  const kinds = kindsFor(a);
-  const sizes = sizesFor(k);
+export function TaxonomyFields({ groups, category, size, withSize = false, selectClass }: Props) {
+  const all = groups.flatMap((g) => g.options);
+  const [c, setC] = useState(category && all.some((o) => o.value === category) ? category : "");
+  const sizes = all.find((o) => o.value === c)?.sizes ?? [];
   const optional = withSize;
   return (
     <>
-      {!optional && (
-        <select
-          name="audience"
-          value={a}
-          required={!optional}
-          aria-label="Audience"
-          className={selectClass}
-          onChange={(e) => {
-            const v = e.target.value as Audience | "";
-            setA(v);
-            if (!v || (k && !kindFits(v, k))) setK("");
-          }}
-        >
-          <option value="">{optional ? "Audience" : "Choose…"}</option>
-          {AUDIENCES.map((x) => (
-            <option key={x.id} value={x.id}>
-              {x.label}
-            </option>
-          ))}
-        </select>
-      )}
       <select
-        name="kind"
-        value={k}
-        disabled={!optional && !a}
+        name={optional ? "category" : "categoryId"}
+        value={c}
         required={!optional}
         aria-label="Category"
         className={selectClass}
-        onChange={(e) => setK(e.target.value)}
+        onChange={(e) => setC(e.target.value)}
       >
-        <option value="">
-          {optional ? "All categories" : a ? "Choose…" : "Choose audience first"}
-        </option>
-        {kinds.map((x) => (
-          <option key={x.id} value={x.id}>
-            {x.label}
-          </option>
-        ))}
+        <option value="">{optional ? "All categories" : "Choose…"}</option>
+        {groups.map((g) =>
+          g.label ? (
+            <optgroup key={g.label} label={g.label}>
+              {g.options.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </optgroup>
+          ) : (
+            g.options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))
+          ),
+        )}
       </select>
       {withSize && (
         <select
           // Remount when the list changes so a stale size is dropped.
-          key={k || "all"}
+          key={c || "all"}
           name="size"
           defaultValue={size && sizes.includes(size) ? size : ""}
-          disabled={!k}
+          disabled={!c || sizes.length === 0}
           aria-label="Size"
           className={selectClass}
         >
-          <option value="">{k ? "Any size" : "Choose category first"}</option>
+          <option value="">{c ? "Any size" : "Choose category first"}</option>
           {sizes.map((s) => (
             <option key={s}>{s}</option>
           ))}

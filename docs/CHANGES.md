@@ -18,6 +18,21 @@ Newest first.
 - Missing items and returns before settlement reduce the count; after it the refund is the final
   price. The product page shows "N sold · M more to Rs X" and the tiers.
 
+
+## 2026-11-21 - Category tree (DEC-029 phase 2)
+
+- Products now belong to a category in a tree: Clothing > Men, Women, Girl, Boy, Kid > the
+  clothing kinds (Shirts, Dresses …), plus an empty Shoes category. Clothing and Shoes carry the fit,
+  materials and audience add-on flags for everything below them; screens start reading them in a
+  later phase.
+- Size and colour are recorded as the Clothing category's variant attributes. Categories can also
+  carry a commission percentage and minimum, return reasons and an approval flag; none are set yet.
+- Every existing product was linked to the category for its kind (no kind: the Clothing root, or
+  Shoes for old shoe rows).
+- The shop's category box and the admin and factory product forms list the categories from the
+  database instead of the code list. Shop links use `?category=clothing/women/dresses`; old
+  `?kind=` links still work.
+- The old category, audience and kind columns are still written; a later phase removes them.
 ## 2026-11-21 - Variant options (DEC-029 phase 3)
 
 - A variant is now any set of choices (`options`, for example size and colour today, pages or
