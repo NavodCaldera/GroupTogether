@@ -18,6 +18,7 @@ import { getGateway } from "../payments/gateway";
 import { appUrl } from "../notify";
 import { markOrdersPaid } from "./baskets";
 import { lockBasketSlot, withOrderTransaction } from "./locks";
+import { holdDealUnits, liveDealPrices } from "../deals";
 
 export class CheckoutError extends CartError {}
 
@@ -31,6 +32,8 @@ export type CartLineView = {
   qty: number;
   unitPrice: D;
   factoryPrice: D | null;
+  /** The running group deal the line is priced by (tier 1), or null (DEAL-002) */
+  dealId: string | null;
   /** Free units right now */
   inStock: number;
   /** The product can still be bought */
@@ -90,9 +93,15 @@ export async function loadCart(
       },
     },
   });
+  // A product with a running deal sells at tier 1; others exactly as listed.
+  const deals = await liveDealPrices(
+    tx,
+    items.map((i) => i.variant.product.id),
+  );
   const groups = new Map<string, CartGroup>();
   for (const item of [...items].sort((a, b) => a.variantId.localeCompare(b.variantId))) {
     const p = item.variant.product;
+    const deal = deals.get(p.id);
     const key = p.sellerId ?? "";
     const group = groups.get(key) ?? {
       factoryId: key,
@@ -107,8 +116,9 @@ export async function loadCart(
       title: p.title,
       label: item.variant.label,
       qty: item.qty,
-      unitPrice: toD(p.price),
-      factoryPrice: p.factoryPrice === null ? null : toD(p.factoryPrice),
+      unitPrice: deal ? deal.unitPrice : toD(p.price),
+      factoryPrice: deal ? deal.factoryPrice : p.factoryPrice === null ? null : toD(p.factoryPrice),
+      dealId: deal?.dealId ?? null,
       inStock: item.variant.available,
       available: p.status === "LIVE" && p.sellerId !== null && p.factoryPrice !== null,
     });
@@ -190,8 +200,8 @@ type Outcome = {
 
 /** Lock order: buyer advisory -> Agent row (FOR SHARE) -> basket advisories (sorted, only when
  * tokens pay everything) ->
- * Variant rows (variantId order) -> new Order rows -> ledger User row -> Basket rows under their
- * advisories. The gateway is called after commit.
+ * Variant rows (variantId order) -> GroupDeal rows (sorted) -> new Order rows -> ledger User row
+ * -> Basket rows under their advisories. The gateway is called after commit.
  */
 export async function startCheckout(
   buyerId: string,
@@ -248,6 +258,8 @@ export async function startCheckout(
         throw new CheckoutError(`Only ${left?.available ?? 0} left of ${l.title}`);
       }
     }
+    // Deal rows after the Variant rows: units held until the payment is verified (DEAL-001).
+    await holdDealUnits(tx, lines, now);
 
     const attempt = totalDue.gt(0)
       ? await tx.paymentAttempt.create({
@@ -291,6 +303,7 @@ export async function startCheckout(
               courierEach: "0.00",
               agentFeeEach: "0.00",
               cashFeeEach: cashFeeEach(l.unitPrice, toD(plan.settings.agentFeeRate)).toFixed(2),
+              ...(l.dealId ? { dealId: l.dealId, paidUnitPrice: l.unitPrice.toFixed(2) } : {}),
             })),
           },
         },

@@ -20,6 +20,7 @@ import { factoryFaultRefund } from "@/lib/agent-money";
 import { db, type Tx } from "./db";
 import { CartError } from "@/server/errors";
 import { lockLedgerUsers, withOrderTransaction } from "./orders/locks";
+import { dealUnitsLeaving } from "./deals";
 import { agentFeeKey, takeBackFee } from "./agent-fees";
 import { checkUpload, IMAGE_TYPES, saveUpload } from "./storage";
 import { credit } from "./tokens";
@@ -551,6 +552,11 @@ export async function collectReturn(agentUserId: string, returnId: string, now =
       (byAdmin ? r.adminId : r.factoryDecidedById) ?? r.factoryId,
       now,
     );
+    // A deal line (DEAL-003): before settlement the units come off the deal's count; after it the
+    // refund is the final price, since the rebate already gave back the rest. Before the ledger.
+    const final = (
+      await dealUnitsLeaving(tx, [{ id: line.id, dealId: line.dealId, qty: r.qty }])
+    ).get(line.id);
     // Ledger rows in sorted order before either posting.
     await lockLedgerUsers(tx, [r.buyerId, agent.userId]);
     const fee = toD(line.agentFeeEach).times(r.qty);
@@ -558,7 +564,7 @@ export async function collectReturn(agentUserId: string, returnId: string, now =
     const cashEach = line.cashFeePaid === null ? new D(0) : toD(line.cashFeeEach);
     const refund = factoryFaultRefund(
       r.qty,
-      toD(line.unitPrice),
+      final?.unitPrice ?? toD(line.unitPrice),
       toD(line.courierEach),
       toD(line.agentFeeEach),
       cashEach,

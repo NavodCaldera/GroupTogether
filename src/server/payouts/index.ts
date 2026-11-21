@@ -32,6 +32,8 @@ export function payableLines(end: Date, collectHours: number, factoryId?: string
   return {
     payoutItems: { none: {} },
     missingReportedQty: 0,
+    // A group deal line waits until its deal settles, then is paid at the final tier (DEAL-002).
+    OR: [{ dealId: null }, { deal: { status: "SETTLED" }, finalFactoryPrice: { not: null } }],
     // Buyer-fault returns never hold the factory payout (DEC-017).
     returns: { none: { status: { in: PAYOUT_HOLD_RETURNS }, fault: "FACTORY" } },
     order: {
@@ -68,13 +70,25 @@ export async function buildWeeklyPayouts(now: Date): Promise<number> {
           return 0;
         const lines = await tx.orderLine.findMany({
           where: payableLines(end, collectHours, factoryId),
-          select: { id: true, qty: true, returnedQty: true, missingQty: true, factoryPrice: true },
+          select: {
+            id: true,
+            qty: true,
+            returnedQty: true,
+            missingQty: true,
+            factoryPrice: true,
+            finalFactoryPrice: true,
+          },
           orderBy: { id: "asc" },
         });
         if (!lines.length) return 0;
         const items = lines.map((l) => ({
           orderLineId: l.id,
-          amount: lineEarning(l.qty, l.returnedQty, l.missingQty, toD(l.factoryPrice)),
+          amount: lineEarning(
+            l.qty,
+            l.returnedQty,
+            l.missingQty,
+            toD(l.finalFactoryPrice ?? l.factoryPrice),
+          ),
         }));
         const waiting = await tx.payoutDeduction.findMany({
           where: { factoryId, payoutId: null, createdAt: { lte: end } },

@@ -185,6 +185,14 @@ for new factory listings. Creation share-locks Settings until commit; updates lo
 and reuse its stored commission, never the current setting. Checkout snapshots `unitPrice` and
 `factoryPrice` on each `OrderLine`, so later repricing never rewrites an order.
 
+## Group deals
+
+`GroupDeal` (one `LIVE` per product, partial unique index) has `PriceTier` rows and counts
+`unitsHeld` (unpaid orders) and `unitsSold` (verified payments). `OrderLine` carries `dealId`,
+`paidUnitPrice`, `finalUnitPrice` and `finalFactoryPrice`. Deal rows lock after Variant rows and
+before ledger rows (`src/server/deals.ts`). `runSweep` closes ended deals and settles them once no
+order is unpaid; payouts hold unsettled deal lines and pay `finalFactoryPrice`.
+
 ## Token ledger
 
 `src/server/tokens.ts` implements balance, `post`, `credit` and transfers; `src/lib/token-rules.ts`

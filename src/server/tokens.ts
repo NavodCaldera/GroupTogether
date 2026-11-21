@@ -25,6 +25,7 @@ const POSITIVE_KINDS: readonly TokenKind[] = [
   "MISSING_ITEM",
   "DEPOSIT_RETURN",
   "TRANSFER_IN",
+  "DEAL_REBATE",
 ];
 const NEGATIVE_KINDS: readonly TokenKind[] = ["HOLD", "TRANSFER_OUT", "FEE_CLAWBACK"];
 type TokenPost = {

@@ -58,6 +58,7 @@ const KINDS: Record<TokenKind, { title: string; tone: TokenTone; note: boolean }
   DEPOSIT_RETURN: { title: "Deposit returned", tone: "in", note: true },
   TRANSFER_OUT: { title: "Sent", tone: "out", note: false },
   TRANSFER_IN: { title: "Received", tone: "in", note: false },
+  DEAL_REBATE: { title: "Group deal rebate", tone: "in", note: true },
 };
 
 /** Title and detail line for one entry. A transfer names the other person instead of the note,

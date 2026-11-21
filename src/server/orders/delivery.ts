@@ -15,6 +15,7 @@ import { post } from "../tokens";
 import { CartError } from "@/server/errors";
 import { lockBasketOf, withOrderTransaction } from "./locks";
 import { announceOwnBasket } from "./own-baskets";
+import { dealUnitsLeaving } from "../deals";
 
 export class DeliveryError extends CartError {}
 
@@ -194,7 +195,7 @@ export async function reportMissing(
 
 /** Factory admin: removes the reported units, refunds the buyer in tokens and queues a deduction
  * from the factory's next payout. Lock order: buyer advisory -> Order row -> basket advisory ->
- * Basket row -> ledger.
+ * Basket row -> GroupDeal row -> ledger.
  */
 export async function removeMissingLine(adminId: string, orderLineId: string): Promise<void> {
   await requireAdmin(adminId, "FACTORY");
@@ -205,14 +206,19 @@ export async function removeMissingLine(adminId: string, orderLineId: string): P
     if (removed <= 0) throw new DeliveryError("Nothing is reported missing");
     const missingQty = line.missingQty + removed;
     if (missingQty > line.qty) throw new DeliveryError("That is more than ordered");
-    const unitPrice = toD(line.unitPrice);
+    // A deal line (DEAL-003): before settlement the units come off the deal's count; after it the
+    // refund is the final price, since the rebate already gave back the rest.
+    const final = (
+      await dealUnitsLeaving(tx, [{ id: line.id, dealId: line.dealId, qty: removed }])
+    ).get(line.id);
+    const unitPrice = final?.unitPrice ?? toD(line.unitPrice);
     const courierEach = toD(line.courierEach);
     const agentFeeEach = toD(line.agentFeeEach);
     const refund = missingRefund(removed, unitPrice, courierEach, agentFeeEach);
     const deduction = missingDeduction(
       removed,
       unitPrice,
-      toD(line.factoryPrice),
+      final?.factoryPrice ?? toD(line.factoryPrice),
       courierEach,
       agentFeeEach,
     );
@@ -226,7 +232,7 @@ export async function removeMissingLine(adminId: string, orderLineId: string): P
         ...(missingQty === line.qty ? { status: "CANCELLED" as const } : {}),
       },
     });
-    const total = D.max(toD(basket.total).minus(unitPrice.times(removed)), 0);
+    const total = D.max(toD(basket.total).minus(toD(line.unitPrice).times(removed)), 0);
     await tx.basket.update({ where: { id: basket.id }, data: { total: total.toFixed(2) } });
     if (deduction.gt(0))
       await tx.payoutDeduction.create({

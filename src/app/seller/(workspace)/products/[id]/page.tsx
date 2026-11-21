@@ -11,6 +11,7 @@ import { factoryStockAction, saveFactoryProductAction } from "@/server/seller-ac
 import { FitDataForm } from "@/components/fit-data-form";
 import { saveFactoryFitAction } from "@/server/fit-actions";
 import { MaterialSection } from "./material-section";
+import { DealSection } from "./deal-section";
 
 export const metadata: Metadata = { title: "Edit product" };
 
@@ -54,7 +55,8 @@ export default async function FactoryProductPage({ params }: PageProps<"/seller/
           </Card>
           <MaterialSection productId={product.id} />
         </div>
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4">
+          <DealSection productId={product.id} factoryId={seller.factoryId} />
           <Card>
             <h2 className="mb-2 font-semibold">Stock by size</h2>
             <StockTable variants={product.variants} />

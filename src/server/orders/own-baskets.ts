@@ -12,6 +12,7 @@ import { assertBuyer, CheckoutError, ratesOf } from "./checkout";
 import { cancelBasketOrders, markOrdersPaid } from "./baskets";
 import { lockOwnBasket, withOrderTransaction } from "./locks";
 import { validCommission } from "@/lib/price-rules";
+import { holdDealUnits, liveDealPrices } from "../deals";
 
 /** Own baskets (DEC-023, DEC-027): a buyer starts a basket for one factory, others buy any of that
  * factory's products into it, and the whole basket goes to the owner's address. No agent, no agent or courier fee, no
@@ -79,17 +80,24 @@ async function loadFactoryLines(tx: Tx, factoryId: string | null, lines: OwnLine
     },
   });
   const byId = new Map(variants.map((v) => [v.id, v]));
+  // A product with a running deal sells at tier 1 (DEAL-001); others exactly as listed.
+  const deals = await liveDealPrices(
+    tx,
+    variants.map((v) => v.product.id),
+  );
   const out = lines.map((l) => {
     const v = byId.get(l.variantId);
     const p = v?.product;
     if (!p || p.status !== "LIVE" || !p.sellerId || p.factoryPrice === null)
       throw new CheckoutError(p ? `No longer available: ${p.title}` : "No longer available");
+    const deal = deals.get(p.id);
     return {
       ...l,
       factoryId: p.sellerId,
       label: v!.label,
-      unitPrice: toD(p.price),
-      factoryPrice: toD(p.factoryPrice),
+      unitPrice: deal ? deal.unitPrice : toD(p.price),
+      factoryPrice: deal ? deal.factoryPrice : toD(p.factoryPrice),
+      dealId: deal?.dealId ?? null,
     };
   });
   const factories = new Set(out.map((l) => l.factoryId));
@@ -128,8 +136,8 @@ type Outcome = {
 };
 
 /** Starts a new own basket (create) or buys into one (basketId). One order per call.
- * Lock order: buyer advisory -> own basket advisory -> Variant rows (variantId order) -> Order
- * row -> ledger User row -> Basket row. The gateway is called after commit. */
+ * Lock order: buyer advisory -> own basket advisory -> Variant rows (variantId order) -> GroupDeal
+ * rows (sorted) -> Order row -> ledger User row -> Basket row. The gateway is called after commit. */
 export async function startOwnCheckout(
   buyerId: string,
   input: {
@@ -255,6 +263,8 @@ export async function startOwnCheckout(
         throw new CheckoutError(`Only ${left?.available ?? 0} left of a size you chose`);
       }
     }
+    // Deal rows after the Variant rows: units held until the payment is verified (DEAL-001).
+    await holdDealUnits(tx, priced.lines, now);
 
     const holdUntil = new Date(now.getTime() + settings.paymentHoldMinutes * 60_000);
     const attempt = part.due.gt(0)
@@ -295,6 +305,7 @@ export async function startOwnCheckout(
             courierEach: "0.00",
             agentFeeEach: "0.00",
             cashFeeEach: "0.00",
+            ...(l.dealId ? { dealId: l.dealId, paidUnitPrice: l.unitPrice.toFixed(2) } : {}),
           })),
         },
       },

@@ -16,6 +16,8 @@ import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 import { FitSection } from "./fit-section";
 import { MaterialSection } from "./material-card";
 import { getMaterialCard, getProvenance } from "@/server/materials";
+import { dealView } from "@/server/deals";
+import { DealBar } from "@/components/deal-bar";
 import { sizesFor } from "@/lib/taxonomy";
 import { optionAxes, optionName, readOptions } from "@/lib/variant-options";
 
@@ -36,12 +38,15 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
   const product = await getProduct(id);
   if (!product) notFound();
   const buyer = isBuyerRole(user.role);
-  const [ratings, productScores, fit, materialCard] = await Promise.all([
+  const [ratings, productScores, fit, materialCard, deal] = await Promise.all([
     ratingSummaries([product.sellerId]),
     productRatingSummaries([product.id]),
     getFitView(product.id, buyer ? user.id : null),
     getMaterialCard(product.id),
+    dealView(product.id),
   ]);
+  // A running group deal sells at tier 1 (DEAL-002).
+  const price = deal ? deal.paid : product.price;
   const why = materialCard ? await getProvenance(materialCard) : null;
   const variants = product.variants.map((v) => ({
     id: v.id,
@@ -70,7 +75,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             />
             <ProductScore score={productScores.get(product.id)} />
             <p className="mt-2 text-2xl font-bold">
-              {formatLKR(product.price)}
+              {formatLKR(price)}
               {product.retailPrice && (
                 <span className="ml-2 text-base font-normal text-subtle line-through">
                   {formatLKR(product.retailPrice)}
@@ -89,6 +94,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             )}
           </div>
 
+          {deal && <DealBar deal={deal} />}
+
           {product.description && (
             <p className="text-sm whitespace-pre-line">{product.description}</p>
           )}
@@ -96,7 +103,7 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
           <Card>
             {buyer ? (
               <AddToCartForm
-                price={product.price.toString()}
+                price={price.toString()}
                 variants={variants}
                 axes={axes}
                 cartHref={`/cart${keep}`}

@@ -7,6 +7,7 @@ import { getSettings } from "../settings";
 import { post } from "../tokens";
 import { CartError } from "@/server/errors";
 import { lockBasketSlot, lockOwnBasket, withOrderTransaction } from "./locks";
+import { confirmDealUnits, dealUnitsLeaving, rebatesGiven, releaseDealUnits } from "../deals";
 
 class BasketError extends CartError {}
 
@@ -88,6 +89,8 @@ export async function markOrdersPaid(tx: Tx, orderIds: string[], now: Date): Pro
     });
     if (moved.count !== 1) throw new BasketError("Reserved stock is missing");
   }
+  // GroupDeal rows after the Variant rows: the verified payment counts toward the tier.
+  await confirmDealUnits(tx, ids);
 
   const locked: string[] = [];
   for (const o of orders) {
@@ -213,6 +216,10 @@ export async function releasePendingOrders(tx: Tx, orderIds: string[]): Promise<
     });
     if (moved.count !== 1) throw new BasketError("Reserved stock is missing");
   }
+  await releaseDealUnits(
+    tx,
+    orders.map((o) => o.id),
+  );
   for (const o of orders) {
     if (!canMoveOrder(o.status, "CANCELLED"))
       throw new BasketError("This order cannot be cancelled");
@@ -306,7 +313,9 @@ export async function expireOrders(now: Date): Promise<number> {
 export async function cancelBasketOrders(tx: Tx, basketId: string, note: string): Promise<number> {
   const orders = await tx.order.findMany({
     where: { basketId, status: "PAID" },
-    include: { lines: { select: { variantId: true, qty: true } } },
+    include: {
+      lines: { select: { id: true, variantId: true, qty: true, missingQty: true, dealId: true } },
+    },
     orderBy: { id: "asc" },
   });
   const perVariant = new Map<string, number>();
@@ -321,14 +330,23 @@ export async function cancelBasketOrders(tx: Tx, basketId: string, note: string)
     });
     if (moved.count !== 1) throw new BasketError("Sold stock is missing");
   }
+  // GroupDeal rows after the Variant rows: units not already taken off as missing leave the deal.
+  await dealUnitsLeaving(
+    tx,
+    orders.flatMap((o) =>
+      o.lines.map((l) => ({ id: l.id, dealId: l.dealId, qty: l.qty - l.missingQty })),
+    ),
+  );
   for (const o of orders)
     await tx.order.update({ where: { id: o.id }, data: { status: "CANCELLED" } });
   for (const o of [...orders].sort((a, b) => a.buyerId.localeCompare(b.buyerId))) {
+    // A settled deal already gave rebate tokens on this order: refund what was paid less those.
+    const rebated = o.lines.some((l) => l.dealId) ? await rebatesGiven(tx, o.id) : new D(0);
     const refund = cancelRefund({
       tokensApplied: toD(o.tokensApplied),
       remainder: toD(o.amountDue).minus(toD(o.gatewayFee)),
       fee: toD(o.gatewayFee),
-    });
+    }).minus(rebated);
     if (refund.gt(0))
       await post(tx, {
         userId: o.buyerId,

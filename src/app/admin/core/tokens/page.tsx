@@ -21,6 +21,7 @@ const KIND: Record<TokenKind, string> = {
   DEPOSIT_RETURN: "Deposit returned",
   TRANSFER_OUT: "Sent",
   TRANSFER_IN: "Received",
+  DEAL_REBATE: "Deal rebate",
 };
 
 export default async function TokensPage({ searchParams }: PageProps<"/admin/core/tokens">) {

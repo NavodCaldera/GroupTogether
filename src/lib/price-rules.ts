@@ -19,6 +19,27 @@ export function buyerPrice(factoryPrice: Decimal.Value, commission: Decimal.Valu
 }
 
 /**
+ * The commission per unit added to a factory price, resolved in one place (DEAL-004): today the
+ * listing's snapshotted commission, else `Settings.commissionPerPiece`. A later phase switches this
+ * to the category percentage.
+ */
+export function commissionFor(
+  product: { commission: { toString(): string } | null },
+  settings: { commissionPerPiece: { toString(): string } },
+): D {
+  return new D((product.commission ?? settings.commissionPerPiece).toString());
+}
+
+/** A deal tier's buyer price: its factory price plus the product's commission (DEAL-004). */
+export function tierBuyerPrice(
+  factoryPrice: Decimal.Value,
+  product: { commission: { toString(): string } | null },
+  settings: { commissionPerPiece: { toString(): string } },
+): D {
+  return buyerPrice(factoryPrice, commissionFor(product, settings).toFixed(2));
+}
+
+/**
  * Whole percent our price sits below the listed retail price (rounded down), or null when there is
  * no retail price or it isn't above ours.
  */
