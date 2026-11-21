@@ -17,7 +17,7 @@ import {
   shopFacets,
 } from "@/server/catalogue";
 import { addStaff } from "@/server/factory-team";
-import { makeUser, makeVariant, resetDb } from "./helpers";
+import { makeUser, makeVariant, resetDb, sizeVariant } from "./helpers";
 const now = new Date("2026-12-01T00:00:00Z");
 const listing = {
   title: "Linen Shirt",
@@ -76,7 +76,7 @@ describe("factory agreements", () => {
     const { core, factory, version } = await setup();
     await acceptLatest(factory.id, now);
     const product = await saveProduct(null, listing, null, { sellerId: factory.id });
-    await db.variant.create({ data: { productId: product.id, size: "M", available: 5 } });
+    await db.variant.create({ data: { productId: product.id, ...sizeVariant("M"), available: 5 } });
     const newer = await publishVersion(core.id, "Agreement v2");
     expect(newer.version).toBe(2);
     await expect(acceptDisplayedVersion(factory.id, version.id, now)).rejects.toThrow(/changed/i);

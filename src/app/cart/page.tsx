@@ -105,7 +105,7 @@ export default async function CartPage({ searchParams }: PageProps<"/cart">) {
                         disabled={!l.available}
                         data-factory={f.factoryId}
                         data-cents={l.unitPrice.times(l.qty).times(100).toFixed(0)}
-                        aria-label={`${l.title} ${l.size}`}
+                        aria-label={`${l.title} ${l.label}`}
                         className="h-5 w-5 accent-(--accent)"
                       />
                     </label>
@@ -119,7 +119,7 @@ export default async function CartPage({ searchParams }: PageProps<"/cart">) {
                             {l.title}
                           </Link>
                           <p className="text-sm text-subtle">
-                            {[l.size, l.colour].filter(Boolean).join(" · ")} ·{" "}
+                            {l.label && <>{l.label} · </>}
                             {formatLKR(l.unitPrice)}
                           </p>
                           {!l.available && (
@@ -139,7 +139,7 @@ export default async function CartPage({ searchParams }: PageProps<"/cart">) {
                           variantId={l.variantId}
                           agent={agent}
                           qty={l.qty}
-                          label={`${l.title} ${l.size}`}
+                          label={`${l.title} ${l.label}`}
                         />
                         <form action={setQtyAction}>
                           <input type="hidden" name="variantId" value={l.variantId} />
@@ -148,7 +148,7 @@ export default async function CartPage({ searchParams }: PageProps<"/cart">) {
                           <Button
                             type="submit"
                             variant="ghost"
-                            aria-label={`Remove ${l.title} ${l.size}`}
+                            aria-label={`Remove ${l.title} ${l.label}`}
                           >
                             Remove
                           </Button>

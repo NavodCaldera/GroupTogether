@@ -29,6 +29,7 @@
 import "dotenv/config";
 import { D } from "../src/lib/decimal";
 import { findKind } from "../src/lib/taxonomy";
+import { optionsFromSizeColour, variantFields } from "../src/lib/variant-options";
 import type { Hours } from "../src/lib/agent-rules";
 import {
   DEMO_ADMINS,
@@ -84,6 +85,8 @@ process.env.DEMO_MERCHANT_SECRET ||= "seed-secret";
 
 const COMMISSION = "100";
 const STOCK_PER_SIZE = 40;
+/** Variant columns for a size-only variant, built by the shared helper. */
+const sizeFields = (size: string) => variantFields(optionsFromSizeColour(size));
 
 type ProductSeed = {
   title: string;
@@ -360,13 +363,19 @@ async function main() {
           status: "LIVE",
           sellerId: owner.id,
           variants: {
-            create: kind.sizes.slice(0, 4).map((size) => ({ size, available: STOCK_PER_SIZE })),
+            create: kind.sizes
+              .slice(0, 4)
+              .map((size) => ({ ...sizeFields(size), available: STOCK_PER_SIZE })),
           },
         },
         include: { variants: { orderBy: { id: "asc" } } },
       });
       variants.push(
-        kind.sizes.slice(0, 4).map((size) => product.variants.find((v) => v.size === size)!.id),
+        kind.sizes
+          .slice(0, 4)
+          .map(
+            (size) => product.variants.find((v) => v.optionKey === sizeFields(size).optionKey)!.id,
+          ),
       );
     }
     return { owner, packing, sales, variants };
@@ -769,9 +778,9 @@ async function main() {
       createdAt: daysAgo(3),
       variants: {
         create: [
-          { size: "S", available: 12 },
-          { size: "M", available: 14 },
-          { size: "L", available: 10 },
+          { ...sizeFields("S"), available: 12 },
+          { ...sizeFields("M"), available: 14 },
+          { ...sizeFields("L"), available: 10 },
         ],
       },
     },

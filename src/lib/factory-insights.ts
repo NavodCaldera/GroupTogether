@@ -43,14 +43,15 @@ export function stockAlert(available: number): StockAlert {
 }
 
 /**
- * Restock advice for one size: what is held for unpaid orders (not yet sales) against what is left.
- * Null when nothing calls for it.
+ * Restock advice for one variant (its `label`, e.g. "M / Navy"): what is held for unpaid orders
+ * (not yet sales) against what is left. Null when nothing calls for it.
  */
-export function restockAdvice(v: { size: string; available: number; reserved: number }) {
+export function restockAdvice(v: { label: string; available: number; reserved: number }) {
+  const name = v.label || "Stock";
   if (v.reserved > 0 && v.reserved >= v.available)
-    return `Size ${v.size}: ${v.available} left, ${v.reserved} held for unpaid orders — restock`;
-  if (v.available <= 0) return `Size ${v.size}: sold out — restock`;
-  if (v.available <= LOW_STOCK) return `Size ${v.size}: ${v.available} left`;
+    return `${name}: ${v.available} left, ${v.reserved} held for unpaid orders — restock`;
+  if (v.available <= 0) return `${name}: sold out — restock`;
+  if (v.available <= LOW_STOCK) return `${name}: ${v.available} left`;
   return null;
 }
 

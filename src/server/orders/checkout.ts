@@ -26,8 +26,8 @@ export type CartLineView = {
   variantId: string;
   productId: string;
   title: string;
-  size: string;
-  colour: string;
+  /** Variant.label, e.g. "M / Navy" */
+  label: string;
   qty: number;
   unitPrice: D;
   factoryPrice: D | null;
@@ -105,8 +105,7 @@ export async function loadCart(
       variantId: item.variantId,
       productId: p.id,
       title: p.title,
-      size: item.variant.size,
-      colour: item.variant.colour,
+      label: item.variant.label,
       qty: item.qty,
       unitPrice: toD(p.price),
       factoryPrice: p.factoryPrice === null ? null : toD(p.factoryPrice),
@@ -285,6 +284,7 @@ export async function startCheckout(
           lines: {
             create: g.lines.map((l) => ({
               variantId: l.variantId,
+              variantLabel: l.label,
               qty: l.qty,
               unitPrice: l.unitPrice.toFixed(2),
               factoryPrice: l.factoryPrice!.toFixed(2),

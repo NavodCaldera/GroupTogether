@@ -6,6 +6,18 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Variant options (DEC-029 phase 3)
+
+- A variant is now any set of choices (`options`, for example size and colour today, pages or
+  flavour later) with a normalised `optionKey` and a display `label` such as "M / Navy"; it can
+  also carry a SKU, weight and dimensions. Existing variants are filled from size and colour.
+- Order lines keep the label they were bought with (`variantLabel`), so receipts and packing
+  tickets do not change if a variant is edited later.
+- Cart, orders, own baskets, agent pickup, packing tickets, returns, fault holds and factory stock
+  screens show the label. The product page groups choices by option name (Size, Colour, …), with
+  sizes small to large.
+- Size and colour columns stay for now and are kept in step; a later phase drops them.
+
 ## 2026-11-21 - Any product from any factory, group buying only (DEC-029)
 
 - The owner first thought of group buying Atlas and other stationery for the school new year,

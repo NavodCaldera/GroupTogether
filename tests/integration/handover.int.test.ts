@@ -21,6 +21,7 @@ async function setup() {
     data: {
       orderId: r.order.id,
       variantId: r.variant.id,
+      variantLabel: r.variant.label,
       qty: 1,
       unitPrice: "1100",
       factoryPrice: "1000",
