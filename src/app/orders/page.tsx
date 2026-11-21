@@ -9,9 +9,9 @@ import { OrderCard, type OrderGroup, groupOf, splitOrders } from "./order-card";
 export const metadata: Metadata = { title: "Orders" };
 
 const TABS: { key: OrderGroup; label: string }[] = [
-  { key: "pickup", label: "Pickup" },
+  { key: "pickup", label: "Agent pickup" },
   { key: "mine", label: "My baskets" },
-  { key: "joined", label: "Joined" },
+  { key: "joined", label: "Joined baskets" },
 ];
 
 /**
@@ -80,14 +80,14 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                   replace
                   scroll={false}
                   aria-current={now ? "page" : undefined}
-                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-1 text-sm whitespace-nowrap font-medium transition-colors sm:min-h-10 ${
+                  className={`flex min-h-11 items-center justify-center gap-1.5 rounded-lg px-1 py-1.5 text-center text-sm leading-tight font-medium sm:whitespace-nowrap transition-colors sm:min-h-10 ${
                     now ? "bg-paper text-ink shadow-sm" : "text-subtle hover:text-ink"
                   }`}
                 >
                   {t.label}
                   {g.active.length > 0 && (
                     <span
-                      className={`rounded-full px-1.5 text-xs tabular-nums ${now ? "bg-accent text-paper" : "bg-paper text-ink"}`}
+                      className={`shrink-0 rounded-full px-1.5 text-xs tabular-nums ${now ? "bg-accent text-paper" : "bg-paper text-ink"}`}
                     >
                       {g.active.length}
                     </span>
