@@ -6,7 +6,6 @@ import { cancelOrder, expireOrders } from "@/server/orders/baskets";
 import {
   closeOwnBasket,
   confirmOwnDelivery,
-  myOwnBaskets,
   ownBasketView,
   publicOwnBaskets,
   setOwnVisibility,
@@ -172,7 +171,6 @@ describe("starting and joining", () => {
     const mine = await ownBasketView(basketId, owner.id, null);
     expect(mine?.address).toBe("12 Lake Rd");
     expect(mine?.orders).toHaveLength(2);
-    expect((await myOwnBaskets(buyer.id)).map((x) => x.owner)).toEqual([false]);
   });
 
   it("an owner whose first payment expires leaves a cancelled basket", async () => {

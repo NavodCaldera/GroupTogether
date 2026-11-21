@@ -604,29 +604,3 @@ export async function ownBasketView(
       })),
   };
 }
-
-/** Own baskets the user owns or has bought into, newest first. */
-export async function myOwnBaskets(userId: string) {
-  const rows = await db.basket.findMany({
-    where: {
-      kind: "OWN",
-      OR: [{ ownerId: userId }, { orders: { some: { buyerId: userId } } }],
-      firstOrderAt: { not: null },
-    },
-    select: {
-      ...BASKET_CARD,
-      product: { select: { id: true, title: true, photoKey: true, category: true } },
-    },
-    orderBy: { createdAt: "desc" },
-    take: 50,
-  });
-  return rows.map((b) => ({
-    id: b.id,
-    status: b.status,
-    product: b.product,
-    title: b.product?.title ?? "",
-    area: b.deliveryArea ?? "",
-    owner: b.ownerId === userId,
-    items: itemCount(b.orders),
-  }));
-}

@@ -6,6 +6,13 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Own baskets list removed
+
+- The separate Own baskets list is gone: the Orders tabs My baskets and Joined baskets cover it.
+  /own-baskets now redirects to /orders?tab=mine. An own basket's Back (with no earlier page in
+  the tab) goes to My baskets for the owner, Joined baskets for a buyer in it, and the product
+  page for anyone else. `myOwnBaskets` is removed.
+
 ## 2026-11-21 - Orders tabs renamed
 
 - The Orders tabs are now **Agent pickup**, **My baskets** and **Joined baskets** (owner's

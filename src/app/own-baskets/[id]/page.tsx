@@ -43,7 +43,13 @@ export default async function OwnBasketPage({
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-5">
       <div>
         <BackLink
-          fallback={b.isOwner || b.orders.length ? "/own-baskets" : `/products/${b.product.id}`}
+          fallback={
+            b.isOwner
+              ? "/orders?tab=mine"
+              : b.orders.length
+                ? "/orders?tab=joined"
+                : `/products/${b.product.id}`
+          }
         />
         <div className="flex items-start gap-3">
           <div className="w-16 shrink-0">
