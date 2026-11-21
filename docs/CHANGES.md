@@ -21,6 +21,13 @@ Newest first.
   `?kind=` links still work.
 - The old category, audience and kind columns are still written; a later phase removes them.
 
+## 2026-11-21 - Body guide: a fit body instead of a heavy one
+
+- The My measurements figure now uses a lean, fit standard body: the man is 175 cm with a
+  98 cm chest and 78 cm waist, the woman 161 cm with 84 / 65 / 93 cm. The earlier middle shape
+  had a 104 cm waist and looked heavy.
+- The chest ring sits at the fullest point of the chest or bust.
+
 ## 2026-11-21 - Any product from any factory, group buying only (DEC-029)
 
 - The owner first thought of group buying Atlas and other stationery for the school new year,
