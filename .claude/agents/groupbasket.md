@@ -7,7 +7,7 @@ description: "Lead agent for GroupBasket. Canonical business model, scope, respo
 
 ## 1. Purpose and authority
 
-This is the canonical project brief for GroupBasket's business model and product rules. Read it before planning or changing behavior. Last consolidated: **2026-11-08**, for the area agent model ([spec 003](../../specs/003-area-agent-model/spec.md), approved by the owner on 2026-11-07).
+This is the canonical project brief for GroupBasket's business model and product rules. Read it before planning or changing behavior. Last consolidated: **2026-11-08**, for the area agent model ([spec 003](../../specs/003-area-agent-model/spec.md), approved by the owner on 2026-11-07). Direction updated **2026-11-21** for any product (`DEC-029`).
 
 - Explicit user instructions govern the task, subject to the agent's system and developer instructions. Follow [AGENTS.md](../../AGENTS.md), including its Next.js documentation requirement.
 - This brief defines current business intent. [Implementation status](../../docs/implementation-status.md) records what the code supports. Code that differs from an approved requirement is a gap, not a new policy.
@@ -21,7 +21,9 @@ The rule IDs for buying, payment, baskets and delivery were rewritten for the ar
 
 ## 2. Business model
 
-GroupBasket is a Sri Lankan clothing marketplace. Partner factories list their own clothes, keep the stock and pack it. Buyers pay upfront and collect from a nearby **area agent**. GroupBasket earns a fixed commission per piece (`commissionPerPiece`, LKR 100 by default) on top of the factory price. It does not buy or store stock.
+**Direction (`DEC-029`, 2026-11-21, Planned):** GroupBasket becomes group buying for **any product from any kind of factory**, with no middleman. The seller is always the maker or brand owner. Price tiers by quantity (`DEAL-*`), a category tree with attributes (`CATG-*`) and percentage commission per category replace the clothing-only catalogue and the flat commission. Area agents stay as pickup points. Until each part is built, the rules below describe the code as it is.
+
+GroupBasket is a Sri Lankan group-buying marketplace (today: clothing). Partner factories list their own products, keep the stock and pack it. Buyers pay upfront and collect from a nearby **area agent**. GroupBasket earns a fixed commission per piece (`commissionPerPiece`, LKR 100 by default) on top of the factory price. It does not buy or store stock.
 
 ### Area agents and baskets
 
@@ -49,9 +51,9 @@ The promise is low cost for buyers (one shared courier per basket) and fast stoc
 
 | Topic               | Boundary                                                                                                                                                                                                                                                                           |
 | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Primary range       | Clothing and apparel.                                                                                                                                                                                                                                                              |
-| Secondary range     | Factory surplus and B-grade clothing.                                                                                                                                                                                                                                              |
-| Excluded range      | Shoes and footwear.                                                                                                                                                                                                                                                                |
+| Range               | Any product kind from its maker (`DEC-029`, Planned): stationery, household goods, food, electronics, clothing, shoes and more. Built today: clothing only. Banned and approval-only categories are open.                                                                          |
+| Condition           | New stock, factory surplus and B-grade, shown per product once `CATG-002` is built.                                                                                                                                                                                                |
+| Selling model       | Group buying only, factory or maker to buyer. No resellers, no single-seller retail shop.                                                                                                                                                                                          |
 | Premium gifts       | Parked. Brands would retain and directly fulfil gift stock, separate from clothing.                                                                                                                                                                                                |
 | Geography and money | Sri Lanka; LKR; display dates and business days in `Asia/Colombo`. Weeks end Saturday 23:59:59 Asia/Colombo (fixed UTC+05:30).                                                                                                                                                     |
 | Name                | The company and customer-facing name is **GroupBasket**. Always use GroupBasket in business references and `groupbasket` in technical names. The canonical brief is `groupbasket.md`; the npm package, agent and local databases use `groupbasket` (`groupbasket_test` for tests). |
@@ -90,6 +92,17 @@ These are summaries. Rule IDs below define behavior; the [architecture reference
 
 - **CAT-001 — Availability:** ordinary products appear in listings/search while some variant has free stock. Product links still open without free stock. Removing free stock prevents further purchases without releasing existing holds. Draft/review/live/archive statuses are unused.
 - **CAT-002 — Condition fields:** the current owner rule hides stock type and defect fields. Existing stock types are retained; new products are stored as `FACTORY_SURPLUS`. Legacy defect notes remain unused. Condition disclosure and after-sales exceptions are open (`DEC-005`), not permission to change behavior during unrelated work.
+
+- **CATG-001 — Category tree (Planned, `DEC-029`):** products belong to one category in an admin-managed tree (for example Stationery > Exercise books, Clothing > Men > Shirts). A category carries its attributes, commission, add-on features (`fit`, `materials`, `audience`), whether it needs approval, and its extra return reasons; children inherit what they leave unset.
+- **CATG-002 — Attributes and variant options (Planned, `DEC-029`):** each category lists the details a product gives (pages, voltage, volume and so on), which of them are buyer choices (variant axes such as size, colour, pages, flavour) and which are shop filters. A variant is any combination of the axes with its own stock, weight and size. Products also carry condition, sell unit (piece, pack, box, kg), minimum order and step quantity, and shelf life.
+- **CATG-003 — Factory categories (Planned, `DEC-029`):** a Factory admin approves which categories each factory may list. Restricted categories also need a product licence or trademark proof.
+
+### Group deals
+
+- **DEAL-001 — Deals and tiers (Planned, `DEC-029`):** a factory runs a deal on a product for a set time with quantity tiers (tier 1 starts at 1) and an optional capacity. Every unit ordered by all buyers in the deal, through any agent or own basket, counts toward the tier. The product page shows units sold and how many more reach the next price.
+- **DEAL-002 — Pay first tier, rebate later (Planned):** buyers pay tier 1's price. When the deal ends the sweep settles it once at the highest tier reached; each buyer gets `(paid − final) × qty` back as `DEAL_REBATE` tokens, and the factory is paid the final tier's factory price under `PAY-007`.
+- **DEAL-003 — Pricing apart from shipping (Planned):** the deal sets the price; baskets still decide delivery (`BSK-*`). A basket may ship before its deal settles. Missing items and returns before settlement reduce the count; after settlement the tier never changes.
+- **DEAL-004 — Commission per category (Planned):** each tier's buyer price is the factory price plus the category's commission percentage (with its minimum per unit), copied when the deal goes live. CORE sets category commission. Existing listings keep their snapshot.
 
 ### Administrative workspaces
 
@@ -196,7 +209,10 @@ Use [architecture.md](../../docs/architecture.md) for the data model, lifecycle,
 | [agents](agents.md)                   | Agent applications, deposits, hours, suspension, leaving and agent screens.       |
 | [courier](courier.md)                 | Factory packing, missing items, manual courier booking and receipt at the agent.  |
 | [notifications](notifications.md)     | In-app notices and partnership communication.                                     |
-| [catalogue-admin](catalogue-admin.md) | Clothing catalogue, stock, factory listings and general admin.                    |
+| [catalogue-admin](catalogue-admin.md) | Catalogue, stock, factory listings, quality and general admin.                    |
+| [taxonomy](taxonomy.md)               | Category tree, attributes, variant options and factory categories (planned).      |
+| [group-deals](group-deals.md)         | Deals, price tiers, settlement and rebate tokens (planned).                       |
+| [apparel-addons](apparel-addons.md)   | Fit, body mesh, Material Card and audience shop, for clothing categories only.    |
 | [brands-rewards](brands-rewards.md)   | Parked brand reviews, gift reservations, direct fulfilment and settlements.       |
 | [frontend](frontend.md)               | Role-specific pages, components and mobile interaction.                           |
 | [qa-review](qa-review.md)             | Rule verification and appropriate test coverage.                                  |

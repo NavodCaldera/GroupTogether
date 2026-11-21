@@ -10,9 +10,9 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## GroupBasket repository instructions
 
-Use **GroupBasket** in business references and `groupbasket` in technical names. Clothing
-and apparel are primary; factory surplus and B-grade clothing are secondary. Shoes and
-footwear are excluded. The [operating brief](.claude/agents/groupbasket.md) owns full policy.
+Use **GroupBasket** in business references and `groupbasket` in technical names. GroupBasket
+is group buying for any product kind straight from its maker, with no middleman (`DEC-029`,
+planned; the code is clothing only until built). The [operating brief](.claude/agents/groupbasket.md) owns full policy.
 
 ### Read order and authority
 
@@ -36,7 +36,10 @@ Their presence does not require spawning agents.
 | ---------------------------------------------------- | ------------------------------------------------------------------------------- |
 | [groupbasket](.claude/agents/groupbasket.md)         | Business model, scope, roles and policy across domains                          |
 | [backend-data](.claude/agents/backend-data.md)       | Schema, migrations, data access and seed fixtures                               |
-| [catalogue-admin](.claude/agents/catalogue-admin.md) | Clothing catalogue, stock, factory listings and general admin                   |
+| [catalogue-admin](.claude/agents/catalogue-admin.md) | Catalogue, stock, factory listings, quality and general admin                   |
+| [taxonomy](.claude/agents/taxonomy.md)               | Category tree, attributes, variant options and factory categories               |
+| [group-deals](.claude/agents/group-deals.md)         | Deals, price tiers, settlement, rebate tokens and category commission           |
+| [apparel-addons](.claude/agents/apparel-addons.md)   | Fit, body mesh, Material Card and audience shop for clothing categories         |
 | [orders-baskets](.claude/agents/orders-baskets.md)   | Cart, checkout, orders, agent baskets, stock holds, pickup codes and returns    |
 | [payments](.claude/agents/payments.md)               | Gateway adapter, verified notices, tokens and weekly factory payouts            |
 | [agents](.claude/agents/agents.md)                   | Agent applications, deposits, hours, suspension, leaving and agent screens      |

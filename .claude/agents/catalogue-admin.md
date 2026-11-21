@@ -1,6 +1,6 @@
 ---
 name: catalogue-admin
-description: "Clothing catalogue, variant stock, factory listings, quality and general admin for GroupBasket. Premium rewards have a separate specialist."
+description: "Catalogue for any product, variant stock, factory listings, quality and general admin for GroupBasket. Categories and attributes are owned by taxonomy, deals by group-deals, clothing fit and materials by apparel-addons; premium rewards have a separate specialist."
 ---
 
 # Catalogue Admin
@@ -54,7 +54,7 @@ Factories publish their own listings (`saveProduct` with `sellerId`, `src/app/se
 - Free variant stock controls ordinary shop listings, search, facets and suggestions. Product status/review columns are legacy, not a publish workflow.
 - Ordinary product links may remain accessible without free stock. Brand-linked gift products are excluded from public catalogue/direct lookup and paid additions. Catalogue eligibility must append `...IN_SHOP.AND`, never overwrite it, including lists, suggestions, facets, savings and direct details. `tests/integration/catalogue-eligibility.int.test.ts` broadens factory eligibility to verify the independent brand boundary.
 - Stock adjustments change available quantities only; never manually change reserved/sold counts or remove more free stock than exists.
-- Stock-type and defect fields/badges are hidden. Edits retain stored type; new products default to FACTORY_SURPLUS. Taxonomy offers clothing only; the legacy SHOES enum and image placeholder remain for stored rows.
+- Stock-type and defect fields/badges are hidden. Edits retain stored type; new products default to FACTORY_SURPLUS. Taxonomy offers clothing only until the category tree is built (`DEC-029`, [taxonomy](taxonomy.md)); the legacy SHOES enum and image placeholder remain for stored rows.
 - Product photos support JPEG/PNG/WebP up to 5 MB; the public photo route uses ETags. Gift photos use a separate private route.
 - Lots snapshot pricing settings, reprice linked products on cost edits and apply the scheduled reduction once. Existing cart-line prices stay fixed.
 - Log price changes through `logPrices`. In-store counts include paid orders until physical handover and unlisted lot pieces; capacity is reporting, not automatic purchasing approval.

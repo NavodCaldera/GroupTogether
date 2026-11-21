@@ -6,6 +6,26 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Any product from any factory, group buying only (DEC-029)
+
+- The owner first thought of group buying Atlas and other stationery for the school new year,
+  then widened it: GroupBasket becomes group buying for **any product from any kind of
+  factory**, no middleman, group buying only.
+- Owner answers: grow the current app (no new project); area agents stay as pickup points;
+  **price tiers by quantity**, counted across every buyer in a deal, buyers pay the first tier
+  and get the difference back as tokens at close; **commission becomes a percentage per
+  category**; the fit heatmap, body mesh, Material Card and audience shop stay for clothing
+  categories only.
+- Planned database: category tree with attributes, variant options of any kind instead of size
+  and colour, condition, sell unit, minimum order, weight and size, factory category approval,
+  `GroupDeal` and `PriceTier`, `DEAL_REBATE` tokens.
+- New specialists: [taxonomy](../.claude/agents/taxonomy.md),
+  [group-deals](../.claude/agents/group-deals.md),
+  [apparel-addons](../.claude/agents/apparel-addons.md). New planned rules `CATG-001`–`CATG-003`
+  and `DEAL-001`–`DEAL-004`. `DEC-025` now applies to clothing categories only.
+- Open: whether a deal can fail below a minimum, bulky items at agents, banned and
+  approval-only categories, the agent fee on very cheap or expensive items.
+
 ## 2026-11-21 - My measurements page tidied
 
 - Two cards, **About you** (height, fit, age group) and **Measurements** (camera button, then the

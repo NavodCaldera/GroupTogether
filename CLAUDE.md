@@ -21,6 +21,12 @@ The token ledger is append-only in the database: seed data cannot backdate entri
 Tokens page groups history by day and names the other person on transfers (2026-11-21). Its recipient box suggests any buyer or
 agent with full email and phone, by owner decision. Profile has no tokens box (Tokens tab only).
 
+GroupBasket is becoming group buying for any product from any factory, no middleman (`DEC-029`,
+2026-11-21, planned): category tree with attributes and variant options, price tiers counted
+across all buyers in a deal (difference back as tokens at close), percentage commission per
+category, agents kept as pickup points, clothing add-ons (fit, materials, audience shop) only in
+clothing categories. Built in phases, one pull request each.
+
 Check [implementation status](docs/implementation-status.md) before claiming a feature
 exists and [decisions](docs/decisions.md) before filling in unresolved commercial rules.
 Specialist files provide technical guidance; historical notes do not override current policy.
