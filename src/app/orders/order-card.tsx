@@ -3,13 +3,12 @@ import { ProductImage } from "@/components/cart-bits";
 import { CopyLinkButton } from "@/components/client";
 import { Badge } from "@/components/ui";
 import { D } from "@/lib/decimal";
-import { formatLKR } from "@/lib/format";
+import { formatDate, formatLKR } from "@/lib/format";
 import { appUrl } from "@/server/notify";
-import type { buyerHome } from "@/server/orders/buyer";
+import type { OwnProgress, buyerOrders } from "@/server/orders/buyer";
 import { orderTotal } from "@/server/orders/buyer";
 
-type Home = Awaited<ReturnType<typeof buyerHome>>;
-type Order = Home["orders"][number];
+type Order = Awaited<ReturnType<typeof buyerOrders>>["orders"][number];
 
 /** 0 Paid, 1 Filling, 2 On the way, 3 Ready / Delivered; null while unpaid. */
 function stepOf(o: Order): number | null {
@@ -28,41 +27,58 @@ function stepOf(o: Order): number | null {
   }
 }
 
-const done = (o: Order) =>
-  (o.status === "RECEIVED" && o.lines.every((l) => l.collectedAt || l.status !== "ACTIVE")) ||
-  o.basket?.status === "DELIVERED";
+/** Finished: collected, delivered or cancelled. */
+function endOf(o: Order): { label: string; tone: "good" | "bad" } | null {
+  if (o.status === "CANCELLED" || o.basket?.status === "CANCELLED")
+    return { label: "Cancelled", tone: "bad" };
+  if (o.basket?.status === "DELIVERED") return { label: "Delivered", tone: "good" };
+  if (o.status === "RECEIVED" && o.lines.every((l) => l.collectedAt || l.status !== "ACTIVE"))
+    return { label: "Collected", tone: "good" };
+  return null;
+}
+
+const done = (o: Order) => endOf(o) !== null;
+
+/** Orders page: what is still moving, then the finished ones (both newest first). */
+export function splitOrders(orders: Order[]) {
+  return { active: sortActive(orders.filter((o) => !done(o))), past: orders.filter(done) };
+}
 
 /**
  * The buyer home's orders (owner, 2026-11-21): the ones that need the buyer first (unpaid, ready,
  * still filling), collected or delivered ones dropped, three at most.
  */
 export function homeOrders(orders: Order[]) {
+  return sortActive(orders.filter((o) => !done(o))).slice(0, 3);
+}
+
+function sortActive(orders: Order[]) {
   const rank = (o: Order) => {
     const s = stepOf(o);
     return s === null ? 0 : s === 3 ? 1 : s === 1 ? 2 : 3;
   };
   return orders
-    .filter((o) => !done(o))
     .map((o, i) => ({ o, i }))
     .sort((a, b) => rank(a.o) - rank(b.o) || a.i - b.i)
-    .slice(0, 3)
     .map((x) => x.o);
 }
 
-export function HomeOrderCard({
+/** One order, item first: photo, product × qty, total, where it goes, and its progress. */
+export function OrderCard({
   order: o,
   own,
   ownMinItems,
   lockAt,
 }: {
   order: Order;
-  own: Home["own"];
+  own: OwnProgress;
   ownMinItems: number;
   lockAt: D;
 }) {
   const first = o.lines[0];
   const more = o.lines.length - 1;
-  const step = stepOf(o);
+  const end = endOf(o);
+  const step = end ? null : stepOf(o);
   const isOwn = o.basket?.kind === "OWN";
   const steps = ["Paid", "Filling", "On the way", isOwn ? "Delivered" : "Ready"];
   const ownInfo = o.basket ? own.get(o.basket.id) : undefined;
@@ -107,7 +123,7 @@ export function HomeOrderCard({
               href={`/orders/${o.id}`}
               className="min-w-0 font-semibold underline-offset-2 after:absolute after:inset-0 after:rounded-xl after:content-[''] hover:underline"
             >
-              <span className="line-clamp-1">
+              <span className="line-clamp-2">
                 {first?.variant.product.title ?? "Order"}
                 {first && first.qty > 1 && ` × ${first.qty}`}
               </span>
@@ -116,14 +132,13 @@ export function HomeOrderCard({
               {formatLKR(orderTotal(o))}
             </span>
           </div>
-          {more > 0 && (
-            <p className="text-sm text-subtle">
-              +{more} more item{more === 1 ? "" : "s"}
-            </p>
-          )}
-          {step === null && (
+          <p className="text-sm text-subtle">
+            {more > 0 && `+${more} more item${more === 1 ? "" : "s"} · `}
+            {formatDate(o.createdAt)} · {o.agent?.user.name ?? "Own basket"}
+          </p>
+          {(end || step === null) && (
             <span className="self-start">
-              <Badge tone="bad">Unpaid</Badge>
+              <Badge tone={end?.tone ?? "bad"}>{end?.label ?? "Unpaid"}</Badge>
             </span>
           )}
         </div>

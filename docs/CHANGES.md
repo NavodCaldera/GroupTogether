@@ -6,6 +6,14 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Orders page: item-first cards
+
+- The Orders page showed only the factory name, a Paid badge and "Own basket Packing", which told
+  the buyer little. It now uses the same card as the buyer home (photo, product × qty, total,
+  date and agent or "Own basket", the four-step tracker and next-step line), split into
+  "In progress" (unpaid, ready and filling first) and "Past" (Collected, Delivered or Cancelled
+  badge). Product names wrap to two lines on phones.
+
 ## 2026-11-21 - Buyer home: My orders cards
 
 - Each order on the buyer home now leads with what was bought: photo, product × qty, "+N more"

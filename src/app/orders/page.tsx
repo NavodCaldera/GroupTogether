@@ -1,19 +1,35 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Card, EmptyState, LinkButton, PageHeader } from "@/components/ui";
-import { formatDateTime, formatLKR } from "@/lib/format";
+import { EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
-import { buyerOrders, orderTotal } from "@/server/orders/buyer";
-import { BasketProgress, OrderBadge, factoryName } from "./order-bits";
+import { buyerOrders } from "@/server/orders/buyer";
+import { OrderCard, splitOrders } from "./order-card";
 
 export const metadata: Metadata = { title: "Orders" };
 
+/** Item-first cards (2026-11-21): orders still moving first, then collected, delivered or cancelled. */
 export default async function OrdersPage() {
   const user = await requireUser([...BUYER_ROLES], "/orders");
-  const { orders, lockAt } = await buyerOrders(user.id);
+  const { orders, own, ownMinItems, lockAt } = await buyerOrders(user.id);
+  const { active, past } = splitOrders(orders);
+  const list = (title: string, id: string, items: typeof orders) =>
+    items.length > 0 && (
+      <section aria-labelledby={id} className="flex flex-col gap-3">
+        <h2 id={id} className="text-lg font-semibold">
+          {title}
+        </h2>
+        <ul className="flex flex-col gap-3">
+          {items.map((o) => (
+            <li key={o.id}>
+              <OrderCard order={o} own={own} ownMinItems={ownMinItems} lockAt={lockAt} />
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
       <PageHeader
         title="Orders"
         actions={
@@ -29,33 +45,10 @@ export default async function OrdersPage() {
           </Link>
         </EmptyState>
       ) : (
-        <ul className="flex flex-col gap-3">
-          {orders.map((o) => (
-            <li key={o.id}>
-              <Card className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link
-                    href={`/orders/${o.id}`}
-                    className="inline-flex min-h-11 items-center font-semibold underline-offset-2 hover:underline sm:min-h-10"
-                  >
-                    {factoryName(o.factory)}
-                  </Link>
-                  <OrderBadge
-                    status={o.status}
-                    collected={o.lines.every((l) => l.collectedAt || l.status !== "ACTIVE")}
-                  />
-                </div>
-                <p className="text-sm text-subtle">
-                  {formatDateTime(o.createdAt)} · {o.agent?.user.name ?? "Own basket"} ·{" "}
-                  {formatLKR(orderTotal(o))}
-                </p>
-                {o.basket && o.status !== "CANCELLED" && (
-                  <BasketProgress basket={o.basket} lockAt={lockAt} />
-                )}
-              </Card>
-            </li>
-          ))}
-        </ul>
+        <>
+          {list("In progress", "orders-active", active)}
+          {list("Past", "orders-past", past)}
+        </>
       )}
     </div>
   );

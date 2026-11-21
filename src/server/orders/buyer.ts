@@ -118,35 +118,7 @@ export async function buyerHome(buyerId: string, now = new Date()) {
     }),
     tokenBalance(buyerId),
   ]);
-  // Open own baskets on the home cards: items so far, and the share link for the owner (DEC-023).
-  const openOwn = [
-    ...new Set(
-      orders.flatMap((o) =>
-        o.basket?.kind === "OWN" && o.basket.status === "OPEN" ? [o.basket.id] : [],
-      ),
-    ),
-  ];
-  const [ownLines, ownShares] = openOwn.length
-    ? await Promise.all([
-        db.orderLine.findMany({
-          where: { order: { basketId: { in: openOwn }, status: "PAID" } },
-          select: { qty: true, order: { select: { basketId: true } } },
-        }),
-        db.basket.findMany({
-          where: { id: { in: openOwn }, ownerId: buyerId },
-          select: { id: true, shareCode: true },
-        }),
-      ])
-    : [[], []];
-  const own = new Map(
-    openOwn.map((id) => [
-      id,
-      {
-        items: ownLines.reduce((n, l) => (l.order.basketId === id ? n + l.qty : n), 0),
-        shareCode: ownShares.find((b) => b.id === id)?.shareCode ?? null,
-      },
-    ]),
-  );
+  const own = await ownProgress(buyerId, orders);
   const pieces = new Map<string, number>();
   // The cash agent fee the buyer brings to each agent (DEC-019).
   const fees = new Map<string, D>();
@@ -199,7 +171,48 @@ export async function buyerOrders(buyerId: string) {
     db.order.findMany({ where: { buyerId }, select: orderSelect, orderBy: { createdAt: "desc" } }),
     getSettings(),
   ]);
-  return { orders, lockAt: toD(settings.basketLockAmount) };
+  return {
+    orders,
+    own: await ownProgress(buyerId, orders),
+    ownMinItems: settings.ownMinItems,
+    lockAt: toD(settings.basketLockAmount),
+  };
+}
+
+export type OwnProgress = Map<string, { items: number; shareCode: string | null }>;
+
+/** Open own baskets on order cards: items so far, and the share link for the owner (DEC-023). */
+async function ownProgress(
+  buyerId: string,
+  orders: { basket: { id: string; kind: string; status: string } | null }[],
+): Promise<OwnProgress> {
+  const openOwn = [
+    ...new Set(
+      orders.flatMap((o) =>
+        o.basket?.kind === "OWN" && o.basket.status === "OPEN" ? [o.basket.id] : [],
+      ),
+    ),
+  ];
+  if (!openOwn.length) return new Map();
+  const [lines, shares] = await Promise.all([
+    db.orderLine.findMany({
+      where: { order: { basketId: { in: openOwn }, status: "PAID" } },
+      select: { qty: true, order: { select: { basketId: true } } },
+    }),
+    db.basket.findMany({
+      where: { id: { in: openOwn }, ownerId: buyerId },
+      select: { id: true, shareCode: true },
+    }),
+  ]);
+  return new Map(
+    openOwn.map((id) => [
+      id,
+      {
+        items: lines.reduce((n, l) => (l.order.basketId === id ? n + l.qty : n), 0),
+        shareCode: shares.find((b) => b.id === id)?.shareCode ?? null,
+      },
+    ]),
+  );
 }
 
 /** One of the buyer's own orders, with its returns, ratings and the return window. */

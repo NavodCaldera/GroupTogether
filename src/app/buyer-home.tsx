@@ -7,7 +7,7 @@ import type { SessionUser } from "@/server/auth/service";
 import { listProducts } from "@/server/catalogue";
 import { audienceFor } from "@/lib/taxonomy";
 import { buyerHome } from "@/server/orders/buyer";
-import { HomeOrderCard, homeOrders } from "./home-order-card";
+import { OrderCard, homeOrders } from "./orders/order-card";
 
 /** Buyer home, most important first: ready to collect, returns to hand over, orders, shop. Tokens live on /tokens (owner removed the home card, 2026-11-21). */
 export async function BuyerHome({ user }: { user: SessionUser }) {
@@ -129,7 +129,7 @@ export async function BuyerHome({ user }: { user: SessionUser }) {
             </Link>
           </div>
           {orders.map((o) => (
-            <HomeOrderCard
+            <OrderCard
               key={o.id}
               order={o}
               own={home.own}
