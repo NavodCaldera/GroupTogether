@@ -6,6 +6,18 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-22 - Group deals with price tiers (DEC-029, phase 7)
+
+- Factories (Owner or Sales) create a draft deal on a product page with up to six quantity tiers,
+  an end time and an optional capacity, then go live. One live deal per product.
+- Buyers pay tier 1. Every unit paid by all buyers, at any agent or own basket, counts toward the
+  tier; units count once the payment is verified (held while unpaid, released on expiry).
+- The sweep closes ended deals, waits for unpaid orders, then settles once at the highest tier:
+  each kept unit gets (paid - final) back as DEAL_REBATE tokens and the factory is paid the
+  final factory price. No minimum: a deal always runs.
+- Missing items and returns before settlement reduce the count; after it the refund is the final
+  price. The product page shows "N sold · M more to Rs X" and the tiers.
+
 ## 2026-11-21 - Body guide: a fit body instead of a heavy one
 
 - The My measurements figure now uses a lean, fit standard body: the man is 175 cm with a

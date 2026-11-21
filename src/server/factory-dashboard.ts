@@ -293,6 +293,8 @@ export async function factoryEarnings(userId: string, now = new Date()) {
         missingQty: true,
         missingReportedQty: true,
         factoryPrice: true,
+        finalFactoryPrice: true,
+        dealId: true,
         returns: {
           where: { status: { in: PAYOUT_HOLD_RETURNS }, fault: "FACTORY" },
           select: { id: true },
@@ -324,10 +326,16 @@ export async function factoryEarnings(userId: string, now = new Date()) {
   let held = new D(0);
   let nextWeek = new D(0);
   for (const l of lines) {
-    const amount = lineEarning(l.qty, l.returnedQty, l.missingQty, toD(l.factoryPrice));
+    const price = toD(l.finalFactoryPrice ?? l.factoryPrice);
+    const amount = lineEarning(l.qty, l.returnedQty, l.missingQty, price);
     if (thisWeek.has(l.id)) earned = earned.plus(amount);
-    // A pending missing report or an open return holds the line from the payout.
-    else if (l.missingReportedQty > 0 || l.returns.length) held = held.plus(amount);
+    // A pending missing report, an open return or an unsettled group deal holds the line.
+    else if (
+      l.missingReportedQty > 0 ||
+      l.returns.length ||
+      (l.dealId !== null && l.finalFactoryPrice === null)
+    )
+      held = held.plus(amount);
     // Received too close to Saturday 23:59: it goes into the following week's payout.
     else nextWeek = nextWeek.plus(amount);
   }
@@ -358,6 +366,7 @@ async function paidLines(factoryId: string) {
       missingQty: true,
       returnedQty: true,
       factoryPrice: true,
+      finalFactoryPrice: true,
       variant: { select: { size: true, productId: true } },
     },
   });
@@ -400,7 +409,9 @@ export async function factoryProducts(factoryId: string) {
     for (const l of mine) {
       const sold = Math.max(l.qty - l.missingQty - l.returnedQty, 0);
       pieces += sold;
-      value = value.plus(lineEarning(l.qty, l.returnedQty, l.missingQty, toD(l.factoryPrice)));
+      value = value.plus(
+        lineEarning(l.qty, l.returnedQty, l.missingQty, toD(l.finalFactoryPrice ?? l.factoryPrice)),
+      );
       bySize.set(l.variant.size, (bySize.get(l.variant.size) ?? 0) + sold);
     }
     const best = [...bySize].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;

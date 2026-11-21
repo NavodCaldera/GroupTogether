@@ -2,6 +2,7 @@ import "server-only";
 import { weekEnding } from "@/lib/agent-rules";
 import { sweepBodyOutlines } from "./body-fit-jobs";
 import { db } from "./db";
+import { sweepDeals } from "./deals";
 import { sweepDeepFits } from "./deep-fit-jobs";
 import { storage } from "./storage";
 import { getSettings } from "./settings";
@@ -122,6 +123,9 @@ export async function runSweep(now = new Date()): Promise<Record<string, number>
     }
   };
   await step("expiredOrders", () => expireOrders(now));
+  // After expiry (which returns held deal units) and before the weekly payouts that pay settled
+  // deal lines.
+  await step("deals", () => sweepDeals(now));
   await step("maxWaitLocked", () => lockWaitedBaskets(now));
   await step("ownBaskets", () => sweepOwnBaskets(now));
   await step("escalatedReturns", () => escalateOverdue(now));

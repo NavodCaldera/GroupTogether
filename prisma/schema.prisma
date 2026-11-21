@@ -117,6 +117,8 @@ model User {
   payoutDeductions     PayoutDeduction[] @relation("DeductionFactory")
   bookedCouriers       CourierBooking[]  @relation("CourierBookedBy")
   agentLossDecisions   AgentLoss[]       @relation("AgentLossDecider")
+  /// Group deals this factory runs (DEAL-001)
+  groupDeals           GroupDeal[]       @relation("FactoryDeals")
 
   @@index([factoryId])
 }
@@ -230,6 +232,8 @@ model Product {
   clusterDrapes  ClusterDrape[]
   /// Fabric per role from the material library (DEC-022)
   materials      ProductMaterial[]
+  /// Group deals with price tiers (DEAL-001)
+  groupDeals     GroupDeal[]
 
   @@index([status, category])
   @@index([sellerId])
@@ -628,6 +632,8 @@ enum TokenKind {
   DEPOSIT_RETURN
   TRANSFER_OUT
   TRANSFER_IN
+  /// A group deal settled below the price paid (DEAL-002)
+  DEAL_REBATE
 }
 
 model TokenEntry {
@@ -1185,6 +1191,13 @@ model OrderLine {
   missingReportedAt   DateTime?
   missingReportedById String?
   collectedAt         DateTime?
+  /// Group deal lines (DEAL-002): the deal, tier 1's buyer price paid, and the final tier's buyer
+  /// and factory prices once the deal settles
+  dealId              String?
+  deal                GroupDeal? @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  paidUnitPrice       Decimal?   @db.Decimal(14, 2)
+  finalUnitPrice      Decimal?   @db.Decimal(14, 2)
+  finalFactoryPrice   Decimal?   @db.Decimal(14, 2)
 
   returns     ReturnRequest[]
   payoutItems PayoutItem[]
@@ -1192,6 +1205,59 @@ model OrderLine {
 
   @@index([orderId])
   @@index([variantId])
+  @@index([dealId])
+}
+
+enum DealStatus {
+  DRAFT
+  LIVE
+  /// Ended; waits for unpaid orders to pay or expire, then settles
+  CLOSED
+  SETTLED
+  CANCELLED
+}
+
+/// A factory's group deal on one product (DEAL-001, DEC-029). At most one LIVE deal per product
+/// (partial unique index in SQL). unitsHeld counts units in orders waiting for payment; they move
+/// to unitsSold when the payment is verified, so tiers count paid units only.
+model GroupDeal {
+  id          String     @id @default(cuid())
+  productId   String
+  product     Product    @relation(fields: [productId], references: [id], onDelete: Restrict)
+  factoryId   String
+  factory     User       @relation("FactoryDeals", fields: [factoryId], references: [id], onDelete: Restrict)
+  startsAt    DateTime   @default(now())
+  endsAt      DateTime
+  /// The factory's capacity; no new orders beyond it
+  maxQty      Int?
+  status      DealStatus @default(DRAFT)
+  unitsSold   Int        @default(0)
+  unitsHeld   Int        @default(0)
+  finalTierId String?    @unique
+  finalTier   PriceTier? @relation("DealFinalTier", fields: [finalTierId], references: [id], onDelete: Restrict)
+  settledAt   DateTime?
+  createdAt   DateTime   @default(now())
+
+  tiers PriceTier[] @relation("DealTiers")
+  lines OrderLine[]
+
+  @@index([status, endsAt])
+  @@index([productId, status])
+  @@index([factoryId])
+}
+
+model PriceTier {
+  id           String     @id @default(cuid())
+  dealId       String
+  deal         GroupDeal  @relation("DealTiers", fields: [dealId], references: [id], onDelete: Cascade)
+  /// Tier 1 has minQty 1
+  minQty       Int
+  factoryPrice Decimal    @db.Decimal(14, 2)
+  /// factoryPrice + commission, copied when the deal goes live (src/lib/price-rules.ts)
+  buyerPrice   Decimal    @db.Decimal(14, 2)
+  finalOf      GroupDeal? @relation("DealFinalTier")
+
+  @@unique([dealId, minQty])
 }
 
 enum PaymentPurpose {

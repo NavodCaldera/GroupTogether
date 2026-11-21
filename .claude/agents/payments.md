@@ -34,6 +34,7 @@ returns give no tokens and never hold payouts (`DEC-017`, `DEC-018`).
 - Payouts and agent fees: `src/server/payouts/index.ts` (`weekOf`, `payableLines`,
   `buildWeeklyPayouts`, `creditAgentFees`, `markPayoutPaid`); Core pages `src/app/admin/core/`.
 - Sweep: `src/server/sweep.ts` `runSweep`, called only by `/api/cron/sweep`.
+- Group deals: `src/server/deals.ts` (`sweepDeals` settlement, `DEAL_REBATE` key `deal-rebate:<dealId>:<orderLineId>`); payouts hold unsettled deal lines and pay `finalFactoryPrice`.
 - Order and basket effects of a payment belong to [orders-baskets](orders-baskets.md); deposits
   to [agents](agents.md).
 

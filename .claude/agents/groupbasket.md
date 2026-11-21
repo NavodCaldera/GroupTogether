@@ -99,9 +99,9 @@ These are summaries. Rule IDs below define behavior; the [architecture reference
 
 ### Group deals
 
-- **DEAL-001 — Deals and tiers (Planned, `DEC-029`):** a factory runs a deal on a product for a set time with quantity tiers (tier 1 starts at 1) and an optional capacity. Every unit ordered by all buyers in the deal, through any agent or own basket, counts toward the tier. The product page shows units sold and how many more reach the next price.
-- **DEAL-002 — Pay first tier, rebate later (Planned):** buyers pay tier 1's price. When the deal ends the sweep settles it once at the highest tier reached; each buyer gets `(paid − final) × qty` back as `DEAL_REBATE` tokens, and the factory is paid the final tier's factory price under `PAY-007`.
-- **DEAL-003 — Pricing apart from shipping (Planned):** the deal sets the price; baskets still decide delivery (`BSK-*`). A basket may ship before its deal settles. Missing items and returns before settlement reduce the count; after settlement the tier never changes.
+- **DEAL-001 — Deals and tiers (Built 2026-11-22, `DEC-029`):** a factory runs a deal on a product for a set time with quantity tiers (tier 1 starts at 1) and an optional capacity. Every unit ordered by all buyers in the deal, through any agent or own basket, counts toward the tier. The product page shows units sold and how many more reach the next price.
+- **DEAL-002 — Pay first tier, rebate later (Built 2026-11-22):** buyers pay tier 1's price. When the deal ends the sweep settles it once at the highest tier reached; each buyer gets `(paid − final) × qty` back as `DEAL_REBATE` tokens, and the factory is paid the final tier's factory price under `PAY-007`.
+- **DEAL-003 — Pricing apart from shipping (Built 2026-11-22):** the deal sets the price; baskets still decide delivery (`BSK-*`). A basket may ship before its deal settles. Missing items and returns before settlement reduce the count; after settlement the tier never changes.
 - **DEAL-004 — Commission per category (Planned):** each tier's buyer price is the factory price plus the category's commission percentage (with its minimum per unit), copied when the deal goes live. CORE sets category commission. Existing listings keep their snapshot.
 
 ### Administrative workspaces

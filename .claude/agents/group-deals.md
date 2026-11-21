@@ -16,7 +16,7 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `DEAL-001`–`DEAL-004`, `DEC-029`, `PAY-004`, `PAY-007`, `TOK-001`, `BSK-*`,
 `BSK-007`, `RETURN-001`.
 
-**Status: Planned.** Today prices are fixed: `buyerPrice = factoryPrice + commission`
+**Status: Built 2026-11-22** (`src/server/deals.ts`, `src/lib/deal-rules.ts`, `src/server/deal-actions.ts`, factory card `src/app/seller/(workspace)/products/[id]/deal-section.tsx`, buyer bar `src/components/deal-bar.tsx`). Commission is still the listing snapshot via `commissionFor` until phase 6. Before: Today prices are fixed: `buyerPrice = factoryPrice + commission`
 (`src/lib/price-rules.ts`), with `Settings.commissionPerPiece` snapshotted into
 `Product.commission` and copied to `OrderLine.unitPrice`/`factoryPrice` at order time.
 
