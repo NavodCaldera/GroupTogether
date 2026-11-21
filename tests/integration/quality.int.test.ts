@@ -33,11 +33,9 @@ async function fixture() {
       data: {
         sellerId: factory.id,
         title,
-        category: "APPAREL",
         factoryPrice: "1400",
         commission: "100",
-        kind: "men-shirts",
-        audience: "MEN",
+        categoryId: "cat_clothing_men_shirts",
       },
     });
   return { admin, warehouse, member, factory, a, b };

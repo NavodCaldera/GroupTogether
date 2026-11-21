@@ -1,5 +1,6 @@
 import "server-only";
 import type { OrderTotals } from "@/lib/agent-money";
+import { qtyProblem } from "@/lib/order-qty";
 import { db } from "../db";
 import { getSettings } from "../settings";
 import { assertBuyer, CheckoutError, loadCart, ratesOf, type CartLineView } from "./checkout";
@@ -19,7 +20,16 @@ export async function setCartItem(buyerId: string, variantId: string, qty: numbe
     where: { id: variantId },
     select: {
       available: true,
-      product: { select: { title: true, status: true, sellerId: true, factoryPrice: true } },
+      product: {
+        select: {
+          title: true,
+          status: true,
+          sellerId: true,
+          factoryPrice: true,
+          minOrderQty: true,
+          stepQty: true,
+        },
+      },
     },
   });
   if (
@@ -29,6 +39,8 @@ export async function setCartItem(buyerId: string, variantId: string, qty: numbe
     variant.product.factoryPrice === null
   )
     throw new CheckoutError("No longer available");
+  const problem = qtyProblem(qty, variant.product, variant.product.title);
+  if (problem) throw new CheckoutError(problem);
   if (variant.available < qty)
     throw new CheckoutError(`Only ${variant.available} left of ${variant.product.title}`);
   await db.cartItem.upsert({

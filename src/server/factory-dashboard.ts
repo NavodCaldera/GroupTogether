@@ -379,7 +379,7 @@ export async function factoryProducts(factoryId: string) {
         id: true,
         title: true,
         brand: true,
-        category: true,
+        categoryRef: { select: { slug: true } },
         status: true,
         price: true,
         photoKey: true,

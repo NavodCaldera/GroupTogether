@@ -33,7 +33,7 @@ The authoritative field definitions and constraints are in [schema.prisma](../pr
 | Parked premium brands | `StockOffer`, `GiftOrder`, `GiftSettlement`, `BrandConversation`, `BrandMessage`, `BrandConversationRead`, `BrandOfferRevision`. |
 | Configuration and notices | `Settings` is a singleton with commission, the agent fee rate (`agentFeeRate`, 5%, paid in cash at pickup), gateway fee rate, basket lock amount, maximum wait, payment hold, collection, return and buyer-fault handover windows, agent radius and gap, deposit, and the payout watermark. `Notification` stores in-app notices and read state. |
 
-Legacy schema values do not define the current product scope. `SHOES` still exists in the legacy category enum (`LegacyCategory`, renamed from `Category` when the tree table took that name), and `Product.status`, `reviewNote`, `stockType` and `defectNotes` remain for compatibility.
+Legacy schema values do not define the current product scope. The old category, audience, kind and stock type columns were dropped in `DEC-029` phase 4: a product's audience and clothing kind come from its category slug, and `Product.condition` replaces the stock type. `Product.status`, `reviewNote` and `defectNotes` remain for compatibility.
 
 ## Orders, baskets and fulfilment
 

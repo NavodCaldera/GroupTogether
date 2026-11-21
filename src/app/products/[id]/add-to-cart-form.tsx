@@ -83,18 +83,23 @@ export function AddToCartForm({
   variants,
   axes,
   cartHref,
+  minOrderQty = 1,
+  stepQty = 1,
 }: {
   /** Unit price as a decimal string (never a JS number) */
   price: string;
   variants: Variant[];
   axes: Axis[];
   cartHref: string;
+  /** Order quantity rule (src/lib/order-qty.ts) */
+  minOrderQty?: number;
+  stepQty?: number;
 }) {
   const [state, action, pending] = useActionState<AddState, FormData>(addToCartAction, {});
   const [variantId, setVariantId] = useState(variants.find((v) => v.available > 0)?.id ?? "");
   const current = variants.find((v) => v.id === variantId);
   const max = current?.available ?? 0;
-  const [qty, setQty] = useState("1");
+  const [qty, setQty] = useState(String(minOrderQty));
   const count = /^\d+$/.test(qty) ? Number(qty) : 0;
   const total = new D(price).mul(count);
 
@@ -122,8 +127,9 @@ export function AddToCartForm({
           <Input
             name="qty"
             type="number"
-            min={1}
-            max={Math.max(1, Math.min(99, max))}
+            min={minOrderQty}
+            step={stepQty}
+            max={Math.max(minOrderQty, Math.min(Math.max(99, minOrderQty), max))}
             value={qty}
             onChange={(e) => setQty(e.target.value)}
             className="w-24"

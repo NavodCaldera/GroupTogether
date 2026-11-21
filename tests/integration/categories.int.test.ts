@@ -39,21 +39,6 @@ async function rolledBack<T>(
   return out as T;
 }
 
-const legacy = (id: string, kind: string | null, category: "APPAREL" | "SHOES" = "APPAREL") =>
-  db.product.create({
-    data: {
-      id,
-      title: id,
-      brand: "Test",
-      category,
-      kind,
-      categoryId: CLOTHING_ROOT_ID,
-      stockType: "FACTORY_SURPLUS",
-      price: "1000",
-      status: "LIVE",
-    },
-  });
-
 const snapshot = async (tx: typeof db | Parameters<Parameters<typeof db.$transaction>[0]>[0]) => ({
   categories: (
     await tx.category.findMany({
@@ -88,62 +73,56 @@ describe("category_tree migration", () => {
     await ensureCategoryTree();
     expect(await db.category.count()).toBe((await snapshot(db)).categories.length);
   });
-
-  it("links each product to the leaf for its kind, or to a root", async () => {
-    await legacy("shirt", "men-shirts");
-    await legacy("dress", "women-dresses");
-    await legacy("set", "kid-sets");
-    await legacy("plain", null);
-    await legacy("odd", "men");
-    await legacy("unknown", "boy-shoes", "SHOES");
-    await legacy("oldshoe", null, "SHOES");
-    const linked = await rolledBack(async (tx) => {
-      await tx.$executeRawUnsafe(`ALTER TABLE "Product" ALTER COLUMN "categoryId" DROP NOT NULL`);
-      await tx.$executeRawUnsafe(`UPDATE "Product" SET "categoryId" = NULL`);
-      const [backfill] = block("backfill");
-      await tx.$executeRawUnsafe(backfill);
-      return tx.product.findMany({ select: { id: true, categoryId: true } });
-    });
-    expect(Object.fromEntries(linked.map((p) => [p.id, p.categoryId]))).toEqual({
-      shirt: "cat_clothing_men_shirts",
-      dress: "cat_clothing_women_dresses",
-      set: "cat_clothing_kid_sets",
-      plain: CLOTHING_ROOT_ID,
-      odd: CLOTHING_ROOT_ID,
-      unknown: "cat_shoes",
-      oldshoe: "cat_shoes",
-    });
-  });
+  // The backfill that linked products by their old kind column ran once; phase 4 (DEC-029)
+  // dropped that column, so it is checked by the migration on CI's fresh database instead.
 });
 
 describe("saving a product's category", () => {
   const base = { title: "Tree shirt", brand: "Test", price: "1400" };
 
-  it("stores the chosen leaf and still writes the old columns", async () => {
+  it("stores the chosen leaf with the general fields", async () => {
     const id = categoryIdOf(kindSlug("women-dresses"));
     const p = await saveProduct(null, { ...base, categoryId: id }, null);
     expect(p).toMatchObject({
       categoryId: id,
-      audience: "WOMEN",
-      kind: "women-dresses",
-      category: "APPAREL",
       specs: {},
+      condition: "NEW",
+      sellUnit: "piece",
+      minOrderQty: 1,
+      stepQty: 1,
+      hazmat: false,
     });
-    const moved = await saveProduct(p.id, { ...base, categoryId: "cat_shoes" }, null);
+    const moved = await saveProduct(
+      p.id,
+      {
+        ...base,
+        categoryId: "cat_shoes",
+        condition: "B_GRADE",
+        sellUnit: "pack",
+        minOrderQty: "12",
+        stepQty: "12",
+        shelfLifeDays: "",
+        hazmat: "on",
+      },
+      null,
+    );
     expect(moved).toMatchObject({
       categoryId: "cat_shoes",
-      audience: null,
-      kind: null,
-      category: "SHOES",
+      condition: "B_GRADE",
+      sellUnit: "pack",
+      minOrderQty: 12,
+      stepQty: 12,
+      shelfLifeDays: null,
+      hazmat: true,
     });
   });
 
-  it("maps an older audience and kind to the tree", async () => {
-    const p = await saveProduct(null, { ...base, audience: "MEN", kind: "men-shirts" }, null);
+  it("maps an older kind to the tree", async () => {
+    const p = await saveProduct(null, { ...base, kind: "men-shirts" }, null);
     expect(p.categoryId).toBe("cat_clothing_men_shirts");
   });
 
-  it("refuses a missing, parent, inactive or mismatched category", async () => {
+  it("refuses a missing, parent or inactive category", async () => {
     await expect(saveProduct(null, base, null)).rejects.toThrow("Choose a category");
     for (const categoryId of [CLOTHING_ROOT_ID, "cat_clothing_men", "nope"])
       await expect(saveProduct(null, { ...base, categoryId }, null)).rejects.toThrow(
@@ -153,9 +132,6 @@ describe("saving a product's category", () => {
     await expect(
       saveProduct(null, { ...base, categoryId: "cat_clothing_men_shirts" }, null),
     ).rejects.toThrow("Choose a category");
-    await expect(
-      saveProduct(null, { ...base, categoryId: "cat_clothing_kid_sets", audience: "MEN" }, null),
-    ).rejects.toThrow("isn't offered");
   });
 });
 
@@ -190,6 +166,93 @@ describe("shop by category", () => {
     const dresses = groups
       .flatMap((g) => g.options)
       .find((o) => o.value === "clothing/women/dresses");
-    expect(dresses?.sizes).toContain("M");
+    const size = dresses?.attributes.find((a) => a.key === "size");
+    expect(size).toMatchObject({ isVariantAxis: true, filterable: true });
+    expect(size?.values.map((v) => v.value)).toContain("M");
+  });
+});
+
+describe("product specs", () => {
+  const base = { title: "Exercise book", brand: "Atlas", price: "250" };
+
+  async function stationery() {
+    const root = await db.category.create({
+      data: {
+        id: "cat_t_stationery",
+        slug: "t-stationery",
+        name: "Stationery",
+        path: "/cat_t_stationery/",
+      },
+    });
+    const leaf = await db.category.create({
+      data: {
+        id: "cat_t_books",
+        parentId: root.id,
+        slug: "t-stationery/books",
+        name: "Books",
+        path: "/cat_t_stationery/cat_t_books/",
+      },
+    });
+    const pages = await db.attributeDef.create({
+      data: { key: "t_pages", label: "Pages", type: "NUMBER" },
+    });
+    const ruling = await db.attributeDef.create({
+      data: {
+        key: "t_ruling",
+        label: "Ruling",
+        type: "ENUM",
+        options: {
+          create: [
+            { value: "single", label: "Single ruled" },
+            { value: "square", label: "Square" },
+          ],
+        },
+      },
+    });
+    await db.categoryAttribute.createMany({
+      data: [
+        { categoryId: root.id, defId: pages.id, required: true, filterable: true },
+        { categoryId: leaf.id, defId: ruling.id, filterable: true },
+      ],
+    });
+    return leaf.id;
+  }
+
+  it("checks values against inherited attributes and stores them typed", async () => {
+    const categoryId = await stationery();
+    await expect(saveProduct(null, { ...base, categoryId }, null)).rejects.toThrow("Pages");
+    await expect(
+      saveProduct(
+        null,
+        { ...base, categoryId, "spec.t_pages": "80", "spec.t_ruling": "dots" },
+        null,
+      ),
+    ).rejects.toThrow(CatalogueError);
+    const p = await saveProduct(
+      null,
+      { ...base, categoryId, "spec.t_pages": "80", "spec.t_ruling": "single", "spec.nope": "x" },
+      null,
+    );
+    expect(p.specs).toEqual({ t_pages: 80, t_ruling: "single" });
+  });
+
+  it("filters the shop by a spec", async () => {
+    const categoryId = await stationery();
+    const make = async (pages: string) => {
+      const p = await saveProduct(null, { ...base, categoryId, "spec.t_pages": pages }, null);
+      await db.variant.create({
+        data: { productId: p.id, options: {}, optionKey: "", label: "", available: 3 },
+      });
+      return p.id;
+    };
+    const eighty = await make("80");
+    await make("120");
+    const tree = await loadCategoryTree();
+    const { resolveAttributes } = await import("@/lib/categories");
+    const found = await listProducts({
+      specs: { t_pages: "80" },
+      attributes: resolveAttributes(tree, categoryId),
+    });
+    expect(found.map((p) => p.id)).toEqual([eighty]);
   });
 });

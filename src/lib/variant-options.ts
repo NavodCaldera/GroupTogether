@@ -113,18 +113,13 @@ export function optionsFromSizeColour(size: string, colour = ""): VariantOptions
   return cleanOptions({ size, colour });
 }
 
-/**
- * Every stored column for a variant's options. `size` and `colour` are kept in step until a later
- * phase drops them.
- */
+/** Every stored column for a variant's options. */
 export function variantFields(options: VariantOptions) {
   const clean = cleanOptions(options);
   return {
     options: clean,
     optionKey: optionKeyOf(clean),
     label: variantLabel(clean),
-    size: clean.size ?? "",
-    colour: clean.colour ?? "",
   };
 }
 

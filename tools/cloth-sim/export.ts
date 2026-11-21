@@ -13,7 +13,15 @@ import type { PrismaClient } from "../../src/generated/prisma/client";
 import { Prisma } from "../../src/generated/prisma/client";
 import { fitClass, readChart } from "../../src/lib/fit/data";
 import { isShort } from "../../src/lib/fit/drape";
-import { DEEP_FIT_MOTIONS, FIT_DATA_SELECT, fitDataHash } from "../../src/server/deep-fit-jobs";
+import {
+  DEEP_FIT_MOTIONS,
+  FIT_DATA_SELECT,
+  fitDataHash,
+  fitKind,
+} from "../../src/server/deep-fit-jobs";
+import { audienceOfSlug } from "../../src/lib/categories";
+
+const genderOf = (a: string | null) => (a === "MEN" || a === "WOMEN" ? a : null);
 
 export interface DrapeExport {
   products: {
@@ -45,9 +53,12 @@ export async function exportDrapeJobs(
         ...where,
         fitApprovedAt: { not: null },
         sizeChart: { not: Prisma.DbNull },
-        OR: [{ audience: null }, { audience: { in: ["MEN", "WOMEN"] } }],
+        // Men's, women's and unisex garments: not girls', boys' or kids'.
+        NOT: ["girl", "boy", "kid"].map((a) => ({
+          categoryRef: { slug: { startsWith: `clothing/${a}/` } },
+        })),
       },
-      select: { id: true, title: true, audience: true, ...FIT_DATA_SELECT },
+      select: { id: true, title: true, ...FIT_DATA_SELECT },
       orderBy: { id: "asc" },
     }),
     db.bodyArchetype.findMany({
@@ -65,10 +76,10 @@ export async function exportDrapeJobs(
           id: p.id,
           title: p.title,
           fitDataHash: fitDataHash(p),
-          gender: p.audience === "MEN" || p.audience === "WOMEN" ? p.audience : null,
+          gender: genderOf(audienceOfSlug(p.categoryRef.slug)),
           job: {
-            cls: fitClass(p.kind),
-            short: isShort(p.kind),
+            cls: fitClass(fitKind(p)),
+            short: isShort(fitKind(p)),
             sizes,
             fabric: { gsm: p.gsm, stretch_pct: p.fabricStretchPct, weave: p.weave },
             motions: [...DEEP_FIT_MOTIONS],

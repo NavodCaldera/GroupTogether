@@ -50,9 +50,7 @@ export async function makeVariant(price: string, available: number) {
     data: {
       title: `Shirt ${++n}`,
       brand: "Test",
-      category: "APPAREL",
       categoryId: CLOTHING_ROOT_ID,
-      stockType: "FACTORY_SURPLUS",
       price,
       status: "LIVE",
       variants: { create: { ...sizeVariant("M"), available } },
@@ -98,9 +96,7 @@ export async function makeFactory() {
     data: {
       title: `Shirt ${n}`,
       brand: "Test",
-      category: "APPAREL",
       categoryId: CLOTHING_ROOT_ID,
-      stockType: "FACTORY_SURPLUS",
       price: "1100",
       factoryPrice: "1000",
       commission: "100",

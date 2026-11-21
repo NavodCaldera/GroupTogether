@@ -24,9 +24,7 @@ describe("factory admin stakeholder routing", () => {
         title: "Historical brand gift",
         brand: "Premium",
         sellerId: brand.id,
-        category: "APPAREL",
         categoryId: CLOTHING_ROOT_ID,
-        stockType: "FACTORY_SURPLUS",
         price: "1500",
       },
     });

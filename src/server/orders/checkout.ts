@@ -19,6 +19,7 @@ import { appUrl } from "../notify";
 import { markOrdersPaid } from "./baskets";
 import { lockBasketSlot, withOrderTransaction } from "./locks";
 import { holdDealUnits, liveDealPrices } from "../deals";
+import { qtyProblem } from "@/lib/order-qty";
 
 export class CheckoutError extends CartError {}
 
@@ -38,6 +39,9 @@ export type CartLineView = {
   inStock: number;
   /** The product can still be bought */
   available: boolean;
+  /** Order quantity rule (src/lib/order-qty.ts) */
+  minOrderQty: number;
+  stepQty: number;
 };
 
 type CartGroup = {
@@ -86,6 +90,8 @@ export async function loadCart(
               price: true,
               factoryPrice: true,
               sellerId: true,
+              minOrderQty: true,
+              stepQty: true,
               seller: { select: { name: true, company: true } },
             },
           },
@@ -121,6 +127,8 @@ export async function loadCart(
       dealId: deal?.dealId ?? null,
       inStock: item.variant.available,
       available: p.status === "LIVE" && p.sellerId !== null && p.factoryPrice !== null,
+      minOrderQty: p.minOrderQty,
+      stepQty: p.stepQty,
     });
     groups.set(key, group);
   }
@@ -164,8 +172,11 @@ async function planCheckout(
   const groups = await loadCart(tx, buyerId, rates, variantIds);
   if (!groups.length) throw new CheckoutError("Your cart is empty");
   for (const g of groups)
-    for (const l of g.lines)
+    for (const l of g.lines) {
       if (!l.available) throw new CheckoutError(`No longer available: ${l.title}`);
+      const problem = qtyProblem(l.qty, l, l.title);
+      if (problem) throw new CheckoutError(problem);
+    }
   if (wanted.gt(0)) {
     try {
       await assertTokenHolder(tx, buyerId);

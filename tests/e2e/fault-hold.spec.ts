@@ -14,11 +14,11 @@ test.beforeEach(async () => {
     const buyer = (await db.query('SELECT id FROM "User" WHERE email=$1', ["buyer3@example.com"]))
       .rows[0].id;
     await db.query(
-      `INSERT INTO "Product" (id,title,brand,category,"categoryId","stockType",price,status,"sellerId",audience,kind,"updatedAt") VALUES ('fault-shirt','Fault review shirt','Lanka','APPAREL','cat_clothing_men_shirts','FACTORY_SURPLUS',1500,'LIVE',$1,'MEN','men-shirts',now())`,
+      `INSERT INTO "Product" (id,title,brand,"categoryId",condition,price,status,"sellerId","updatedAt") VALUES ('fault-shirt','Fault review shirt','Lanka','cat_clothing_men_shirts','FACTORY_SURPLUS',1500,'LIVE',$1,now())`,
       [factory],
     );
     await db.query(
-      `INSERT INTO "Variant" (id,"productId",size,options,"optionKey",label,available,sold) VALUES ('fault-size','fault-shirt','M','{"size":"M"}','size=m','M',5,2)`,
+      `INSERT INTO "Variant" (id,"productId",options,"optionKey",label,available,sold) VALUES ('fault-size','fault-shirt','{"size":"M"}','size=m','M',5,2)`,
     );
     const agent = (
       await db.query(

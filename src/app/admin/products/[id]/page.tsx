@@ -2,12 +2,15 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { BackLink } from "@/components/client";
 import { StockTable } from "@/components/stock-table";
+import { VariantAxisFields } from "@/components/variant-axis-fields";
+import { choiceAttributes, loadCategoryTree } from "@/server/categories";
 import { Badge, Button, Card, Field, Input, PageHeader, LinkButton } from "@/components/ui";
 import { FitDataForm } from "@/components/fit-data-form";
 import { saveAdminFitAction, setFitApprovedAction } from "@/server/fit-actions";
 import { adjustStockAction, setProductHiddenAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
+import { kindOfSlug } from "@/lib/categories";
 import { AdminForm } from "../../admin-form";
 import { ProductForm } from "../product-form";
 
@@ -24,6 +27,10 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
     },
   });
   if (!product) notFound();
+  const tree = await loadCategoryTree();
+  const axes = choiceAttributes(tree, product.categoryId).filter((a) => a.isVariantAxis);
+  // The clothing kind comes from the category (DEC-029); fit fields follow it.
+  const kind = kindOfSlug(tree.get(product.categoryId)?.slug ?? "");
   const seller = product.sellerId
     ? await db.user.findUnique({
         where: { id: product.sellerId },
@@ -90,26 +97,23 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
                 <input type="hidden" name="approve" value={product.fitApprovedAt ? "0" : "1"} />
               </AdminForm>
             )}
-            <FitDataForm product={product} action={saveAdminFitAction} submit="Save and approve" />
+            <FitDataForm
+              product={{ ...product, kind }}
+              action={saveAdminFitAction}
+              submit="Save and approve"
+            />
           </Card>
         </div>
         <div className="flex flex-col gap-4">
           <Card>
-            <h2 className="mb-2 font-semibold">Stock by size</h2>
+            <h2 className="mb-2 font-semibold">Stock</h2>
             <StockTable variants={product.variants} />
           </Card>
           <Card>
             <h2 className="mb-2 font-semibold">Add or remove stock</h2>
             <AdminForm action={adjustStockAction} submit="Update stock">
               <input type="hidden" name="productId" value={product.id} />
-              <div className="grid grid-cols-2 gap-3">
-                <Field label="Size" name="size">
-                  <Input name="size" placeholder="UK 9 or M" required />
-                </Field>
-                <Field label="Colour (optional)" name="colour">
-                  <Input name="colour" />
-                </Field>
-              </div>
+              <VariantAxisFields axes={axes} />
               <Field label="Change (+ adds, − removes free stock)" name="delta">
                 <Input name="delta" type="number" step={1} placeholder="e.g. 12 or -2" required />
               </Field>
