@@ -6,8 +6,9 @@ for business scope, participants and stable policy IDs.
 
 Own baskets (`BSK-008`, `DEC-023`, 2026-11-18) are a second basket kind with no agent: code that
 reads an order's or basket's agent must handle null. They charge no delivery fee (the owner pays
-the courier on delivery) and can be ordered only once they hold `ownMinItems` items. Buyers start or join one from the Cart
-("Get it by"), not the product page.
+the courier on delivery) and can be ordered only once they hold `ownMinItems` items. An own
+basket holds any products of one factory (`DEC-027`, 2026-11-21). On the Cart buyers tick items
+and send them by Agent pickup, My basket or Join a basket; not from the product page.
 
 Buyers give gender and date of birth at sign-up (`DEC-025`, 2026-11-21); the shop shows only
 their own audience plus unisex products, with no Audience box. Orders show four stages (Filling,
