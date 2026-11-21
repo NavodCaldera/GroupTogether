@@ -2,6 +2,8 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { setCommission } from "@/server/settings";
 import { saveProduct } from "@/server/catalogue";
+import { setCategoryCommission } from "@/server/category-commission";
+import { CLOTHING_ROOT_ID } from "@/lib/categories";
 import { approveCategory, makeUser, resetDb } from "./helpers";
 
 beforeEach(resetDb);
@@ -81,5 +83,38 @@ describe("commission snapshots", () => {
     expect(
       (await saveProduct(null, listing, null, { sellerId: factory.id })).price.toFixed(2),
     ).toBe("1520.00");
+  });
+});
+
+describe("category commission (DEAL-004)", () => {
+  it("snapshots the inherited percent with its minimum on new listings only", async () => {
+    const { core, factory } = await setup();
+    const old = await saveProduct(null, listing, null, { sellerId: factory.id });
+    await setCategoryCommission(core.id, CLOTHING_ROOT_ID, "10", "");
+    expect((await db.product.findUniqueOrThrow({ where: { id: old.id } })).price.toFixed(2)).toBe(
+      "1500.00",
+    );
+    const pct = await saveProduct(null, listing, null, { sellerId: factory.id });
+    expect(pct.commission?.toFixed(2)).toBe("140.00");
+    expect(pct.price.toFixed(2)).toBe("1540.00");
+    await setCategoryCommission(core.id, CLOTHING_ROOT_ID, "10", "200");
+    const min = await saveProduct(null, listing, null, { sellerId: factory.id });
+    expect(min.price.toFixed(2)).toBe("1600.00");
+    await setCategoryCommission(core.id, CLOTHING_ROOT_ID, "", "");
+    const flat = await saveProduct(null, listing, null, { sellerId: factory.id });
+    expect(flat.price.toFixed(2)).toBe("1500.00");
+  });
+  it("lets only CORE set it and validates values", async () => {
+    const { core, factory } = await setup();
+    for (const actor of [factory, await makeUser("ADMIN", "FACTORY"), await makeUser()])
+      await expect(setCategoryCommission(actor.id, CLOTHING_ROOT_ID, "10", "")).rejects.toThrow();
+    for (const [pct, min] of [
+      ["100.01", ""],
+      ["-1", ""],
+      ["1.001", ""],
+      ["", "-5"],
+    ])
+      await expect(setCategoryCommission(core.id, CLOTHING_ROOT_ID, pct!, min!)).rejects.toThrow();
+    await expect(setCategoryCommission(core.id, "missing", "10", "")).rejects.toThrow();
   });
 });

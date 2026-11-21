@@ -18,6 +18,14 @@ Newest first.
   approved category (waiting for review when it needs a licence the application lacks).
 - Existing factories were given Clothing, and Shoes when they already sell shoes, so nothing
   changes for them. Admin-created products are not limited.
+## 2026-11-22 - Commission per category (DEC-029, phase 6)
+
+- Commission is a percent of the factory price per category, at least a minimum per unit, both
+  inherited down the tree. CORE sets them on Admin > Commission.
+- With no percent set the flat commission per piece still applies; nothing is set yet, so no
+  price changed. Existing listings and orders keep their snapshot.
+- New listings and deals going live use the category commission; the new-listing buyer price
+  preview follows the chosen category.
 
 ## 2026-11-22 - Group deals with price tiers (DEC-029, phase 7)
 

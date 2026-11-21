@@ -10,6 +10,7 @@ import { CartError } from "./errors";
 import { CatalogueError, adjustStock, saveProduct, setProductHidden } from "./catalogue";
 import { formOptions } from "@/lib/variant-options";
 import { setCommission, SettingsError } from "./settings";
+import { setCategoryCommission } from "./category-commission";
 import { flash } from "./flash";
 import { UploadError } from "./storage";
 
@@ -145,6 +146,26 @@ export async function setCommissionAction(_p: AdminState, fd: FormData): Promise
     "Commission saved",
   );
   revalidatePath("/admin/settings");
+  revalidatePath("/seller/new");
+  return result;
+}
+
+export async function setCategoryCommissionAction(
+  _p: AdminState,
+  fd: FormData,
+): Promise<AdminState> {
+  const admin = await requireAdmin("CORE");
+  const result = await attempt(
+    () =>
+      setCategoryCommission(
+        admin.id,
+        str(fd, "categoryId"),
+        str(fd, "commissionPct"),
+        str(fd, "minCommission"),
+      ),
+    "Commission saved",
+  );
+  revalidatePath("/admin/core/commission");
   revalidatePath("/seller/new");
   return result;
 }
