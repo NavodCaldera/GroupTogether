@@ -6,6 +6,16 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Buyer home: My orders cards
+
+- Each order on the buyer home now leads with what was bought: photo, product × qty, "+N more"
+  and the total, with a four-step tracker (Paid → Filling → On the way → Ready, or Delivered for
+  an own basket; packing folds into On the way) and one next-step line: basket total of the lock
+  amount, own-basket items of the minimum, or the agent to collect from. The Paid badge is gone;
+  only Unpaid shows as a warning. Unpaid, ready and filling orders come first, collected or
+  delivered ones drop off, three at most, and the whole card opens the order. There is no
+  "Pay now": an unpaid order has no resume-payment flow.
+
 ## 2026-11-21 - Personal shop by gender and age
 
 - The shop's Audience box is gone (`DEC-025`). Sign-up now asks gender and date of birth; the

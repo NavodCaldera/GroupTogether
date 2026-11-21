@@ -1,15 +1,13 @@
 import Link from "next/link";
 import { ProductImage } from "@/components/cart-bits";
-import { CopyLinkButton } from "@/components/client";
 import { Badge, Card, LinkButton } from "@/components/ui";
 import { formatHours, mapLink } from "@/lib/agent-hours";
 import { formatDate, formatLKR } from "@/lib/format";
 import type { SessionUser } from "@/server/auth/service";
 import { listProducts } from "@/server/catalogue";
 import { audienceFor } from "@/lib/taxonomy";
-import { appUrl } from "@/server/notify";
-import { buyerHome, orderTotal } from "@/server/orders/buyer";
-import { BasketProgress, OrderBadge, factoryName } from "./orders/order-bits";
+import { buyerHome } from "@/server/orders/buyer";
+import { HomeOrderCard, homeOrders } from "./home-order-card";
 
 /** Buyer home, most important first: ready to collect, returns to hand over, orders, shop. Tokens live on /tokens (owner removed the home card, 2026-11-21). */
 export async function BuyerHome({ user }: { user: SessionUser }) {
@@ -45,7 +43,8 @@ export async function BuyerHome({ user }: { user: SessionUser }) {
       </div>
     </section>
   );
-  const noOrders = home.orders.length === 0;
+  const orders = homeOrders(home.orders);
+  const noOrders = orders.length === 0;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
@@ -129,36 +128,15 @@ export async function BuyerHome({ user }: { user: SessionUser }) {
               All orders →
             </Link>
           </div>
-          {home.orders.map((o) => {
-            const productId = o.lines[0]?.variant.product.id;
-            return (
-              <Card key={o.id} className="flex flex-col gap-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <Link
-                    href={`/orders/${o.id}`}
-                    className="font-semibold underline-offset-2 hover:underline"
-                  >
-                    {factoryName(o.factory)}
-                  </Link>
-                  <OrderBadge
-                    status={o.status}
-                    collected={o.lines.every((l) => l.collectedAt || l.status !== "ACTIVE")}
-                  />
-                </div>
-                <p className="text-sm text-subtle">
-                  {o.agent?.user.name ?? "Own basket"} · {formatLKR(orderTotal(o))}
-                </p>
-                {o.basket && <BasketProgress basket={o.basket} lockAt={home.lockAt} />}
-                {o.basket?.status === "OPEN" && o.agentId && productId && (
-                  <CopyLinkButton
-                    url={appUrl(`/products/${productId}?agent=${o.agentId}`)}
-                    label="Share basket"
-                    className="self-start"
-                  />
-                )}
-              </Card>
-            );
-          })}
+          {orders.map((o) => (
+            <HomeOrderCard
+              key={o.id}
+              order={o}
+              own={home.own}
+              ownMinItems={home.ownMinItems}
+              lockAt={home.lockAt}
+            />
+          ))}
         </section>
       )}
 

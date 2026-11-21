@@ -54,7 +54,7 @@ const orderSelect = {
         select: {
           size: true,
           colour: true,
-          product: { select: { id: true, title: true } },
+          product: { select: { id: true, title: true, photoKey: true, category: true } },
         },
       },
     },
@@ -114,10 +114,39 @@ export async function buyerHome(buyerId: string, now = new Date()) {
       where: { buyerId, status: { in: ["PENDING", "PAID", "RECEIVED"] } },
       select: orderSelect,
       orderBy: { createdAt: "desc" },
-      take: 5,
+      take: 10,
     }),
     tokenBalance(buyerId),
   ]);
+  // Open own baskets on the home cards: items so far, and the share link for the owner (DEC-023).
+  const openOwn = [
+    ...new Set(
+      orders.flatMap((o) =>
+        o.basket?.kind === "OWN" && o.basket.status === "OPEN" ? [o.basket.id] : [],
+      ),
+    ),
+  ];
+  const [ownLines, ownShares] = openOwn.length
+    ? await Promise.all([
+        db.orderLine.findMany({
+          where: { order: { basketId: { in: openOwn }, status: "PAID" } },
+          select: { qty: true, order: { select: { basketId: true } } },
+        }),
+        db.basket.findMany({
+          where: { id: { in: openOwn }, ownerId: buyerId },
+          select: { id: true, shareCode: true },
+        }),
+      ])
+    : [[], []];
+  const own = new Map(
+    openOwn.map((id) => [
+      id,
+      {
+        items: ownLines.reduce((n, l) => (l.order.basketId === id ? n + l.qty : n), 0),
+        shareCode: ownShares.find((b) => b.id === id)?.shareCode ?? null,
+      },
+    ]),
+  );
   const pieces = new Map<string, number>();
   // The cash agent fee the buyer brings to each agent (DEC-019).
   const fees = new Map<string, D>();
@@ -153,7 +182,15 @@ export async function buyerHome(buyerId: string, now = new Date()) {
       },
     ];
   });
-  return { ready, handovers, orders, balance, lockAt: toD(settings.basketLockAmount) };
+  return {
+    ready,
+    handovers,
+    orders,
+    own,
+    ownMinItems: settings.ownMinItems,
+    balance,
+    lockAt: toD(settings.basketLockAmount),
+  };
 }
 
 export async function buyerOrders(buyerId: string) {
