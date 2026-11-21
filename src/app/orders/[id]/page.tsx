@@ -6,6 +6,7 @@ import { ProductImage } from "@/components/cart-bits";
 import { BackLink, CopyLinkButton } from "@/components/client";
 import { ProductRatingForm } from "@/components/product-rating-form";
 import { ReturnForm } from "@/components/return-form";
+import { FillBar } from "@/components/step-track";
 import { Alert, Badge, Button, Card, LinkButton } from "@/components/ui";
 import { mapLink } from "@/lib/agent-hours";
 import { D, toD } from "@/lib/decimal";
@@ -85,7 +86,6 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
     if (isOwn) fill = ownItems === undefined ? null : ownItems / Math.max(ownMinItems, 1);
     else fill = lockAt.lte(0) ? 1 : toD(basket.total).div(lockAt).toNumber();
   }
-  const pct = fill === null ? 0 : Math.min(100, Math.round(fill * 100));
   const stage =
     step === 2 && basket ? (STAGE[basket.status]?.(factoryName(order.factory)) ?? null) : null;
   const timeline = (
@@ -121,21 +121,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
 
       <Card className="flex flex-col gap-4">
         {step !== null && <OrderSteps order={order} step={step} />}
-        {fill !== null && (
-          <div
-            className="h-2.5 overflow-hidden rounded-full bg-muted"
-            role="progressbar"
-            aria-label="Basket progress"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={pct}
-          >
-            <div
-              className="h-full rounded-full bg-accent"
-              style={{ width: `${Math.max(2, pct)}%` }}
-            />
-          </div>
-        )}
+        {fill !== null && <FillBar value={fill} label="Basket progress" />}
         {(next || stage || share) && (
           <div className="flex flex-wrap items-center justify-between gap-2">
             {(next || stage) && <p className="text-sm text-subtle tabular-nums">{next ?? stage}</p>}
@@ -189,7 +175,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               variant="secondary"
               className="mt-2 self-start"
             >
-              Open basket
+              {basket.ownerId === user.id ? "Manage basket" : "View basket"}
             </LinkButton>
           </Card>
         )

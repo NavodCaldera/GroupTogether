@@ -553,6 +553,8 @@ export async function ownBasketView(
           title: true,
           price: true,
           status: true,
+          photoKey: true,
+          category: true,
           variants: {
             select: { id: true, size: true, colour: true, available: true },
             orderBy: { id: "asc" },
@@ -611,13 +613,17 @@ export async function myOwnBaskets(userId: string) {
       OR: [{ ownerId: userId }, { orders: { some: { buyerId: userId } } }],
       firstOrderAt: { not: null },
     },
-    select: { ...BASKET_CARD, product: { select: { title: true } } },
+    select: {
+      ...BASKET_CARD,
+      product: { select: { id: true, title: true, photoKey: true, category: true } },
+    },
     orderBy: { createdAt: "desc" },
     take: 50,
   });
   return rows.map((b) => ({
     id: b.id,
     status: b.status,
+    product: b.product,
     title: b.product?.title ?? "",
     area: b.deliveryArea ?? "",
     owner: b.ownerId === userId,

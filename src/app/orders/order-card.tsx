@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ProductImage } from "@/components/cart-bits";
 import { CopyLinkButton } from "@/components/client";
+import { StepTrack } from "@/components/step-track";
 import { Badge } from "@/components/ui";
 import { D } from "@/lib/decimal";
 import { formatDate, formatLKR } from "@/lib/format";
@@ -174,24 +175,5 @@ export function OrderSteps({ order, step }: { order: Order; step: number }) {
     "On the way",
     order.basket?.kind === "OWN" ? "Delivered" : "Ready",
   ];
-  return (
-    <ol className="grid grid-cols-4 gap-1" aria-label="Order progress">
-      {steps.map((label, i) => (
-        <li
-          key={label}
-          aria-current={i === step ? "step" : undefined}
-          className="flex flex-col gap-1.5"
-        >
-          <span
-            className={`h-1.5 rounded-full ${i <= step ? "bg-accent" : "bg-muted"}`}
-            aria-hidden
-          />
-          <span className={`text-xs ${i === step ? "font-semibold text-ink" : "text-subtle"}`}>
-            {label}
-            <span className="sr-only">{i < step ? " (done)" : i === step ? " (now)" : ""}</span>
-          </span>
-        </li>
-      ))}
-    </ol>
-  );
+  return <StepTrack steps={steps} step={step} label="Order progress" />;
 }

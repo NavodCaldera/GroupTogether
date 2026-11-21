@@ -146,9 +146,9 @@ test("a joiner takes the basket to the minimum and the owner places it", async (
   await page.goto(`/own-baskets/${seeded.ishara.basket}`);
   await expect(page.getByText(/more item/)).toHaveCount(0);
   await page.getByRole("button", { name: "Place order" }).click();
-  await expect(page.getByText("Packing", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-current="step"]', { hasText: "Packing" })).toBeVisible();
   await page.reload();
-  await expect(page.getByText("Packing", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-current="step"]', { hasText: "Packing" })).toBeVisible();
   // Once placed, the basket is no longer offered on the cart.
   await signIn(page, DEMO_BUYERS.ravindu);
   await addToCart(page, seeded.ishara.product);

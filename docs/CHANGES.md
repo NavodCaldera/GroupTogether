@@ -6,6 +6,21 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Back no longer loops; own basket pages
+
+- Back with no earlier page in the tab used to push its fallback, so two pages whose fallbacks
+  point at each other (an own basket and the Own baskets list) bounced between each other.
+  The fallback now replaces the current page in the history.
+- Own basket page: product photo, price and item count up top; a Filling → Packing → On the way
+  → Delivered tracker with the fill bar (and Copy basket link for the owner); a Delivery card
+  (the owner's address and phone to the owner only); the owner's join setting and Place order
+  together; buyers with size chips and a link to your own order; "Add more" instead of "Join"
+  once you are in. The status badge shows only for Delivered or Cancelled.
+- Own baskets list: photo, Yours or Joined and area, coloured status, a fill bar while filling,
+  the whole card opens the basket, and "In progress" / "Past" groups.
+- The order page's own-basket button reads "Manage basket" for the owner and "View basket"
+  for anyone who joined.
+
 ## 2026-11-21 - Order page: tracker, delivery and itemised lines
 
 - The order page led with the factory name, a Paid badge and "Own basket Packing". It now leads
