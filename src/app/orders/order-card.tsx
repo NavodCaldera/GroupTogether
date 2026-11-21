@@ -3,7 +3,7 @@ import { ProductImage } from "@/components/cart-bits";
 import { CopyLinkButton } from "@/components/client";
 import { StepTrack } from "@/components/step-track";
 import { Badge } from "@/components/ui";
-import { D } from "@/lib/decimal";
+import { D, toD } from "@/lib/decimal";
 import { formatDate, formatLKR } from "@/lib/format";
 import { appUrl } from "@/server/notify";
 import type { OwnProgress, buyerOrders } from "@/server/orders/buyer";
@@ -125,7 +125,9 @@ export function OrderCard({
         </div>
       </div>
 
-      {step !== null && <OrderSteps order={o} step={step} />}
+      {step !== null && (
+        <OrderSteps order={o} step={step} fill={fillOf(o, step, own, ownMinItems, lockAt)} />
+      )}
 
       {(next || share) && (
         <div className="flex flex-wrap items-center justify-between gap-2">
@@ -175,13 +177,40 @@ export function nextOf(
   return { next, share };
 }
 
+/** How full a filling basket is (0 to 1): items against the minimum, or value against the lock
+ * amount. Null when the order is not at the Filling step. */
+export function fillOf(
+  o: Order,
+  step: number | null,
+  own: OwnProgress,
+  ownMinItems: number,
+  lockAt: D,
+): number | null {
+  if (step !== 1 || !o.basket) return null;
+  if (o.basket.kind === "OWN") {
+    const items = own.get(o.basket.id)?.items;
+    return items === undefined ? null : items / Math.max(ownMinItems, 1);
+  }
+  return lockAt.lte(0) ? 1 : toD(o.basket.total).div(lockAt).toNumber();
+}
+
 /** Paid → Filling → On the way → Ready (Delivered for own baskets). */
-export function OrderSteps({ order, step }: { order: Order; step: number }) {
+export function OrderSteps({
+  order,
+  step,
+  fill,
+  dates,
+}: {
+  order: Order;
+  step: number;
+  fill?: number | null;
+  dates?: (string | null | undefined)[];
+}) {
   const steps = [
     "Paid",
     "Filling",
     "On the way",
     order.basket?.kind === "OWN" ? "Delivered" : "Ready",
   ];
-  return <StepTrack steps={steps} step={step} label="Order progress" />;
+  return <StepTrack steps={steps} step={step} label="Order progress" fill={fill} dates={dates} />;
 }

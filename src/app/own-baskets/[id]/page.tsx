@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ProductImage } from "@/components/cart-bits";
 import { BackLink, CopyLinkButton } from "@/components/client";
-import { FillBar, StepTrack } from "@/components/step-track";
+import { StepTrack } from "@/components/step-track";
 import { Alert, Badge, Button, Card, Field, Select } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { isBuyerRole } from "@/lib/roles";
@@ -83,10 +83,14 @@ export default async function OwnBasketPage({
 
       {step !== null && (
         <Card className="flex flex-col gap-4">
-          <StepTrack steps={OWN_STEPS} step={step} label="Basket progress steps" />
+          <StepTrack
+            steps={OWN_STEPS}
+            step={step}
+            label="Basket progress steps"
+            fill={open ? b.items / Math.max(b.minItems, 1) : null}
+          />
           {open && (
             <>
-              <FillBar value={b.items / Math.max(b.minItems, 1)} label="Basket progress" />
               <div className="flex flex-wrap items-center justify-between gap-2">
                 {!b.isOwner && (
                   <p className="text-sm text-subtle tabular-nums">

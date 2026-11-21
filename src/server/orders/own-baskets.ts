@@ -604,3 +604,62 @@ export async function ownBasketView(
       })),
   };
 }
+
+/**
+ * Everyone else in an own basket and what they bought, for a buyer who is in it (owner,
+ * 2026-11-21). One row per buyer, owner first. The owner sees full names; anyone else sees first
+ * names only. Empty unless the viewer has a paid order in the basket or owns it.
+ */
+export async function basketPeople(basketId: string, viewerId: string) {
+  const b = await db.basket.findUnique({
+    where: { id: basketId },
+    select: {
+      kind: true,
+      ownerId: true,
+      orders: {
+        where: { status: { in: ["PAID", "RECEIVED"] } },
+        select: {
+          buyerId: true,
+          buyer: { select: { name: true } },
+          lines: {
+            where: { status: "ACTIVE" },
+            select: { qty: true, variant: { select: { size: true, colour: true } } },
+          },
+        },
+        orderBy: { paidAt: "asc" },
+      },
+    },
+  });
+  if (!b || b.kind !== "OWN") return [];
+  const isOwner = b.ownerId === viewerId;
+  if (!isOwner && !b.orders.some((o) => o.buyerId === viewerId)) return [];
+  const people = new Map<
+    string,
+    { name: string; owner: boolean; items: number; sizes: Map<string, number> }
+  >();
+  for (const o of b.orders) {
+    if (o.buyerId === viewerId) continue;
+    const name = isOwner ? o.buyer.name : (o.buyer.name.split(" ")[0] ?? o.buyer.name);
+    const p = people.get(o.buyerId) ?? {
+      name,
+      owner: o.buyerId === b.ownerId,
+      items: 0,
+      sizes: new Map<string, number>(),
+    };
+    for (const l of o.lines) {
+      const key = [l.variant.size, l.variant.colour].filter(Boolean).join(" · ");
+      p.sizes.set(key, (p.sizes.get(key) ?? 0) + l.qty);
+      p.items += l.qty;
+    }
+    people.set(o.buyerId, p);
+  }
+  return [...people.entries()]
+    .map(([id, p]) => ({
+      id,
+      name: p.name,
+      owner: p.owner,
+      items: p.items,
+      sizes: [...p.sizes].map(([size, qty]) => ({ size, qty })),
+    }))
+    .sort((a, c) => Number(c.owner) - Number(a.owner));
+}

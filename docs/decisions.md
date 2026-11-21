@@ -390,6 +390,9 @@ it is shared by link or public. Normal price.
 3. **Who sees what.** Public baskets list on the product page by town or area and owner name;
    the address and phone are shown to the owner only (Claude's call). The owner can switch
    visibility while the basket is open.
+   Everyone in the basket sees the others and what they bought, sizes and counts, on their
+   order page (owner, 2026-11-21). The owner sees full names; joiners see first names only
+   (Claude's call); the owner is marked Owner.
 4. **Price.** Normal price. No agent, so no 5% agent fee and no pickup code.
 5. **Cancelling.** Joiners can cancel while the basket is open (full tokens, as `ORD-004`). The
    owner cannot cancel their own order, because the basket is theirs (Claude's call).

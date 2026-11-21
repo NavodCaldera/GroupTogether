@@ -6,6 +6,18 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Order page: one tracker with dates; who else is in the basket
+
+- The order page had two bars (steps and fill) and a dates list that repeated Ordered and Paid.
+  Now one tracker does it all: the Filling step fills part way with the basket, and each done
+  step shows its date under its label. Collected and delivered orders keep the full tracker.
+  The separate bar and dates list are gone; unpaid and cancelled orders show "Ordered <date>".
+  The order cards and the own basket page use the same filling tracker.
+- Own-basket orders show everyone else in the basket and what they bought (sizes and item
+  count) in the Delivery card under "Also in this basket", owner first and marked Owner
+  (`DEC-023`). The owner sees full names, joiners first names. The separate Joined list is gone,
+  and a joiner sees the area under Delivery since the owner is named in the list.
+
 ## 2026-11-21 - Own baskets run from the order page
 
 - An own-basket order page now holds what the basket page had, so the buyer never has to open

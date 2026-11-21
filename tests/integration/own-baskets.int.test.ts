@@ -6,6 +6,7 @@ import { cancelOrder, expireOrders } from "@/server/orders/baskets";
 import {
   closeOwnBasket,
   confirmOwnDelivery,
+  basketPeople,
   ownBasketView,
   publicOwnBaskets,
   setOwnVisibility,
@@ -171,6 +172,15 @@ describe("starting and joining", () => {
     const mine = await ownBasketView(basketId, owner.id, null);
     expect(mine?.address).toBe("12 Lake Rd");
     expect(mine?.orders).toHaveLength(2);
+    // Everyone in the basket sees the others and their sizes; first names unless the owner.
+    const seenByBuyer = await basketPeople(basketId, buyer.id);
+    expect(seenByBuyer).toHaveLength(1);
+    expect(seenByBuyer[0]?.owner).toBe(true);
+    expect(seenByBuyer[0]?.name).not.toContain(" ");
+    const seenByOwner = await basketPeople(basketId, owner.id);
+    expect(seenByOwner.map((p) => p.owner)).toEqual([false]);
+    expect(seenByOwner[0]?.items).toBeGreaterThan(0);
+    expect(await basketPeople(basketId, (await makeBuyer()).id)).toEqual([]);
   });
 
   it("an owner whose first payment expires leaves a cancelled basket", async () => {
