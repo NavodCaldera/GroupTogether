@@ -6,6 +6,11 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Orders tabs renamed
+
+- The Orders tabs are now **Agent pickup**, **My baskets** and **Joined baskets** (owner's
+  names). On phones a long label wraps to two lines instead of running off the edge.
+
 ## 2026-11-21 - Orders page: Pickup, My baskets, Joined
 
 - The Orders page is split into three tabs: **Pickup** (orders collected from an agent),
