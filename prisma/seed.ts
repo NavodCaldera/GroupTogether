@@ -53,6 +53,8 @@ import { hashPassword } from "../src/server/auth/password";
 import { setCartItem } from "../src/server/orders/cart";
 import { startCheckout } from "../src/server/orders/checkout";
 import {
+  answerJoinRequest,
+  askToJoin,
   closeOwnBasket,
   startOwnCheckout,
   sweepOwnBaskets,
@@ -638,26 +640,35 @@ async function main() {
   await buy(ravindu.id, kollupitiya.id, [[C[3][3], 2]]);
   await basketOf(kollupitiya.id, ceylon.owner.id, "OPEN");
 
-  // ─── Own baskets (DEC-023): started and joined through the real service, paid by demo notice ──
+  // ─── Own baskets (DEC-023): started and joined through the real service, paid by demo notice.
+  // Joiners ask and the owner accepts first (DEC-028). ──
   let ownNo = 0;
   async function own(
     buyer: { id: string; address: string | null; city: string | null; phone: string | null },
-    target:
-      { start: string; visibility: "PUBLIC" | "LINK" } | { basketId: string; shareCode?: string },
+    target: "new" | { basketId: string },
     lines: [variantId: string, qty: number][],
   ): Promise<string> {
+    if (target !== "new") {
+      for (const [variantId, qty] of lines)
+        await db.cartItem.create({ data: { buyerId: buyer.id, variantId, qty } });
+      const req = await askToJoin(
+        buyer.id,
+        target.basketId,
+        lines.map(([v]) => v),
+      );
+      const { ownerId } = await db.basket.findUniqueOrThrow({
+        where: { id: target.basketId },
+        select: { ownerId: true },
+      });
+      await answerJoinRequest(ownerId!, req.id, true);
+    }
     const { basketId, orderId } = await startOwnCheckout(buyer.id, {
-      ...("start" in target
-        ? {
-            create: {
-              visibility: target.visibility,
-              address: buyer.address!,
-              area: buyer.city!,
-              phone: buyer.phone!,
-            },
-          }
-        : { basketId: target.basketId, shareCode: target.shareCode }),
-      lines: lines.map(([variantId, qty]) => ({ variantId, qty })),
+      ...(target === "new"
+        ? { create: { address: buyer.address!, area: buyer.city!, phone: buyer.phone! } }
+        : { basketId: target.basketId }),
+      ...(target === "new"
+        ? { lines: lines.map(([variantId, qty]) => ({ variantId, qty })) }
+        : { fromCart: lines.map(([v]) => v) }),
       tokens: "0",
       requestKey: `seed-own-${++ownNo}`,
     });
@@ -668,37 +679,36 @@ async function main() {
     if (order.paymentAttemptId) await payAttempt(order.paymentAttemptId);
     return basketId;
   }
-  // OPEN, public: Kasun's Oxford shirts, 5 of 10 (Dinithi joined). Anyone can join.
-  const kasunBasket = await own(kasun, { start: C[0][0], visibility: "PUBLIC" }, [
+  // OPEN: Kasun's Oxford shirts, 5 of 10 (Dinithi joined). Dilan has asked to join.
+  const kasunBasket = await own(kasun, "new", [
     [C[0][1], 2],
     [C[0][2], 1],
   ]);
   await own(dinithi, { basketId: kasunBasket }, [[C[0][2], 2]]);
-  // OPEN, public: Ishara's polo shirts, 9 of 10 (Malith joined). One more item reaches the minimum.
-  const isharaBasket = await own(ishara, { start: L[2][0], visibility: "PUBLIC" }, [
+  // OPEN: Ishara's polo shirts, 9 of 10 (Malith joined). One more item reaches the minimum.
+  const isharaBasket = await own(ishara, "new", [
     [L[2][0], 3],
     [L[2][1], 5],
   ]);
   await own(malith, { basketId: isharaBasket }, [[L[2][2], 1]]);
-  // OPEN, link only: Dinithi's running shorts, 2 of 10. Join with the share code.
-  const dinithiBasket = await own(dinithi, { start: L[3][0], visibility: "LINK" }, [[L[3][1], 2]]);
+  // OPEN: Dinithi's running shorts, 2 of 10.
+  await own(dinithi, "new", [[L[3][1], 2]]);
   // LOCKED: Malith's chinos reached 10 (Kasun joined) and Malith placed the order.
-  const malithBasket = await own(malith, { start: C[1][0], visibility: "PUBLIC" }, [[C[1][1], 6]]);
+  const malithBasket = await own(malith, "new", [[C[1][1], 6]]);
   await own(kasun, { basketId: malithBasket }, [[C[1][2], 4]]);
   await closeOwnBasket(malith.id, malithBasket);
   // REFUNDED: Tharindu's shorts were still short of the minimum after 10 days, so the sweep
   // cancelled the basket and refunded him in tokens (DEC-026). Buyers cannot cancel.
-  const tharinduBasket = await own(tharindu, { start: L[3][2], visibility: "LINK" }, [
-    [L[3][2], 4],
-  ]);
+  const tharinduBasket = await own(tharindu, "new", [[L[3][2], 4]]);
   await db.basket.update({
     where: { id: tharinduBasket },
     data: { firstOrderAt: new Date(Date.now() - 11 * 86_400_000) },
   });
   await sweepOwnBaskets(new Date());
-  const shareCode = (
-    await db.basket.findUniqueOrThrow({ where: { id: dinithiBasket }, select: { shareCode: true } })
-  ).shareCode;
+  // WAITING: Dilan asked to join Kasun's basket with one shirt; Kasun has not answered.
+  await db.ownJoinRequest.create({
+    data: { basketId: kasunBasket, buyerId: dilan.id, lines: [{ variantId: C[0][1], qty: 1 }] },
+  });
 
   // ─── A luxury brand (product owner, 2026-10-24): fictional, on a reserved .example domain ──
   // Brands are parked, not removed: its live product and two submissions stay.
@@ -954,7 +964,7 @@ async function main() {
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}
   Return to hand over: ${DEMO_BUYERS.sachini} at ${DEMO_AGENTS.kollupitiya}
   Tokens: ${DEMO_BUYERS.tharindu}
-  Own baskets to join: Kasun's (5 of 10) and Ishara's (9 of 10) are public; Dinithi's is link-only, /own-baskets/${dinithiBasket}?code=${shareCode}
+  Own baskets: Kasun's (5 of 10, Dilan's join request waiting), Ishara's (9 of 10), Dinithi's (2 of 10)
   Fit heatmap: ${DEMO_BUYERS.dilan}, ${DEMO_BUYERS.sachini} (and Ravindu, Ayesha) are measured; ${DEMO_BUYERS.tharindu} is not`);
 }
 

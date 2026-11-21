@@ -1,5 +1,5 @@
 import "server-only";
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { D, toD } from "@/lib/decimal";
 import { orderTotals, splitCheckout } from "@/lib/agent-money";
 import { canMoveBasket, canMoveOrder } from "@/lib/order-rules";
@@ -24,7 +24,6 @@ const MAX_QTY = 99;
 
 export type OwnLineInput = { variantId: string; qty: number };
 export type OwnBasketCreate = {
-  visibility: "LINK" | "PUBLIC";
   address: string;
   area: string;
   phone: string;
@@ -96,24 +95,26 @@ async function loadFactoryLines(tx: Tx, factoryId: string | null, lines: OwnLine
   return { factoryId: out[0]!.factoryId, lines: out };
 }
 
-/** Visible, joinable basket: OPEN, the owner has paid, and the viewer may see it: the owner, a
- * buyer already in it (`member`), anyone when public, or anyone with the share code. */
+/** A basket the viewer may pay into: OPEN, the owner has paid, and the viewer is its owner or
+ * already in it (a paid order or an accepted join request, DEC-028). */
 function joinable(
-  b: {
-    kind: string;
-    status: string;
-    firstOrderAt: Date | null;
-    visibility: string | null;
-    shareCode: string | null;
-    ownerId: string | null;
-  },
+  b: { kind: string; status: string; firstOrderAt: Date | null; ownerId: string | null },
   viewerId: string | null,
-  code: string | null,
   member = false,
 ) {
   if (b.kind !== "OWN" || b.status !== "OPEN" || !b.firstOrderAt) return false;
-  if ((b.ownerId && b.ownerId === viewerId) || member) return true;
-  return b.visibility === "PUBLIC" || (!!code && code === b.shareCode);
+  return (!!b.ownerId && b.ownerId === viewerId) || member;
+}
+
+/** The buyer has a paid order in the basket or the owner accepted their request. */
+async function isMember(tx: Tx, basketId: string, buyerId: string) {
+  const [paid, accepted] = [
+    await tx.order.count({
+      where: { basketId, buyerId, status: { in: ["PAID", "RECEIVED"] } },
+    }),
+    await tx.ownJoinRequest.count({ where: { basketId, buyerId, status: "ACCEPTED" } }),
+  ];
+  return paid + accepted > 0;
 }
 
 type Outcome = {
@@ -131,7 +132,6 @@ export async function startOwnCheckout(
   input: {
     create?: OwnBasketCreate;
     basketId?: string;
-    shareCode?: string;
     /** Sizes and quantities, or `fromCart`: the buyer's cart rows for these variant ids, read
      * and removed inside the transaction (DEC-027). */
     lines?: OwnLineInput[];
@@ -189,7 +189,6 @@ export async function startOwnCheckout(
     let create: OwnBasketCreate | null = null;
     if (input.create) {
       create = {
-        visibility: input.create.visibility === "PUBLIC" ? "PUBLIC" : "LINK",
         address: cleanText(input.create.address, 300, "the delivery address"),
         area: cleanText(input.create.area, 60, "the town or area"),
         phone: cleanText(input.create.phone, 30, "a phone number"),
@@ -197,17 +196,11 @@ export async function startOwnCheckout(
       basketId = "";
     } else {
       const b = await tx.basket.findUnique({ where: { id: String(input.basketId) } });
-      const member =
-        !!b &&
-        (await tx.order.count({
-          where: { basketId: b.id, buyerId, status: { in: ["PAID", "RECEIVED"] } },
-        })) > 0;
-      if (!b || !joinable(b, buyerId, input.shareCode ?? null, member))
-        throw new CheckoutError("This basket is not open");
+      const member = !!b && (await isMember(tx, b.id, buyerId));
+      if (!b || !joinable(b, buyerId, member)) throw new CheckoutError("This basket is not open");
       await lockOwnBasket(tx, b.id);
       const fresh = await tx.basket.findUniqueOrThrow({ where: { id: b.id } });
-      if (!joinable(fresh, buyerId, input.shareCode ?? null, member))
-        throw new CheckoutError("This basket is not open");
+      if (!joinable(fresh, buyerId, member)) throw new CheckoutError("This basket is not open");
       basketId = fresh.id;
       basketFactory = fresh.factoryId;
     }
@@ -236,8 +229,6 @@ export async function startOwnCheckout(
           kind: "OWN",
           factoryId: priced.factoryId,
           ownerId: buyerId,
-          visibility: create.visibility,
-          shareCode: randomBytes(9).toString("base64url"),
           deliveryAddress: create.address,
           deliveryArea: create.area,
           deliveryPhone: create.phone,
@@ -351,22 +342,6 @@ async function ownerBasket(tx: Tx, ownerId: string, basketId: string) {
   const b = await tx.basket.findUnique({ where: { id: basketId } });
   if (!b || b.kind !== "OWN" || b.ownerId !== ownerId) throw new CheckoutError("Basket not found");
   return b;
-}
-
-/** The owner switches between link-only and public while the basket is OPEN. */
-export async function setOwnVisibility(
-  ownerId: string,
-  basketId: string,
-  visibility: "LINK" | "PUBLIC",
-): Promise<void> {
-  await withOrderTransaction([ownerId], [], async (tx) => {
-    const b = await ownerBasket(tx, ownerId, basketId);
-    if (b.status !== "OPEN") throw new CheckoutError("This basket is closed");
-    await tx.basket.update({
-      where: { id: b.id },
-      data: { visibility: visibility === "PUBLIC" ? "PUBLIC" : "LINK" },
-    });
-  });
 }
 
 /** Items in an own basket's paid orders. */
@@ -534,8 +509,6 @@ export async function sweepOwnBaskets(
 const BASKET_CARD = {
   id: true,
   status: true,
-  visibility: true,
-  shareCode: true,
   deliveryArea: true,
   ownerId: true,
   firstOrderAt: true,
@@ -571,34 +544,51 @@ function cards(
   }));
 }
 
-/** Own baskets of a factory that the viewer can join now, not their own: public ones and
- * link-only ones they are already in. Area and the owner's first name only, never the address. */
-export async function publicOwnBaskets(factoryId: string, viewerId: string | null) {
+export type JoinState = "ask" | "asked" | "declined" | "pay";
+
+/** Every open own basket of a factory except the viewer's own (DEC-028), with where the viewer
+ * stands: ask to join, asked, declined, or pay (already in it or accepted). Area and the owner's
+ * first name only, never the address. */
+export async function openOwnBaskets(factoryId: string, viewerId: string) {
   const rows = await db.basket.findMany({
     where: {
       kind: "OWN",
       status: "OPEN",
       factoryId,
       firstOrderAt: { not: null },
-      OR: [
-        { visibility: "PUBLIC" },
-        ...(viewerId
-          ? [
-              {
-                orders: {
-                  some: { buyerId: viewerId, status: { in: ["PAID" as const, "RECEIVED" as const] } },
-                },
-              },
-            ]
-          : []),
-      ],
-      ...(viewerId ? { NOT: { ownerId: viewerId } } : {}),
+      NOT: { ownerId: viewerId },
     },
-    select: BASKET_CARD,
+    select: {
+      ...BASKET_CARD,
+      joinRequests: { where: { buyerId: viewerId }, select: { status: true } },
+    },
     orderBy: { firstOrderAt: "asc" },
     take: 20,
   });
-  return cards(rows);
+  const paidIn = new Set(
+    (
+      await db.order.findMany({
+        where: {
+          buyerId: viewerId,
+          basketId: { in: rows.map((b) => b.id) },
+          status: { in: ["PAID", "RECEIVED"] },
+        },
+        select: { basketId: true },
+      })
+    ).map((o) => o.basketId),
+  );
+  return cards(rows).map((c, i) => {
+    const req = rows[i]!.joinRequests[0]?.status;
+    const state: JoinState =
+      paidIn.has(c.id) || req === "ACCEPTED"
+        ? "pay"
+        : req === "PENDING"
+          ? "asked"
+          : req === "DECLINED"
+            ? "declined"
+            : "ask";
+    return { ...c, state };
+  });
 }
 
 /** The buyer's own open baskets of a factory, once their first payment is in. */
@@ -621,11 +611,7 @@ export async function myOpenOwnBaskets(buyerId: string, factoryId: string) {
 /** One own basket as the viewer may see it, or null. The owner sees everything; anyone else sees
  * it only while it can be joined (public, or with the share code) or when they have an order in
  * it. The delivery address is shown to the owner only. */
-export async function ownBasketView(
-  basketId: string,
-  viewerId: string | null,
-  code: string | null,
-) {
+export async function ownBasketView(basketId: string, viewerId: string | null) {
   if (typeof basketId !== "string") return null;
   const b = await db.basket.findUnique({
     where: { id: basketId },
@@ -660,8 +646,7 @@ export async function ownBasketView(
   if (!b || b.kind !== "OWN") return null;
   const isOwner = !!viewerId && viewerId === b.ownerId;
   const hasOrder = !!viewerId && b.orders.some((o) => o.buyerId === viewerId);
-  const canJoin = joinable(b, viewerId, code);
-  if (!isOwner && !hasOrder && !canJoin) return null;
+  if (!isOwner && !hasOrder) return null;
   // The products already in the basket (and an older basket's own product), live ones only, for
   // the join form.
   const productIds = [
@@ -690,11 +675,8 @@ export async function ownBasketView(
     id: b.id,
     status: b.status,
     isOwner,
-    canJoin: canJoin && products.length > 0,
     owner: b.owner?.name ?? "",
     area: b.deliveryArea ?? "",
-    visibility: b.visibility,
-    shareCode: isOwner ? b.shareCode : null,
     address: isOwner ? b.deliveryAddress : null,
     phone: isOwner ? b.deliveryPhone : null,
     minItems: (await getSettings()).ownMinItems,
@@ -848,4 +830,131 @@ export async function basketPayments(
     }),
     totals,
   };
+}
+
+type RequestLine = { variantId: string; qty: number };
+
+/** A buyer asks to join an open own basket with the ticked cart items (DEC-028). Nothing is paid
+ * and nothing leaves the cart; the owner is told. One request per buyer and basket. */
+export async function askToJoin(
+  buyerId: string,
+  basketId: string,
+  variantIds: string[],
+): Promise<{ id: string }> {
+  const out = await withOrderTransaction([buyerId], [], async (tx) => {
+    const buyer = await assertBuyer(tx, buyerId);
+    if (typeof basketId !== "string") throw new CheckoutError("This basket is not open");
+    await lockOwnBasket(tx, basketId);
+    const b = await tx.basket.findUnique({ where: { id: basketId } });
+    if (
+      !b ||
+      b.kind !== "OWN" ||
+      b.status !== "OPEN" ||
+      !b.firstOrderAt ||
+      !b.ownerId ||
+      b.ownerId === buyerId
+    )
+      throw new CheckoutError("This basket is not open");
+    if (await tx.ownJoinRequest.findUnique({ where: { basketId_buyerId: { basketId, buyerId } } }))
+      throw new CheckoutError("Already asked");
+    if (await isMember(tx, basketId, buyerId)) throw new CheckoutError("Already in this basket");
+    const rows = await tx.cartItem.findMany({
+      where: { buyerId, variantId: { in: Array.isArray(variantIds) ? variantIds : [] } },
+      select: { variantId: true, qty: true },
+      orderBy: { variantId: "asc" },
+    });
+    if (!rows.length) throw new CheckoutError("Your cart is empty");
+    const lines = cleanLines(rows);
+    await loadFactoryLines(tx, b.factoryId, lines);
+    const req = await tx.ownJoinRequest.create({
+      data: { basketId, buyerId, lines: lines as RequestLine[] },
+      select: { id: true },
+    });
+    return {
+      id: req.id,
+      ownerId: b.ownerId,
+      name: buyer.name,
+      items: lines.reduce((n, l) => n + l.qty, 0),
+    };
+  });
+  await notify(
+    [out.ownerId],
+    {
+      title: "Join request",
+      body: `${out.name} · ${out.items} ${out.items === 1 ? "item" : "items"}`,
+      href: `/own-baskets/${basketId}`,
+    },
+    `own:req:${out.id}`,
+  );
+  return { id: out.id };
+}
+
+/** The owner accepts or declines a waiting request while the basket is filling; the requester is
+ * told. Answering twice changes nothing. */
+export async function answerJoinRequest(
+  ownerId: string,
+  requestId: string,
+  accept: boolean,
+): Promise<void> {
+  const out = await withOrderTransaction([ownerId], [], async (tx) => {
+    const req =
+      typeof requestId === "string"
+        ? await tx.ownJoinRequest.findUnique({ where: { id: requestId } })
+        : null;
+    if (!req) throw new CheckoutError("Request not found");
+    const b = await ownerBasket(tx, ownerId, req.basketId).catch(() => null);
+    if (!b) throw new CheckoutError("Request not found");
+    if (b.status !== "OPEN") throw new CheckoutError("This basket is closed");
+    const fresh = await tx.ownJoinRequest.findUniqueOrThrow({ where: { id: req.id } });
+    if (fresh.status !== "PENDING") return null;
+    const status = accept ? ("ACCEPTED" as const) : ("DECLINED" as const);
+    await tx.ownJoinRequest.update({
+      where: { id: req.id },
+      data: { status, decidedAt: new Date() },
+    });
+    const factory = await tx.user.findUnique({
+      where: { id: b.factoryId },
+      select: { name: true, company: true },
+    });
+    return { buyerId: req.buyerId, status, factory: factoryName(factory) };
+  });
+  if (!out) return;
+  await notify(
+    [out.buyerId],
+    out.status === "ACCEPTED"
+      ? { title: "Request accepted", body: out.factory, href: "/cart?how=join" }
+      : { title: "Request declined", body: out.factory, href: "/cart" },
+    `own:req:${requestId}:${out.status}`,
+  );
+}
+
+/** Waiting requests on the owner's basket while it is filling: who and what they want. */
+export async function joinRequests(ownerId: string, basketId: string) {
+  const b = await db.basket.findUnique({
+    where: { id: basketId },
+    select: { ownerId: true, status: true, kind: true },
+  });
+  if (!b || b.kind !== "OWN" || b.ownerId !== ownerId || b.status !== "OPEN") return [];
+  const reqs = await db.ownJoinRequest.findMany({
+    where: { basketId, status: "PENDING" },
+    select: { id: true, lines: true, buyer: { select: { name: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+  const ids = reqs.flatMap((q) => (q.lines as RequestLine[]).map((l) => l.variantId));
+  const variants = new Map(
+    (
+      await db.variant.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, size: true, colour: true, product: { select: { title: true } } },
+      })
+    ).map((v) => [v.id, v]),
+  );
+  return reqs.map((q) => ({
+    id: q.id,
+    name: q.buyer.name,
+    lines: (q.lines as RequestLine[]).flatMap((l) => {
+      const v = variants.get(l.variantId);
+      return v ? [{ title: v.product.title, size: v.size, colour: v.colour, qty: l.qty }] : [];
+    }),
+  }));
 }
