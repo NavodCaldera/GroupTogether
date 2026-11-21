@@ -61,15 +61,15 @@ export async function ownFromCartAction(fd: FormData) {
   await finish(result);
 }
 
-/** Where an owner step returns: the order page it was posted from, else the basket page. */
-function backOf(fd: FormData, basketId: string) {
+/** Where an owner step returns: the order page it was posted from, else Orders. */
+function backOf(fd: FormData) {
   const back = str(fd, "back");
-  return /^\/orders\/[A-Za-z0-9_-]+$/.test(back) ? back : `/own-baskets/${basketId}`;
+  return /^\/orders\/[A-Za-z0-9_-]+$/.test(back) ? back : "/orders";
 }
 
 async function ownerStep(fd: FormData, work: (userId: string, basketId: string) => Promise<void>) {
   const basketId = str(fd, "basketId");
-  const back = backOf(fd, basketId);
+  const back = backOf(fd);
   const user = await requireUser([...BUYER_ROLES], back);
   try {
     await work(user.id, basketId);
@@ -101,7 +101,7 @@ export async function askToJoinAction(fd: FormData) {
     q.set("error", e.message);
     redirect(`/cart?${q}`);
   }
-  await flash("Asked");
+  // The row's Asked badge is the confirmation.
   redirect(`/cart?${q}`);
 }
 

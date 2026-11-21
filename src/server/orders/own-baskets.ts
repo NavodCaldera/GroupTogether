@@ -608,9 +608,8 @@ export async function myOpenOwnBaskets(buyerId: string, factoryId: string) {
   return cards(rows);
 }
 
-/** One own basket as the viewer may see it, or null. The owner sees everything; anyone else sees
- * it only while it can be joined (public, or with the share code) or when they have an order in
- * it. The delivery address is shown to the owner only. */
+/** One own basket as the viewer may see it, or null: the owner, or a buyer with an order in it
+ * (there are no share links, DEC-028). The delivery address is shown to the owner only. */
 export async function ownBasketView(basketId: string, viewerId: string | null) {
   if (typeof basketId !== "string") return null;
   const b = await db.basket.findUnique({
