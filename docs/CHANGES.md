@@ -6,6 +6,17 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - My measurements page tidied
+
+- Two cards, **About you** (height, fit, age group) and **Measurements** (camera button, then the
+  seven measurements), with Save and the consent tick below.
+- Each box shows **cm** inside it instead of "(cm)" in every label.
+- Measure with camera and Save are no longer greyed out with no reason: without a height they
+  point to the Height box and say what is missing; the consent tick is checked by the browser.
+- Fit and age group start from the gender and date of birth given at sign-up until a profile is
+  saved.
+- Delete my measurements is a small button at the bottom instead of a full-width bar.
+
 ## 2026-11-21 - Profile page tidied; tokens only on the Tokens tab
 
 - The Profile page no longer lists tokens; balance and history live on the Tokens tab only.

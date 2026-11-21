@@ -7,14 +7,14 @@
  * Typed values always win over photo estimates.
  */
 import "@/components/fit/capture/capture.css";
-import { useActionState, useMemo, useState } from "react";
+import { type ReactNode, type Ref, useActionState, useMemo, useRef, useState } from "react";
 import { AdminForm } from "@/app/admin/admin-form";
 import { CaptureFlow } from "@/components/fit/capture/ui/CaptureFlow";
 import { outlineFor } from "@/components/fit/capture/measure/outline";
 import { derive, usable, type Photos } from "@/components/fit/capture/ui/derive";
 import { DEFAULT_MODELS } from "@/components/fit/capture/vision/mediapipe";
 import type { BodyKey } from "@/components/fit/capture/types";
-import { Alert, Button, Field, Input, Select } from "@/components/ui";
+import { Alert, Badge, Button, Card, Field, Input, Select } from "@/components/ui";
 import { REGION_LABEL, REGIONS, type Region } from "@/lib/fit/regions";
 import { deleteBodyProfileAction, saveBodyProfileAction } from "@/server/fit-actions";
 
@@ -51,17 +51,20 @@ function framing(m: { top: number; bottom: number } | null | undefined, h: numbe
 
 export function FitOnboarding({
   profile,
+  start,
   next,
   body3d,
 }: {
   profile: ProfileValues | null;
+  /** Fit and age group from the buyer's sign-up details, used until a profile is saved. */
+  start?: { gender: string | null; ageBand: string | null };
   next: string;
   /** Send the outlines for the buyer's own 3D body (off until the accuracy test passes). */
   body3d: boolean;
 }) {
   const [height, setHeight] = useState(profile ? String(profile.heightCm) : "");
-  const [gender, setGender] = useState(profile?.gender ?? "");
-  const [ageBand, setAgeBand] = useState(profile?.ageBand ?? "");
+  const [gender, setGender] = useState(profile?.gender ?? start?.gender ?? "");
+  const [ageBand, setAgeBand] = useState(profile?.ageBand ?? start?.ageBand ?? "");
   const [photos, setPhotos] = useState<Photos>({});
   const [capturing, setCapturing] = useState(false);
   const [typed, setTyped] = useState<Partial<Record<Region, string>>>(() =>
@@ -70,6 +73,8 @@ export function FitOnboarding({
     ),
   );
   const [consent, setConsent] = useState(false);
+  const [heightError, setHeightError] = useState("");
+  const heightRef = useRef<HTMLInputElement>(null);
   const [state, run, pending] = useActionState(saveBodyProfileAction, {});
 
   const h = Number(height) || 0;
@@ -137,94 +142,132 @@ export function FitOnboarding({
     outlines,
   });
 
+  const needHeight = () => {
+    setHeightError("Enter your height in cm");
+    heightRef.current?.focus();
+  };
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        <Field label="Height (cm)" name="heightCm">
-          <Input
+    <div className="flex flex-col gap-5">
+      <Section title="About you">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          <CmField
+            label="Height"
             name="heightCm"
-            inputMode="decimal"
+            inputRef={heightRef}
             value={height}
-            onChange={(e) => setHeight(e.target.value)}
-            required
+            error={heightError}
+            onChange={(v) => {
+              setHeight(v);
+              setHeightError("");
+            }}
           />
-        </Field>
-        <Field label="Fit (optional)" name="gender">
-          <Select name="gender" value={gender} onChange={(e) => setGender(e.target.value)}>
-            <option value="">—</option>
-            <option value="MEN">Men</option>
-            <option value="WOMEN">Women</option>
-          </Select>
-        </Field>
-        <Field label="Age (optional)" name="ageBand">
-          <Select name="ageBand" value={ageBand} onChange={(e) => setAgeBand(e.target.value)}>
-            <option value="">—</option>
-            {["18-29", "30-44", "45-59", "60+"].map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
+          <Field label="Fit" name="gender">
+            <Select name="gender" value={gender} onChange={(e) => setGender(e.target.value)}>
+              <option value="">Not set</option>
+              <option value="MEN">Men</option>
+              <option value="WOMEN">Women</option>
+            </Select>
+          </Field>
+          <Field label="Age group" name="ageBand">
+            <Select name="ageBand" value={ageBand} onChange={(e) => setAgeBand(e.target.value)}>
+              <option value="">Not set</option>
+              {["18-29", "30-44", "45-59", "60+"].map((a) => (
+                <option key={a} value={a}>
+                  {a}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+      </Section>
+
+      <Section
+        title="Measurements"
+        action={
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => (h < 100 ? needHeight() : setCapturing(true))}
+          >
+            <CameraIcon />
+            {photos.front || photos.side ? "Retake photos" : "Measure with camera"}
+          </Button>
+        }
+      >
+        {(photos.front || photos.side) && (
+          <div className="flex gap-2">
+            {(["front", "side"] as const).map((v) => (
+              <Badge key={v} tone={photos[v] ? "good" : "neutral"}>
+                {v === "front" ? "Front" : "Side"} {photos[v] ? "✓" : "—"}
+              </Badge>
             ))}
-          </Select>
-        </Field>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3">
-        <Button type="button" onClick={() => setCapturing(true)} disabled={h < 100}>
-          {photos.front || photos.side ? "Retake photos" : "Measure with camera"}
-        </Button>
-        {(["front", "side"] as const).map((v) => (
-          <span key={v} className="text-sm text-subtle">
-            {v === "front" ? "Front" : "Side"} {photos[v] ? "✓" : "—"}
-          </span>
-        ))}
-      </div>
-      {framingOff && <Alert>Stand at the same distance for both photos, then retake them.</Alert>}
-
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-        {REGIONS.map((r) => {
-          const m = measurements[r];
-          const p = photoValue(r);
-          return (
-            <Field key={r} label={`${LABEL[r]} (cm)`} name={`m-${r}`}>
-              <Input
+          </div>
+        )}
+        {framingOff && <Alert>Stand at the same distance for both photos, then retake them.</Alert>}
+        <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3">
+          {REGIONS.map((r) => {
+            const m = measurements[r];
+            const p = photoValue(r);
+            return (
+              <CmField
+                key={r}
+                label={LABEL[r]}
                 name={`m-${r}`}
-                inputMode="decimal"
                 placeholder={p ? String(half(p.value)) : ""}
                 value={typed[r] ?? ""}
-                onChange={(e) => setTyped((t) => ({ ...t, [r]: e.target.value }))}
+                onChange={(v) => setTyped((t) => ({ ...t, [r]: v }))}
+                below={
+                  <span
+                    className="block min-h-4 text-xs text-subtle tabular-nums"
+                    data-testid={`range-${r}`}
+                  >
+                    {m ? `${m.low}–${m.high}` : ""}
+                  </span>
+                }
               />
-              <span className="text-xs text-subtle tabular-nums" data-testid={`range-${r}`}>
-                {m ? `${m.low}–${m.high}` : " "}
-              </span>
-            </Field>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      </Section>
 
-      <form action={run} className="flex flex-col gap-3">
+      <form
+        action={run}
+        onSubmit={(e) => {
+          if (h < 100) {
+            e.preventDefault();
+            needHeight();
+          }
+        }}
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
         <input type="hidden" name="profile" value={payload} />
         <input type="hidden" name="next" value={next} />
         <label className="flex min-h-11 items-center gap-2 text-sm">
           <input
             type="checkbox"
+            required
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
-            className="size-4"
+            className="size-4 accent-[var(--color-accent)]"
           />
           Save my measurements to my account
         </label>
-        <Button type="submit" disabled={pending || !consent || h < 100}>
+        <Button type="submit" disabled={pending} className="sm:px-8">
           {pending ? "Working…" : "Save measurements"}
         </Button>
         {state.error && <Alert>{state.error}</Alert>}
       </form>
 
       {profile && (
-        <AdminForm
-          action={deleteBodyProfileAction}
-          submit="Delete my measurements"
-          variant="danger"
-        />
+        <div className="border-t border-line pt-5">
+          <AdminForm
+            action={deleteBodyProfileAction}
+            submit="Delete my measurements"
+            variant="secondary"
+            className="flex justify-end"
+          />
+        </div>
       )}
 
       {capturing && (
@@ -240,5 +283,89 @@ export function FitOnboarding({
         </div>
       )}
     </div>
+  );
+}
+
+function Section({
+  title,
+  action,
+  children,
+}: {
+  title: string;
+  action?: ReactNode;
+  children: ReactNode;
+}) {
+  const id = `fit-${title.toLowerCase().replace(/s+/g, "-")}`;
+  return (
+    <section aria-labelledby={id} className="flex flex-col gap-2">
+      <h2 id={id} className="px-1 text-sm font-semibold tracking-wide text-subtle uppercase">
+        {title}
+      </h2>
+      <Card className="flex flex-col gap-4">
+        {action && <div className="flex flex-wrap items-center gap-3">{action}</div>}
+        {children}
+      </Card>
+    </section>
+  );
+}
+
+/** A number field with a "cm" suffix; the unit stays in the accessible name. */
+function CmField({
+  label,
+  name,
+  value,
+  onChange,
+  placeholder,
+  error,
+  below,
+  inputRef,
+}: {
+  label: string;
+  name: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  error?: string;
+  below?: ReactNode;
+  inputRef?: Ref<HTMLInputElement>;
+}) {
+  return (
+    <Field label={label} name={name} error={error}>
+      <div className="relative">
+        <Input
+          ref={inputRef}
+          name={name}
+          inputMode="decimal"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={`${label} (cm)`}
+          aria-invalid={error ? true : undefined}
+          className="w-full pr-11 tabular-nums"
+        />
+        <span className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-sm text-subtle">
+          cm
+        </span>
+      </div>
+      {below}
+    </Field>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      className="size-4"
+    >
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" />
+      <circle cx="12" cy="13" r="3" />
+    </svg>
   );
 }
