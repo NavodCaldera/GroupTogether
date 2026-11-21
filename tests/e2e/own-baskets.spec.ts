@@ -162,8 +162,8 @@ test("the owner hears of the join and places the order", async ({ page }) => {
   await page.goto(`/own-baskets/${ids.basket}`);
   await expect(page.getByText(/more item/)).toHaveCount(0);
   await page.getByRole("button", { name: "Place order" }).click();
-  await expect(page.getByText("Packing", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-current="step"]', { hasText: "Packing" })).toBeVisible();
   await page.reload();
-  await expect(page.getByText("Packing", { exact: true })).toBeVisible();
+  await expect(page.locator('[aria-current="step"]', { hasText: "Packing" })).toBeVisible();
   await inspect(page);
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { Button } from "./ui";
 
@@ -63,6 +63,8 @@ export function CopyLinkButton({
 // reload starts again at 0, which only means Back uses its fallback.
 let depth = 0;
 let popped = false;
+// Set when Back falls back with a replace: the page changes but the history does not grow.
+let replaced = false;
 let last: string | null = null;
 
 /** Mounted once in the root layout: counts in-app moves (forward +1, browser back -1). */
@@ -76,22 +78,32 @@ export function NavDepth() {
     return () => window.removeEventListener("popstate", onPop);
   }, []);
   useEffect(() => {
-    if (last !== null && last !== pathname) depth = popped ? Math.max(0, depth - 1) : depth + 1;
+    if (last !== null && last !== pathname && !replaced)
+      depth = popped ? Math.max(0, depth - 1) : depth + 1;
     popped = false;
+    replaced = false;
     last = pathname;
   }, [pathname]);
   return null;
 }
 
-/** "‹ Back": the previous GroupBasket page when there is one in this tab, otherwise `fallback`. */
+/**
+ * "‹ Back": the previous GroupBasket page when there is one in this tab, otherwise `fallback`.
+ * The fallback replaces this page in the history instead of adding one, so Back on the fallback
+ * page cannot bounce straight back here (two pages whose fallbacks point at each other looped).
+ */
 export function BackLink({ fallback }: { fallback: string }) {
+  const router = useRouter();
   return (
     <Link
       href={fallback}
       onClick={(e) => {
-        if (depth > 0) {
-          e.preventDefault();
-          window.history.back();
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        e.preventDefault();
+        if (depth > 0) window.history.back();
+        else {
+          replaced = true;
+          router.replace(fallback);
         }
       }}
       // Green text, not a filled button: Back is secondary and must not compete with the page's

@@ -18,6 +18,23 @@ export const OWN_STATUS: Record<string, string> = {
   CANCELLED: "Cancelled",
 };
 
+export const OWN_STEPS = ["Filling", "Packing", "On the way", "Delivered"] as const;
+
+/** The own basket's step on the tracker; null once it is delivered or cancelled. */
+export function ownStep(status: string): number | null {
+  switch (status) {
+    case "OPEN":
+      return 0;
+    case "LOCKED":
+    case "PACKED":
+      return 1;
+    case "WITH_COURIER":
+      return 2;
+    default:
+      return null;
+  }
+}
+
 /** One quantity box per size of the product; sizes with no stock are disabled. */
 export function SizeQuantities({
   variants,
