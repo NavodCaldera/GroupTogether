@@ -288,6 +288,9 @@ async function main() {
   });
   const core = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.CORE } });
   const agentsAdmin = await db.user.findUniqueOrThrow({ where: { email: DEMO_ADMINS.AGENTS } });
+  const categoryReviewer = await db.user.findUniqueOrThrow({
+    where: { email: DEMO_ADMINS.FACTORY },
+  });
   await db.agreementVersion.create({
     data: { version: 1, text: "Agreement text supplied by GroupBasket", publishedBy: core.id },
   });
@@ -317,6 +320,17 @@ async function main() {
         status: "ACTIVE",
         complianceDueAt: new Date(Date.now() + 30 * 86_400_000),
       },
+    });
+    // Approved to list clothing, and shoes when it sells shoes (CATG-003)
+    const roots = new Set(products.map((p) => kindSlug(p.kind).split("/")[0]));
+    await db.factoryCategory.createMany({
+      data: [...roots].map((root) => ({
+        factoryId: owner.id,
+        categoryId: categoryIdOf(root),
+        status: "APPROVED" as const,
+        approvedById: categoryReviewer.id,
+        reviewedAt: new Date(),
+      })),
     });
     const staff = async (name: string, email: string, phone: string, job: "PACKING" | "SALES") =>
       db.user.create({

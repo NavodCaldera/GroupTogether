@@ -68,6 +68,10 @@ still planned.
   `""` when the product has no axes), `Variant.label`, `sku`, weight and dimensions.
   Unique `[productId, optionKey]`. `OrderLine.variantLabel` snapshots the label.
 - `FactoryCategory` (`factoryId`, `categoryId`, `PENDING|APPROVED|REJECTED`, `approvedById`).
+  Built 2026-11-22: `src/lib/factory-categories.ts` (`coveredBy`, `needsLicence`),
+  `src/server/factory-categories.ts` (request, review, documents, `coversCategory` used by
+  `saveProduct`), actions in `src/server/factory-category-actions.ts`, screens
+  `/seller/categories` and `/admin/factory/categories`.
 
 ## Implementation guards
 

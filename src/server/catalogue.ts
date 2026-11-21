@@ -1,5 +1,6 @@
 import "server-only";
 import { lockUserAdvisory } from "./orders/locks";
+import { coversCategory } from "./factory-categories";
 import { z } from "zod";
 import type { Condition, Prisma } from "@/generated/prisma/client";
 import type { Audience } from "@/lib/taxonomy";
@@ -406,6 +407,9 @@ export async function saveProduct(
       if (!(await canSellIn(tx, ownerId, new Date())))
         throw new CatalogueError("This factory can no longer list products");
     }
+    // A factory lists only in its approved categories (CATG-003); admin listings are not limited.
+    if (sellerId && !(await coversCategory(tx, sellerId, data.categoryId)))
+      throw new CatalogueError("Your factory isn't approved for this category");
     if (id) await tx.$queryRaw`SELECT 1 FROM "Product" WHERE id = ${id} FOR UPDATE`;
     const fresh = id
       ? await tx.product.findUniqueOrThrow({

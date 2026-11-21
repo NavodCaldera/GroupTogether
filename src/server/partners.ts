@@ -15,6 +15,8 @@ import { getCurrentUser } from "./auth/session";
 import { hashPassword } from "./auth/password";
 import { hashToken, phoneSchema } from "./auth/service";
 import { notify } from "./notify";
+import { loadCategoryTree } from "./categories";
+import { needsLicence } from "@/lib/factory-categories";
 import { checkUpload, saveUpload, IMAGE_TYPES, UploadError } from "./storage";
 export class PartnerError extends Error {}
 export async function assertPartnerAdmin(adminId: string) {
@@ -34,6 +36,7 @@ export async function submitApplication(
   input: ApplicationInput,
   files: { kind: FactoryDocKind; file: File }[],
   inviteToken?: string,
+  industryId?: string,
 ): Promise<{ id: string }> {
   const missing = missingItems(
     input,
@@ -55,6 +58,11 @@ export async function submitApplication(
   data.ownerNic = normalizedIdentity(data.ownerNic);
   if (!data.brNumber || !data.ownerNic)
     throw new PartnerError("Enter BR number and owner NIC number");
+  if (industryId) {
+    const tree = await loadCategoryTree();
+    const root = tree.get(industryId);
+    if (!root || root.parentId || !root.active) throw new PartnerError("Choose a main category");
+  }
   if (files.length > 12) throw new PartnerError("Choose at most 12 documents");
   for (const f of files) {
     if (!DOCUMENT_LABELS[f.kind]) throw new PartnerError("Invalid document kind");
@@ -110,7 +118,13 @@ export async function submitApplication(
     )
       throw new PartnerError("Your application is already submitted");
     return tx.factoryApplication.create({
-      data: { ...data, inviteId, factoryUserId: owner?.id, documents: { create: saved } },
+      data: {
+        ...data,
+        inviteId,
+        industryId: industryId ?? null,
+        factoryUserId: owner?.id,
+        documents: { create: saved },
+      },
       select: { id: true },
     });
   });
@@ -218,6 +232,27 @@ export async function reviewApplication(
         reviewNote: note?.trim() || null,
       },
     });
+    // Documents are reviewed with the application; its main category becomes the first one the
+    // factory may list in (DEC-029), waiting for review when it needs a licence the factory lacks.
+    const reviewed = { reviewedById: adminId, reviewedAt: new Date() };
+    await tx.factoryDocument.updateMany({
+      where: { applicationId: id },
+      data: { status: decision === "APPROVE" ? "APPROVED" : "REJECTED", ...reviewed },
+    });
+    if (decision === "APPROVE" && a.industryId && factoryUserId) {
+      const tree = await loadCategoryTree();
+      const ready =
+        !needsLicence(tree, a.industryId) || a.documents.some((d) => d.kind === "PRODUCT_LICENCE");
+      await tx.factoryCategory.upsert({
+        where: { factoryId_categoryId: { factoryId: factoryUserId, categoryId: a.industryId } },
+        create: {
+          factoryId: factoryUserId,
+          categoryId: a.industryId,
+          ...(ready ? { status: "APPROVED", approvedById: adminId, reviewedAt: new Date() } : {}),
+        },
+        update: {},
+      });
+    }
     return { userId: decision === "APPROVE" ? factoryUserId : null, activationUrl };
   });
   if (result.userId)

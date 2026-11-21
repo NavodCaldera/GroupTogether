@@ -30,12 +30,20 @@ export default async function FactoryProductsPage() {
       role={seller.factoryRole}
       title="Products"
       action={
-        <Link
-          href="/seller/new"
-          className="inline-flex min-h-12 shrink-0 items-center rounded-md border-2 border-ink px-3 font-bold"
-        >
-          Add product
-        </Link>
+        <div className="flex shrink-0 gap-2">
+          <Link
+            href="/seller/categories"
+            className="inline-flex min-h-12 items-center rounded-md border-2 border-line px-3 font-bold"
+          >
+            Categories
+          </Link>
+          <Link
+            href="/seller/new"
+            className="inline-flex min-h-12 items-center rounded-md border-2 border-ink px-3 font-bold"
+          >
+            Add product
+          </Link>
+        </div>
       }
     >
       {products.length === 0 ? (

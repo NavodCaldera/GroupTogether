@@ -85,6 +85,10 @@ model User {
   factoryActivations   FactoryActivation[]   @relation("ActivationOwner")
   createdActivations   FactoryActivation[]   @relation("ActivationCreator")
   factoryInvites       FactoryInvite[]
+  factoryCategories    FactoryCategory[]     @relation("FactoryCategories")
+  approvedCategories   FactoryCategory[]     @relation("FactoryCategoryApprover")
+  factoryDocuments     FactoryDocument[]     @relation("FactoryDocuments")
+  reviewedDocuments    FactoryDocument[]     @relation("DocumentReviewer")
   publishedAgreements  AgreementVersion[]
   factoryAcceptances   AgreementAcceptance[] @relation("AcceptanceFactory")
   acceptedAgreements   AgreementAcceptance[] @relation("AcceptancePerson")
@@ -139,28 +143,30 @@ model Session {
 /// The category tree (DEC-029, CATG-001): Clothing > Men > Shirts. Fields left null or empty are
 /// inherited from the parent (src/lib/categories.ts)
 model Category {
-  id            String              @id @default(cuid())
+  id            String               @id @default(cuid())
   parentId      String?
-  parent        Category?           @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
-  children      Category[]          @relation("CategoryTree")
+  parent        Category?            @relation("CategoryTree", fields: [parentId], references: [id], onDelete: Restrict)
+  children      Category[]           @relation("CategoryTree")
   /// Segments from the root: "clothing/men/shirts"
-  slug          String              @unique
+  slug          String               @unique
   name          String
   /// Materialised ids from the root, "/<rootId>/<id>/", for subtree queries
   path          String
-  sortOrder     Int                 @default(0)
-  active        Boolean             @default(true)
-  commissionPct Decimal?            @db.Decimal(5, 2)
-  minCommission Decimal?            @db.Decimal(14, 2)
+  sortOrder     Int                  @default(0)
+  active        Boolean              @default(true)
+  commissionPct Decimal?             @db.Decimal(5, 2)
+  minCommission Decimal?             @db.Decimal(14, 2)
   /// Add-ons switched on for this subtree: "fit", "materials", "audience"
   features      String[]
-  needsApproval Boolean             @default(false)
+  needsApproval Boolean              @default(false)
   /// Return and report reasons for this category on top of the general ones
   returnReasons String[]
-  createdAt     DateTime            @default(now())
-  updatedAt     DateTime            @updatedAt
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
   attributes    CategoryAttribute[]
   products      Product[]
+  factories     FactoryCategory[]
+  applications  FactoryApplication[]
 
   @@index([parentId, sortOrder])
   @@index([path])
@@ -577,6 +583,35 @@ enum FactoryDocKind {
   BR_CERT
   NIC_PHOTO
   FACTORY_PHOTO
+  /// Registration for a restricted category, for example food or cosmetics (DEC-029)
+  PRODUCT_LICENCE
+  /// Shows the factory is the maker or brand owner (DEC-029)
+  TRADEMARK_PROOF
+}
+
+/// An admin review of a factory's category request or document (DEC-029)
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+/// A category a factory may list in (CATG-003, DEC-029). Approval covers the whole subtree.
+model FactoryCategory {
+  id           String       @id @default(cuid())
+  factoryId    String
+  factory      User         @relation("FactoryCategories", fields: [factoryId], references: [id], onDelete: Cascade)
+  categoryId   String
+  category     Category     @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  status       ReviewStatus @default(PENDING)
+  approvedById String?
+  approvedBy   User?        @relation("FactoryCategoryApprover", fields: [approvedById], references: [id])
+  reviewedAt   DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([factoryId, categoryId])
+  @@index([status, createdAt])
 }
 
 enum FactoryStatus {
@@ -609,6 +644,9 @@ model FactoryApplication {
   invite        FactoryInvite?    @relation(fields: [inviteId], references: [id])
   factoryUserId String?
   factory       User?             @relation("ApplicationFactory", fields: [factoryUserId], references: [id])
+  /// The main root category the factory makes (DEC-029); optional
+  industryId    String?
+  industry      Category?         @relation(fields: [industryId], references: [id], onDelete: SetNull)
   createdAt     DateTime          @default(now())
   documents     FactoryDocument[]
 
@@ -618,15 +656,25 @@ model FactoryApplication {
   @@index([factoryUserId])
 }
 
+/// Sent with an application, or later from the factory workspace (`factoryId`, DEC-029)
 model FactoryDocument {
-  id            String             @id @default(cuid())
-  applicationId String
-  application   FactoryApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  id            String              @id @default(cuid())
+  applicationId String?
+  application   FactoryApplication? @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  factoryId     String?
+  factory       User?               @relation("FactoryDocuments", fields: [factoryId], references: [id], onDelete: Cascade)
   kind          FactoryDocKind
   storageKey    String
   contentType   String
+  status        ReviewStatus        @default(PENDING)
+  reviewedById  String?
+  reviewedBy    User?               @relation("DocumentReviewer", fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  createdAt     DateTime            @default(now())
 
   @@index([applicationId])
+  @@index([factoryId, kind, status])
+  @@index([status, createdAt])
 }
 
 model FactoryInvite {

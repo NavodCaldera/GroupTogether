@@ -2,7 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { getCurrentUser, signInAs } from "./auth/session";
-import { APPLICATION_FIELDS, type ApplicationInput } from "@/lib/partner-rules";
+import { APPLICATION_FIELDS, DOCUMENT_LABELS, type ApplicationInput } from "@/lib/partner-rules";
 import type { FactoryDocKind } from "@/generated/prisma/client";
 import {
   PartnerError,
@@ -36,13 +36,18 @@ export async function submitApplicationAction(
     const input = Object.fromEntries(
       APPLICATION_FIELDS.map(([k]) => [k, str(fd, k)]),
     ) as ApplicationInput;
-    const files = (["BR_CERT", "NIC_PHOTO", "FACTORY_PHOTO"] as FactoryDocKind[]).flatMap((kind) =>
+    const files = (Object.keys(DOCUMENT_LABELS) as FactoryDocKind[]).flatMap((kind) =>
       fd
         .getAll(kind)
         .filter((f): f is File => f instanceof File && f.size > 0)
         .map((file) => ({ kind, file })),
     );
-    await submitApplication(input, files, str(fd, "inviteToken") || undefined);
+    await submitApplication(
+      input,
+      files,
+      str(fd, "inviteToken") || undefined,
+      str(fd, "industryId") || undefined,
+    );
   } catch (e) {
     if (e instanceof PartnerError) return { error: e.message };
     throw e;

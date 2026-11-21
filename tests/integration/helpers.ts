@@ -21,6 +21,15 @@ export async function resetDb() {
   await ensureCategoryTree();
 }
 
+/** Lets a factory list in a category and everything below it (CATG-003); Clothing by default. */
+export async function approveCategory(factoryId: string, categoryId = CLOTHING_ROOT_ID) {
+  return db.factoryCategory.upsert({
+    where: { factoryId_categoryId: { factoryId, categoryId } },
+    create: { factoryId, categoryId, status: "APPROVED", reviewedAt: new Date() },
+    update: { status: "APPROVED" },
+  });
+}
+
 let n = 0;
 /** Admins default to the Agents and orders area; pass another area for premium or factory work. */
 export async function makeUser(
@@ -90,6 +99,9 @@ export async function makeFactory() {
       passwordHash: "x",
       company: `Factory ${n}`,
       factoryProfile: { create: {} },
+      factoryCategories: {
+        create: { categoryId: CLOTHING_ROOT_ID, status: "APPROVED", reviewedAt: new Date() },
+      },
     },
   });
   const product = await db.product.create({
