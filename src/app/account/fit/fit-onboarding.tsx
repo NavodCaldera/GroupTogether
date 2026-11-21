@@ -16,6 +16,7 @@ import { DEFAULT_MODELS } from "@/components/fit/capture/vision/mediapipe";
 import type { BodyKey } from "@/components/fit/capture/types";
 import { Alert, Badge, Button, Card, Field, Input, Select } from "@/components/ui";
 import { REGION_LABEL, REGIONS, type Region } from "@/lib/fit/regions";
+import { BodyGuide } from "./body-guide";
 import { deleteBodyProfileAction, saveBodyProfileAction } from "@/server/fit-actions";
 
 type Stored = { value: number; low: number; high: number; source: "photo" | "typed" };
@@ -74,6 +75,7 @@ export function FitOnboarding({
   );
   const [consent, setConsent] = useState(false);
   const [heightError, setHeightError] = useState("");
+  const [focus, setFocus] = useState<Region | null>(null);
   const heightRef = useRef<HTMLInputElement>(null);
   const [state, run, pending] = useActionState(saveBodyProfileAction, {});
 
@@ -205,29 +207,33 @@ export function FitOnboarding({
           </div>
         )}
         {framingOff && <Alert>Stand at the same distance for both photos, then retake them.</Alert>}
-        <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-3">
-          {REGIONS.map((r) => {
-            const m = measurements[r];
-            const p = photoValue(r);
-            return (
-              <CmField
-                key={r}
-                label={LABEL[r]}
-                name={`m-${r}`}
-                placeholder={p ? String(half(p.value)) : ""}
-                value={typed[r] ?? ""}
-                onChange={(v) => setTyped((t) => ({ ...t, [r]: v }))}
-                below={
-                  <span
-                    className="block min-h-4 text-xs text-subtle tabular-nums"
-                    data-testid={`range-${r}`}
-                  >
-                    {m ? `${m.low}–${m.high}` : ""}
-                  </span>
-                }
-              />
-            );
-          })}
+        <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
+          <BodyGuide active={focus} label={(r) => LABEL[r]} />
+          <div className="grid grid-cols-2 gap-x-3 gap-y-3">
+            {REGIONS.map((r) => {
+              const m = measurements[r];
+              const p = photoValue(r);
+              return (
+                <CmField
+                  key={r}
+                  label={LABEL[r]}
+                  name={`m-${r}`}
+                  placeholder={p ? String(half(p.value)) : ""}
+                  value={typed[r] ?? ""}
+                  onChange={(v) => setTyped((t) => ({ ...t, [r]: v }))}
+                  onFocus={(on) => setFocus(on ? r : null)}
+                  below={
+                    <span
+                      className="block min-h-4 text-xs text-subtle tabular-nums"
+                      data-testid={`range-${r}`}
+                    >
+                      {m ? `${m.low}–${m.high}` : ""}
+                    </span>
+                  }
+                />
+              );
+            })}
+          </div>
         </div>
       </Section>
 
@@ -319,6 +325,7 @@ function CmField({
   error,
   below,
   inputRef,
+  onFocus,
 }: {
   label: string;
   name: string;
@@ -328,10 +335,18 @@ function CmField({
   error?: string;
   below?: ReactNode;
   inputRef?: Ref<HTMLInputElement>;
+  /** Called with true when the field is focused or hovered, false when left. */
+  onFocus?: (on: boolean) => void;
 }) {
   return (
     <Field label={label} name={name} error={error}>
-      <div className="relative">
+      <div
+        className="relative"
+        onMouseEnter={() => onFocus?.(true)}
+        onMouseLeave={() => onFocus?.(false)}
+        onFocus={() => onFocus?.(true)}
+        onBlur={() => onFocus?.(false)}
+      >
         <Input
           ref={inputRef}
           name={name}

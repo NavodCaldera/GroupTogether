@@ -16,6 +16,9 @@ Newest first.
 - Fit and age group start from the gender and date of birth given at sign-up until a profile is
   saved.
 - Delete my measurements is a small button at the bottom instead of a full-width bar.
+- A body figure beside the measurements shows where each one is taken: the box you are in
+  lights up its ring or line, and with none chosen it steps through them all (still for viewers
+  who turn motion off).
 
 ## 2026-11-21 - Profile page tidied; tokens only on the Tokens tab
 

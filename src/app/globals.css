@@ -224,3 +224,19 @@ body {
     animation: none;
   }
 }
+
+/* My measurements body guide: the highlighted measurement draws in. */
+@keyframes body-guide-draw {
+  from {
+    stroke-dashoffset: 300;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .body-guide-on > * {
+    stroke-dasharray: 300;
+    animation: body-guide-draw 0.9s ease-out;
+  }
+}
