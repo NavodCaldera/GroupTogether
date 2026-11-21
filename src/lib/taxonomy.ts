@@ -1,4 +1,7 @@
-/** Who a product is for, what it is, and which sizes that kind comes in. No database. */
+/**
+ * Who a clothing product is for, what it is, and which sizes that kind comes in. The category tree
+ * in the database (src/lib/categories.ts, DEC-029) is built from these kinds; screens read the tree.
+ */
 
 export const AUDIENCES = [
   { id: "MEN", label: "Men" },
@@ -14,6 +17,9 @@ const LETTER = ["S", "M", "L", "XL", "XXL"];
 const WAIST = ["28", "30", "32", "34", "36"];
 const AGE_KID = ["2-3Y", "3-4Y", "4-5Y", "5-6Y"];
 const AGE_JUNIOR = ["6-7Y", "8-9Y", "10-11Y", "12-13Y"];
+
+/** Every clothing size, in the order the size attribute lists them (DEC-029). */
+export const ALL_SIZES = [...LETTER, ...WAIST, ...AGE_KID, ...AGE_JUNIOR];
 
 type Kind = { id: string; label: string; category: "APPAREL"; sizes: string[] };
 

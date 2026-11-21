@@ -12,7 +12,6 @@ import {
 } from "@/lib/factory-insights";
 import type { FactorySection } from "@/lib/factory-roles";
 import { D, roundMoney, toD } from "@/lib/decimal";
-import { findKind } from "@/lib/taxonomy";
 import { assertFactorySection } from "./auth/service";
 import { db } from "./db";
 import { PAYOUT_HOLD_RETURNS, payableLines, weekOf } from "./payouts";
@@ -454,7 +453,7 @@ export async function factoryInsights(factoryId: string) {
       select: {
         qty: true,
         unitPrice: true,
-        variant: { select: { product: { select: { kind: true, category: true } } } },
+        variant: { select: { product: { select: { categoryRef: { select: { name: true } } } } } },
       },
     }),
     db.order.findMany({ where: paid, select: { agent: { select: { city: true } } } }),
@@ -476,7 +475,7 @@ export async function factoryInsights(factoryId: string) {
   const bands = new Map<string, Map<string, number>>();
   for (const l of lines) {
     const p = l.variant.product;
-    const cat = findKind(p.kind)?.label ?? p.category;
+    const cat = p.categoryRef.name;
     const row = bands.get(cat) ?? new Map<string, number>();
     const band = priceBand(l.unitPrice);
     row.set(band, (row.get(band) ?? 0) + l.qty);

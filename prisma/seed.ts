@@ -29,6 +29,8 @@
 import "dotenv/config";
 import { D } from "../src/lib/decimal";
 import { findKind } from "../src/lib/taxonomy";
+import { categoryIdOf, kindSlug } from "../src/lib/categories";
+import { ensureCategoryTree } from "../src/server/categories";
 import { optionsFromSizeColour, variantFields } from "../src/lib/variant-options";
 import type { Hours } from "../src/lib/agent-rules";
 import {
@@ -274,6 +276,8 @@ async function main() {
   await resetDatabase();
 
   await db.settings.create({ data: { id: 1 } });
+  // The category tree the category_tree migration also writes (DEC-029).
+  await ensureCategoryTree();
 
   const passwordHash = await hashPassword(DEMO_PASSWORD);
 
@@ -352,6 +356,7 @@ async function main() {
           title: p.title,
           brand: f.company,
           category: kind.category,
+          categoryId: categoryIdOf(kindSlug(p.kind)),
           audience: p.audience,
           kind: p.kind,
           stockType: p.stockType,
@@ -766,6 +771,7 @@ async function main() {
       title: "Hand-loomed linen kaftan",
       brand: "Serendib Atelier",
       category: "APPAREL",
+      categoryId: categoryIdOf(kindSlug("women-dresses")),
       audience: "WOMEN",
       kind: "women-dresses",
       stockType: "FACTORY_SURPLUS",

@@ -2,7 +2,9 @@ import "server-only";
 import { lockUserAdvisory } from "./orders/locks";
 import { z } from "zod";
 import type { Prisma, StockType } from "@/generated/prisma/client";
-import { type Audience, findKind, kindFits } from "@/lib/taxonomy";
+import { type Audience, kindFits } from "@/lib/taxonomy";
+import { childrenOf, isActive, kindSlug, legacyColumns } from "@/lib/categories";
+import { loadCategoryTree } from "./categories";
 import { D, toD } from "@/lib/decimal";
 import { linkOnSite } from "@/lib/brand-rules";
 import { db } from "./db";
@@ -23,7 +25,8 @@ export class CatalogueError extends Error {}
 export type ProductFilters = {
   /** The buyer's own audience; products with no audience (unisex) show to everyone. */
   audience?: Audience;
-  kind?: string;
+  /** A category's materialised path: the category and everything below it (DEC-029) */
+  categoryPath?: string;
   stockType?: StockType;
   brand?: string;
   size?: string;
@@ -104,7 +107,7 @@ async function findShopProducts(
         await shopEligibility(now),
         ...(f.audience ? [{ OR: [{ audience: f.audience }, { audience: null }] }] : []),
       ],
-      kind: f.kind,
+      categoryRef: f.categoryPath ? { path: { startsWith: f.categoryPath } } : undefined,
       stockType: f.stockType,
       brand: f.brand ? { equals: f.brand, mode: "insensitive" } : undefined,
       variants: f.size ? { some: { size: f.size, available: { gt: 0 } } } : IN_SHOP.variants,
@@ -201,8 +204,10 @@ const productSchema = z
     title: z.string().trim().min(2, "Enter a title").max(120),
     brand: z.string().trim().min(1, "Enter the brand").max(60),
     description: z.string().trim().max(2000).default(""),
-    audience: z.enum(["MEN", "WOMEN", "GIRL", "BOY", "KID"], { message: "Choose who it is for" }),
-    kind: z.string().min(1, "Choose a category"),
+    // The form sends a category from the tree; older callers send the clothing audience and kind.
+    categoryId: z.string().trim().max(100).optional().or(z.literal("")),
+    audience: z.enum(["MEN", "WOMEN", "GIRL", "BOY", "KID"]).optional().or(z.literal("")),
+    kind: z.string().trim().max(60).optional().or(z.literal("")),
     // No longer chosen in the form (product owner, 2026-10-20): kept as stored, new ones surplus.
     stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]).optional(),
     price: money.optional().or(z.literal("")),
@@ -218,7 +223,11 @@ const productSchema = z
     message: "Enter the actual price shown on the brand's page",
     path: ["retailPrice"],
   })
-  .refine((v) => kindFits(v.audience, v.kind), {
+  .refine((v) => v.categoryId || v.kind, {
+    message: "Choose a category",
+    path: ["categoryId"],
+  })
+  .refine((v) => !v.audience || !v.kind || kindFits(v.audience, v.kind), {
     message: "That category isn't offered for this audience",
     path: ["kind"],
   })
@@ -226,6 +235,24 @@ const productSchema = z
     message: "Enter the price",
     path: ["price"],
   });
+
+/**
+ * The tree category a listing goes in, and the old columns it still writes. Only an active category
+ * with nothing below it can hold products.
+ */
+async function categoryFor(v: { categoryId?: string; audience?: string; kind?: string }) {
+  const tree = await loadCategoryTree();
+  const slug = v.categoryId ? undefined : v.kind ? kindSlug(v.kind) : undefined;
+  const node = v.categoryId
+    ? tree.get(v.categoryId)
+    : [...tree.values()].find((n) => n.slug === slug);
+  if (!node || !isActive(tree, node.id) || childrenOf(tree, node.id).length > 0)
+    throw new CatalogueError("Choose a category");
+  const legacy = legacyColumns(node.slug);
+  if (v.audience && legacy.audience && v.audience !== legacy.audience)
+    throw new CatalogueError("That category isn't offered for this audience");
+  return { categoryId: node.id, ...legacy };
+}
 
 /**
  * Creates or updates a product. It shows in the shop once it has free stock. A factory (`sellerId`)
@@ -250,11 +277,17 @@ export async function saveProduct(
     throw new CatalogueError("Accept the current factory agreement before listing products");
   const parsed = productSchema.parse(input);
   // Factories set their own price; brand links are ours.
-  const { price, ...p } = sellerId ? { ...parsed, brandUrl: "" } : parsed;
+  const {
+    price,
+    categoryId: _categoryId,
+    audience: _audience,
+    kind: _kind,
+    ...p
+  } = sellerId ? { ...parsed, brandUrl: "" } : parsed;
   const data = {
     ...p,
+    ...(await categoryFor(parsed)),
     price: price!,
-    category: findKind(p.kind)!.category,
     retailPrice: p.retailPrice || null,
     brandUrl: p.brandUrl || null,
     ...(photo && photo.size > 0
