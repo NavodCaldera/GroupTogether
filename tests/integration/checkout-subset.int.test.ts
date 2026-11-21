@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
-import { setCartItem } from "@/server/orders/cart";
+import { cartLines, setCartItem } from "@/server/orders/cart";
 import { quoteCheckout, startCheckout } from "@/server/orders/checkout";
 import { makeAgent, makeBuyer, makeFactory, resetDb } from "./helpers";
 
@@ -64,5 +64,18 @@ describe("agent checkout of ticked items (spec 005)", () => {
       }),
     ).rejects.toThrow("Your cart is empty");
     expect(await db.cartItem.count({ where: { buyerId: buyer.id } })).toBe(1);
+  });
+});
+
+describe("cartLines", () => {
+  it("returns the ticked cart rows only", async () => {
+    const buyer = await makeBuyer();
+    const a = await makeFactory(),
+      b = await makeFactory();
+    await setCartItem(buyer.id, a.variant.id, 3);
+    await setCartItem(buyer.id, b.variant.id, 1);
+    expect(await cartLines(buyer.id, [a.variant.id, "missing"])).toEqual([
+      { variantId: a.variant.id, qty: 3 },
+    ]);
   });
 });

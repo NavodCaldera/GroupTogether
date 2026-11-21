@@ -1049,7 +1049,8 @@ model Basket {
   lockReason   BasketLockReason?
   createdAt    DateTime          @default(now())
 
-  // Own baskets (DEC-023): one product, delivered to the owner, no agent, no returns
+  // Own baskets (DEC-023, DEC-027): one factory, delivered to the owner, no agent, no returns.
+  // productId is set only on older baskets that were started for one product.
   ownerId         String?
   owner           User?             @relation("BasketOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   productId       String?

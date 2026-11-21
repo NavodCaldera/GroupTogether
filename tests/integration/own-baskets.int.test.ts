@@ -18,6 +18,7 @@ import { handleNotice } from "@/server/payments/notice";
 import { signNotice } from "@/server/payments/demo";
 import { D } from "@/lib/decimal";
 import { fundTokens, makeBuyer, makeFactory, makeUser, resetDb } from "./helpers";
+import { myOpenOwnBaskets } from "@/server/orders/own-baskets";
 import { oldOpenBaskets } from "@/server/agents/admin-screens";
 
 const MERCHANT = "1200000";
@@ -69,7 +70,7 @@ async function startPaid(f: Factory, visibility: "LINK" | "PUBLIC" = "LINK", qty
   const owner = await makeBuyer();
   await fundTokens(owner.id, 1100 * qty);
   const r = await startOwnCheckout(owner.id, {
-    create: { productId: f.variant.productId, visibility, ...ADDRESS },
+    create: { visibility, ...ADDRESS },
     lines: [{ variantId: f.variant.id, qty }],
     tokens: (1100 * qty).toFixed(2),
     requestKey: k(),
@@ -96,7 +97,7 @@ describe("starting and joining", () => {
     const f = await makeFactory();
     const owner = await makeBuyer();
     const r = await startOwnCheckout(owner.id, {
-      create: { productId: f.variant.productId, visibility: "PUBLIC", ...ADDRESS },
+      create: { visibility: "PUBLIC", ...ADDRESS },
       lines: [{ variantId: f.variant.id, qty: 2 }],
       tokens: "0",
       requestKey: k(),
@@ -105,7 +106,7 @@ describe("starting and joining", () => {
     let b = await db.basket.findUniqueOrThrow({ where: { id: r.basketId } });
     expect([b.kind, b.status, b.agentId, b.firstOrderAt]).toEqual(["OWN", "OPEN", null, null]);
     // Not joinable or listed before the owner has paid.
-    expect(await publicOwnBaskets(f.variant.productId)).toEqual([]);
+    expect(await publicOwnBaskets(f.factory.id, null)).toEqual([]);
 
     const order = await db.order.findUniqueOrThrow({
       where: { id: r.orderId },
@@ -118,8 +119,11 @@ describe("starting and joining", () => {
     b = await db.basket.findUniqueOrThrow({ where: { id: r.basketId } });
     expect([b.status, money(b.total)]).toEqual(["OPEN", "2200.00"]);
     expect(b.firstOrderAt).not.toBeNull();
-    const listed = await publicOwnBaskets(f.variant.productId);
-    expect(listed).toEqual([{ id: b.id, area: "Kandy", owner: owner.name, items: 2 }]);
+    const listed = await publicOwnBaskets(f.factory.id, null);
+    expect(listed).toEqual([
+      { id: b.id, area: "Kandy", owner: owner.name.split(" ")[0], items: 2 },
+    ]);
+    expect(b.productId).toBeNull();
   });
 
   it("a link-only basket needs the share code; any size of the same product joins", async () => {
@@ -127,7 +131,7 @@ describe("starting and joining", () => {
     const large = await addSize(f);
     const { basketId } = await startPaid(f, "LINK");
     const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
-    expect(await publicOwnBaskets(f.variant.productId)).toEqual([]);
+    expect(await publicOwnBaskets(f.factory.id, null)).toEqual([]);
 
     const stranger = await makeBuyer();
     await expect(
@@ -145,7 +149,7 @@ describe("starting and joining", () => {
     expect(money(after.total)).toBe("2200.00");
   });
 
-  it("a different product cannot go into the basket", async () => {
+  it("another factory's item cannot go into the basket", async () => {
     const f = await makeFactory();
     const other = await makeFactory();
     const { basketId } = await startPaid(f, "PUBLIC");
@@ -157,14 +161,14 @@ describe("starting and joining", () => {
         tokens: "0",
         requestKey: k(),
       }),
-    ).rejects.toThrow("Choose sizes of this product only");
+    ).rejects.toThrow("A basket holds items of one factory only");
   });
 
   it("the owner switches visibility; joiners see no address", async () => {
     const f = await makeFactory();
     const { owner, basketId } = await startPaid(f, "LINK");
     await setOwnVisibility(owner.id, basketId, "PUBLIC");
-    expect(await publicOwnBaskets(f.variant.productId)).toHaveLength(1);
+    expect(await publicOwnBaskets(f.factory.id, null)).toHaveLength(1);
     const { buyer } = await joinPaid(basketId, f.variant.id);
     const seen = await ownBasketView(basketId, buyer.id, null);
     expect([seen?.address, seen?.phone, seen?.shareCode]).toEqual([null, null, null]);
@@ -178,7 +182,7 @@ describe("starting and joining", () => {
     const f = await makeFactory();
     const owner = await makeBuyer();
     const r = await startOwnCheckout(owner.id, {
-      create: { productId: f.variant.productId, visibility: "PUBLIC", ...ADDRESS },
+      create: { visibility: "PUBLIC", ...ADDRESS },
       lines: [{ variantId: f.variant.id, qty: 1 }],
       tokens: "0",
       requestKey: k(),
@@ -188,6 +192,153 @@ describe("starting and joining", () => {
     expect(b.status).toBe("CANCELLED");
     const v = await db.variant.findUniqueOrThrow({ where: { id: f.variant.id } });
     expect([v.available, v.reserved, v.sold]).toEqual([50, 0, 0]);
+  });
+});
+
+/** Another product of the same factory, priced 2000 (factory 1800). */
+async function addProduct(f: Factory) {
+  const p = await db.product.create({
+    data: {
+      title: "Chinos",
+      brand: "Test",
+      category: "APPAREL",
+      stockType: "FACTORY_SURPLUS",
+      price: "2000",
+      factoryPrice: "1800",
+      commission: "200",
+      status: "LIVE",
+      sellerId: f.factory.id,
+      variants: { create: { size: "32", available: 20 } },
+    },
+    include: { variants: true },
+  });
+  return p.variants[0]!;
+}
+
+describe("factory baskets (spec 005)", () => {
+  it("holds two products of one factory", async () => {
+    const f = await makeFactory();
+    const chinos = await addProduct(f);
+    const owner = await makeBuyer();
+    await fundTokens(owner.id, 3100);
+    const r = await startOwnCheckout(owner.id, {
+      create: { visibility: "PUBLIC", ...ADDRESS },
+      lines: [
+        { variantId: f.variant.id, qty: 1 },
+        { variantId: chinos.id, qty: 1 },
+      ],
+      tokens: "3100.00",
+      requestKey: k(),
+    });
+    const b = await db.basket.findUniqueOrThrow({ where: { id: r.basketId } });
+    expect([b.factoryId, b.productId, money(b.total)]).toEqual([f.factory.id, null, "3100.00"]);
+    const order = await db.order.findUniqueOrThrow({
+      where: { id: r.orderId },
+      include: { lines: { orderBy: { unitPrice: "asc" } } },
+    });
+    expect(money(order.itemsTotal)).toBe("3100.00");
+    expect(order.lines.map((l) => [money(l.unitPrice), money(l.factoryPrice)])).toEqual([
+      ["1100.00", "1000.00"],
+      ["2000.00", "1800.00"],
+    ]);
+    const shirt = await db.product.findUniqueOrThrow({ where: { id: f.variant.productId } });
+    const view = await ownBasketView(r.basketId, owner.id, null);
+    expect(view?.factory.name).toBe(f.factory.company);
+    expect(view?.products.map((p) => p.title).sort()).toEqual(["Chinos", shirt.title].sort());
+  });
+
+  it("refuses another factory's items", async () => {
+    const f = await makeFactory();
+    const other = await makeFactory();
+    const owner = await makeBuyer();
+    await expect(
+      startOwnCheckout(owner.id, {
+        create: { visibility: "PUBLIC", ...ADDRESS },
+        lines: [
+          { variantId: f.variant.id, qty: 1 },
+          { variantId: other.variant.id, qty: 1 },
+        ],
+        tokens: "0",
+        requestKey: k(),
+      }),
+    ).rejects.toThrow("A basket holds items of one factory only");
+    expect(await db.basket.count()).toBe(0);
+    const { basketId } = await startPaid(f, "PUBLIC");
+    const buyer = await makeBuyer();
+    await expect(
+      startOwnCheckout(buyer.id, {
+        basketId,
+        lines: [{ variantId: other.variant.id, qty: 1 }],
+        tokens: "0",
+        requestKey: k(),
+      }),
+    ).rejects.toThrow("A basket holds items of one factory only");
+  });
+
+  it("old basket takes another product", async () => {
+    const f = await makeFactory();
+    const chinos = await addProduct(f);
+    const { owner, basketId } = await startPaid(f, "PUBLIC");
+    await db.basket.update({ where: { id: basketId }, data: { productId: f.variant.productId } });
+    const buyer = await makeBuyer();
+    await fundTokens(buyer.id, 2000);
+    await startOwnCheckout(buyer.id, {
+      basketId,
+      lines: [{ variantId: chinos.id, qty: 1 }],
+      tokens: "2000.00",
+      requestKey: k(),
+    });
+    const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
+    expect(money(b.total)).toBe("3100.00");
+    const view = await ownBasketView(basketId, owner.id, null);
+    expect(view?.items).toBe(2);
+    expect(view?.products).toHaveLength(2);
+  });
+
+  it("public list excludes link-only and own", async () => {
+    const f = await makeFactory();
+    const pub = await startPaid(f, "PUBLIC");
+    await startPaid(f, "LINK");
+    const other = await makeFactory();
+    await startPaid(other, "PUBLIC");
+    const viewer = await makeBuyer();
+    expect((await publicOwnBaskets(f.factory.id, viewer.id)).map((b) => b.id)).toEqual([
+      pub.basketId,
+    ]);
+    expect(await publicOwnBaskets(f.factory.id, pub.owner.id)).toEqual([]);
+  });
+
+  it("my open baskets per factory", async () => {
+    const f = await makeFactory();
+    const other = await makeFactory();
+    const first = await startPaid(f, "LINK", 2);
+    const owner = first.owner;
+    await fundTokens(owner.id, 2200);
+    const second = await startOwnCheckout(owner.id, {
+      create: { visibility: "PUBLIC", ...ADDRESS },
+      lines: [{ variantId: f.variant.id, qty: 1 }],
+      tokens: "1100.00",
+      requestKey: k(),
+    });
+    await startOwnCheckout(owner.id, {
+      create: { visibility: "PUBLIC", ...ADDRESS },
+      lines: [{ variantId: other.variant.id, qty: 1 }],
+      tokens: "1100.00",
+      requestKey: k(),
+    });
+    // Not paid yet: not listed.
+    await startOwnCheckout(owner.id, {
+      create: { visibility: "PUBLIC", ...ADDRESS },
+      lines: [{ variantId: f.variant.id, qty: 1 }],
+      tokens: "0",
+      requestKey: k(),
+    });
+    const mine = await myOpenOwnBaskets(owner.id, f.factory.id);
+    expect(mine.map((b) => [b.id, b.items])).toEqual([
+      [first.basketId, 2],
+      [second.basketId, 1],
+    ]);
+    expect(mine[0]?.area).toBe("Kandy");
   });
 });
 
