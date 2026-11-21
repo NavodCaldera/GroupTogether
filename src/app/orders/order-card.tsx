@@ -28,6 +28,19 @@ export function groupByStage(orders: Order[]) {
   })).filter((g) => g.orders.length > 0);
 }
 
+/** The order's products, sizes of one product counted together: the first, its pieces, and how
+ * many other products there are ("+N more"). */
+export function productsOf(o: Pick<Order, "lines">) {
+  const first = o.lines[0];
+  const ids = new Set(o.lines.map((l) => l.variant.product.id));
+  const qty = first
+    ? o.lines
+        .filter((l) => l.variant.product.id === first.variant.product.id)
+        .reduce((n, l) => n + l.qty, 0)
+    : 0;
+  return { first, qty, more: Math.max(ids.size - 1, 0) };
+}
+
 /** One order, item first: photo, product × qty, total, where it goes, and its stage. */
 export function OrderCard({
   order: o,
@@ -42,8 +55,7 @@ export function OrderCard({
   lockAt: D;
   viewerId: string;
 }) {
-  const first = o.lines[0];
-  const more = o.lines.length - 1;
+  const { first, qty, more } = productsOf(o);
   const stage = orderStage(o);
   const { next, share } = nextOf(o, stage, own, ownMinItems, lockAt);
 
@@ -63,7 +75,7 @@ export function OrderCard({
             >
               <span className="line-clamp-2">
                 {first?.variant.product.title ?? "Order"}
-                {first && first.qty > 1 && ` × ${first.qty}`}
+                {qty > 1 && ` × ${qty}`}
               </span>
             </Link>
             <span className="shrink-0 text-sm font-semibold tabular-nums">

@@ -130,7 +130,7 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
       .getByRole("navigation", { name: "Order groups" })
       .getByRole("link", { name: /^Agent pickup/ }),
   ).toHaveAttribute("aria-current", "page");
-  await expect(page.getByRole("heading", { name: "In progress" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /^Filling · \d+$/ })).toBeVisible();
   const paid = page
     .getByRole("main")
     .getByRole("listitem")
@@ -140,7 +140,7 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await inspect(page);
   await paid.getByRole("link").first().click();
 
-  await expect(page.getByText("Paid", { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Filling", level: 1 })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Basket progress" })).toBeVisible();
   await expect(page.getByText("Agent fee at pickup", { exact: true })).toBeVisible();
   await inspect(page);
@@ -148,17 +148,9 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "My orders" })).toHaveCount(0);
 
-  await page.goto("/orders");
-  await page
-    .getByRole("listitem")
-    .filter({ has: page.locator('[aria-current="step"]', { hasText: "Filling" }) })
-    .first()
-    .getByRole("link")
-    .first()
-    .click();
-  await page.getByText("Cancel order").click();
-  await page.getByRole("button", { name: "Confirm cancel" }).click();
-  await expect(page.getByText("Cancelled", { exact: true }).first()).toBeVisible();
+  // A paid order cannot be cancelled (DEC-026).
+  await page.goBack();
+  await expect(page.getByText(/cancel/i)).toHaveCount(0);
 });
 
 test("a buyer with a return sees where and when to hand it over", async ({ page }) => {
