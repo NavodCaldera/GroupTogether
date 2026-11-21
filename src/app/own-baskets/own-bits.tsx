@@ -39,16 +39,21 @@ export function ownStep(status: string): number | null {
 export function SizeQuantities({
   variants,
   price,
+  title,
   initial = {},
 }: {
   variants: Variant[];
   price: Money;
+  /** The product, when the form offers several. */
+  title?: string;
   /** Quantities already in the buyer's cart, by variant id. */
   initial?: Record<string, number>;
 }) {
   return (
     <fieldset className="flex flex-col gap-2">
-      <legend className="mb-1.5 text-sm font-bold">Sizes · {formatLKR(price)} each</legend>
+      <legend className="mb-1.5 text-sm font-bold">
+        {title ?? "Sizes"} · {formatLKR(price)} each
+      </legend>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {variants.map((v) => {
           const label = v.colour ? `${v.size} · ${v.colour}` : v.size;

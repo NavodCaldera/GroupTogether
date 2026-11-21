@@ -77,10 +77,10 @@ async function addOneAndOpenCart(page: Page, email: string) {
   await page.getByRole("button", { name: "Add to cart" }).click();
   await expect(page.getByRole("status").getByText("Added to cart")).toBeVisible();
   await page.goto("/cart");
-  await expect(page.getByRole("heading", { name: "Get it by" })).toBeVisible();
+  await expect(page.getByLabel("Select all")).toBeChecked();
 }
 
-/** The sizes come prefilled from the cart (one item); pay with the demo gateway. */
+/** Pays for the ticked cart item with the demo gateway. */
 async function chooseOneAndPay(page: Page, button: string) {
   await page.getByRole("button", { name: button }).click();
   await expect(page).toHaveURL(/\/demo-pay\//);
@@ -96,27 +96,17 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   await signIn(page, DEMO_BUYERS.nimali);
   await addOneAndOpenCart(page, DEMO_BUYERS.nimali);
   await inspect(page);
-  await page.getByRole("link", { name: "Start own basket" }).click();
-  await expect(page.getByRole("heading", { name: "Start own basket", level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "My basket" }).click();
+  await expect(page.getByRole("radio", { name: "New basket" })).toBeChecked();
   await inspect(page);
   // Prefilled from the profile; the owner may change them for this basket.
   await expect(page.getByLabel("Delivery address")).not.toHaveValue("");
   await expect(page.getByLabel("Phone")).not.toHaveValue("");
-  // The cart's size and quantity come with it.
-  const filled = page.locator(`input[name^="qty-"]`);
-  await expect
-    .poll(async () => {
-      const v = await filled.evaluateAll((els) =>
-        (els as HTMLInputElement[]).map((e) => e.value).filter(Boolean),
-      );
-      return v;
-    })
-    .toEqual(["1"]);
   await page.getByLabel("Delivery address").fill("12 Lake Road, Kandy");
   await page.getByLabel("Town or area").fill("Kandy");
   await page.getByLabel("Phone").fill("0771234567");
   await page.getByLabel("Who can join").selectOption("PUBLIC");
-  await chooseOneAndPay(page, "Pay and start");
+  await chooseOneAndPay(page, "Pay");
 
   const db = pool();
   try {
@@ -158,12 +148,14 @@ test("another buyer joins from the cart without an agent", async ({ page }) => {
   test.setTimeout(180_000);
   await signIn(page, DEMO_BUYERS.ravindu);
   await addOneAndOpenCart(page, DEMO_BUYERS.ravindu);
-  await page.locator(`a[href="/own-baskets/${ids.basket}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`/own-baskets/${ids.basket}`));
+  await page.getByRole("button", { name: "Join a basket" }).click();
+  await page.locator(`input[name="basketId"][value="${ids.basket}"]`).check();
   // Joiners never see the owner's address.
   await expect(page.getByText("12 Lake Road")).toHaveCount(0);
   await inspect(page);
-  await chooseOneAndPay(page, "Pay and add");
+  await chooseOneAndPay(page, "Pay");
+  await expect(page).toHaveURL(new RegExp(`/own-baskets/${ids.basket}`));
+  await expect(page.getByText("12 Lake Road")).toHaveCount(0);
 });
 
 test("the owner hears of the join and places the order", async ({ page }) => {

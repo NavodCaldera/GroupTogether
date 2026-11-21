@@ -29,7 +29,11 @@ test.beforeAll(async () => {
     for (const who of ["kasun", "ishara", "dinithi"] as const) {
       const row = (
         await db.query(
-          `SELECT b.id, b."productId", b."shareCode" FROM "Basket" b JOIN "User" u ON u.id = b."ownerId"
+          `SELECT b.id, b."shareCode",
+             (SELECT v."productId" FROM "OrderLine" l JOIN "Order" o ON o.id = l."orderId"
+              JOIN "Variant" v ON v.id = l."variantId" WHERE o."basketId" = b.id
+              ORDER BY l.id LIMIT 1) AS "productId"
+           FROM "Basket" b JOIN "User" u ON u.id = b."ownerId"
            WHERE u.email = $1 AND b.kind = 'OWN' AND b.status = 'OPEN' LIMIT 1`,
           [DEMO_BUYERS[who]],
         )
@@ -70,6 +74,19 @@ async function addToCart(page: Page, productId: string) {
   await expect(page.getByRole("status").getByText("Added to cart")).toBeVisible();
 }
 
+/** From the cart: Join a basket, pick it, pay with the demo gateway, Back to basket. */
+async function joinFromCart(page: Page, basketId: string) {
+  await page.goto("/cart");
+  await page.getByRole("button", { name: "Join a basket" }).click();
+  await page.locator(`input[name="basketId"][value="${basketId}"]`).check();
+  await page.getByRole("button", { name: "Pay", exact: true }).click();
+  await expect(page).toHaveURL(/\/demo-pay\//);
+  await page.getByRole("button", { name: "Pay", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Paid", level: 1 })).toBeVisible();
+  await page.getByRole("link", { name: "Back to basket" }).click();
+  await expect(page).toHaveURL(new RegExp(`/own-baskets/${basketId}`));
+}
+
 /** The cart's sizes come prefilled; the demo gateway pays; Back to basket. */
 async function payAndAdd(page: Page) {
   await expect
@@ -87,23 +104,24 @@ async function payAndAdd(page: Page) {
   await expect(page).toHaveURL(/\/own-baskets\/c/);
 }
 
-test("the cart lists only open public baskets for the product in it", async ({ page }) => {
+test("the cart lists only open public baskets of the factory in it", async ({ page }) => {
   test.setTimeout(180_000);
   await signIn(page, DEMO_BUYERS.ravindu);
   await addToCart(page, seeded.kasun.product);
   await page.goto("/cart");
-  await expect(page.getByRole("heading", { name: "Get it by" })).toBeVisible();
-  await expect(page.locator(`a[href="/own-baskets/${seeded.kasun.basket}"]`)).toBeVisible();
-  // Other products' baskets and link-only baskets are not offered.
-  await expect(page.locator(`a[href="/own-baskets/${seeded.ishara.basket}"]`)).toHaveCount(0);
-  await expect(page.locator(`a[href="/own-baskets/${seeded.dinithi.basket}"]`)).toHaveCount(0);
-  await inspect(page);
-
-  await page.locator(`a[href="/own-baskets/${seeded.kasun.basket}"]`).click();
+  await page.getByRole("button", { name: "Join a basket" }).click();
+  const offered = (id: string) => page.locator(`input[name="basketId"][value="${id}"]`);
+  await expect(offered(seeded.kasun.basket)).toBeVisible();
+  // Other factories' baskets and link-only baskets are not offered.
+  await expect(offered(seeded.ishara.basket)).toHaveCount(0);
+  await expect(offered(seeded.dinithi.basket)).toHaveCount(0);
   // A joiner never sees the owner's address.
   await expect(page.getByText("45 High Level Road")).toHaveCount(0);
   await inspect(page);
-  await payAndAdd(page);
+
+  await joinFromCart(page, seeded.kasun.basket);
+  await expect(page.getByText("45 High Level Road")).toHaveCount(0);
+  await inspect(page);
   await expect(page.getByText(/6 items/)).toBeVisible();
   // The joined size left the cart.
   await page.goto("/cart");
@@ -138,9 +156,7 @@ test("a joiner takes the basket to the minimum and the owner places it", async (
   test.setTimeout(180_000);
   await signIn(page, DEMO_BUYERS.sachini);
   await addToCart(page, seeded.ishara.product);
-  await page.goto("/cart");
-  await page.locator(`a[href="/own-baskets/${seeded.ishara.basket}"]`).click();
-  await payAndAdd(page);
+  await joinFromCart(page, seeded.ishara.basket);
 
   await signIn(page, DEMO_BUYERS.ishara);
   await page.goto(`/own-baskets/${seeded.ishara.basket}`);
@@ -153,5 +169,8 @@ test("a joiner takes the basket to the minimum and the owner places it", async (
   await signIn(page, DEMO_BUYERS.ravindu);
   await addToCart(page, seeded.ishara.product);
   await page.goto("/cart");
-  await expect(page.locator(`a[href="/own-baskets/${seeded.ishara.basket}"]`)).toHaveCount(0);
+  await page.getByRole("button", { name: "Join a basket" }).click();
+  await expect(page.locator(`input[name="basketId"][value="${seeded.ishara.basket}"]`)).toHaveCount(
+    0,
+  );
 });
