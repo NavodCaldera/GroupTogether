@@ -22,7 +22,7 @@ import {
   confirmDeliveryAction,
   setVisibilityAction,
 } from "@/app/own-baskets/actions";
-import { basketPeople, ownBasketView } from "@/server/orders/own-baskets";
+import { basketPayments, ownBasketView } from "@/server/orders/own-baskets";
 import { BUYER_FAULT_KEPT, returnStatusLabel } from "@/lib/return-rules";
 import { FitFeedbackForm } from "@/components/fit/fit-feedback-form";
 import { kindRegions } from "@/lib/fit/data";
@@ -102,7 +102,18 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   const isOwner = isOwn && basket?.ownerId === user.id;
   const view = isOwner && basket ? await ownBasketView(basket.id, user.id, null) : null;
   // Everyone else in an own basket and what they bought (owner, 2026-11-21).
-  const people = isOwn && basket ? await basketPeople(basket.id, user.id) : [];
+  const people = ((isOwn && basket ? await basketPayments(basket.id, user.id) : null)?.buyers ?? [])
+    .filter((b) => !b.you)
+    .map((b) => ({
+      id: b.id,
+      name: b.name,
+      owner: b.owner,
+      items: b.items,
+      sizes: b.lines.map((l) => ({
+        size: [l.size, l.colour].filter(Boolean).join(" · "),
+        qty: l.qty,
+      })),
+    }));
   const canPlace = isOwner && basket?.status === "OPEN";
   const short = canPlace && (ownItems ?? 0) < ownMinItems;
   const here = `/orders/${order.id}`;

@@ -605,12 +605,32 @@ export async function ownBasketView(
   };
 }
 
+export type BasketBuyer = {
+  id: string;
+  name: string;
+  you: boolean;
+  owner: boolean;
+  lines: { title: string; size: string; colour: string; qty: number; amount: D | null }[];
+  items: number;
+  itemsAmount: D | null;
+  payhereFee: D | null;
+  tokens: D | null;
+  paid: D | null;
+};
+
 /**
- * Everyone else in an own basket and what they bought, for a buyer who is in it (owner,
- * 2026-11-21). One row per buyer, owner first. The owner sees full names; anyone else sees first
- * names only. Empty unless the viewer has a paid order in the basket or owns it.
+ * Everyone in an own basket, what they bought and what they paid (owner, 2026-11-21, DEC-026).
+ * You first, then the owner, then by first payment. The owner sees every buyer's money and the
+ * basket totals with full names; anyone else in it sees only their own money and first names.
+ * Null for anyone with no paid order in it who is not the owner.
  */
-export async function basketPeople(basketId: string, viewerId: string) {
+export async function basketPayments(
+  basketId: string,
+  viewerId: string,
+): Promise<{
+  buyers: BasketBuyer[];
+  totals: { items: number; itemsAmount: D; payhereFees: D; tokens: D; total: D } | null;
+} | null> {
   const b = await db.basket.findUnique({
     where: { id: basketId },
     select: {
@@ -621,45 +641,98 @@ export async function basketPeople(basketId: string, viewerId: string) {
         select: {
           buyerId: true,
           buyer: { select: { name: true } },
+          gatewayFee: true,
+          tokensApplied: true,
+          amountDue: true,
           lines: {
             where: { status: "ACTIVE" },
-            select: { qty: true, variant: { select: { size: true, colour: true } } },
+            select: {
+              qty: true,
+              unitPrice: true,
+              variant: {
+                select: { size: true, colour: true, product: { select: { title: true } } },
+              },
+            },
+            orderBy: { id: "asc" },
           },
         },
-        orderBy: { paidAt: "asc" },
+        orderBy: [{ paidAt: "asc" }, { id: "asc" }],
       },
     },
   });
-  if (!b || b.kind !== "OWN") return [];
+  if (!b || b.kind !== "OWN") return null;
   const isOwner = b.ownerId === viewerId;
-  if (!isOwner && !b.orders.some((o) => o.buyerId === viewerId)) return [];
-  const people = new Map<
-    string,
-    { name: string; owner: boolean; items: number; sizes: Map<string, number> }
-  >();
+  if (!isOwner && !b.orders.some((o) => o.buyerId === viewerId)) return null;
+
+  type Sum = BasketBuyer & { _items: D; _fee: D; _tokens: D; _paid: D };
+  const byBuyer = new Map<string, Sum>();
   for (const o of b.orders) {
-    if (o.buyerId === viewerId) continue;
-    const name = isOwner ? o.buyer.name : (o.buyer.name.split(" ")[0] ?? o.buyer.name);
-    const p = people.get(o.buyerId) ?? {
-      name,
-      owner: o.buyerId === b.ownerId,
-      items: 0,
-      sizes: new Map<string, number>(),
-    };
+    const you = o.buyerId === viewerId;
+    const showMoney = isOwner || you;
+    const p =
+      byBuyer.get(o.buyerId) ??
+      ({
+        id: o.buyerId,
+        name: isOwner || you ? o.buyer.name : (o.buyer.name.split(" ")[0] ?? o.buyer.name),
+        you,
+        owner: o.buyerId === b.ownerId,
+        lines: [],
+        items: 0,
+        itemsAmount: null,
+        payhereFee: null,
+        tokens: null,
+        paid: null,
+        _items: new D(0),
+        _fee: new D(0),
+        _tokens: new D(0),
+        _paid: new D(0),
+      } as Sum);
     for (const l of o.lines) {
-      const key = [l.variant.size, l.variant.colour].filter(Boolean).join(" · ");
-      p.sizes.set(key, (p.sizes.get(key) ?? 0) + l.qty);
+      const amount = toD(l.unitPrice).times(l.qty);
+      p.lines.push({
+        title: l.variant.product.title,
+        size: l.variant.size,
+        colour: l.variant.colour,
+        qty: l.qty,
+        amount: showMoney ? amount : null,
+      });
       p.items += l.qty;
+      p._items = p._items.plus(amount);
     }
-    people.set(o.buyerId, p);
+    p._fee = p._fee.plus(toD(o.gatewayFee));
+    p._tokens = p._tokens.plus(toD(o.tokensApplied));
+    p._paid = p._paid.plus(toD(o.tokensApplied)).plus(toD(o.amountDue));
+    if (showMoney) {
+      p.itemsAmount = p._items;
+      p.payhereFee = p._fee;
+      p.tokens = p._tokens;
+      p.paid = p._paid;
+    }
+    byBuyer.set(o.buyerId, p);
   }
-  return [...people.entries()]
-    .map(([id, p]) => ({
-      id,
-      name: p.name,
-      owner: p.owner,
-      items: p.items,
-      sizes: [...p.sizes].map(([size, qty]) => ({ size, qty })),
-    }))
-    .sort((a, c) => Number(c.owner) - Number(a.owner));
+  const all = [...byBuyer.values()];
+  const rank = (x: Sum) => (x.you ? 0 : x.owner ? 1 : 2);
+  const ordered = all
+    .map((x, i) => ({ x, i }))
+    .sort((p, q) => rank(p.x) - rank(q.x) || p.i - q.i)
+    .map(({ x }) => x);
+  const totals = isOwner
+    ? {
+        items: all.reduce((n, x) => n + x.items, 0),
+        itemsAmount: all.reduce((n, x) => n.plus(x._items), new D(0)),
+        payhereFees: all.reduce((n, x) => n.plus(x._fee), new D(0)),
+        tokens: all.reduce((n, x) => n.plus(x._tokens), new D(0)),
+        total: all.reduce((n, x) => n.plus(x._paid), new D(0)),
+      }
+    : null;
+  return {
+    buyers: ordered.map(({ _items, _fee, _tokens, _paid, ...rest }) => {
+      void _items;
+      void _fee;
+      void _tokens;
+      void _paid;
+      return rest;
+    }),
+    totals,
+  };
 }

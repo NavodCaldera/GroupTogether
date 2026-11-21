@@ -5,7 +5,7 @@ import { expireOrders } from "@/server/orders/baskets";
 import {
   closeOwnBasket,
   confirmOwnDelivery,
-  basketPeople,
+  basketPayments,
   ownBasketView,
   publicOwnBaskets,
   setOwnVisibility,
@@ -171,15 +171,6 @@ describe("starting and joining", () => {
     const mine = await ownBasketView(basketId, owner.id, null);
     expect(mine?.address).toBe("12 Lake Rd");
     expect(mine?.orders).toHaveLength(2);
-    // Everyone in the basket sees the others and their sizes; first names unless the owner.
-    const seenByBuyer = await basketPeople(basketId, buyer.id);
-    expect(seenByBuyer).toHaveLength(1);
-    expect(seenByBuyer[0]?.owner).toBe(true);
-    expect(seenByBuyer[0]?.name).not.toContain(" ");
-    const seenByOwner = await basketPeople(basketId, owner.id);
-    expect(seenByOwner.map((p) => p.owner)).toEqual([false]);
-    expect(seenByOwner[0]?.items).toBeGreaterThan(0);
-    expect(await basketPeople(basketId, (await makeBuyer()).id)).toEqual([]);
   });
 
   it("an owner whose first payment expires leaves a cancelled basket", async () => {
@@ -196,6 +187,70 @@ describe("starting and joining", () => {
     expect(b.status).toBe("CANCELLED");
     const v = await db.variant.findUniqueOrThrow({ where: { id: f.variant.id } });
     expect([v.available, v.reserved, v.sold]).toEqual([50, 0, 0]);
+  });
+});
+
+describe("basket payments (DEC-026)", () => {
+  it("owner sees everyone's money", async () => {
+    const f = await makeFactory();
+    const { owner, basketId } = await startPaid(f, "PUBLIC", 2);
+    const j = await joinPaid(basketId, f.variant.id);
+    const view = await basketPayments(basketId, owner.id);
+    expect(view?.buyers.map((b) => [b.you, b.owner])).toEqual([
+      [true, true],
+      [false, false],
+    ]);
+    expect(view?.buyers[1]?.name).toBe(j.buyer.name);
+    expect(money(view!.buyers[0]!.paid!)).toBe("2200.00");
+    expect(money(view!.buyers[1]!.paid!)).toBe("1100.00");
+    expect(money(view!.buyers[1]!.lines[0]!.amount!)).toBe("1100.00");
+    expect(view?.totals?.items).toBe(3);
+    expect(money(view!.totals!.itemsAmount)).toBe("3300.00");
+    expect(money(view!.totals!.total)).toBe("3300.00");
+  });
+
+  it("joiner sees no money for others", async () => {
+    const f = await makeFactory();
+    const { basketId } = await startPaid(f, "PUBLIC", 2);
+    const j = await joinPaid(basketId, f.variant.id);
+    const view = await basketPayments(basketId, j.buyer.id);
+    expect(view?.buyers[0]?.you).toBe(true);
+    expect(money(view!.buyers[0]!.paid!)).toBe("1100.00");
+    const owner = view!.buyers[1]!;
+    expect(owner.owner).toBe(true);
+    expect(owner.name).not.toContain(" ");
+    expect([owner.paid, owner.payhereFee, owner.tokens, owner.itemsAmount]).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
+    expect(owner.lines.every((l) => l.amount === null)).toBe(true);
+    expect(owner.items).toBe(2);
+    expect(view?.totals).toBeNull();
+  });
+
+  it("merges a buyer's orders", async () => {
+    const f = await makeFactory();
+    const { owner, basketId } = await startPaid(f, "PUBLIC");
+    const j = await joinPaid(basketId, f.variant.id);
+    await fundTokens(j.buyer.id, 1100);
+    await startOwnCheckout(j.buyer.id, {
+      basketId,
+      lines: [{ variantId: f.variant.id, qty: 1 }],
+      tokens: "1100.00",
+      requestKey: k(),
+    });
+    const view = await basketPayments(basketId, owner.id);
+    expect(view?.buyers).toHaveLength(2);
+    expect(view?.buyers[1]?.items).toBe(2);
+    expect(money(view!.buyers[1]!.paid!)).toBe("2200.00");
+  });
+
+  it("stranger gets null", async () => {
+    const f = await makeFactory();
+    const { basketId } = await startPaid(f, "PUBLIC");
+    expect(await basketPayments(basketId, (await makeBuyer()).id)).toBeNull();
   });
 });
 
