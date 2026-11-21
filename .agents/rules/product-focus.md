@@ -3,8 +3,8 @@
 Follow [repository instructions](../../AGENTS.md) and the canonical
 [GroupBasket operating brief](../../.claude/agents/groupbasket.md).
 
-Clothing and apparel are primary; factory surplus and B-grade clothing are secondary.
-Shoes and footwear are excluded. Premium brands directly fulfil complimentary gifts;
+Group buying for any product kind straight from its maker, with no middleman (`DEC-029`,
+planned; built today: clothing). Price tiers by quantity across all buyers in a deal. Premium brands directly fulfil complimentary gifts;
 GroupBasket does not own or warehouse gift inventory.
 
 Business rules and stable IDs live in the operating brief. Gift threshold/household details

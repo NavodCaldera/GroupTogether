@@ -334,6 +334,48 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-029 - Any product from any factory, group buying only
+
+**Status:** Approved **2026-11-21**, **Planned** (not built). The owner's words: "i need to build
+this system for everything but only as group buying. removing the middle man … it should be able
+to handle factories at any kind of product." This came after an idea to group-buy Atlas and other
+stationery for the school new year.
+
+1. **Scope.** GroupBasket sells any product kind (stationery, household goods, food, electronics,
+   clothing and more) straight from the factory or maker. It is group buying only: no ordinary
+   single-seller shop. The seller must be the maker or brand owner, not a reseller.
+2. **Grow the current app.** Baskets, orders, payments, tokens, payouts, agents and returns stay.
+   The catalogue becomes general: a **category tree**, **attributes per category** and **variant
+   options** (any axes, not only size and colour). See `CATG-001`–`CATG-003`.
+3. **Area agents stay as pickup points**, not resellers. Own baskets are unchanged.
+4. **Price tiers by quantity** (`DEAL-001`–`DEAL-004`). A factory runs a deal for a set time with
+   tiers (for example 1–49 at Rs 500, 50–199 at Rs 420, 200+ at Rs 380). **Every unit ordered by
+   all buyers in the deal** counts. Buyers pay the first tier's price; when the deal closes the
+   difference comes back as tokens and the factory is paid at the final tier. Pricing (the deal)
+   is separate from shipping (the basket).
+5. **Commission is a percentage per category** with an optional minimum per unit, inherited down
+   the tree; it replaces the flat `commissionPerPiece` for new listings. Existing listings keep
+   their snapshotted commission.
+6. **Clothing add-ons only for clothing.** The fit heatmap, body mesh, Material Card and the
+   audience-filtered shop (`DEC-025`) switch on only for categories that carry them (Clothing and
+   Shoes). Shoes are no longer excluded. Return and report reasons become general (damaged, wrong
+   item, not as described, missing parts, expired, changed mind) plus per-category ones (size,
+   colour, stitching, material for clothing).
+7. **Factories by category.** An admin approves which categories each factory may list;
+   restricted categories need proof such as a product licence or trademark.
+8. **Build order:** documents first, then category tree, variant options, general product fields,
+   factory categories, category commission, group deals, gated clothing add-ons, a
+   multi-category seed. Each is its own branch and pull request.
+
+**Open (ask before building the affected part):**
+
+- Can a deal fail when too few buyers join (full refund in tokens), or does it always run at the
+  first tier's price? Until answered: no minimum; a deal always runs.
+- Do agents take bulky or heavy items (fridges, rice bags), or do those go only by own basket?
+- Which categories are banned (for example medicine, alcohol, weapons) and which need approval
+  (for example food, cosmetics)?
+- Does the 5% agent fee stay a percentage for very cheap and very expensive items?
+
 ### DEC-028 - Join requests instead of share links
 
 **Status:** Built **2026-11-21** (`specs/006-join-requests`). The owner's words: "lets remove the
@@ -418,7 +460,7 @@ the tokens back automatically."
 
 ### DEC-025 - Personal shop: the buyer's own audience
 
-**Status:** Built **2026-11-21**. The owner removed the shop's Audience box (Men, Women, Girl,
+**Status:** Built **2026-11-21**; limited to clothing categories by `DEC-029` (Planned). The owner removed the shop's Audience box (Men, Women, Girl,
 Boy, Kid): a signed-in buyer should only be offered clothing for their own category, to make the
 site highly personal.
 
