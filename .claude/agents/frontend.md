@@ -43,7 +43,7 @@ guidance, not business policy. Verify code pointers before editing.
 
 - `BackLink` (components/client.tsx) uses browser history only when `NavDepth` (root layout) has counted an in-app page behind this one; otherwise it opens its fallback, so Back never leaves the site.
 - Product and compare pages call `requireUser` with `next` (2026-11-21); only Home and Shop are open to visitors.
-- Buyer home and /orders use `OrderCard` (src/app/orders/order-card.tsx; `homeOrders` for home, `splitOrders` for In progress / Past): stretched-link card (the title link's `::after` covers it; Share sits above with `relative z-10`), three cards at most, action-needed first (2026-11-21).
+- /orders uses `OrderCard` (src/app/orders/order-card.tsx; `splitOrders` for In progress / Past; the buyer home shows no orders since 2026-11-21): stretched-link card (the title link's `::after` covers it; Share sits above with `relative z-10`), three cards at most, action-needed first (2026-11-21).
 - The order page (src/app/orders/[id]/page.tsx) reuses `stepOf`, `endOf`, `nextOf` and `OrderSteps` from order-card.tsx; `buyerOrder` returns `own`/`ownMinItems` and blanks the own basket's delivery address and phone for anyone but the owner (2026-11-21).
 - `BackLink` falls back with `router.replace` (never a push), so fallbacks that point at each other cannot loop. Step trackers and fill bars use `StepTrack` / `FillBar` (src/components/step-track.tsx); own baskets use `OWN_STEPS` / `ownStep` from own-bits (2026-11-21).
 - Shop has no Audience box (`DEC-025`): `TaxonomyFields` with `withSize` hides it and takes the buyer's audience from `audienceFor(user.gender, user.birthDate)`; `listProducts({ audience })` also returns unisex (null-audience) products.

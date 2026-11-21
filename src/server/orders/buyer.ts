@@ -83,11 +83,10 @@ export function orderTotal(o: {
   return toD(o.tokensApplied).plus(toD(o.amountDue));
 }
 
-/** The buyer home: codes ready to collect, returns to hand over, orders and the token balance. */
+/** The buyer home: codes ready to collect and returns to hand over. */
 export async function buyerHome(buyerId: string, now = new Date()) {
   await assertBuyerAccount(buyerId);
-  const settings = await getSettings();
-  const [waiting, handovers, orders, balance] = await Promise.all([
+  const [waiting, handovers] = await Promise.all([
     db.orderLine.findMany({
       where: { collectedAt: null, status: "ACTIVE", order: { buyerId, status: "RECEIVED" } },
       select: {
@@ -110,15 +109,7 @@ export async function buyerHome(buyerId: string, now = new Date()) {
       },
       orderBy: { handoverDueAt: "asc" },
     }),
-    db.order.findMany({
-      where: { buyerId, status: { in: ["PENDING", "PAID", "RECEIVED"] } },
-      select: orderSelect,
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    }),
-    tokenBalance(buyerId),
   ]);
-  const own = await ownProgress(buyerId, orders);
   const pieces = new Map<string, number>();
   // The cash agent fee the buyer brings to each agent (DEC-019).
   const fees = new Map<string, D>();
@@ -154,15 +145,7 @@ export async function buyerHome(buyerId: string, now = new Date()) {
       },
     ];
   });
-  return {
-    ready,
-    handovers,
-    orders,
-    own,
-    ownMinItems: settings.ownMinItems,
-    balance,
-    lockAt: toD(settings.basketLockAmount),
-  };
+  return { ready, handovers };
 }
 
 export async function buyerOrders(buyerId: string) {
