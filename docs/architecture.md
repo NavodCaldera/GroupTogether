@@ -185,6 +185,11 @@ for new factory listings. Creation share-locks Settings until commit; updates lo
 and reuse its stored commission, never the current setting. Checkout snapshots `unitPrice` and
 `factoryPrice` on each `OrderLine`, so later repricing never rewrites an order.
 
+Category commission (`DEAL-004`): `categoryCommission` takes `resolveCommission` (percent and
+minimum inherited separately) and the flat setting as fallback. `saveProduct` snapshots it for a
+new listing; `ownProduct` in `src/server/deals.ts` resolves the rate so `tierBuyerPrice` prices
+each tier at draft save and again at go-live. Only CORE writes it (`src/server/category-commission.ts`).
+
 ## Group deals
 
 `GroupDeal` (one `LIVE` per product, partial unique index) has `PriceTier` rows and counts

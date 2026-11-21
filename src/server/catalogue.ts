@@ -3,13 +3,13 @@ import { lockUserAdvisory } from "./orders/locks";
 import { z } from "zod";
 import type { Prisma, StockType } from "@/generated/prisma/client";
 import { type Audience, kindFits } from "@/lib/taxonomy";
-import { childrenOf, isActive, kindSlug, legacyColumns } from "@/lib/categories";
+import { childrenOf, isActive, kindSlug, legacyColumns, resolveCommission } from "@/lib/categories";
 import { loadCategoryTree } from "./categories";
 import { D, toD } from "@/lib/decimal";
 import { linkOnSite } from "@/lib/brand-rules";
 import { db } from "./db";
 import { canSell, canSellIn, sellingFactoryWhere } from "./agreements";
-import { buyerPrice } from "@/lib/price-rules";
+import { buyerPrice, categoryCommission } from "@/lib/price-rules";
 import { getSettings } from "./settings";
 import { sizeOrder } from "@/lib/fit/data";
 import {
@@ -251,7 +251,7 @@ async function categoryFor(v: { categoryId?: string; audience?: string; kind?: s
   const legacy = legacyColumns(node.slug);
   if (v.audience && legacy.audience && v.audience !== legacy.audience)
     throw new CatalogueError("That category isn't offered for this audience");
-  return { categoryId: node.id, ...legacy };
+  return { categoryId: node.id, ...legacy, rate: resolveCommission(tree, node.id) };
 }
 
 /**
@@ -284,9 +284,10 @@ export async function saveProduct(
     kind: _kind,
     ...p
   } = sellerId ? { ...parsed, brandUrl: "" } : parsed;
+  const { rate, ...category } = await categoryFor(parsed);
   const data = {
     ...p,
-    ...(await categoryFor(parsed)),
+    ...category,
     price: price!,
     retailPrice: p.retailPrice || null,
     brandUrl: p.brandUrl || null,
@@ -320,10 +321,12 @@ export async function saveProduct(
     if (factoryListing) {
       // Share-lock the setting through creation: a concurrent setting change cannot overtake this snapshot.
       if (!id) await tx.$queryRaw`SELECT 1 FROM "Settings" WHERE id = 1 FOR SHARE`;
-      const commission = fresh
-        ? (fresh.commission?.toString() ?? "0")
-        : (await getSettings(tx)).commissionPerPiece.toString();
+      const flat = fresh ? null : (await getSettings(tx)).commissionPerPiece;
       try {
+        // A new listing snapshots its category commission (DEAL-004); an edit keeps its snapshot.
+        const commission = fresh
+          ? (fresh.commission?.toString() ?? "0")
+          : categoryCommission(price!, rate, flat!).toFixed(2);
         pricing = {
           factoryPrice: price!,
           commission,

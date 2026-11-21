@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-22 - Commission per category (DEC-029, phase 6)
+
+- Commission is a percent of the factory price per category, at least a minimum per unit, both
+  inherited down the tree. CORE sets them on Admin > Commission.
+- With no percent set the flat commission per piece still applies; nothing is set yet, so no
+  price changed. Existing listings and orders keep their snapshot.
+- New listings and deals going live use the category commission; the new-listing buyer price
+  preview follows the chosen category.
+
 ## 2026-11-22 - Group deals with price tiers (DEC-029, phase 7)
 
 - Factories (Owner or Sales) create a draft deal on a product page with up to six quantity tiers,
