@@ -96,7 +96,8 @@ async function loadFactoryLines(tx: Tx, factoryId: string | null, lines: OwnLine
   return { factoryId: out[0]!.factoryId, lines: out };
 }
 
-/** Visible, joinable basket: OPEN, the owner has paid, and the viewer may see it. */
+/** Visible, joinable basket: OPEN, the owner has paid, and the viewer may see it: the owner, a
+ * buyer already in it (`member`), anyone when public, or anyone with the share code. */
 function joinable(
   b: {
     kind: string;
@@ -108,9 +109,10 @@ function joinable(
   },
   viewerId: string | null,
   code: string | null,
+  member = false,
 ) {
   if (b.kind !== "OWN" || b.status !== "OPEN" || !b.firstOrderAt) return false;
-  if (b.ownerId && b.ownerId === viewerId) return true;
+  if ((b.ownerId && b.ownerId === viewerId) || member) return true;
   return b.visibility === "PUBLIC" || (!!code && code === b.shareCode);
 }
 
@@ -130,7 +132,10 @@ export async function startOwnCheckout(
     create?: OwnBasketCreate;
     basketId?: string;
     shareCode?: string;
-    lines: OwnLineInput[];
+    /** Sizes and quantities, or `fromCart`: the buyer's cart rows for these variant ids, read
+     * and removed inside the transaction (DEC-027). */
+    lines?: OwnLineInput[];
+    fromCart?: string[];
     tokens: string;
     requestKey: string;
   },
@@ -138,7 +143,7 @@ export async function startOwnCheckout(
   if (typeof input.requestKey !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(input.requestKey))
     throw new CheckoutError("Invalid checkout request");
   if (!input.create === !input.basketId) throw new CheckoutError("Invalid checkout request");
-  const lines = cleanLines(input.lines);
+  const given = input.fromCart ? null : cleanLines(input.lines ?? []);
 
   const outcome = await withOrderTransaction<Outcome>([buyerId], [], async (tx) => {
     const previous = await tx.order.findFirst({
@@ -164,6 +169,17 @@ export async function startOwnCheckout(
     if (previous) throw new CheckoutError("Invalid checkout request");
 
     const buyer = await assertBuyer(tx, buyerId);
+    // Read under the buyer lock, so two tabs cannot buy the same cart rows.
+    let lines: OwnLineInput[];
+    if (given) lines = given;
+    else {
+      const rows = await tx.cartItem.findMany({
+        where: { buyerId, variantId: { in: input.fromCart! } },
+        select: { variantId: true, qty: true },
+      });
+      if (!rows.length) throw new CheckoutError("Your cart is empty");
+      lines = cleanLines(rows);
+    }
     const settings = await getSettings(tx);
     const rates = ratesOf(settings);
     const now = new Date();
@@ -181,11 +197,16 @@ export async function startOwnCheckout(
       basketId = "";
     } else {
       const b = await tx.basket.findUnique({ where: { id: String(input.basketId) } });
-      if (!b || !joinable(b, buyerId, input.shareCode ?? null))
+      const member =
+        !!b &&
+        (await tx.order.count({
+          where: { basketId: b.id, buyerId, status: { in: ["PAID", "RECEIVED"] } },
+        })) > 0;
+      if (!b || !joinable(b, buyerId, input.shareCode ?? null, member))
         throw new CheckoutError("This basket is not open");
       await lockOwnBasket(tx, b.id);
       const fresh = await tx.basket.findUniqueOrThrow({ where: { id: b.id } });
-      if (!joinable(fresh, buyerId, input.shareCode ?? null))
+      if (!joinable(fresh, buyerId, input.shareCode ?? null, member))
         throw new CheckoutError("This basket is not open");
       basketId = fresh.id;
       basketFactory = fresh.factoryId;
@@ -295,6 +316,10 @@ export async function startOwnCheckout(
         orderId: order.id,
       });
     if (!attempt) await markOrdersPaid(tx, [order.id], now);
+    if (input.fromCart)
+      await tx.cartItem.deleteMany({
+        where: { buyerId, variantId: { in: lines.map((l) => l.variantId) } },
+      });
 
     return {
       attemptId: attempt?.id ?? null,
@@ -546,16 +571,27 @@ function cards(
   }));
 }
 
-/** Public own baskets of a factory that the viewer can join now (not their own): area and the
- * owner's first name only, never the address. */
+/** Own baskets of a factory that the viewer can join now, not their own: public ones and
+ * link-only ones they are already in. Area and the owner's first name only, never the address. */
 export async function publicOwnBaskets(factoryId: string, viewerId: string | null) {
   const rows = await db.basket.findMany({
     where: {
       kind: "OWN",
       status: "OPEN",
       factoryId,
-      visibility: "PUBLIC",
       firstOrderAt: { not: null },
+      OR: [
+        { visibility: "PUBLIC" },
+        ...(viewerId
+          ? [
+              {
+                orders: {
+                  some: { buyerId: viewerId, status: { in: ["PAID" as const, "RECEIVED" as const] } },
+                },
+              },
+            ]
+          : []),
+      ],
       ...(viewerId ? { NOT: { ownerId: viewerId } } : {}),
     },
     select: BASKET_CARD,

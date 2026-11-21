@@ -342,6 +342,56 @@ describe("factory baskets (spec 005)", () => {
   });
 });
 
+describe("review fixes (spec 005)", () => {
+  it("a member of a link-only basket can add more from the cart; strangers cannot", async () => {
+    const f = await makeFactory();
+    const { basketId } = await startPaid(f, "LINK");
+    const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
+    const { buyer } = await joinPaid(basketId, f.variant.id, b.shareCode!);
+    expect((await publicOwnBaskets(f.factory.id, buyer.id)).map((x) => x.id)).toEqual([basketId]);
+    await fundTokens(buyer.id, 1100);
+    await startOwnCheckout(buyer.id, {
+      basketId,
+      lines: [{ variantId: f.variant.id, qty: 1 }],
+      tokens: "1100.00",
+      requestKey: k(),
+    });
+    expect(money((await db.basket.findUniqueOrThrow({ where: { id: basketId } })).total)).toBe(
+      "3300.00",
+    );
+    const stranger = await makeBuyer();
+    expect(await publicOwnBaskets(f.factory.id, stranger.id)).toEqual([]);
+  });
+
+  it("buys the cart rows read inside the transaction and clears them with it", async () => {
+    const f = await makeFactory();
+    const owner = await makeBuyer();
+    await fundTokens(owner.id, 2200);
+    await db.cartItem.create({ data: { buyerId: owner.id, variantId: f.variant.id, qty: 2 } });
+    const r = await startOwnCheckout(owner.id, {
+      create: { visibility: "PUBLIC", ...ADDRESS },
+      fromCart: [f.variant.id, "gone"],
+      tokens: "2200.00",
+      requestKey: k(),
+    });
+    const order = await db.order.findUniqueOrThrow({
+      where: { id: r.orderId },
+      include: { lines: true },
+    });
+    expect(order.lines.map((l) => [l.variantId, l.qty])).toEqual([[f.variant.id, 2]]);
+    expect(await db.cartItem.count({ where: { buyerId: owner.id } })).toBe(0);
+    // A second tab paying the same items finds the cart empty.
+    await expect(
+      startOwnCheckout(owner.id, {
+        create: { visibility: "PUBLIC", ...ADDRESS },
+        fromCart: [f.variant.id],
+        tokens: "0",
+        requestKey: k(),
+      }),
+    ).rejects.toThrow("Your cart is empty");
+  });
+});
+
 describe("basket payments (DEC-026)", () => {
   it("owner sees everyone's money", async () => {
     const f = await makeFactory();

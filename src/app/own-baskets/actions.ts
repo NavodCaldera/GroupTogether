@@ -6,7 +6,7 @@ import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { CartError } from "@/server/errors";
 import { flash } from "@/server/flash";
-import { cartLines, removeFromCart } from "@/server/orders/cart";
+import { removeFromCart } from "@/server/orders/cart";
 import {
   closeOwnBasket,
   confirmOwnDelivery,
@@ -57,11 +57,10 @@ export async function ownFromCartAction(fd: FormData) {
     return `/cart?${q}`;
   };
   const user = await requireUser([...BUYER_ROLES], back());
-  const lines = items.length ? await cartLines(user.id, items) : [];
   const basketId = str(fd, "basketId");
   let result: Awaited<ReturnType<typeof startOwnCheckout>>;
   try {
-    if (!lines.length) throw new CartError("Choose items");
+    if (!items.length) throw new CartError("Choose items");
     if (!basketId) throw new CartError("Choose a basket");
     result = await startOwnCheckout(user.id, {
       ...(basketId === "new" && how === "mine"
@@ -74,7 +73,7 @@ export async function ownFromCartAction(fd: FormData) {
             },
           }
         : { basketId }),
-      lines,
+      fromCart: items,
       tokens: str(fd, "tokens") || "0",
       requestKey: str(fd, "requestKey"),
     });
@@ -82,7 +81,8 @@ export async function ownFromCartAction(fd: FormData) {
     if (!(e instanceof CartError)) throw e;
     redirect(back(e.message));
   }
-  await finish(user.id, lines, result);
+  // The cart rows left the cart in the same transaction.
+  await finish(user.id, [], result);
 }
 
 /** Buys sizes of the basket's products into someone's own basket (from its share link). */
