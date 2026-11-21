@@ -22,6 +22,9 @@ fee as tokens and deducts it from the factory payout (`DeductionKind.AGENT_FEE`)
 Built 2026-11-15: one 5% agent fee (`agentFeeRate`) replaces the courier charge and agent fee,
 `COURIER_REPAY` is no longer posted, factory-fault courier is not deducted, and buyer-fault
 returns give no tokens and never hold payouts (`DEC-017`, `DEC-018`).
+Built 2026-11-22 (`DEAL-004`): commission is a category percent with a minimum
+(`categoryCommission` in `src/lib/price-rules.ts`); payouts still read the `OrderLine.factoryPrice`
+snapshot, so payout code is unchanged.
 
 ## Ownership and code
 

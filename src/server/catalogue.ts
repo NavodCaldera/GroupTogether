@@ -11,6 +11,7 @@ import {
   kindSlug,
   otherAudiencePaths,
   resolveAttributes,
+  resolveCommission,
 } from "@/lib/categories";
 import { SpecsError, parseSpecs, specFilterValue } from "@/lib/product-specs";
 import { loadCategoryTree } from "./categories";
@@ -18,7 +19,7 @@ import { D, toD } from "@/lib/decimal";
 import { linkOnSite } from "@/lib/brand-rules";
 import { db } from "./db";
 import { canSell, canSellIn, sellingFactoryWhere } from "./agreements";
-import { buyerPrice } from "@/lib/price-rules";
+import { buyerPrice, categoryCommission } from "@/lib/price-rules";
 import { getSettings } from "./settings";
 import { sizeOrder } from "@/lib/fit/data";
 import {
@@ -320,7 +321,11 @@ async function categoryFor(v: { categoryId?: string; kind?: string }) {
     : [...tree.values()].find((n) => n.slug === slug);
   if (!node || !isActive(tree, node.id) || childrenOf(tree, node.id).length > 0)
     throw new CatalogueError("Choose a category");
-  return { categoryId: node.id, attributes: resolveAttributes(tree, node.id) };
+  return {
+    categoryId: node.id,
+    attributes: resolveAttributes(tree, node.id),
+    rate: resolveCommission(tree, node.id),
+  };
 }
 
 /** `spec.<key>` form fields as raw values. */
@@ -365,7 +370,7 @@ export async function saveProduct(
     sellUnit,
     ...p
   } = sellerId ? { ...parsed, brandUrl: "" } : parsed;
-  const { categoryId, attributes } = await categoryFor(parsed);
+  const { categoryId, attributes, rate } = await categoryFor(parsed);
   // Product-level values checked against the category's attributes (CATG-002). Stored keys the
   // category no longer has are kept: category edits never rewrite stored specs.
   let specs: Prisma.InputJsonObject;
@@ -414,10 +419,12 @@ export async function saveProduct(
     if (factoryListing) {
       // Share-lock the setting through creation: a concurrent setting change cannot overtake this snapshot.
       if (!id) await tx.$queryRaw`SELECT 1 FROM "Settings" WHERE id = 1 FOR SHARE`;
-      const commission = fresh
-        ? (fresh.commission?.toString() ?? "0")
-        : (await getSettings(tx)).commissionPerPiece.toString();
+      const flat = fresh ? null : (await getSettings(tx)).commissionPerPiece;
       try {
+        // A new listing snapshots its category commission (DEAL-004); an edit keeps its snapshot.
+        const commission = fresh
+          ? (fresh.commission?.toString() ?? "0")
+          : categoryCommission(price!, rate, flat!).toFixed(2);
         pricing = {
           factoryPrice: price!,
           commission,

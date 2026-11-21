@@ -10,6 +10,7 @@ import { signNotice } from "@/server/payments/demo";
 import { payableLines } from "@/server/payouts";
 import { runSweep } from "@/server/sweep";
 import { saveDealDraft, startDeal } from "@/server/deals";
+import { CLOTHING_ROOT_ID } from "@/lib/categories";
 import { fundTokens, makeAgent, makeBuyer, makeFactory, makeUser, resetDb } from "./helpers";
 
 const MERCHANT = "1200000";
@@ -108,6 +109,27 @@ async function pay(attemptId: string) {
 
 const rebates = (userId?: string) =>
   db.tokenEntry.findMany({ where: { kind: "DEAL_REBATE", ...(userId ? { userId } : {}) } });
+
+describe("group deal commission (DEAL-004)", () => {
+  it("copies the category percent into tier buyer prices when the deal goes live", async () => {
+    const f = await makeFactory();
+    await db.category.update({
+      where: { id: CLOTHING_ROOT_ID },
+      data: { commissionPct: "10", minCommission: "95" },
+    });
+    const id = await liveDeal(f);
+    const tiers = await db.priceTier.findMany({
+      where: { dealId: id },
+      orderBy: { minQty: "asc" },
+    });
+    // 10% of 1000 = 100; of 900 = 90 and of 850 = 85, both raised to the 95 minimum.
+    expect(tiers.map((t) => money(t.buyerPrice))).toEqual(["1100.00", "995.00", "945.00"]);
+    // The listing's snapshot is untouched.
+    expect(
+      money((await db.product.findUniqueOrThrow({ where: { id: f.variant.productId } })).price),
+    ).toBe("1100.00");
+  });
+});
 
 describe("group deal checkout", () => {
   it("sells at tier 1 and counts units only once the payment is verified", async () => {

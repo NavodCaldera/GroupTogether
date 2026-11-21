@@ -5,6 +5,7 @@ import { readSpecs } from "@/lib/product-specs";
 import { type AdminState, saveProductAction } from "@/server/admin-actions";
 import { categoryChoices } from "@/server/categories";
 import { AdminForm } from "../admin-form";
+import type { CommissionRate } from "@/lib/price-rules";
 
 type ProductValues = {
   id: string;
@@ -42,7 +43,7 @@ export async function ProductForm({
   factory,
 }: {
   /** A factory's own listing: its own price and brand, no brand link. */
-  factory?: { brand: string; commission?: string };
+  factory?: { brand: string; commission?: string; rates?: Record<string, CommissionRate> };
   product?: ProductValues;
   action?: (prev: AdminState, fd: FormData) => Promise<AdminState>;
 }) {
@@ -122,6 +123,7 @@ export async function ProductForm({
           <FactoryPriceInput
             initial={(product?.factoryPrice ?? product?.price)?.toString()}
             commission={commission}
+            rates={product ? undefined : factory?.rates}
           />
         ) : (
           <Field label={factory ? "Price (LKR)" : "Our price (LKR)"} name="price">

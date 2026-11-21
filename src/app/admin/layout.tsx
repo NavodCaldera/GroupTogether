@@ -45,6 +45,7 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
       ["/admin/core/payouts", "Payouts", badges.payouts],
       ["/admin/core/tokens", "Tokens", 0],
       ["/admin/settings", "Settings", 0],
+      ["/admin/core/commission", "Commission", 0],
       ["/admin/users", "Admins", 0],
       ["/admin/factory/returns", "Returns", 0],
       ["/admin/core/returns", "Buyer returns", 0],
