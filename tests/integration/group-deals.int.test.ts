@@ -45,11 +45,14 @@ async function liveDeal(f: Factory, maxQty = "") {
     {
       endsAt: colombo(new Date(now.getTime() + 2 * DAY)),
       maxQty,
-      tiers: [
-        { minQty: "1", factoryPrice: "1000" },
-        { minQty: "10", factoryPrice: "900" },
-        { minQty: "20", factoryPrice: "850" },
-      ],
+      // A capacity must reach the last tier, so a capped deal has tier 1 only.
+      tiers: maxQty
+        ? [{ minQty: "1", factoryPrice: "1000" }]
+        : [
+            { minQty: "1", factoryPrice: "1000" },
+            { minQty: "10", factoryPrice: "900" },
+            { minQty: "20", factoryPrice: "850" },
+          ],
     },
     now,
   );
