@@ -1,8 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { AgentStatus } from "@/generated/prisma/client";
 import { db } from "@/server/db";
+import { ensureCategoryTree } from "@/server/categories";
+import { CLOTHING_ROOT_ID } from "@/lib/categories";
 
-/** Empty every table and restore default settings. */
+/** Empty every table and restore default settings and the starting category tree. */
 export async function resetDb() {
   const tables = await db.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables
@@ -12,6 +14,7 @@ export async function resetDb() {
     await db.$executeRawUnsafe(`TRUNCATE TABLE ${list} CASCADE`);
   }
   await db.settings.create({ data: { id: 1 } });
+  await ensureCategoryTree();
 }
 
 let n = 0;
@@ -44,6 +47,7 @@ export async function makeVariant(price: string, available: number) {
       title: `Shirt ${++n}`,
       brand: "Test",
       category: "APPAREL",
+      categoryId: CLOTHING_ROOT_ID,
       stockType: "FACTORY_SURPLUS",
       price,
       status: "LIVE",
@@ -91,6 +95,7 @@ export async function makeFactory() {
       title: `Shirt ${n}`,
       brand: "Test",
       category: "APPAREL",
+      categoryId: CLOTHING_ROOT_ID,
       stockType: "FACTORY_SURPLUS",
       price: "1100",
       factoryPrice: "1000",

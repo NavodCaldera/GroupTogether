@@ -2,6 +2,7 @@ import { FactoryPriceInput } from "@/components/factory-price-input";
 import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { Field, Input, Textarea } from "@/components/ui";
 import { type AdminState, saveProductAction } from "@/server/admin-actions";
+import { categoryChoices } from "@/server/categories";
 import { AdminForm } from "../admin-form";
 
 type ProductValues = {
@@ -9,8 +10,7 @@ type ProductValues = {
   title: string;
   brand: string;
   description: string;
-  audience: string | null;
-  kind: string | null;
+  categoryId: string;
   price: { toString(): string };
   factoryPrice?: { toString(): string } | null;
   commission?: { toString(): string } | null;
@@ -19,7 +19,7 @@ type ProductValues = {
 };
 
 /** Product details: the admin's form, and a factory's own listing with `factory` (2026-11-03). */
-export function ProductForm({
+export async function ProductForm({
   product,
   action = saveProductAction,
   factory,
@@ -30,6 +30,7 @@ export function ProductForm({
   action?: (prev: AdminState, fd: FormData) => Promise<AdminState>;
 }) {
   const commission = product?.commission?.toString() ?? factory?.commission;
+  const groups = await categoryChoices();
   return (
     <AdminForm
       action={action}
@@ -42,13 +43,11 @@ export function ProductForm({
       <Field label="Brand" name="brand">
         <Input name="brand" defaultValue={product?.brand ?? factory?.brand} required />
       </Field>
-      <div className="grid gap-3 sm:grid-cols-2">
-        <TaxonomyFields
-          audience={product?.audience}
-          kind={product?.kind}
-          selectClass="min-h-11 rounded-lg border border-line bg-paper px-3 text-base outline-none focus:border-ink sm:min-h-10 sm:text-sm"
-        />
-      </div>
+      <TaxonomyFields
+        groups={groups}
+        category={product?.categoryId}
+        selectClass="min-h-11 rounded-lg border border-line bg-paper px-3 text-base outline-none focus:border-ink sm:min-h-10 sm:text-sm"
+      />
       <div className="grid gap-3 sm:grid-cols-2">
         {commission !== undefined ? (
           <FactoryPriceInput

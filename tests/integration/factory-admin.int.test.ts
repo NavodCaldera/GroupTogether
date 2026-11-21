@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
+import { CLOTHING_ROOT_ID } from "@/lib/categories";
 import { adjustStock, saveProduct } from "@/server/catalogue";
 import { resetDb } from "./helpers";
 
@@ -24,6 +25,7 @@ describe("factory admin stakeholder routing", () => {
         brand: "Premium",
         sellerId: brand.id,
         category: "APPAREL",
+        categoryId: CLOTHING_ROOT_ID,
         stockType: "FACTORY_SURPLUS",
         price: "1500",
       },

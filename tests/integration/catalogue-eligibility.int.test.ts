@@ -1,5 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
+import { CLOTHING_ROOT_ID } from "@/lib/categories";
 import * as agreements from "@/server/agreements";
 import {
   getProduct,
@@ -39,6 +40,7 @@ describe("independent public catalogue brand exclusion", () => {
             title: `Guard shirt ${i}`,
             brand: i === 0 ? "Ordinary" : "Premium",
             category: "APPAREL",
+            categoryId: CLOTHING_ROOT_ID,
             audience: "MEN",
             kind: "men-shirts",
             stockType: "FACTORY_SURPLUS",
@@ -77,6 +79,7 @@ describe("saving order", () => {
           title,
           brand: "Ordinary",
           category: "APPAREL",
+          categoryId: CLOTHING_ROOT_ID,
           audience: "MEN",
           kind: "men-shirts",
           stockType: "FACTORY_SURPLUS",
@@ -114,6 +117,7 @@ describe("audience", () => {
           title,
           brand: "Ordinary",
           category: "APPAREL",
+          categoryId: CLOTHING_ROOT_ID,
           audience,
           kind: audience === "WOMEN" ? "women-tops" : audience ? "men-shirts" : null,
           stockType: "FACTORY_SURPLUS",

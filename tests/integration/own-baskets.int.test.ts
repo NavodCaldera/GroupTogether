@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
+import { CLOTHING_ROOT_ID } from "@/lib/categories";
 import { tokenBalance } from "@/server/tokens";
 import { expireOrders } from "@/server/orders/baskets";
 import {
@@ -210,6 +211,7 @@ async function addProduct(f: Factory) {
       title: "Chinos",
       brand: "Test",
       category: "APPAREL",
+      categoryId: CLOTHING_ROOT_ID,
       stockType: "FACTORY_SURPLUS",
       price: "2000",
       factoryPrice: "1800",

@@ -19,7 +19,7 @@ The authoritative field definitions and constraints are in [schema.prisma](../pr
 | Domain | Tables and relationships |
 | --- | --- |
 | Identity | `User` has `CUSTOMER`, `SELLER`, `ADMIN` or `AGENT` role. Admins have one `adminArea` (`PREMIUM`, `FACTORY`, `AGENTS`, `CORE`). Factory staff link to their factory owner with a `FactoryRole` (`OWNER`, `PACKING`, `SALES`). `Session` stores a hash of the cookie token; `LoginAttempt` counts failed sign-ins. |
-| Catalogue | `Product` has a factory price, commission and buyer price, one photo, taxonomy, a seller and hidden-state fields. `Variant` is unique by product, size and colour and holds `available`, `reserved` and `sold` counts. |
+| Catalogue | `Product` has a factory price, commission and buyer price, one photo, a required `categoryId` (`categoryRef`), `specs` JSON (GIN index), the old taxonomy columns (`category`, `audience`, `kind`, still written), a seller and hidden-state fields. `Category` is a tree (`parentId`, unique `slug` such as `clothing/men/shirts`, id `path` `/<rootId>/<id>/`, inherited `features`, commission and return reasons; `DEC-029`); `AttributeDef`/`AttributeOption` describe properties and `CategoryAttribute` attaches them to a category (inherited below it). Resolvers are in `src/lib/categories.ts`. `Variant` is unique by product, size and colour and holds `available`, `reserved` and `sold` counts. |
 | Agents | `Agent` (one per AGENT user) stores status (`APPLIED` → `APPROVED` → `LIVE`, `SUSPENDED`, `LEAVING`, `LEFT`, `REJECTED`), pin and address, private document keys, deposit and losses. `AgentHours` holds one opening window per weekday; `AgentLoss` records admin-decided losses; `AgentFeeClawback` tracks a factory-fault return's agent fee still to be taken back (`left`); `PickupAttempt` counts code entries. |
 | Cart and orders | `CartItem` is a buyer's saved wish and holds no stock. Checkout makes one `Order` per factory for the chosen agent, with `OrderLine` price, courier and agent-fee snapshots. `Order.status` is `PENDING` → `PAID` → `RECEIVED`, or `CANCELLED`. |
 | Baskets | `Basket` groups paid orders for one agent and one factory: `OPEN` → `LOCKED` → `PACKED` → `WITH_COURIER` → `AT_AGENT`. The partial unique index `Basket_one_open` allows one OPEN basket per agent and factory. `CourierBooking` stores the hand-booked driver, vehicle and fee. |
@@ -33,7 +33,7 @@ The authoritative field definitions and constraints are in [schema.prisma](../pr
 | Parked premium brands | `StockOffer`, `GiftOrder`, `GiftSettlement`, `BrandConversation`, `BrandMessage`, `BrandConversationRead`, `BrandOfferRevision`. |
 | Configuration and notices | `Settings` is a singleton with commission, the agent fee rate (`agentFeeRate`, 5%, paid in cash at pickup), gateway fee rate, basket lock amount, maximum wait, payment hold, collection, return and buyer-fault handover windows, agent radius and gap, deposit, and the payout watermark. `Notification` stores in-app notices and read state. |
 
-Legacy schema values do not define the current product scope. `SHOES` still exists in the category enum, and `Product.status`, `reviewNote`, `stockType` and `defectNotes` remain for compatibility.
+Legacy schema values do not define the current product scope. `SHOES` still exists in the legacy category enum (`LegacyCategory`, renamed from `Category` when the tree table took that name), and `Product.status`, `reviewNote`, `stockType` and `defectNotes` remain for compatibility.
 
 ## Orders, baskets and fulfilment
 

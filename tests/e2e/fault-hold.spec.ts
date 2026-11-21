@@ -14,7 +14,7 @@ test.beforeEach(async () => {
     const buyer = (await db.query('SELECT id FROM "User" WHERE email=$1', ["buyer3@example.com"]))
       .rows[0].id;
     await db.query(
-      `INSERT INTO "Product" (id,title,brand,category,"stockType",price,status,"sellerId",audience,kind,"updatedAt") VALUES ('fault-shirt','Fault review shirt','Lanka','APPAREL','FACTORY_SURPLUS',1500,'LIVE',$1,'MEN','men-shirts',now())`,
+      `INSERT INTO "Product" (id,title,brand,category,"categoryId","stockType",price,status,"sellerId",audience,kind,"updatedAt") VALUES ('fault-shirt','Fault review shirt','Lanka','APPAREL','cat_clothing_men_shirts','FACTORY_SURPLUS',1500,'LIVE',$1,'MEN','men-shirts',now())`,
       [factory],
     );
     await db.query(

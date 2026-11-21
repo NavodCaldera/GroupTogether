@@ -16,9 +16,39 @@ guidance, not business policy. Verify code pointers before editing.
 Policy references: `CATG-001`–`CATG-003`, `DEC-029`, `SUP-002`, `CAT-001`, `CAT-002`, `RATE-001`,
 `RETURN-001`.
 
-**Status: Planned.** None of this is built. Today the catalogue is clothing only:
-`enum Category { SHOES, APPAREL }`, `enum Audience`, `Product.kind`, the code-only
-`src/lib/taxonomy.ts` (`KINDS`, size sets, `audienceFor`) and `Variant` keyed by `size` + `colour`.
+**Status: Partly built.** Phase 2 (category tree) is done: `Category`, `AttributeDef`,
+`AttributeOption`, `CategoryAttribute`, `Product.categoryId` (required) and `Product.specs` exist,
+and the shop filter and product forms read the tree. Variant options, spec validation, factory
+category approval and the removal of the old columns are still planned. `Variant` is still keyed by
+`size` + `colour`.
+
+## Code pointers
+
+- Schema: `Category`, `AttributeDef`, `AttributeOption`, `CategoryAttribute` and `LegacyCategory`
+  (the old `enum Category`, renamed so the table could take the name) in
+  [schema.prisma](../../prisma/schema.prisma). The relation field is `Product.categoryRef` because
+  `Product.category` is still the legacy enum column.
+- Migration [20261123100000_category_tree](../../prisma/migrations/20261123100000_category_tree/migration.sql)
+  inserts the starting tree between `-- tree:start`/`-- tree:end` and links products between
+  `-- backfill:start`/`-- backfill:end` (kind leaf, else stored `SHOES` to Shoes, else the Clothing
+  root). Tests run both blocks.
+- Pure module [src/lib/categories.ts](../../src/lib/categories.ts): seed rows
+  (`seedCategories`, `seedAttributes`, `seedCategoryAttributes`, ids from `categoryIdOf(slug)`),
+  slug helpers (`kindSlug`, `kindOfSlug`, `audienceOfSlug`, `legacyColumns`) and resolvers
+  (`ancestors`, `inSubtree`, `subtreeIds`, `isActive`, `resolveFeatures`, `hasFeature`,
+  `resolveAttributes`, `resolveCommission`, `resolveNeedsApproval`, `resolveReturnReasons`,
+  `leaves`).
+- Server [src/server/categories.ts](../../src/server/categories.ts): `loadCategoryTree` (React
+  `cache`, once per request), `categoryChoices` (leaf options for selects, audience-filtered for
+  the shop) and `ensureCategoryTree` (upsert by id; the seed and test `resetDb` call it).
+- Starting tree: Clothing (features `fit`, `materials`, `audience`; size and colour as variant
+  axes) > Men/Women/Girl/Boy/Kid > the kinds in [taxonomy.ts](../../src/lib/taxonomy.ts), plus an
+  empty Shoes root with the same features. Slugs are `clothing/men/shirts`; paths are
+  `/<rootId>/<id>/` built from ids.
+- Saving: [`saveProduct`](../../src/server/catalogue.ts) takes `categoryId` (or the older
+  `audience` + `kind`), accepts only an active leaf, and still writes `category`, `audience` and
+  `kind`. The shop filters with `?category=<slug>` (old `?kind=` links still work) over the
+  category's path.
 
 ## Target data model
 
@@ -37,8 +67,7 @@ Policy references: `CATG-001`–`CATG-003`, `DEC-029`, `SUP-002`, `CAT-001`, `CA
 
 ## Implementation guards
 
-- Migrate, don't break: build the clothing tree from `KINDS` (Clothing > Men > Shirts …), link
-  every product, and fill `options`/`optionKey`/`label` from `size`/`colour` before any reader
+- Migrate, don't break: the tree is built and every product linked (phase 2); fill `options`/`optionKey`/`label` from `size`/`colour` before any reader
   switches. Drop the old columns only after every reader uses the new ones.
 - One helper (`variantLabel`, `optionKeyOf` in `src/lib/`) builds keys and labels; never format
   size/colour by hand on a screen or packing ticket.
@@ -48,6 +77,8 @@ Policy references: `CATG-001`–`CATG-003`, `DEC-029`, `SUP-002`, `CAT-001`, `CA
   [apparel-addons](apparel-addons.md).
 - A factory lists only in APPROVED categories, enforced in the server action, not just the form.
 - Category edits never rewrite stored product specs or order snapshots.
+- A change to the starting tree goes in `src/lib/categories.ts` and a new migration together; the
+  unit test compares the seed rows with the category_tree migration.
 
 ## Verification and coordination
 
