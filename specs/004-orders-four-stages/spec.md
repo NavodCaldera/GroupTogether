@@ -18,7 +18,7 @@ PayHere fees, and the current total of the basket."
 Research inputs (2026-11-21, read-only agents): business-rules review, order data and actions
 audit, and a UX review of the order page.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - See every order by stage (Priority: P1)
 
@@ -151,7 +151,7 @@ only, the owner address is absent and only the joiner's own payment is shown.
 - Token-only payments: no PayHere fee row when the fee is zero.
 - A buyer whose name is a single word: first name is the whole name.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -201,7 +201,7 @@ only, the owner address is absent and only the joiner's own payment is shown.
 - **Buyer in a basket**: a person with one or more paid orders in the same own basket; shown once
   with combined items and amounts.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -218,8 +218,8 @@ only, the owner address is absent and only the joiner's own payment is shown.
 
 ## Assumptions
 
-- The refund on a wait-rule cancel follows the existing rule: tokens used plus the online payment
-  minus the PayHere fee, credited as tokens (ORD-004 refund rule, DEC-023).
+- The refund on a wait-rule cancel follows the existing rule: everything paid comes back as
+  tokens, PayHere fee included (tokens used plus the whole online payment).
 - "Delivered" for agent pickup includes both "ready at the agent" and "collected"; the pickup code
   shows while any item is uncollected.
 - The basket total is the sum of what every buyer paid (items + PayHere fee; tokens counted as

@@ -34,5 +34,5 @@
 - All owner decisions were taken in conversation on 2026-11-21 (four stages, no buyer cancel,
   10-day own-basket wait with automatic token refund, per-buyer payments for the owner). No open
   clarifications.
-- Refund amount on a wait-rule cancel keeps the existing rule (PayHere fee not refunded); listed
-  under Assumptions for the owner to see.
+- Refund amount on a wait-rule cancel keeps the existing rule: everything paid, PayHere fee
+  included (corrected 2026-11-21 after reading `cancelRefund`).

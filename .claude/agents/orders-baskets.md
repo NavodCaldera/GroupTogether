@@ -30,7 +30,7 @@ gets no action and no extra return time.
 - Cart and checkout: `src/server/orders/cart.ts`, `checkout.ts` (`loadCart`, `quoteCheckout`,
   `startCheckout`, shared `assertBuyer`); pages `src/app/cart/`, `src/app/checkout/`.
 - Own baskets (`DEC-023`): started or joined from the Cart ("Get it by", per product; sizes prefilled from `cartQtyForProduct`, removed with `removeFromCart` once ordered). `src/server/orders/own-baskets.ts` (`startOwnCheckout`, `closeOwnBasket` (needs `ownMinItems`; OPEN -> LOCKED, no fee), `confirmOwnDelivery`, `sweepOwnBaskets`). `Basket.kind` is `AGENT` or `OWN` (a CHECK constraint keeps the shape); own baskets and their orders have `agentId` null, and an own order carries `targetBasketId` until paid. Own baskets lock under the advisory `ownbasket:<basketId>` (`lockOwnBasket`, or `lockBasketOf` for either kind), taken where the agent slot would be. Statuses add `DELIVERED` and `CANCELLED` (`AWAITING_FEE` and the `DELIVERY_FEE` purpose remain in the schema but are no longer used). Code that reads `order.agent` or `basket.agent` must handle null.
-- Baskets: `src/server/orders/baskets.ts` (`markOrdersPaid`, `lockBasket`, `cancelOrder`,
+- Baskets: `src/server/orders/baskets.ts` (`markOrdersPaid`, `lockBasket`,
   `expireOrders`, `releasePendingOrders`).
 - Pickup and handover: `src/server/orders/handover.ts` (`lookupCode`, `handOver`).
 - Buyer reads: `src/server/orders/buyer.ts`; pages `/`, `src/app/orders/`, `src/app/tokens/`.
@@ -56,9 +56,13 @@ gets no action and no extra return time.
   open basket (creating one if needed, enforced by the one-OPEN-per-agent-and-factory partial
   unique index), adds `itemsTotal` and locks at `basketLockAmount`. An order is never split.
 - `expireOrders` releases stock and tokens for `PENDING` orders past `holdUntil`.
-- `cancelOrder` is allowed only while the basket is `OPEN`: full refund as `ORDER_CANCEL` tokens,
-  stock released, basket total and `firstOrderAt` recomputed. Cancelled orders keep `basketId`:
-  every query must filter by order status.
+- There is no buyer cancel (`DEC-026`, 2026-11-21): `cancelOrder` and its action were removed.
+  Orders are cancelled only by the system (expired holds, own-basket wait rule after
+  `ownMaxWaitDays` = 10, refunded in full as `ORDER_CANCEL` tokens). Cancelled orders keep
+  `basketId`: every query must filter by order status.
+- Stages for buyers come from `orderStage()` (`src/lib/order-stage.ts`): Filling, Packing, On the
+  way, Delivered, Refunded. `buyerOrders` lists paid orders only. `basketPayments()` gives each
+  own-basket buyer's lines and money (others' money only to the owner).
 - Pickup codes are one per buyer per agent. `lookupCode` records every attempt; five failures in
   ten minutes block the agent. `handOver` checks the same throttle first and records a failure
   for an unknown code or items the code does not cover, with one error (`HANDOVER_REFUSED`) for
