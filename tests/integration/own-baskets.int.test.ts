@@ -262,6 +262,14 @@ describe("cancelling and closing", () => {
     expect(money(back)).toBe("1100.00");
   });
 
+  it("waits until day 10", async () => {
+    await setMin(2);
+    const f = await makeFactory();
+    await startPaid(f, "PUBLIC", 1);
+    const r = await sweepOwnBaskets(new Date(Date.now() + 9 * 86_400_000));
+    expect(r).toEqual({ ownClosed: 0, ownCancelled: 0 });
+  });
+
   it("past the maximum wait, a full basket is ordered and a short one is cancelled", async () => {
     await setMin(2);
     const f = await makeFactory();
@@ -270,7 +278,7 @@ describe("cancelling and closing", () => {
     const j = await joinPaid(short.basketId, f.variant.id);
     const one = await startPaid(f, "PUBLIC", 1);
     await cancelOrder(j.buyer.id, j.orderId);
-    const r = await sweepOwnBaskets(new Date(Date.now() + 61 * 86_400_000));
+    const r = await sweepOwnBaskets(new Date(Date.now() + 11 * 86_400_000));
     expect(r).toEqual({ ownClosed: 1, ownCancelled: 2 });
     const status = async (id: string) =>
       (await db.basket.findUniqueOrThrow({ where: { id } })).status;

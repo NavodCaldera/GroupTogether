@@ -451,8 +451,8 @@ export async function confirmOwnDelivery(ownerId: string, basketId: string): Pro
 export async function sweepOwnBaskets(
   now: Date,
 ): Promise<{ ownClosed: number; ownCancelled: number }> {
-  const { maxWaitDays } = await getSettings();
-  const cutoff = new Date(now.getTime() - maxWaitDays * DAY_MS);
+  const { ownMaxWaitDays } = await getSettings();
+  const cutoff = new Date(now.getTime() - ownMaxWaitDays * DAY_MS);
   let ownClosed = 0;
   let ownCancelled = 0;
   const waited = await db.basket.findMany({

@@ -58,6 +58,7 @@ export default async function SettingsPage() {
                     ["Basket lock amount (LKR)", "basketLockAmount", s.basketLockAmount, "decimal"],
                     ["Agent deposit (LKR)", "agentDeposit", s.agentDeposit, "decimal"],
                     ["Basket max wait (days)", "maxWaitDays", s.maxWaitDays, "numeric"],
+                    ["Own basket max wait (days)", "ownMaxWaitDays", s.ownMaxWaitDays, "numeric"],
                     [
                       "Payment hold (minutes)",
                       "paymentHoldMinutes",

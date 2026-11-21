@@ -473,6 +473,8 @@ model Settings {
   agentDeposit        Decimal   @default(200000) @db.Decimal(14, 2)
   /// Own baskets (DEC-023): items the basket must hold before the owner can place the order
   ownMinItems         Int       @default(10)
+  /// Own baskets (DEC-026): days from the first payment before the sweep places or refunds it
+  ownMaxWaitDays      Int       @default(10)
   /// The last week end (Saturday 23:59:59.999 Asia/Colombo) whose payouts and agent fees were built
   payoutsBuiltThrough DateTime?
 }
