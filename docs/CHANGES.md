@@ -6,6 +6,18 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Own baskets run from the order page
+
+- An own-basket order page now holds what the basket page had, so the buyer never has to open
+  another page: the owner gets Place order and Share beside the item count, "Who can join" and
+  Received (once with the courier) in the status card, and a "Joined" list of the other buyers
+  with their sizes. The Manage basket / View basket button is gone. The basket page stays for
+  share links and joining.
+- No repeats: the order date shows once (in the dates list, not under the title), and the
+  locked stage reads "Packing", "Packed" or "With the courier" without the factory name, which
+  sits under the title.
+- Owner steps posted from an order page return to it (`back`, only `/orders/<id>` accepted).
+
 ## 2026-11-21 - Own baskets list removed
 
 - The separate Own baskets list is gone: the Orders tabs My baskets and Joined baskets cover it.

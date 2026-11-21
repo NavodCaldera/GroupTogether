@@ -7,7 +7,7 @@ import { BackLink, CopyLinkButton } from "@/components/client";
 import { ProductRatingForm } from "@/components/product-rating-form";
 import { ReturnForm } from "@/components/return-form";
 import { FillBar } from "@/components/step-track";
-import { Alert, Badge, Button, Card, LinkButton } from "@/components/ui";
+import { Alert, Badge, Button, Card, Field, LinkButton, Select } from "@/components/ui";
 import { mapLink } from "@/lib/agent-hours";
 import { D, toD } from "@/lib/decimal";
 import { formatDate, formatDateTime, formatLKR } from "@/lib/format";
@@ -18,6 +18,12 @@ import { buyerReturns } from "@/server/returns";
 import { LineBadge, factoryName } from "../order-bits";
 import { OrderSteps, endOf, nextOf, stepOf } from "../order-card";
 import { cancelOrderAction, fileReturnAction, rateAction } from "./actions";
+import {
+  closeOwnBasketAction,
+  confirmDeliveryAction,
+  setVisibilityAction,
+} from "@/app/own-baskets/actions";
+import { ownBasketView } from "@/server/orders/own-baskets";
 import { BUYER_FAULT_KEPT, returnStatusLabel } from "@/lib/return-rules";
 import { FitFeedbackForm } from "@/components/fit/fit-feedback-form";
 import { kindRegions } from "@/lib/fit/data";
@@ -31,11 +37,11 @@ export const metadata: Metadata = { title: "Order" };
 const OPEN_FACTORY = ["WAITING_FACTORY", "WITH_ADMIN", "ACCEPTED", "AWAITING_HANDOVER"];
 
 /** A locked basket's stage, said in words under the tracker. */
-const STAGE: Record<string, (factory: string) => string> = {
-  LOCKED: (f) => `Packing at ${f}`,
-  PACKED: (f) => `Packed at ${f}`,
-  WITH_COURIER: () => "With the courier",
-  AWAITING_FEE: () => "Waiting for delivery fee",
+const STAGE: Record<string, string> = {
+  LOCKED: "Packing",
+  PACKED: "Packed",
+  WITH_COURIER: "With the courier",
+  AWAITING_FEE: "Waiting for delivery fee",
 };
 
 export default async function OrderPage({ params, searchParams }: PageProps<"/orders/[id]">) {
@@ -86,8 +92,14 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
     if (isOwn) fill = ownItems === undefined ? null : ownItems / Math.max(ownMinItems, 1);
     else fill = lockAt.lte(0) ? 1 : toD(basket.total).div(lockAt).toNumber();
   }
-  const stage =
-    step === 2 && basket ? (STAGE[basket.status]?.(factoryName(order.factory)) ?? null) : null;
+  const stage = step === 2 && basket ? (STAGE[basket.status] ?? null) : null;
+  // Own baskets are run from here (owner, 2026-11-21): the owner's controls and who else is in it.
+  const isOwner = isOwn && basket?.ownerId === user.id;
+  const view = isOwner && basket ? await ownBasketView(basket.id, user.id, null) : null;
+  const others = view?.orders.filter((o) => !o.mine) ?? [];
+  const canPlace = isOwner && basket?.status === "OPEN";
+  const short = canPlace && (ownItems ?? 0) < ownMinItems;
+  const here = `/orders/${order.id}`;
   const timeline = (
     [
       ["Ordered", order.createdAt],
@@ -113,20 +125,59 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
             </span>
           )}
         </div>
-        <p className="text-sm text-subtle">
-          {factoryName(order.factory)} · {formatDateTime(order.createdAt)}
-        </p>
+        <p className="text-sm text-subtle">{factoryName(order.factory)}</p>
       </div>
       {error && <Alert>{error}</Alert>}
 
       <Card className="flex flex-col gap-4">
         {step !== null && <OrderSteps order={order} step={step} />}
         {fill !== null && <FillBar value={fill} label="Basket progress" />}
-        {(next || stage || share) && (
+        {(next || stage || share || canPlace) && (
           <div className="flex flex-wrap items-center justify-between gap-2">
-            {(next || stage) && <p className="text-sm text-subtle tabular-nums">{next ?? stage}</p>}
-            {share && <CopyLinkButton url={share} label="Share basket" />}
+            {(next || stage) && (
+              <p id="order-next" className="text-sm text-subtle tabular-nums">
+                {next ?? stage}
+              </p>
+            )}
+            <div className="flex flex-wrap gap-2">
+              {share && <CopyLinkButton url={share} label="Share basket" />}
+              {canPlace && basket && (
+                <form action={closeOwnBasketAction}>
+                  <input type="hidden" name="basketId" value={basket.id} />
+                  <input type="hidden" name="back" value={here} />
+                  <Button
+                    type="submit"
+                    disabled={short}
+                    aria-describedby={short && next ? "order-next" : undefined}
+                  >
+                    Place order
+                  </Button>
+                </form>
+              )}
+            </div>
           </div>
+        )}
+        {canPlace && basket && (
+          <form action={setVisibilityAction} className="flex flex-wrap items-end gap-3">
+            <input type="hidden" name="basketId" value={basket.id} />
+            <input type="hidden" name="back" value={here} />
+            <Field label="Who can join" name="visibility">
+              <Select id="visibility" name="visibility" defaultValue={view?.visibility ?? "LINK"}>
+                <option value="LINK">People with the link</option>
+                <option value="PUBLIC">Anyone</option>
+              </Select>
+            </Field>
+            <Button type="submit" variant="secondary">
+              Save
+            </Button>
+          </form>
+        )}
+        {isOwner && basket?.status === "WITH_COURIER" && (
+          <form action={confirmDeliveryAction}>
+            <input type="hidden" name="basketId" value={basket.id} />
+            <input type="hidden" name="back" value={here} />
+            <Button type="submit">Received</Button>
+          </form>
         )}
         <dl
           className={`grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm ${step !== null ? "border-t border-line pt-3" : ""}`}
@@ -162,21 +213,15 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
           <Card className="flex flex-col gap-1">
             <p className="text-xs font-medium tracking-wide text-subtle uppercase">Delivery</p>
             <h2 className="font-semibold">
-              {[basket.owner?.name, basket.deliveryArea].filter(Boolean).join(" · ") ||
-                "Own basket"}
+              {[isOwner ? "You" : basket.owner?.name, basket.deliveryArea]
+                .filter(Boolean)
+                .join(" · ")}
             </h2>
             {basket.deliveryAddress && (
               <p className="text-sm break-words">
                 {[basket.deliveryAddress, basket.deliveryPhone].filter(Boolean).join(" · ")}
               </p>
             )}
-            <LinkButton
-              href={`/own-baskets/${basket.id}`}
-              variant="secondary"
-              className="mt-2 self-start"
-            >
-              {basket.ownerId === user.id ? "Manage basket" : "View basket"}
-            </LinkButton>
           </Card>
         )
       )}
@@ -255,6 +300,36 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
           <p className="text-sm text-warn">Returns until {formatDateTime(returnUntil)}</p>
         )}
       </section>
+
+      {others.length > 0 && (
+        <section aria-labelledby="order-others" className="flex flex-col gap-2">
+          <h2 id="order-others" className="text-lg font-semibold">
+            Joined
+          </h2>
+          <Card>
+            <ul className="flex flex-col divide-y divide-line">
+              {others.map((o) => (
+                <li
+                  key={o.id}
+                  className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
+                >
+                  <span className="font-medium">{o.buyer}</span>
+                  <span className="flex flex-wrap justify-end gap-1.5">
+                    {o.lines.map((l, i) => (
+                      <span
+                        key={i}
+                        className="rounded-md bg-muted px-2 py-0.5 text-sm tabular-nums"
+                      >
+                        {[l.size, l.colour].filter(Boolean).join(" · ")} × {l.qty}
+                      </span>
+                    ))}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
+      )}
 
       {returns.length > 0 && (
         <section aria-labelledby="order-returns" className="flex flex-col gap-2">
