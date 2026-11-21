@@ -3,6 +3,7 @@ import { Field, Input, Textarea } from "@/components/ui";
 import { kindRegions, readChart, sizeOrder } from "@/lib/fit/data";
 import { REGION_LABEL } from "@/lib/fit/regions";
 import { sizesFor } from "@/lib/taxonomy";
+import { sizeOf } from "@/lib/variant-options";
 import type { FitState } from "@/server/fit-actions";
 
 type FitProduct = {
@@ -11,7 +12,7 @@ type FitProduct = {
   sizeChart: unknown;
   fabricStretchPct: number | null;
   careNotes: string | null;
-  variants: { size: string }[];
+  variants: { options: unknown }[];
 };
 
 const cell =
@@ -30,7 +31,7 @@ export function FitDataForm({
   const chart = readChart(product.sizeChart);
   const sizes = sizeOrder(product.kind, [
     ...sizesFor(product.kind ?? undefined),
-    ...product.variants.map((v) => v.size),
+    ...product.variants.map((v) => sizeOf(v.options)).filter(Boolean),
     ...Object.keys(chart),
   ]);
   const regions = kindRegions(product.kind);

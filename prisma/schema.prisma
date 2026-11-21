@@ -236,13 +236,26 @@ model Product {
   @@index([status, audience, kind])
 }
 
-/// One size/colour of a product. available + reserved + sold is everything ever stocked.
+/// One option set of a product (DEC-029). available + reserved + sold is everything ever stocked.
 model Variant {
   id        String  @id @default(cuid())
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  /// Legacy: kept in step with options.size until a later phase drops it
   size      String
+  /// Legacy: kept in step with options.colour until a later phase drops it
   colour    String  @default("")
+  /// The buyer's choices, e.g. {"size":"M","colour":"Navy"}; built by src/lib/variant-options.ts
+  options   Json
+  /// Normalised options: sorted lower-case "key=value" joined by "|"; "" when there are none
+  optionKey String
+  /// Shown on screens and tickets, e.g. "M / Navy"
+  label     String
+  sku       String?
+  weightG   Int?
+  lengthMm  Int?
+  widthMm   Int?
+  heightMm  Int?
   /// Free to add to a cart
   available Int     @default(0)
   /// Locked in carts that are not yet confirmed
@@ -254,6 +267,7 @@ model Variant {
   cartItems  CartItem[]
 
   @@unique([productId, size, colour])
+  @@unique([productId, optionKey])
 }
 
 model Notification {
@@ -1163,6 +1177,8 @@ model OrderLine {
   order               Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   variantId           String
   variant             Variant    @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  /// Snapshot of Variant.label at checkout or own-basket payment
+  variantLabel        String     @default("")
   qty                 Int
   /// Snapshot: factory price + commission
   unitPrice           Decimal    @db.Decimal(14, 2)

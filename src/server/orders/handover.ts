@@ -15,8 +15,8 @@ const WINDOW_MS = 10 * 60 * 1000;
 export type PickupLine = {
   id: string;
   title: string;
-  size: string;
-  colour: string;
+  /** OrderLine.variantLabel, e.g. "M / Navy" */
+  label: string;
   qty: number;
   fee: string;
 };
@@ -56,7 +56,8 @@ async function eligibleLines(client: Tx | typeof db, agentId: string, buyerId: s
       qty: true,
       missingQty: true,
       cashFeeEach: true,
-      variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
+      variantLabel: true,
+      variant: { select: { product: { select: { title: true } } } },
     },
     orderBy: { id: "asc" },
   });
@@ -65,8 +66,7 @@ async function eligibleLines(client: Tx | typeof db, agentId: string, buyerId: s
     .map((l) => ({
       id: l.id,
       title: l.variant.product.title,
-      size: l.variant.size,
-      colour: l.variant.colour,
+      label: l.variantLabel,
       qty: l.qty - l.missingQty,
       fee: toD(l.cashFeeEach)
         .times(l.qty - l.missingQty)

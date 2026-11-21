@@ -19,12 +19,14 @@ export function ReturnCard({
   /** Factory admins may change a factory-fault return to buyer fault */
   canChangeFault?: boolean;
 }) {
-  const item = r.orderLine?.variant;
+  const line = r.orderLine;
   const agent = r.handoverAgent;
   return (
     <Card className="flex min-w-0 flex-col gap-3 break-words">
       <h2 className="font-semibold">
-        {item ? `${item.product.title} · ${item.size} × ${r.qty}` : `× ${r.qty}`}
+        {line
+          ? `${[line.variant.product.title, line.variantLabel].filter(Boolean).join(" · ")} × ${r.qty}`
+          : `× ${r.qty}`}
       </h2>
       <Badge tone={["REJECTED", "LAPSED"].includes(r.status) ? "bad" : undefined}>
         {returnStatusLabel(r.status, r.fault)}

@@ -16,7 +16,7 @@ const TONE = {
 } as const;
 
 /**
- * One basket as a cutting ticket: the agent and area, its lines by product, size and colour, the
+ * One basket as a cutting ticket: the agent and area, its lines by product and variant label, the
  * driver once booked, and the next packing step for a login that packs. Money only when `money`.
  */
 export function BasketTicket({
@@ -87,14 +87,11 @@ export function BasketTicket({
           <h3 className="font-bold break-words">{p.title}</h3>
           <ul className="flex flex-col">
             {p.lines.map((l) => {
-              const label = [p.title, l.size, l.colour].filter(Boolean).join(", ");
+              const label = [p.title, l.label].filter(Boolean).join(", ");
               return (
                 <li key={l.id} aria-label={label} className="py-1">
                   <div className="flex items-baseline justify-between gap-3">
-                    <span>
-                      <span className="text-xl font-bold">{l.size}</span>
-                      {l.colour && <span className="ml-2">{l.colour}</span>}
-                    </span>
+                    <span className="text-xl font-bold">{l.label}</span>
                     <span className="text-xl font-bold tabular-nums">{l.qty}</span>
                   </div>
                   {l.reportedQty > 0 && (

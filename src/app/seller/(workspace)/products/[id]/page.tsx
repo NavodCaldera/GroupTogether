@@ -20,7 +20,7 @@ export default async function FactoryProductPage({ params }: PageProps<"/seller/
   const { id } = await params;
   const product = await db.product.findFirst({
     where: { id, sellerId: seller.factoryId, seller: { isBrand: false } },
-    include: { variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] } },
+    include: { variants: { orderBy: { label: "asc" } } },
   });
   if (!product) notFound();
   return (

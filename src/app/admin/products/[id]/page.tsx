@@ -19,7 +19,7 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
   const product = await db.product.findFirst({
     where: { id, OR: [{ sellerId: null }, { seller: { isBrand: false } }] },
     include: {
-      variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
+      variants: { orderBy: { label: "asc" } },
       seller: { select: { name: true, company: true } },
     },
   });

@@ -46,8 +46,10 @@ export function FaultList({
         >
           {f.request.orderLine && (
             <p>
-              {f.request.orderLine.variant.product.title} · {f.request.orderLine.variant.size} ×{" "}
-              {f.units}
+              {[f.request.orderLine.variant.product.title, f.request.orderLine.variantLabel]
+                .filter(Boolean)
+                .join(" · ")}{" "}
+              × {f.units}
             </p>
           )}
           <time>{formatDateTime(f.recordedAt)}</time>

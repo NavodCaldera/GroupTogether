@@ -30,6 +30,7 @@ import {
 import { LineBadge, factoryName } from "../order-bits";
 import { OrderSteps, fillOf, nextOf, productsOf } from "../order-card";
 import { fileReturnAction, rateAction } from "./actions";
+import { sizeOf } from "@/lib/variant-options";
 
 export const metadata: Metadata = { title: "Order" };
 
@@ -227,7 +228,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                           key={i}
                           className="rounded-md bg-muted px-2 py-0.5 text-sm tabular-nums"
                         >
-                          {[l.title, l.size, l.colour].filter(Boolean).join(" · ")} × {l.qty}
+                          {[l.title, l.label].filter(Boolean).join(" · ")} × {l.qty}
                         </span>
                       ))}
                     </span>
@@ -336,7 +337,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                             </span>
                           </div>
                           <p className="text-sm text-subtle tabular-nums">
-                            {[l.variant.size, l.variant.colour].filter(Boolean).join(" · ")} ·{" "}
+                            {l.variantLabel && <>{l.variantLabel} · </>}
                             {l.qty} × {formatLKR(l.unitPrice)}
                           </p>
                           {l.missingQty > 0 && (
@@ -486,7 +487,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                 key={l.id}
                 lineId={l.id}
                 title={l.variant.product.title}
-                size={l.variant.size}
+                size={sizeOf(l.variant.options) || l.variantLabel}
                 regions={kindRegions(l.variant.product.kind)}
                 action={fitFeedbackAction}
               />
@@ -517,7 +518,7 @@ function BuyerBlock({ buyer: b }: { buyer: BasketBuyer }) {
         {b.lines.map((l, i) => (
           <Fragment key={i}>
             <dt className="text-subtle">
-              {[l.size, l.colour].filter(Boolean).join(" · ")} × {l.qty}
+              {l.label} × {l.qty}
             </dt>
             <dd>{l.amount ? formatLKR(l.amount) : ""}</dd>
           </Fragment>

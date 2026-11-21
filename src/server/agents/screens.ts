@@ -44,7 +44,10 @@ export async function heldReturns(agentId: string) {
       factoryId: true,
       handedOverAt: true,
       orderLine: {
-        select: { variant: { select: { size: true, product: { select: { title: true } } } } },
+        select: {
+          variantLabel: true,
+          variant: { select: { product: { select: { title: true } } } },
+        },
       },
     },
     orderBy: { handedOverAt: "asc" },
@@ -55,7 +58,7 @@ export async function heldReturns(agentId: string) {
     factoryId: r.factoryId,
     handedOverAt: r.handedOverAt,
     item: r.orderLine
-      ? `${r.orderLine.variant.product.title} · ${r.orderLine.variant.size}`
+      ? [r.orderLine.variant.product.title, r.orderLine.variantLabel].filter(Boolean).join(" · ")
       : "Item",
   }));
 }
@@ -110,9 +113,8 @@ export async function returnsToCollect(agentId: string) {
       buyerId: true,
       orderLine: {
         select: {
-          variant: {
-            select: { size: true, colour: true, product: { select: { title: true } } },
-          },
+          variantLabel: true,
+          variant: { select: { product: { select: { title: true } } } },
         },
       },
     },
@@ -130,9 +132,7 @@ export async function returnsToCollect(agentId: string) {
     dueAt: r.handoverDueAt,
     buyer: nameOf.get(r.buyerId) ?? "",
     item: r.orderLine
-      ? [r.orderLine.variant.product.title, r.orderLine.variant.size, r.orderLine.variant.colour]
-          .filter(Boolean)
-          .join(" · ")
+      ? [r.orderLine.variant.product.title, r.orderLine.variantLabel].filter(Boolean).join(" · ")
       : "Item",
   }));
 }
@@ -152,9 +152,8 @@ export async function resaleItems(agentId: string) {
         select: {
           unitPrice: true,
           factoryPrice: true,
-          variant: {
-            select: { size: true, colour: true, product: { select: { title: true } } },
-          },
+          variantLabel: true,
+          variant: { select: { product: { select: { title: true } } } },
         },
       },
     },
@@ -169,11 +168,7 @@ export async function resaleItems(agentId: string) {
     id: r.id,
     qty: r.qty,
     buyer: nameOf.get(r.buyerId) ?? "",
-    item: [
-      r.orderLine!.variant.product.title,
-      r.orderLine!.variant.size,
-      r.orderLine!.variant.colour,
-    ]
+    item: [r.orderLine!.variant.product.title, r.orderLine!.variantLabel]
       .filter(Boolean)
       .join(" · "),
     price: toD(r.orderLine!.unitPrice).times(r.qty),

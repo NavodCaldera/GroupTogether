@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ProductImage } from "@/components/cart-bits";
 import { Badge, Button, EmptyState, cx } from "@/components/ui";
 import { stockAlert } from "@/lib/factory-insights";
+import { readOptions } from "@/lib/variant-options";
 import { seesMoney } from "@/lib/factory-roles";
 import { formatLKR } from "@/lib/format";
 import { requireFactory } from "@/server/auth/session";
@@ -94,13 +95,13 @@ export default async function FactoryProductsPage() {
                     <ul className="flex flex-col divide-y-2 divide-dashed divide-line">
                       {p.variants.map((v) => {
                         const alert = stockAlert(v.available);
-                        const size = v.colour ? `${v.size}, ${v.colour}` : v.size;
+                        const size = v.label;
                         return (
                           <li key={v.id} aria-label={`Size ${size}`} className="py-3 first:pt-0">
                             <div className="flex items-baseline justify-between gap-2">
                               <span className="text-xl font-bold">
                                 {size}
-                                {p.bestSize === v.size && (
+                                {p.bestVariantId === v.id && (
                                   <span className="ml-2 align-middle text-sm font-normal">
                                     <Badge tone="good">Best seller</Badge>
                                   </span>
@@ -127,8 +128,9 @@ export default async function FactoryProductsPage() {
                               className="mt-2 grid grid-cols-[1fr_auto_auto] gap-1.5"
                             >
                               <input type="hidden" name="productId" value={p.id} />
-                              <input type="hidden" name="size" value={v.size} />
-                              <input type="hidden" name="colour" value={v.colour} />
+                              {Object.entries(readOptions(v.options)).map(([k, value]) => (
+                                <input key={k} type="hidden" name={`option.${k}`} value={value} />
+                              ))}
                               <input
                                 name="qty"
                                 type="number"
