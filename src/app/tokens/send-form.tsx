@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { SuggestInput } from "@/components/suggest-input";
 import { Toast } from "@/components/toast";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { type SendState, sendTokensAction } from "./actions";
@@ -24,7 +25,13 @@ export function SendTokensForm({ max }: { max: string }) {
       <input type="hidden" name="requestKey" value={key} />
       <div className="grid gap-3 sm:grid-cols-[3fr_2fr]">
         <Field label="Phone or email" name="to">
-          <Input name="to" autoComplete="off" required />
+          <SuggestInput
+            endpoint="/api/token-recipients"
+            name="to"
+            label="Phone or email"
+            fill
+            required
+          />
         </Field>
         <Field label="Amount" name="amount">
           <div className="relative">

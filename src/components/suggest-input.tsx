@@ -4,13 +4,21 @@ import { useRouter } from "next/navigation";
 import { useEffect, useId, useState } from "react";
 import { cx } from "./ui";
 
-/** One row of the dropdown, shaped by the server route that answers `endpoint?q=`. */
-export type Suggestion = { href: string; main: string; sub?: string; side?: string };
+/** One row of the dropdown, shaped by the server route that answers `endpoint?q=`. With `fill`,
+ * `href` is only a key and `value` is what picking puts in the field. */
+export type Suggestion = {
+  href: string;
+  main: string;
+  sub?: string;
+  side?: string;
+  value?: string;
+};
 
 /**
- * A `q` search field that suggests matches while typing (from 2 characters, 200 ms after the last
- * key). Picking one opens it; pressing Enter without picking submits the surrounding GET form as
- * before. Used by the shop search and the admin carts search.
+ * A search field that suggests matches while typing (from 2 characters, 200 ms after the last
+ * key). Picking one opens it, or with `fill` puts its value in the field; pressing Enter without
+ * picking submits the surrounding form as before. Used by the shop search, the admin carts
+ * search and the Send tokens recipient.
  */
 export function SuggestInput({
   endpoint,
@@ -19,13 +27,19 @@ export function SuggestInput({
   label,
   className,
   inputClassName,
+  name = "q",
+  fill = false,
+  required,
 }: {
   endpoint: string;
   defaultValue?: string;
-  placeholder: string;
+  placeholder?: string;
   label: string;
   className?: string;
   inputClassName?: string;
+  name?: string;
+  fill?: boolean;
+  required?: boolean;
 }) {
   const router = useRouter();
   const listId = useId();
@@ -56,17 +70,24 @@ export function SuggestInput({
   }, [q, typed, endpoint]);
 
   const shown = open && typed && q.trim().length >= 2 ? hits : [];
-  const go = (h: Suggestion) => router.push(h.href);
+  const go = (h: Suggestion) => {
+    if (!fill) return router.push(h.href);
+    setQ(h.value ?? h.main);
+    setTyped(false);
+    setOpen(false);
+  };
 
   return (
     <div className={cx("relative", className)}>
       <input
-        name="q"
-        type="search"
+        id={fill ? name : undefined}
+        name={name}
+        type={fill ? "text" : "search"}
+        required={required}
         value={q}
         autoComplete="off"
         placeholder={placeholder}
-        aria-label={label}
+        aria-label={fill ? undefined : label}
         role="combobox"
         aria-expanded={shown.length > 0}
         aria-controls={listId}
@@ -116,10 +137,17 @@ export function SuggestInput({
                 i === active ? "bg-muted" : "hover:bg-muted",
               )}
             >
-              <span className="min-w-0 truncate">
-                <span className="font-medium">{h.main}</span>
-                {h.sub && <span className="text-subtle"> · {h.sub}</span>}
-              </span>
+              {fill ? (
+                <span className="min-w-0">
+                  <span className="block truncate font-medium">{h.main}</span>
+                  {h.sub && <span className="block truncate text-xs text-subtle">{h.sub}</span>}
+                </span>
+              ) : (
+                <span className="min-w-0 truncate">
+                  <span className="font-medium">{h.main}</span>
+                  {h.sub && <span className="text-subtle"> · {h.sub}</span>}
+                </span>
+              )}
               {h.side && <span className="shrink-0 font-semibold">{h.side}</span>}
             </li>
           ))}

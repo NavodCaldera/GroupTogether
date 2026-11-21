@@ -1,7 +1,13 @@
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { D } from "@/lib/decimal";
-import { post, TokenError, tokenBalance, transferTokens } from "@/server/tokens";
+import {
+  post,
+  suggestTokenRecipients,
+  TokenError,
+  tokenBalance,
+  transferTokens,
+} from "@/server/tokens";
 import { fundTokens, makeAgent, makeFactory, makeUser, resetDb } from "./helpers";
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
@@ -121,5 +127,27 @@ describe("token transfers", () => {
       TokenError,
     );
     expect(await balance(b.id)).toBe("0.00");
+  });
+});
+
+describe("Send tokens suggestions", () => {
+  it("suggest buyers and agents by name, email or phone, never the sender or non-holders", async () => {
+    const me = await makeUser(),
+      buyer = await makeUser(),
+      { user: agent } = await makeAgent();
+    const admin = await makeUser("ADMIN");
+    const { factory } = await makeFactory();
+    const locked = await makeUser();
+    await db.user.update({ where: { id: locked.id }, data: { locked: true } });
+    await db.user.updateMany({
+      where: { id: { in: [me.id, buyer.id, agent.id, admin.id, factory.id, locked.id] } },
+      data: { name: "Nimal Tester" },
+    });
+    const ids = async (q: string) =>
+      (await suggestTokenRecipients(me.id, q)).map((r) => r.id).sort();
+    expect(await ids("nimal")).toEqual([buyer.id, agent.id].sort());
+    expect(await ids(buyer.email.slice(0, 6).toUpperCase())).toContain(buyer.id);
+    expect(await ids(buyer.phone!)).toEqual([buyer.id]);
+    expect(await ids("n")).toEqual([]);
   });
 });
