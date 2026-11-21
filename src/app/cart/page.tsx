@@ -140,6 +140,8 @@ export default async function CartPage({ searchParams }: PageProps<"/cart">) {
                           agent={agent}
                           qty={l.qty}
                           label={`${l.title} ${l.label}`}
+                          minOrderQty={l.minOrderQty}
+                          stepQty={l.stepQty}
                         />
                         <form action={setQtyAction}>
                           <input type="hidden" name="variantId" value={l.variantId} />

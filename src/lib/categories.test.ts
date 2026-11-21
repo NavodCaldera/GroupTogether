@@ -14,7 +14,7 @@ import {
   kindOfSlug,
   kindSlug,
   leaves,
-  legacyColumns,
+  otherAudiencePaths,
   resolveAttributes,
   resolveCommission,
   resolveFeatures,
@@ -216,17 +216,15 @@ describe("slugs and old columns", () => {
     expect(audienceOfSlug("stationery/women")).toBeNull();
   });
 
-  it("derives the old category, audience and kind", () => {
-    expect(legacyColumns("clothing/kid/sets")).toEqual({
-      audience: "KID",
-      kind: "kid-sets",
-      category: "APPAREL",
-    });
-    expect(legacyColumns("shoes")).toEqual({ audience: null, kind: null, category: "SHOES" });
-    expect(legacyColumns("stationery/books")).toEqual({
-      audience: null,
-      kind: null,
-      category: "APPAREL",
-    });
+  it("lists the other audiences' paths for the shop", () => {
+    const paths = otherAudiencePaths("WOMEN");
+    expect(paths).toHaveLength(4);
+    expect(paths).toContain("/cat_clothing/cat_clothing_men/");
+    expect(paths).not.toContain("/cat_clothing/cat_clothing_women/");
+    const tree = seedCategories();
+    const dresses = tree.find((c) => c.slug === "clothing/women/dresses")!;
+    expect(paths.some((p) => dresses.path.startsWith(p))).toBe(false);
+    const shirts = tree.find((c) => c.slug === "clothing/men/shirts")!;
+    expect(paths.some((p) => shirts.path.startsWith(p))).toBe(true);
   });
 });

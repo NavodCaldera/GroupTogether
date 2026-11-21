@@ -2,13 +2,13 @@ export function ProductImage({
   photoKey,
   id,
   title,
-  category,
+  categoryRef,
   className = "",
 }: {
   photoKey: string | null;
   id: string;
   title: string;
-  category: "SHOES" | "APPAREL";
+  categoryRef?: { slug: string };
   className?: string;
 }) {
   if (photoKey)
@@ -27,8 +27,13 @@ export function ProductImage({
       className={`flex aspect-square w-full items-center justify-center rounded-lg bg-muted text-4xl ${className}`}
       aria-hidden="true"
     >
-      {/* Legacy stored categories retain their placeholder; new kinds are clothing-only. */}
-      {category === "SHOES" ? "👟" : "👕"}
+      {placeholderOf(categoryRef?.slug)}
     </div>
   );
+}
+
+function placeholderOf(slug: string | undefined) {
+  if (slug?.startsWith("shoes")) return "👟";
+  if (slug?.startsWith("clothing")) return "👕";
+  return "📦";
 }

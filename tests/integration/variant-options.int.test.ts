@@ -25,8 +25,6 @@ describe("variant options (DEC-029)", () => {
     expect(navy).toMatchObject({
       options: { size: "L", colour: "Navy" },
       label: "L / Navy",
-      size: "L",
-      colour: "Navy",
       available: 4,
     });
     await adjustStock(variant.productId, { size: "l", colour: "navy" }, 2, {

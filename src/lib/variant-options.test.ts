@@ -68,18 +68,19 @@ describe("variantFields", () => {
       options: { size: "M", colour: "Navy" },
       optionKey: "colour=navy|size=m",
       label: "M / Navy",
-      size: "M",
-      colour: "Navy",
     });
     expect(variantFields(optionsFromSizeColour("XL"))).toMatchObject({
       options: { size: "XL" },
       optionKey: "size=xl",
       label: "XL",
-      colour: "",
     });
   });
-  it("leaves legacy size empty for products without one", () => {
-    expect(variantFields({ pages: "80" })).toMatchObject({ size: "", colour: "", label: "80" });
+  it("builds a label for products without a size", () => {
+    expect(variantFields({ pages: "80" })).toEqual({
+      options: { pages: "80" },
+      optionKey: "pages=80",
+      label: "80",
+    });
   });
 });
 

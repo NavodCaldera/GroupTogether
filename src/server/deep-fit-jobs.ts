@@ -12,6 +12,7 @@ import type { PrismaClient } from "@/generated/prisma/client";
 import { Prisma } from "@/generated/prisma/client";
 import { fitClass, readChart } from "@/lib/fit/data";
 import { isShort } from "@/lib/fit/drape";
+import { kindOfSlug } from "@/lib/categories";
 import { MAX_ATTEMPTS } from "./body-fit-jobs";
 import type { Storage } from "./storage/local";
 
@@ -38,7 +39,8 @@ export const DEEP_FIT_MOTIONS = ["WALK", "RUN", "REACH", "SIT"] as const;
 
 /** The product fields a simulation depends on. */
 export interface FitDataFields {
-  kind: string | null;
+  /** The clothing kind comes from the category slug (DEC-029): see fitKind */
+  categoryRef: { slug: string };
   sizeChart: unknown;
   fabricStretchPct: number | null;
   gsm: number | null;
@@ -46,7 +48,7 @@ export interface FitDataFields {
 }
 
 export const FIT_DATA_SELECT = {
-  kind: true,
+  categoryRef: { select: { slug: true } },
   sizeChart: true,
   fabricStretchPct: true,
   gsm: true,
@@ -64,9 +66,12 @@ const stable = (v: unknown): unknown =>
     : v;
 
 /** SHA-256 of the product's size chart and fabric fields: a change makes old results stale. */
+/** The taxonomy kind of a product ("men-shirts"), from its category; null outside clothing. */
+export const fitKind = (p: { categoryRef: { slug: string } }) => kindOfSlug(p.categoryRef.slug);
+
 export function fitDataHash(p: FitDataFields): string {
   const data = stable({
-    kind: p.kind,
+    kind: fitKind(p),
     chart: readChart(p.sizeChart),
     stretchPct: p.fabricStretchPct,
     gsm: p.gsm,
@@ -225,8 +230,8 @@ export async function runDeepFitJob(
   try {
     out = await run({
       body,
-      cls: fitClass(current.product.kind),
-      short: isShort(current.product.kind),
+      cls: fitClass(fitKind(current.product)),
+      short: isShort(fitKind(current.product)),
       sizes: chart as Record<string, Record<string, number>>,
       fabric: {
         gsm: current.product.gsm,

@@ -39,8 +39,20 @@ export type CategoryAttributeNode = {
   sortOrder: number;
 };
 
+/** An attribute as a form or filter field; `values` lists the choices (empty for free input). */
+export type ChoiceAttribute = {
+  key: string;
+  label: string;
+  type: AttributeTypeName;
+  unit: string | null;
+  required: boolean;
+  isVariantAxis: boolean;
+  filterable: boolean;
+  values: { value: string; label: string }[];
+};
+
 /** A choosable category for a select: `value` is an id (forms) or a slug (shop URLs). */
-export type CategoryChoice = { value: string; label: string; sizes: string[] };
+export type CategoryChoice = { value: string; label: string; attributes: ChoiceAttribute[] };
 export type CategoryGroup = { label: string; options: CategoryChoice[] };
 
 // ─── The seeded clothing tree ─────────────────────────────────────────────
@@ -104,17 +116,15 @@ export function kindOfSlug(slug: string): string | null {
   return KINDS[a].some((k) => k.id === id) ? id : null;
 }
 
-/** Old columns a product still carries, from its category slug (removed in a later phase). */
-export function legacyColumns(slug: string) {
-  const kind = kindOfSlug(slug);
-  return {
-    audience: kind ? audienceOfSlug(slug) : null,
-    kind,
-    category:
-      slug === SHOES_SLUG || slug.startsWith(`${SHOES_SLUG}/`)
-        ? ("SHOES" as const)
-        : ("APPAREL" as const),
-  };
+/**
+ * Paths of the clothing audience nodes other than `audience` ("/cat_clothing/cat_clothing_men/"),
+ * for the shop: a buyer sees their own audience and everything outside them (unisex, DEC-025).
+ */
+export function otherAudiencePaths(audience: Audience): string[] {
+  const root = childPath(null, CLOTHING_ROOT_ID);
+  return AUDIENCES.filter((a) => a.id !== audience).map((a) =>
+    childPath(root, categoryIdOf(`${CLOTHING_SLUG}/${a.id.toLowerCase()}`)),
+  );
 }
 
 /** "/a/b/" from the parent's path. */

@@ -93,8 +93,7 @@ const sizeFields = (size: string) => variantFields(optionsFromSizeColour(size));
 type ProductSeed = {
   title: string;
   kind: string;
-  audience: "MEN" | "WOMEN" | "BOY";
-  stockType: "FACTORY_SURPLUS" | "B_GRADE";
+  condition: "FACTORY_SURPLUS" | "B_GRADE";
   factoryPrice: string;
   retail: string;
   description: string;
@@ -104,8 +103,7 @@ const CEYLON_PRODUCTS: ProductSeed[] = [
   {
     title: "Oxford button-down shirt",
     kind: "men-shirts",
-    audience: "MEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "3500",
     retail: "7900",
     description: "Cotton oxford, regular fit.",
@@ -113,8 +111,7 @@ const CEYLON_PRODUCTS: ProductSeed[] = [
   {
     title: "Slim chino",
     kind: "men-trousers",
-    audience: "MEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "3000",
     retail: "8500",
     description: "Stretch cotton twill.",
@@ -122,8 +119,7 @@ const CEYLON_PRODUCTS: ProductSeed[] = [
   {
     title: "Crew-neck cotton tee (3-pack)",
     kind: "men-tshirts",
-    audience: "MEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "2300",
     retail: "5400",
     description: "100% cotton, 180 gsm. Overrun from an export order.",
@@ -131,8 +127,7 @@ const CEYLON_PRODUCTS: ProductSeed[] = [
   {
     title: "Linen short-sleeve shirt",
     kind: "men-shirts",
-    audience: "MEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "2050",
     retail: "4900",
     description: "Washed linen, short sleeves.",
@@ -140,8 +135,7 @@ const CEYLON_PRODUCTS: ProductSeed[] = [
   {
     title: "Cotton blouse",
     kind: "women-tops",
-    audience: "WOMEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "3100",
     retail: "6500",
     description: "Cotton blouse, relaxed fit.",
@@ -149,8 +143,7 @@ const CEYLON_PRODUCTS: ProductSeed[] = [
   {
     title: "Linen summer dress",
     kind: "women-dresses",
-    audience: "WOMEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "4100",
     retail: "9800",
     description: "Linen-cotton blend.",
@@ -161,8 +154,7 @@ const LANKA_PRODUCTS: ProductSeed[] = [
   {
     title: "Hooded sweatshirt",
     kind: "men-jackets",
-    audience: "MEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "3500",
     retail: "8200",
     description: "Brushed fleece, kangaroo pocket.",
@@ -170,8 +162,7 @@ const LANKA_PRODUCTS: ProductSeed[] = [
   {
     title: "Track pants",
     kind: "men-trousers",
-    audience: "MEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "2800",
     retail: "6500",
     description: "Tapered, zip pockets.",
@@ -179,8 +170,7 @@ const LANKA_PRODUCTS: ProductSeed[] = [
   {
     title: "Polo shirt",
     kind: "men-tshirts",
-    audience: "MEN",
-    stockType: "B_GRADE",
+    condition: "B_GRADE",
     factoryPrice: "1600",
     retail: "4900",
     description: "Piqué cotton. Cosmetic seconds.",
@@ -188,8 +178,7 @@ const LANKA_PRODUCTS: ProductSeed[] = [
   {
     title: "Running shorts",
     kind: "men-shorts",
-    audience: "MEN",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "1500",
     retail: "3900",
     description: "Quick-dry, inner brief.",
@@ -197,8 +186,7 @@ const LANKA_PRODUCTS: ProductSeed[] = [
   {
     title: "Denim jacket",
     kind: "women-jackets",
-    audience: "WOMEN",
-    stockType: "B_GRADE",
+    condition: "B_GRADE",
     factoryPrice: "4400",
     retail: "12500",
     description: "12 oz denim, classic fit.",
@@ -206,8 +194,7 @@ const LANKA_PRODUCTS: ProductSeed[] = [
   {
     title: "School uniform shirt",
     kind: "boy-tshirts",
-    audience: "BOY",
-    stockType: "FACTORY_SURPLUS",
+    condition: "FACTORY_SURPLUS",
     factoryPrice: "3800",
     retail: "7200",
     description: "White school uniform shirt.",
@@ -369,11 +356,8 @@ async function main() {
         data: {
           title: p.title,
           brand: f.company,
-          category: kind.category,
           categoryId: categoryIdOf(kindSlug(p.kind)),
-          audience: p.audience,
-          kind: p.kind,
-          stockType: p.stockType,
+          condition: p.condition,
           factoryPrice: p.factoryPrice,
           commission: COMMISSION,
           price: new D(p.factoryPrice).plus(COMMISSION).toFixed(2),
@@ -784,11 +768,8 @@ async function main() {
     data: {
       title: "Hand-loomed linen kaftan",
       brand: "Serendib Atelier",
-      category: "APPAREL",
       categoryId: categoryIdOf(kindSlug("women-dresses")),
-      audience: "WOMEN",
-      kind: "women-dresses",
-      stockType: "FACTORY_SURPLUS",
+      condition: "FACTORY_SURPLUS",
       price: "11900",
       retailPrice: "18500",
       brandUrl: kaftanUrl,

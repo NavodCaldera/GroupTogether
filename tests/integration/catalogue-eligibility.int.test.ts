@@ -1,6 +1,6 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
-import { CLOTHING_ROOT_ID } from "@/lib/categories";
+import { CLOTHING_ROOT_ID, categoryIdOf } from "@/lib/categories";
 import * as agreements from "@/server/agreements";
 import {
   getProduct,
@@ -39,11 +39,7 @@ describe("independent public catalogue brand exclusion", () => {
           data: {
             title: `Guard shirt ${i}`,
             brand: i === 0 ? "Ordinary" : "Premium",
-            category: "APPAREL",
-            categoryId: CLOTHING_ROOT_ID,
-            audience: "MEN",
-            kind: "men-shirts",
-            stockType: "FACTORY_SURPLUS",
+            categoryId: categoryIdOf("clothing/men/shirts"),
             status: "LIVE",
             price: "1000",
             retailPrice: "2000",
@@ -63,7 +59,11 @@ describe("independent public catalogue brand exclusion", () => {
     });
     expect((await listProducts()).map((p) => p.id)).toEqual([products[0].id]);
     expect((await suggestProducts("Guard")).map((p) => p.id)).toEqual([products[0].id]);
-    expect(await shopFacets()).toEqual({ brands: ["Ordinary"], sizes: ["Ordinary-size"] });
+    expect(await shopFacets()).toEqual({
+      brands: ["Ordinary"],
+      sizes: ["Ordinary-size"],
+      options: { size: ["Ordinary-size"] },
+    });
     expect(await getProduct(products[1].id)).toBeNull();
     expect(await retailSaving()).toBeNull();
     expect(eligibility).toHaveBeenCalled();
@@ -80,11 +80,7 @@ describe("saving order", () => {
         data: {
           title,
           brand: "Ordinary",
-          category: "APPAREL",
-          categoryId: CLOTHING_ROOT_ID,
-          audience: "MEN",
-          kind: "men-shirts",
-          stockType: "FACTORY_SURPLUS",
+          categoryId: categoryIdOf("clothing/men/shirts"),
           status: "LIVE",
           price,
           retailPrice,
@@ -118,11 +114,13 @@ describe("audience", () => {
         data: {
           title,
           brand: "Ordinary",
-          category: "APPAREL",
-          categoryId: CLOTHING_ROOT_ID,
-          audience,
-          kind: audience === "WOMEN" ? "women-tops" : audience ? "men-shirts" : null,
-          stockType: "FACTORY_SURPLUS",
+          // Audience comes from the category tree; outside an audience is unisex (DEC-025).
+          categoryId:
+            audience === "WOMEN"
+              ? categoryIdOf("clothing/women/tops")
+              : audience
+                ? categoryIdOf("clothing/men/shirts")
+                : CLOTHING_ROOT_ID,
           status: "LIVE",
           price: "1000",
           variants: { create: { ...sizeVariant("M"), available: 5 } },

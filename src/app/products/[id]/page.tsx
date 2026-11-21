@@ -20,6 +20,9 @@ import { dealView } from "@/server/deals";
 import { DealBar } from "@/components/deal-bar";
 import { sizesFor } from "@/lib/taxonomy";
 import { optionAxes, optionName, readOptions } from "@/lib/variant-options";
+import { readSpecs, specText } from "@/lib/product-specs";
+import { resolveAttributes } from "@/lib/categories";
+import { loadCategoryTree } from "@/server/categories";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
   const p = await getProduct((await params).id);
@@ -58,6 +61,12 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     ...a,
     name: optionName(a.key),
   }));
+
+  // Product-level attribute values from the category (CATG-002), labels from the attributes.
+  const specs = readSpecs(product.specs);
+  const specRows = resolveAttributes(await loadCategoryTree(), product.categoryId)
+    .filter((a) => !a.isVariantAxis && specs[a.key] !== undefined)
+    .map((a) => ({ key: a.key, label: a.label, value: specText(a, specs[a.key]!) }));
 
   return (
     <>
@@ -100,6 +109,17 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             <p className="text-sm whitespace-pre-line">{product.description}</p>
           )}
 
+          {specRows.length > 0 && (
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm">
+              {specRows.map((r) => (
+                <div key={r.key} className="contents">
+                  <dt className="text-subtle">{r.label}</dt>
+                  <dd>{r.value}</dd>
+                </div>
+              ))}
+            </dl>
+          )}
+
           <Card>
             {buyer ? (
               <AddToCartForm
@@ -107,6 +127,8 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
                 variants={variants}
                 axes={axes}
                 cartHref={`/cart${keep}`}
+                minOrderQty={product.minOrderQty}
+                stepQty={product.stepQty}
               />
             ) : (
               <SizeStockPreview variants={variants} axes={axes} />

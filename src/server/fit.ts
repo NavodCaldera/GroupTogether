@@ -17,7 +17,7 @@ import { isRegion, regionFromEnum, REGIONS, type Region } from "@/lib/fit/region
 import { bodyFitEnabled, deleteBody, outlinesSchema, queueBodyFit } from "./body-fit";
 import { db } from "./db";
 import { deepFitsLeft, getDeepFit, type DeepFit } from "./deep-fit";
-import { FIT_DATA_SELECT, fitDataHash } from "./deep-fit-jobs";
+import { FIT_DATA_SELECT, fitDataHash, fitKind } from "./deep-fit-jobs";
 import { AppError } from "./errors";
 
 export class FitError extends AppError {}
@@ -267,7 +267,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
     db.product.findUnique({
       where: { id: productId },
       select: {
-        kind: true,
+        categoryRef: { select: { slug: true } },
         sizeChart: true,
         fitApprovedAt: true,
         fabricStretchPct: true,
@@ -302,7 +302,8 @@ export async function getFitView(productId: string, userId: string | null): Prom
       body: null,
       deepFit: null,
     };
-  const { sizeChart, fitApprovedAt, kind, variants, fabricStretchPct, careNotes } = product;
+  const { sizeChart, fitApprovedAt, variants, fabricStretchPct, careNotes } = product;
+  const kind = fitKind(product);
   const material =
     fabricStretchPct !== null || careNotes !== null
       ? { stretchPct: fabricStretchPct, careNotes }
@@ -461,7 +462,10 @@ export function linesAwaitingFit(
       id: true,
       variantLabel: true,
       variant: {
-        select: { options: true, product: { select: { id: true, title: true, kind: true } } },
+        select: {
+          options: true,
+          product: { select: { id: true, title: true, categoryRef: { select: { slug: true } } } },
+        },
       },
     },
   });

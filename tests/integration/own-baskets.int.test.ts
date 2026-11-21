@@ -212,9 +212,7 @@ async function addProduct(f: Factory) {
     data: {
       title: "Chinos",
       brand: "Test",
-      category: "APPAREL",
       categoryId: CLOTHING_ROOT_ID,
-      stockType: "FACTORY_SURPLUS",
       price: "2000",
       factoryPrice: "1800",
       commission: "200",
