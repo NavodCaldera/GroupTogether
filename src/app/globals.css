@@ -225,18 +225,18 @@ body {
   }
 }
 
-/* My measurements body guide: the highlighted measurement draws in. */
+/* My measurements body guide: the highlighted ring draws in (paths use pathLength=1). */
 @keyframes body-guide-draw {
   from {
-    stroke-dashoffset: 300;
+    stroke-dashoffset: 1;
   }
   to {
     stroke-dashoffset: 0;
   }
 }
 @media (prefers-reduced-motion: no-preference) {
-  .body-guide-on > * {
-    stroke-dasharray: 300;
+  .body-guide-on {
+    stroke-dasharray: 1;
     animation: body-guide-draw 0.9s ease-out;
   }
 }

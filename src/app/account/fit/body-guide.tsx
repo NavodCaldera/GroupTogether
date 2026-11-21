@@ -2,39 +2,23 @@
 
 import { useEffect, useState } from "react";
 import { cx } from "@/components/ui";
+import GUIDE from "@/lib/fit/body-guide.json";
 import { REGIONS, type Region } from "@/lib/fit/regions";
 
-/** Where each measurement goes on a front-view figure (viewBox 0 0 200 400). */
-const MARK: Record<Region, React.ReactNode> = {
-  shoulder: (
-    <>
-      <path d="M64 80H136" />
-      <path d="M64 73v14M136 73v14" />
-    </>
-  ),
-  chest: <ellipse cx="100" cy="112" rx="38" ry="6" />,
-  waist: <ellipse cx="100" cy="166" rx="33" ry="5.5" />,
-  hip: <ellipse cx="100" cy="204" rx="41" ry="6.5" />,
-  upperArm: <ellipse cx="57" cy="118" rx="12" ry="4" transform="rotate(-12 57 118)" />,
-  thigh: <ellipse cx="122" cy="242" rx="17" ry="5" />,
-  torso: (
-    <>
-      <path d="M154 80V206" />
-      <path d="M147 80h14M147 206h14" />
-    </>
-  ),
-};
-
 /**
- * A figure that shows where a measurement is taken: the focused field's region, or each region
- * in turn while none is focused (still when the viewer prefers reduced motion).
+ * A rendered standard body (tools/body-guide) that shows where a measurement is taken: rings are
+ * the body's real cross-sections, solid in front and faint behind. It shows the focused field's
+ * region, or each region in turn while none is focused (all at once, still, under reduced
+ * motion). The women's body is shown for a "Women" fit, the men's otherwise.
  */
 export function BodyGuide({
   active,
   label,
+  fit,
 }: {
   active: Region | null;
   label: (r: Region) => string;
+  fit: string;
 }) {
   // -1: not cycling (before start, or reduced motion), so every mark shows faintly.
   const [tick, setTick] = useState(-1);
@@ -49,41 +33,53 @@ export function BodyGuide({
     };
   }, []);
   const shown = active ?? (tick < 0 ? null : REGIONS[tick % REGIONS.length]);
+  const body = fit === "WOMEN" ? "women" : "men";
+  const g = GUIDE[body];
   return (
     <figure className="flex flex-col items-center gap-1">
-      <svg viewBox="0 0 200 400" className="h-44 w-auto sm:h-72" aria-hidden="true">
-        <g
-          className="fill-subtle stroke-subtle opacity-20"
+      <div className="relative h-72 sm:h-96" style={{ aspectRatio: `${g.width} / ${g.height}` }}>
+        {/* eslint-disable-next-line @next/next/no-img-element -- a 23 KB pre-sized render */}
+        <img
+          src={`/fit-assets/guide/${body}.webp`}
+          alt=""
+          width={g.width}
+          height={g.height}
+          className="absolute inset-0 size-full select-none"
+          draggable={false}
+        />
+        <svg
+          viewBox={`0 0 ${g.width} ${g.height}`}
+          className="absolute inset-0 size-full"
+          aria-hidden="true"
+          fill="none"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
-          <circle cx="100" cy="40" r="19" stroke="none" />
-          <rect x="92" y="56" width="16" height="18" rx="4" stroke="none" />
-          <path
-            d="M64 76Q100 68 136 76L139 140Q132 172 141 210L59 210Q68 172 61 140Z"
-            strokeWidth="2"
-          />
-          <path d="M64 82L52 150L46 210M136 82L148 150L154 210" fill="none" strokeWidth="17" />
-          <path d="M80 208L78 300L77 384M120 208L122 300L123 384" fill="none" strokeWidth="27" />
-        </g>
-        {REGIONS.map((r) => (
-          <g
-            key={r}
-            fill="none"
-            strokeLinecap="round"
-            className={cx(
-              "transition-all duration-300",
-              shown === r
-                ? "body-guide-on stroke-accent"
-                : cx("stroke-subtle", shown ? "opacity-0" : "opacity-40"),
-            )}
-            strokeWidth={shown === r ? 3.5 : 2}
-            strokeDasharray={shown === r ? undefined : "4 4"}
-          >
-            {MARK[r]}
-          </g>
-        ))}
-      </svg>
+          {REGIONS.map((r) => {
+            const m = g.marks[r];
+            const on = shown === r;
+            return (
+              <g
+                key={`${body}-${r}-${on}`}
+                className={cx(
+                  "transition-opacity duration-300",
+                  on ? "stroke-accent" : cx("stroke-accent", shown ? "opacity-0" : "opacity-50"),
+                )}
+              >
+                {m.back && (
+                  <path d={m.back} strokeWidth={on ? 4 : 3} strokeDasharray="8 8" opacity={0.45} />
+                )}
+                <path
+                  d={m.front}
+                  strokeWidth={on ? 7 : 4}
+                  pathLength={1}
+                  className={on ? "body-guide-on" : undefined}
+                />
+              </g>
+            );
+          })}
+        </svg>
+      </div>
       <figcaption className="min-h-5 text-sm font-medium text-accent">
         {shown ? label(shown) : ""}
       </figcaption>

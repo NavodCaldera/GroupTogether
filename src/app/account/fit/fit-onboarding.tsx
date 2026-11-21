@@ -208,7 +208,7 @@ export function FitOnboarding({
         )}
         {framingOff && <Alert>Stand at the same distance for both photos, then retake them.</Alert>}
         <div className="grid gap-4 sm:grid-cols-[auto_1fr] sm:items-start">
-          <BodyGuide active={focus} label={(r) => LABEL[r]} />
+          <BodyGuide active={focus} label={(r) => LABEL[r]} fit={gender} />
           <div className="grid grid-cols-2 gap-x-3 gap-y-3">
             {REGIONS.map((r) => {
               const m = measurements[r];
