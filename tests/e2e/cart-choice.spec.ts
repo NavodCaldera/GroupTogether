@@ -121,8 +121,10 @@ test("two items of one factory go into a new basket; the third stays in the cart
   await tick(page, v.ceylonB).check();
 
   await page.getByRole("button", { name: "Join a basket" }).click();
-  // Kasun's public Ceylon basket is offered.
-  await expect(page.locator(`input[name="basketId"][value="${v.kasunBasket}"]`)).toBeVisible();
+  // Kasun's Ceylon basket is offered, to ask to join.
+  await expect(
+    page.locator(`[data-basket="${v.kasunBasket}"]`).getByRole("button", { name: /^Ask to join/ }),
+  ).toBeVisible();
   await inspect(page);
 
   await page.getByRole("button", { name: "My basket" }).click();

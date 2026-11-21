@@ -3,10 +3,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Fragment } from "react";
 import { ProductImage } from "@/components/cart-bits";
-import { BackLink, CopyLinkButton } from "@/components/client";
+import { BackLink } from "@/components/client";
 import { ProductRatingForm } from "@/components/product-rating-form";
 import { ReturnForm } from "@/components/return-form";
-import { Alert, Badge, Button, Card, Field, LinkButton, Select } from "@/components/ui";
+import { Alert, Badge, Button, Card, LinkButton } from "@/components/ui";
 import { FitFeedbackForm } from "@/components/fit/fit-feedback-form";
 import { formatHours, mapLink } from "@/lib/agent-hours";
 import { openNow } from "@/lib/agent-rules";
@@ -20,12 +20,12 @@ import { requireUser } from "@/server/auth/session";
 import { linesAwaitingFit } from "@/server/fit";
 import { fitFeedbackAction } from "@/server/fit-actions";
 import { buyerOrder, lineState } from "@/server/orders/buyer";
-import { basketPayments, type BasketBuyer } from "@/server/orders/own-baskets";
+import { basketPayments, joinRequests, type BasketBuyer } from "@/server/orders/own-baskets";
 import { buyerReturns } from "@/server/returns";
 import {
+  answerJoinAction,
   closeOwnBasketAction,
   confirmDeliveryAction,
-  setVisibilityAction,
 } from "@/app/own-baskets/actions";
 import { LineBadge, factoryName } from "../order-bits";
 import { OrderSteps, fillOf, nextOf, productsOf } from "../order-card";
@@ -50,10 +50,11 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   const { order, canReturn, returnUntil, lockAt, own, ownMinItems, pickup } = found;
   const basket = order.basket;
   const isOwn = basket?.kind === "OWN";
-  const [returns, fitLines, payments] = await Promise.all([
+  const [returns, fitLines, payments, requests] = await Promise.all([
     buyerReturns(user.id, order.id),
     linesAwaitingFit(user.id, { orderId: order.id }),
     isOwn && basket ? basketPayments(basket.id, user.id) : null,
+    isOwn && basket ? joinRequests(user.id, basket.id) : [],
   ]);
   const error = typeof sp.error === "string" ? sp.error : null;
   const rated = new Set(order.productRatings.map((r) => r.productId));
@@ -81,7 +82,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   const { first, more } = productsOf(order);
   const stage = orderStage(order);
   const track = stage && stage !== "refunded" ? stage : null;
-  const { next, share } = nextOf(order, stage, own, ownMinItems, lockAt);
+  const next = nextOf(order, stage, own, ownMinItems, lockAt);
   const dates = [
     formatDate(order.paidAt),
     basket?.lockedAt ? formatDate(basket.lockedAt) : null,
@@ -121,7 +122,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
         ) : (
           <p className="text-sm text-subtle tabular-nums">{formatDateTime(order.createdAt)}</p>
         )}
-        {(next || share || canPlace) && (
+        {(next || canPlace) && (
           <div className="flex flex-wrap items-center justify-between gap-2">
             {next && (
               <p id="order-next" className="text-sm text-subtle tabular-nums">
@@ -129,7 +130,6 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              {share && <CopyLinkButton url={share} label="Share basket" />}
               {canPlace && (
                 <form action={closeOwnBasketAction}>
                   <input type="hidden" name="basketId" value={basket!.id} />
@@ -145,21 +145,6 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
               )}
             </div>
           </div>
-        )}
-        {canPlace && (
-          <form action={setVisibilityAction} className="flex flex-wrap items-end gap-3">
-            <input type="hidden" name="basketId" value={basket!.id} />
-            <input type="hidden" name="back" value={here} />
-            <Field label="Who can join" name="visibility">
-              <Select id="visibility" name="visibility" defaultValue={basket!.visibility ?? "LINK"}>
-                <option value="LINK">People with the link</option>
-                <option value="PUBLIC">Anyone</option>
-              </Select>
-            </Field>
-            <Button type="submit" variant="secondary">
-              Save
-            </Button>
-          </form>
         )}
         {isOwner && basket?.status === "WITH_COURIER" && (
           <form action={confirmDeliveryAction}>
@@ -223,6 +208,56 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
             )}
           </Card>
         )
+      )}
+
+      {requests.length > 0 && (
+        <section aria-labelledby="order-requests" className="flex flex-col gap-2">
+          <h2 id="order-requests" className="text-lg font-semibold">
+            Requests · {requests.length}
+          </h2>
+          <Card>
+            <ul className="flex flex-col divide-y divide-line">
+              {requests.map((q) => (
+                <li key={q.id} className="flex flex-col gap-2 py-3 first:pt-0 last:pb-0">
+                  <div className="flex flex-wrap items-baseline justify-between gap-2">
+                    <span className="font-medium">{q.name}</span>
+                    <span className="flex flex-wrap justify-end gap-1.5">
+                      {q.lines.map((l, i) => (
+                        <span
+                          key={i}
+                          className="rounded-md bg-muted px-2 py-0.5 text-sm tabular-nums"
+                        >
+                          {[l.title, l.size, l.colour].filter(Boolean).join(" · ")} × {l.qty}
+                        </span>
+                      ))}
+                    </span>
+                  </div>
+                  <form action={answerJoinAction} className="flex gap-2">
+                    <input type="hidden" name="requestId" value={q.id} />
+                    <input type="hidden" name="back" value={here} />
+                    <Button
+                      type="submit"
+                      name="answer"
+                      value="accept"
+                      aria-label={`Accept ${q.name}`}
+                    >
+                      Accept
+                    </Button>
+                    <Button
+                      type="submit"
+                      name="answer"
+                      value="decline"
+                      variant="secondary"
+                      aria-label={`Decline ${q.name}`}
+                    >
+                      Decline
+                    </Button>
+                  </form>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        </section>
       )}
 
       {isOwn && buyers.length > 0 ? (
@@ -379,7 +414,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                 </dd>
                 {feeDue.gt(0) && !pickup && (
                   <>
-                    <dt className="text-subtle">Agent fee at pickup</dt>
+                    <dt className="text-subtle">Agent and courier fee at pickup</dt>
                     <dd className="text-subtle">{formatLKR(feeDue)}</dd>
                   </>
                 )}

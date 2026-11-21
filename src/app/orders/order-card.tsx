@@ -1,11 +1,9 @@
 import Link from "next/link";
 import { ProductImage } from "@/components/cart-bits";
-import { CopyLinkButton } from "@/components/client";
 import { StepTrack } from "@/components/step-track";
 import { D, toD } from "@/lib/decimal";
 import { formatDate, formatLKR } from "@/lib/format";
 import { STAGE_LABEL, STAGES, TRACK, orderStage, type Stage } from "@/lib/order-stage";
-import { appUrl } from "@/server/notify";
 import type { OwnProgress, buyerOrders } from "@/server/orders/buyer";
 import { orderTotal } from "@/server/orders/buyer";
 
@@ -56,7 +54,7 @@ export function OrderCard({
 }) {
   const { first, qty, more } = productsOf(o);
   const stage = orderStage(o);
-  const { next, share } = nextOf(o, stage, own, ownMinItems, lockAt);
+  const next = nextOf(o, stage, own, ownMinItems, lockAt);
 
   return (
     <div className="relative flex flex-col gap-3 rounded-xl border border-line bg-paper p-4 hover:border-subtle">
@@ -100,17 +98,12 @@ export function OrderCard({
         <OrderSteps stage={stage} fill={fillOf(o, stage, own, ownMinItems, lockAt)} />
       )}
 
-      {(next || share) && (
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {next && <p className="text-sm text-subtle tabular-nums">{next}</p>}
-          {share && <CopyLinkButton url={share} label="Share basket" className="relative z-10" />}
-        </div>
-      )}
+      {next && <p className="text-sm text-subtle tabular-nums">{next}</p>}
     </div>
   );
 }
 
-/** While filling: how far the basket has got, and its share link. */
+/** While filling: how far the basket has got. */
 export function nextOf(
   o: Order,
   stage: Stage | null,
@@ -119,9 +112,7 @@ export function nextOf(
   lockAt: D,
 ) {
   let next: React.ReactNode = null;
-  let share: string | null = null;
-  if (stage !== "filling" || !o.basket) return { next, share };
-  const productId = o.lines[0]?.variant.product.id;
+  if (stage !== "filling" || !o.basket) return next;
   if (o.basket.kind === "OWN") {
     const ownInfo = own.get(o.basket.id);
     if (ownInfo) {
@@ -132,8 +123,6 @@ export function nextOf(
           {need > 0 && ` · needs ${need} more`}
         </>
       );
-      if (ownInfo.shareCode)
-        share = appUrl(`/own-baskets/${o.basket.id}?code=${ownInfo.shareCode}`);
     }
   } else {
     next = (
@@ -141,9 +130,8 @@ export function nextOf(
         <strong className="text-ink">{formatLKR(o.basket.total)}</strong> of {formatLKR(lockAt)}
       </>
     );
-    if (o.agentId && productId) share = appUrl(`/products/${productId}?agent=${o.agentId}`);
   }
-  return { next, share };
+  return next;
 }
 
 /** How full a filling basket is (0 to 1): items against the minimum, or value against the lock

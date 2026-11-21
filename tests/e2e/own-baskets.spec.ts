@@ -105,7 +105,6 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   await page.getByLabel("Delivery address").fill("12 Lake Road, Kandy");
   await page.getByLabel("Town or area").fill("Kandy");
   await page.getByLabel("Phone").fill("0771234567");
-  await page.getByLabel("Who can join").selectOption("PUBLIC");
   await chooseOneAndPay(page, "Pay");
 
   const db = pool();
@@ -131,7 +130,9 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   const place = page.getByRole("button", { name: "Place order" });
   await expect(place).toBeDisabled();
   await expect(place).toHaveAccessibleDescription("1 of 2 items · needs 1 more");
-  await expect(page.getByLabel("Who can join")).toBeVisible();
+  // No share links (DEC-028).
+  await expect(page.getByLabel("Who can join")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Share basket" })).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Buyers" })).toBeVisible();
   await expect(page.getByText("Total", { exact: true })).toBeVisible();
   await expect(page.getByText(/cancel/i)).toHaveCount(0);
@@ -140,15 +141,29 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   await inspect(page);
 });
 
-test("another buyer joins from the cart without an agent", async ({ page }) => {
+test("another buyer asks, the owner accepts, the buyer pays", async ({ page }) => {
   test.setTimeout(180_000);
   await signIn(page, DEMO_BUYERS.ravindu);
   await addOneAndOpenCart(page, DEMO_BUYERS.ravindu);
   await page.getByRole("button", { name: "Join a basket" }).click();
-  await page.locator(`input[name="basketId"][value="${ids.basket}"]`).check();
+  const row = page.locator(`[data-basket="${ids.basket}"]`);
+  await row.getByRole("button", { name: /^Ask to join/ }).click();
+  await expect(row.getByText("Asked")).toBeVisible();
   // Joiners never see the owner's address.
   await expect(page.getByText("12 Lake Road")).toHaveCount(0);
   await inspect(page);
+
+  await signIn(page, DEMO_BUYERS.nimali);
+  await page.goto(`/own-baskets/${ids.basket}`);
+  await expect(page.getByRole("heading", { name: "Requests · 1" })).toBeVisible();
+  await inspect(page);
+  await page.getByRole("button", { name: /^Accept / }).click();
+  await expect(page.getByRole("heading", { name: /^Requests/ })).toHaveCount(0);
+
+  await signIn(page, DEMO_BUYERS.ravindu);
+  await page.goto("/cart");
+  await page.getByRole("button", { name: "Join a basket" }).click();
+  await page.locator(`input[name="basketId"][value="${ids.basket}"]`).check();
   await chooseOneAndPay(page, "Pay");
   await expect(page.getByRole("heading", { name: "Filling", level: 1 })).toBeVisible();
   await expect(page.getByText("12 Lake Road")).toHaveCount(0);

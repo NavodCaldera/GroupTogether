@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { Button } from "./ui";
 
 /** Live "2h 5m left" that ticks every 20s; the server renders the first value. */
 export function Countdown({ until, prefix = "" }: { until: string; prefix?: string }) {
@@ -21,40 +20,6 @@ export function Countdown({ until, prefix = "" }: { until: string; prefix?: stri
       {prefix}
       {h > 0 ? `${h}h ${mins % 60}m` : `${mins}m`} left
     </span>
-  );
-}
-
-/** Copies `url` to the clipboard; the label reads `copiedLabel` for 2s afterwards. */
-export function CopyLinkButton({
-  url,
-  className,
-  label = "Copy link",
-  copiedLabel = "Link copied",
-}: {
-  url: string;
-  className?: string;
-  label?: string;
-  copiedLabel?: string;
-}) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <Button
-      type="button"
-      variant="secondary"
-      className={className}
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(url);
-        } catch {
-          window.prompt(label, url);
-          return;
-        }
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-      }}
-    >
-      <span aria-live="polite">{copied ? copiedLabel : label}</span>
-    </Button>
   );
 }
 

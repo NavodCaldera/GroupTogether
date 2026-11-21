@@ -176,7 +176,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
                 </dd>
                 {cashFee.gt(0) && (
                   <>
-                    <dt className="text-sm text-subtle">Agent fee at pickup</dt>
+                    <dt className="text-sm text-subtle">Agent and courier fee at pickup</dt>
                     <dd className="text-right text-sm text-subtle">{formatLKR(cashFee)}</dd>
                   </>
                 )}
