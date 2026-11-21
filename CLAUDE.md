@@ -16,6 +16,9 @@ Packing, On the way, Delivered; Refunded for own baskets past their 10-day wait)
 can never be cancelled by a buyer (`DEC-026`, 2026-11-21). `main` is protected on GitHub:
 changes land only through a pull request with green, up-to-date checks.
 
+The token ledger is append-only in the database: seed data cannot backdate entries. The buyer
+Tokens page groups history by day and names the other person on transfers (2026-11-21).
+
 Check [implementation status](docs/implementation-status.md) before claiming a feature
 exists and [decisions](docs/decisions.md) before filling in unresolved commercial rules.
 Specialist files provide technical guidance; historical notes do not override current policy.

@@ -18,7 +18,9 @@
  *             OPEN        Wellawatte × Lanka: Nimali. Tharindu's own basket was refunded after 10 days (tokens)
  *             OPEN        Kollupitiya × Ceylon: Ravindu
  *   Own       OPEN public Kasun's Oxford shirts, 5 of 10 (Dinithi joined)
- *             OPEN public Ishara's polo shirts, 9 of 10 (Malith joined): one more reaches 10
+ *             OPEN public Ishara's polo shirts, 9 of 10 (Malith joined): one more reaches 10.
+ *                         Her earlier blouses were refunded after 10 days; she paid 2,500 of the
+ *                         polos in tokens, got 1,500 from Tharindu and sent Malith 750
  *             OPEN link   Dinithi's running shorts, 2 of 10 (share code printed at the end)
  *             LOCKED      Malith's slim chinos, 10 (Kasun joined), for Packing to pack
  *
@@ -64,6 +66,7 @@ import {
   markPacked,
 } from "../src/server/orders/delivery";
 import { handOver } from "../src/server/orders/handover";
+import { transferTokens } from "../src/server/tokens";
 import { applyAsAgent } from "../src/server/agents/apply";
 import { decideAgent } from "../src/server/agents/admin";
 import { startDeposit } from "../src/server/agents/deposit";
@@ -645,6 +648,7 @@ async function main() {
     target:
       { start: string; visibility: "PUBLIC" | "LINK" } | { basketId: string; shareCode?: string },
     lines: [variantId: string, qty: number][],
+    tokens = "0",
   ): Promise<string> {
     const { basketId, orderId } = await startOwnCheckout(buyer.id, {
       ...("start" in target
@@ -658,7 +662,7 @@ async function main() {
           }
         : { basketId: target.basketId, shareCode: target.shareCode }),
       lines: lines.map(([variantId, qty]) => ({ variantId, qty })),
-      tokens: "0",
+      tokens,
       requestKey: `seed-own-${++ownNo}`,
     });
     const order = await db.order.findUniqueOrThrow({
@@ -674,11 +678,25 @@ async function main() {
     [C[0][2], 1],
   ]);
   await own(dinithi, { basketId: kasunBasket }, [[C[0][2], 2]]);
+  // REFUNDED: Ishara's earlier blouses were still short of the minimum after 10 days, so the
+  // sweep refunded her in tokens (DEC-026).
+  const isharaEarlier = await own(ishara, { start: C[4][0], visibility: "LINK" }, [[C[4][2], 2]]);
+  await db.basket.update({
+    where: { id: isharaEarlier },
+    data: { firstOrderAt: new Date(Date.now() - 41 * 86_400_000) },
+  });
+  await sweepOwnBaskets(new Date());
   // OPEN, public: Ishara's polo shirts, 9 of 10 (Malith joined). One more item reaches the minimum.
-  const isharaBasket = await own(ishara, { start: L[2][0], visibility: "PUBLIC" }, [
-    [L[2][0], 3],
-    [L[2][1], 5],
-  ]);
+  // She pays 2,500 of it with tokens.
+  const isharaBasket = await own(
+    ishara,
+    { start: L[2][0], visibility: "PUBLIC" },
+    [
+      [L[2][0], 3],
+      [L[2][1], 5],
+    ],
+    "2500",
+  );
   await own(malith, { basketId: isharaBasket }, [[L[2][2], 1]]);
   // OPEN, link only: Dinithi's running shorts, 2 of 10. Join with the share code.
   const dinithiBasket = await own(dinithi, { start: L[3][0], visibility: "LINK" }, [[L[3][1], 2]]);
@@ -696,6 +714,9 @@ async function main() {
     data: { firstOrderAt: new Date(Date.now() - 11 * 86_400_000) },
   });
   await sweepOwnBaskets(new Date());
+  // Tokens move between buyers: Tharindu sends Ishara 1,500 and she sends Malith 750.
+  await transferTokens(tharindu.id, DEMO_BUYERS.ishara, "1500", "seed-transfer-1");
+  await transferTokens(ishara.id, DEMO_BUYERS.malith, "750", "seed-transfer-2");
   const shareCode = (
     await db.basket.findUniqueOrThrow({ where: { id: dinithiBasket }, select: { shareCode: true } })
   ).shareCode;
@@ -953,7 +974,7 @@ async function main() {
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}
   Return to hand over: ${DEMO_BUYERS.sachini} at ${DEMO_AGENTS.kollupitiya}
-  Tokens: ${DEMO_BUYERS.tharindu}
+  Tokens: ${DEMO_BUYERS.tharindu}; full token history: ${DEMO_BUYERS.ishara}
   Own baskets to join: Kasun's (5 of 10) and Ishara's (9 of 10) are public; Dinithi's is link-only, /own-baskets/${dinithiBasket}?code=${shareCode}
   Fit heatmap: ${DEMO_BUYERS.dilan}, ${DEMO_BUYERS.sachini} (and Ravindu, Ayesha) are measured; ${DEMO_BUYERS.tharindu} is not`);
 }

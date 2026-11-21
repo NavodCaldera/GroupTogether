@@ -167,6 +167,7 @@ test("the token buyer pays with tokens and sends tokens", async ({ page }) => {
   await page.goto("/tokens");
   await expect(page.getByTestId("token-balance")).toBeVisible();
   await inspect(page);
+  await page.getByText("Send tokens").click();
   await page.getByLabel("Phone or email").fill(DEMO.readyBuyer);
   await page.getByLabel("Amount").fill("100");
   await page.getByRole("button", { name: "Send", exact: true }).click();

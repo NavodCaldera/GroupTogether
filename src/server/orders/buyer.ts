@@ -280,15 +280,33 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
 
 export async function tokenHistory(userId: string) {
   await assertBuyerAccount(userId);
-  const [balance, entries] = await Promise.all([
+  const [balance, rows] = await Promise.all([
     tokenBalance(userId),
     db.tokenEntry.findMany({
       where: { userId, NOT: { amount: new D(0).toFixed(2) } },
-      select: { id: true, amount: true, kind: true, note: true, createdAt: true },
+      select: {
+        id: true,
+        amount: true,
+        kind: true,
+        note: true,
+        createdAt: true,
+        orderId: true,
+        counterpartyId: true,
+      },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take: 100,
     }),
   ]);
+  // Transfers name the other person; only their name is read.
+  const ids = [...new Set(rows.flatMap((r) => (r.counterpartyId ? [r.counterpartyId] : [])))];
+  const people = ids.length
+    ? await db.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+    : [];
+  const names = new Map(people.map((p) => [p.id, p.name]));
+  const entries = rows.map(({ counterpartyId, ...r }) => ({
+    ...r,
+    counterparty: counterpartyId ? (names.get(counterpartyId) ?? null) : null,
+  }));
   return { balance, entries };
 }
 
