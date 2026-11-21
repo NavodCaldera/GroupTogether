@@ -47,9 +47,9 @@ function Editor({ productId, deal, ends }: { productId: string; deal?: Deal; end
     <AdminForm action={saveDealAction} submit={deal ? "Save deal" : "Create deal"}>
       <input type="hidden" name="productId" value={productId} />
       {deal && <input type="hidden" name="dealId" value={deal.id} />}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
         <Field label="Ends" name="endsAt">
-          <Input
+          <Input className="min-w-0"
             name="endsAt"
             type="datetime-local"
             defaultValue={colomboValue(deal?.endsAt ?? ends)}
@@ -57,7 +57,7 @@ function Editor({ productId, deal, ends }: { productId: string; deal?: Deal; end
           />
         </Field>
         <Field label="Capacity (optional)" name="maxQty">
-          <Input
+          <Input className="min-w-0"
             name="maxQty"
             type="number"
             min={1}
@@ -69,14 +69,14 @@ function Editor({ productId, deal, ends }: { productId: string; deal?: Deal; end
       </div>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-sm font-bold">Tiers</legend>
-        <div className="grid grid-cols-[1fr_1fr_5.5rem] gap-2 text-sm text-subtle">
+        <div className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem] gap-2 text-sm text-subtle">
           <span>From qty</span>
           <span>Factory price</span>
           <span className="text-right">Buyer</span>
         </div>
         {rows.map((t, i) => (
-          <div key={i} className="grid grid-cols-[1fr_1fr_5.5rem] items-center gap-2">
-            <Input
+          <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-2">
+            <Input className="min-w-0"
               name={`minQty${i}`}
               type="number"
               min={1}
@@ -86,7 +86,7 @@ function Editor({ productId, deal, ends }: { productId: string; deal?: Deal; end
               defaultValue={t?.minQty ?? (i === 0 ? 1 : "")}
               readOnly={i === 0}
             />
-            <Input
+            <Input className="min-w-0"
               name={`factoryPrice${i}`}
               inputMode="decimal"
               aria-label={`Tier ${i + 1} factory price`}
