@@ -7,6 +7,7 @@ import {
   DEMO_ACCOUNTS,
   DEMO_ADMINS,
   DEMO_AGENTS,
+  DEMO_BUYERS,
   DEMO_FACTORIES,
   DEMO_PICKUP_CODE,
 } from "@/lib/demo-accounts";
@@ -126,14 +127,31 @@ describe("demo seed", () => {
     expect([r[0].handoverAgentId, r[0].buyerId]).toEqual([agent.id, buyer.id]);
   });
 
-  it("gives tokens to exactly one buyer", async () => {
+  it("gives tokens to the token buyer, Ishara and Malith only", async () => {
     const buyers = await db.user.findMany({
       where: { role: "CUSTOMER" },
       select: { id: true, email: true },
     });
     const holding = [];
     for (const b of buyers) if ((await tokenBalance(b.id)).gt(0)) holding.push(b.email);
-    expect(holding).toEqual([DEMO.tokenBuyer]);
+    expect(holding.sort()).toEqual(
+      [DEMO.tokenBuyer, DEMO_BUYERS.ishara, DEMO_BUYERS.malith].sort(),
+    );
+  });
+
+  it("gives Ishara a refund, a token payment and both kinds of transfer", async () => {
+    const ishara = await db.user.findUniqueOrThrow({ where: { email: DEMO_BUYERS.ishara } });
+    const entries = await db.tokenEntry.findMany({
+      where: { userId: ishara.id, NOT: { amount: "0" } },
+      select: { kind: true },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(entries.map((e) => e.kind)).toEqual([
+      "ORDER_CANCEL",
+      "HOLD",
+      "TRANSFER_IN",
+      "TRANSFER_OUT",
+    ]);
   });
 
   it("leaves no stock out of balance and no payment pending", async () => {

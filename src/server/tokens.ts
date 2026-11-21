@@ -96,14 +96,14 @@ export async function transferTokens(
   toPhoneOrEmail: string,
   amount: string,
   requestKey: string,
-): Promise<void> {
+): Promise<{ toName: string }> {
   const value = positiveAmount(amount);
   if (!/^[A-Za-z0-9_-]{1,100}$/.test(requestKey)) throw new TokenError("Invalid token request");
   const target = toPhoneOrEmail.trim();
   if (!target) throw new TokenError("No account with that phone or email");
   const to = await db.user.findFirst({
     where: { OR: [{ phone: target }, { email: { equals: target, mode: "insensitive" } }] },
-    select: { id: true },
+    select: { id: true, name: true },
   });
   if (!to) throw new TokenError("No account with that phone or email");
   if (to.id === fromId) throw new TokenError("You cannot send tokens to yourself");
@@ -146,6 +146,7 @@ export async function transferTokens(
       counterpartyId: fromId,
     });
   });
+  return { toName: to.name };
 }
 export async function credit(
   tx: Tx,

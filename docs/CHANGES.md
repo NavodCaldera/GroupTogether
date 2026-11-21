@@ -6,6 +6,17 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Tokens page: clearer history and sending; Ishara's demo tokens
+
+- The buyer Tokens page shows the balance large, with **Send tokens** folded under it. The
+  amount box has an LKR prefix and a **Max** button; the confirmation names who got the tokens.
+- History is grouped by day (Today, Yesterday, a date). Each entry has an icon, says what
+  happened (Order refund, Paid towards an order, From or To the other person by name) and its
+  time; entries tied to an order open that order.
+- Demo data: Ishara (`buyer9@example.com`) has a refunded earlier basket, 2,500 tokens used on
+  her polo shirts, 1,500 from Tharindu and 750 sent to Malith. The ledger is append-only, so
+  every seeded entry is dated when the seed runs.
+
 ## 2026-11-21 - Join requests instead of share links (DEC-028)
 
 - Share links are gone from the whole system: no Share basket, no Who can join, no basket page

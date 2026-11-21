@@ -30,7 +30,7 @@ returns give no tokens and never hold payouts (`DEC-017`, `DEC-018`).
 - Routes: `src/app/api/payments/notify/route.ts`, the hosted demo page `src/app/demo-pay/`,
   the return page `src/app/checkout/return/`.
 - Tokens: `src/server/tokens.ts` (`post`, `credit`, `transferTokens`, `assertTokenHolder`,
-  holds); buyer page `src/app/tokens/`, agent page `/agent/tokens`.
+  holds); buyer page `src/app/tokens/` (labels and day groups in `src/lib/token-labels.ts`), agent page `/agent/tokens`.
 - Payouts and agent fees: `src/server/payouts/index.ts` (`weekOf`, `payableLines`,
   `buildWeeklyPayouts`, `creditAgentFees`, `markPayoutPaid`); Core pages `src/app/admin/core/`.
 - Sweep: `src/server/sweep.ts` `runSweep`, called only by `/api/cron/sweep`.
