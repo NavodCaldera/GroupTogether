@@ -227,8 +227,13 @@ def zr(a, b):
     return bottom + height * a, bottom + height * b
 
 
+# Chest: at the most forward point of the chest (bust point or chest), where a tape goes.
+apex = min(
+    (verts[i] for i in range(len(verts)) if part[i] == 0 and abs(verts[i].x) < 0.15),
+    key=lambda p: p.y,
+)
 rings = {
-    "chest": loop_paths(torso_ring(*zr(0.66, 0.74), "max", {0})),
+    "chest": loop_paths(torso_ring(apex.z - 0.005, apex.z + 0.005, "max", {0})),
     "waist": loop_paths(torso_ring(*zr(0.58, 0.66), "min")),
     "hip": loop_paths(torso_ring(*zr(0.48, 0.56), "max")),
     "upperArm": loop_paths(limb_ring(3, -1, 0.55)),
