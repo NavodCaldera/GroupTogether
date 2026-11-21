@@ -11,6 +11,28 @@ import { FitOnboarding, type ProfileValues } from "./fit-onboarding";
 
 export const metadata: Metadata = { title: "My measurements" };
 
+/** Fit and age group from sign-up: an adult's gender and age band, or nothing. */
+function startFrom(gender: string | null, birthDate: Date | null) {
+  const age = birthDate
+    ? Math.floor((Date.now() - birthDate.getTime()) / (365.2425 * 86_400_000))
+    : null;
+  const ageBand =
+    age == null || age < 18
+      ? null
+      : age < 30
+        ? "18-29"
+        : age < 45
+          ? "30-44"
+          : age < 60
+            ? "45-59"
+            : "60+";
+  const adult = ageBand !== null;
+  return {
+    gender: adult && gender === "MALE" ? "MEN" : adult && gender === "FEMALE" ? "WOMEN" : null,
+    ageBand,
+  };
+}
+
 /** The buyer's body profile for fit reports (DEC-020). */
 export default async function FitPage({ searchParams }: PageProps<"/account/fit">) {
   const sp = await searchParams;
@@ -33,7 +55,7 @@ export default async function FitPage({ searchParams }: PageProps<"/account/fit"
       }
     : null;
   return (
-    <div className="mx-auto w-full max-w-2xl">
+    <div className="mx-auto flex w-full max-w-2xl flex-col">
       <BackLink fallback={next || "/account"} />
       <PageHeader title="My measurements" />
       {body && (
@@ -41,9 +63,12 @@ export default async function FitPage({ searchParams }: PageProps<"/account/fit"
           <BodyCheck body={body} />
         </Card>
       )}
-      <Card>
-        <FitOnboarding profile={profile} next={next} body3d={bodyFitEnabled()} />
-      </Card>
+      <FitOnboarding
+        profile={profile}
+        start={startFrom(user.gender, user.birthDate)}
+        next={next}
+        body3d={bodyFitEnabled()}
+      />
     </div>
   );
 }
