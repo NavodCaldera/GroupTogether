@@ -334,6 +334,25 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-028 - Join requests instead of share links
+
+**Status:** Built **2026-11-21** (`specs/006-join-requests`). The owner's words: "lets remove the
+link sharing part. If a person needs to connect then it sends a connecting request, then the owner
+can either accept or decline … lets remove this link sharing method from the system completely."
+
+1. **No share links anywhere.** Share basket, Who can join (link-only or anyone) and the
+   share-link basket page are gone, for own baskets and agent orders alike. Old basket links take
+   a buyer in the basket to their order page; anyone else gets not found.
+2. **Join a basket** in the cart lists every open own basket of the ticked items' factory except
+   the buyer's own, each with **Ask to join**, **Asked**, **Declined**, or ready to pay.
+3. **Asking** records the ticked items, tells the owner and moves no money or stock. One request
+   per buyer and basket; a declined buyer cannot ask that basket again (Claude's call).
+4. **The owner answers** on their order page (**Requests**: name and items, **Accept** or
+   **Decline**) while the basket is filling. The buyer is told either way.
+5. **Paying** into someone's basket needs an accepted request or an earlier paid order there.
+   Accepted buyers pay from the cart and add more later without asking again.
+6. Requests do not expire; they stop mattering once the basket stops filling.
+
 ### DEC-027 - Cart delivery choice; own baskets hold one factory
 
 **Status:** Built **2026-11-21** (`specs/005-cart-delivery-choice`). The owner's words: "it

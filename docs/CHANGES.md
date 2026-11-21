@@ -6,6 +6,16 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Join requests instead of share links (DEC-028)
+
+- Share links are gone from the whole system: no Share basket, no Who can join, no basket page
+  for link visitors.
+- Join a basket in the cart lists every open basket of that factory with **Ask to join**. The
+  owner sees **Requests** on their order page and taps **Accept** or **Decline**; the buyer is
+  told. Once accepted they pay from the cart and can add more without asking again.
+- Demo data: Dilan has asked to join Kasun's basket.
+- Checkout and order pages: "Agent fee at pickup" is now "Agent and courier fee at pickup".
+
 ## 2026-11-21 - Cart: tick items, choose how to get them; factory baskets (DEC-027)
 
 - The cart has a tick box on every item and **Select all**. The ticked items go by **Agent
