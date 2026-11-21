@@ -20,7 +20,7 @@ import { fileReturn } from "@/server/returns";
 import { handleNotice } from "@/server/payments/notice";
 import { signNotice } from "@/server/payments/demo";
 import { D } from "@/lib/decimal";
-import { fundTokens, makeBuyer, makeFactory, makeUser, resetDb } from "./helpers";
+import { fundTokens, makeBuyer, makeFactory, makeUser, resetDb, sizeVariant } from "./helpers";
 import { myOpenOwnBaskets } from "@/server/orders/own-baskets";
 import { oldOpenBaskets } from "@/server/agents/admin-screens";
 
@@ -65,7 +65,9 @@ type Factory = Awaited<ReturnType<typeof makeFactory>>;
 
 /** A second size (L) on the factory's product. */
 async function addSize(f: Factory) {
-  return db.variant.create({ data: { productId: f.variant.productId, size: "L", available: 20 } });
+  return db.variant.create({
+    data: { productId: f.variant.productId, ...sizeVariant("L"), available: 20 },
+  });
 }
 
 /** The owner starts a basket paying fully in tokens. */
@@ -218,7 +220,7 @@ async function addProduct(f: Factory) {
       commission: "200",
       status: "LIVE",
       sellerId: f.factory.id,
-      variants: { create: { size: "32", available: 20 } },
+      variants: { create: { ...sizeVariant("32"), available: 20 } },
     },
     include: { variants: true },
   });
@@ -411,7 +413,7 @@ describe("join requests (spec 006)", () => {
     expect(waiting).toEqual([
       expect.objectContaining({
         name: buyer.name,
-        lines: [expect.objectContaining({ size: "M", qty: 3 })],
+        lines: [expect.objectContaining({ label: "M", qty: 3 })],
       }),
     ]);
     expect(

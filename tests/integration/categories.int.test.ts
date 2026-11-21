@@ -4,7 +4,7 @@ import { db } from "@/server/db";
 import { CatalogueError, listProducts, saveProduct } from "@/server/catalogue";
 import { categoryChoices, ensureCategoryTree, loadCategoryTree } from "@/server/categories";
 import { CLOTHING_ROOT_ID, categoryIdOf, kindSlug } from "@/lib/categories";
-import { resetDb } from "./helpers";
+import { resetDb, sizeVariant } from "./helpers";
 
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
@@ -167,7 +167,7 @@ describe("shop by category", () => {
         { title: kind, brand: "Test", price: "1000", categoryId: categoryIdOf(kindSlug(kind)) },
         null,
       );
-      await db.variant.create({ data: { productId: p.id, size: "M", available: 3 } });
+      await db.variant.create({ data: { productId: p.id, ...sizeVariant("M"), available: 3 } });
       return p.id;
     };
     const shirt = await make("men-shirts");

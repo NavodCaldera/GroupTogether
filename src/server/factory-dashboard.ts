@@ -1,9 +1,9 @@
 import "server-only";
 import type { BasketStatus, Prisma } from "@/generated/prisma/client";
 import { lineEarning } from "@/lib/agent-money";
+import { compareOptions } from "@/lib/variant-options";
 import {
   citiesShown,
-  compareSizes,
   median,
   priceBand,
   ratingDisplay,
@@ -74,8 +74,8 @@ type BasketRow = Prisma.BasketGetPayload<{ select: typeof basketSelect }>;
 
 export type BasketLine = {
   id: string;
-  size: string;
-  colour: string;
+  /** OrderLine.variantLabel, e.g. "M / Navy" */
+  label: string;
   qty: number;
   reportedQty: number;
   note: string | null;
@@ -113,7 +113,7 @@ export function basketDest(b: {
   };
 }
 
-/** Each basket with its lines grouped by product, then size and colour. */
+/** Each basket with its lines grouped by product, then by option (sizes small to large). */
 async function withLines(baskets: BasketRow[]): Promise<BasketCard[]> {
   if (!baskets.length) return [];
   const lines = await db.orderLine.findMany({
@@ -128,7 +128,8 @@ async function withLines(baskets: BasketRow[]): Promise<BasketCard[]> {
       missingReportedQty: true,
       missingNote: true,
       order: { select: { basketId: true, status: true } },
-      variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
+      variantLabel: true,
+      variant: { select: { options: true, product: { select: { title: true } } } },
     },
     orderBy: { id: "asc" },
   });
@@ -138,8 +139,7 @@ async function withLines(baskets: BasketRow[]): Promise<BasketCard[]> {
       .sort(
         (x, y) =>
           x.variant.product.title.localeCompare(y.variant.product.title) ||
-          compareSizes(x.variant.size, y.variant.size) ||
-          x.variant.colour.localeCompare(y.variant.colour),
+          compareOptions(x.variant.options, y.variant.options),
       );
     const products: BasketCard["products"] = [];
     let pieces = 0;
@@ -152,8 +152,7 @@ async function withLines(baskets: BasketRow[]): Promise<BasketCard[]> {
       if (group?.title !== title) products.push((group = { title, lines: [] }));
       group.lines.push({
         id: l.id,
-        size: l.variant.size,
-        colour: l.variant.colour,
+        label: l.variantLabel,
         qty,
         reportedQty: l.missingReportedQty,
         note: l.missingNote,
@@ -245,17 +244,16 @@ export async function stockAlerts(userId: string) {
   const variants = await db.variant.findMany({
     where: { product: { sellerId: factoryId, status: { not: "ARCHIVED" } } },
     select: {
-      size: true,
-      colour: true,
+      label: true,
       available: true,
       product: { select: { id: true, title: true } },
     },
-    orderBy: [{ available: "asc" }, { product: { title: "asc" } }, { size: "asc" }],
+    orderBy: [{ available: "asc" }, { product: { title: "asc" } }, { label: "asc" }],
   });
   return variants.flatMap((v) => {
     const a = stockAlert(v.available);
     if (!a) return [];
-    const size = v.colour ? `${v.size} ${v.colour}` : v.size;
+    const size = v.label;
     return [
       {
         productId: v.product.id,
@@ -357,12 +355,13 @@ async function paidLines(factoryId: string) {
       missingQty: true,
       returnedQty: true,
       factoryPrice: true,
-      variant: { select: { size: true, productId: true } },
+      variantId: true,
+      variant: { select: { productId: true } },
     },
   });
 }
 
-/** Products: each listing with paid sales, and per size the stock left and the unpaid-order hold. */
+/** Products: each listing with paid sales, and per variant the stock left and the unpaid-order hold. */
 export async function factoryProducts(factoryId: string) {
   const [products, lines] = await Promise.all([
     db.product.findMany({
@@ -378,13 +377,12 @@ export async function factoryProducts(factoryId: string) {
         variants: {
           select: {
             id: true,
-            size: true,
-            colour: true,
+            options: true,
+            label: true,
             available: true,
             reserved: true,
             _count: { select: { orderLines: true } },
           },
-          orderBy: [{ size: "asc" }, { colour: "asc" }],
         },
       },
       orderBy: { createdAt: "desc" },
@@ -395,22 +393,23 @@ export async function factoryProducts(factoryId: string) {
     const mine = lines.filter((l) => l.variant.productId === p.id);
     let pieces = 0;
     let value = new D(0);
-    const bySize = new Map<string, number>();
+    const byVariant = new Map<string, number>();
     for (const l of mine) {
       const sold = Math.max(l.qty - l.missingQty - l.returnedQty, 0);
       pieces += sold;
       value = value.plus(lineEarning(l.qty, l.returnedQty, l.missingQty, toD(l.factoryPrice)));
-      bySize.set(l.variant.size, (bySize.get(l.variant.size) ?? 0) + sold);
+      byVariant.set(l.variantId, (byVariant.get(l.variantId) ?? 0) + sold);
     }
-    const best = [...bySize].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    const best = [...byVariant].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+    const variants = [...p.variants].sort((x, y) => compareOptions(x.options, y.options));
     return {
       ...p,
       pieces,
       value: roundMoney(value),
-      bestSize: best,
-      variants: p.variants.map(({ _count, ...v }) => ({
+      bestVariantId: best,
+      variants: variants.map(({ _count, ...v }) => ({
         ...v,
-        soldPaid: bySize.get(v.size) ?? 0,
+        soldPaid: byVariant.get(v.id) ?? 0,
         // A size never ordered can be removed; others keep their order history.
         removable: _count.orderLines === 0,
       })),
@@ -429,8 +428,13 @@ export async function factoryInsights(factoryId: string) {
     }),
     db.variant.findMany({
       where: { product: { sellerId: factoryId } },
-      select: { size: true, available: true, reserved: true, product: { select: { title: true } } },
-      orderBy: [{ product: { title: "asc" } }, { size: "asc" }],
+      select: {
+        label: true,
+        available: true,
+        reserved: true,
+        product: { select: { title: true } },
+      },
+      orderBy: [{ product: { title: "asc" } }, { label: "asc" }],
     }),
     db.basket.findMany({
       where: { factoryId, lockedAt: { not: null }, courier: { givenToDriverAt: { not: null } } },

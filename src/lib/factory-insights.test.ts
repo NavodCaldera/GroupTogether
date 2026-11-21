@@ -29,10 +29,11 @@ describe("factory figures", () => {
     expect(stockAlert(0)).toBe("sold-out");
     expect(stockAlert(3)).toBe("low");
     expect(stockAlert(4)).toBeNull();
-    expect(restockAdvice({ size: "M", available: 2, reserved: 4 })).toBe(
-      "Size M: 2 left, 4 held for unpaid orders — restock",
+    expect(restockAdvice({ label: "M / Navy", available: 2, reserved: 4 })).toBe(
+      "M / Navy: 2 left, 4 held for unpaid orders — restock",
     );
-    expect(restockAdvice({ size: "L", available: 20, reserved: 2 })).toBeNull();
+    expect(restockAdvice({ label: "L", available: 0, reserved: 0 })).toBe("L: sold out — restock");
+    expect(restockAdvice({ label: "L", available: 20, reserved: 2 })).toBeNull();
   });
 
   it("median and price bands", () => {

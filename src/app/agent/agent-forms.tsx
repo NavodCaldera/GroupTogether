@@ -106,10 +106,7 @@ function HandOverItems({
               }
               className="size-5 shrink-0 accent-[var(--accent)]"
             />
-            <span className="min-w-0 flex-1">
-              {l.title} · {l.size}
-              {l.colour ? ` · ${l.colour}` : ""}
-            </span>
+            <span className="min-w-0 flex-1">{[l.title, l.label].filter(Boolean).join(" · ")}</span>
             <span className="tabular-nums">× {l.qty}</span>
           </label>
         ))}

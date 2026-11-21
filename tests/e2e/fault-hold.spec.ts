@@ -18,7 +18,7 @@ test.beforeEach(async () => {
       [factory],
     );
     await db.query(
-      `INSERT INTO "Variant" (id,"productId",size,available,sold) VALUES ('fault-size','fault-shirt','M',5,2)`,
+      `INSERT INTO "Variant" (id,"productId",size,options,"optionKey",label,available,sold) VALUES ('fault-size','fault-shirt','M','{"size":"M"}','size=m','M',5,2)`,
     );
     const agent = (
       await db.query(

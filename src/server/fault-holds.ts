@@ -282,7 +282,10 @@ const faultSelect = {
   request: {
     select: {
       orderLine: {
-        select: { variant: { select: { size: true, product: { select: { title: true } } } } },
+        select: {
+          variantLabel: true,
+          variant: { select: { product: { select: { title: true } } } },
+        },
       },
     },
   },

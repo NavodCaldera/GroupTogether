@@ -73,8 +73,7 @@ export default async function SearchPage({ searchParams }: PageProps<"/admin/age
                 {o.lines.map((l) => (
                   <li key={l.id} className="flex flex-wrap items-center gap-x-2">
                     <span className="min-w-0 flex-1">
-                      {l.variant.product.title} · {l.variant.size}
-                      {l.variant.colour ? ` · ${l.variant.colour}` : ""}
+                      {[l.variant.product.title, l.variantLabel].filter(Boolean).join(" · ")}
                     </span>
                     <span className="tabular-nums">× {l.qty}</span>
                     {l.missingQty > 0 && <Badge tone="bad">{l.missingQty} missing</Badge>}

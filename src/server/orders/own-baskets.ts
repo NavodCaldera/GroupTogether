@@ -65,6 +65,7 @@ async function loadFactoryLines(tx: Tx, factoryId: string | null, lines: OwnLine
     where: { id: { in: lines.map((l) => l.variantId) } },
     select: {
       id: true,
+      label: true,
       product: {
         select: {
           id: true,
@@ -77,14 +78,16 @@ async function loadFactoryLines(tx: Tx, factoryId: string | null, lines: OwnLine
       },
     },
   });
-  const byId = new Map(variants.map((v) => [v.id, v.product]));
+  const byId = new Map(variants.map((v) => [v.id, v]));
   const out = lines.map((l) => {
-    const p = byId.get(l.variantId);
+    const v = byId.get(l.variantId);
+    const p = v?.product;
     if (!p || p.status !== "LIVE" || !p.sellerId || p.factoryPrice === null)
       throw new CheckoutError(p ? `No longer available: ${p.title}` : "No longer available");
     return {
       ...l,
       factoryId: p.sellerId,
+      label: v!.label,
       unitPrice: toD(p.price),
       factoryPrice: toD(p.factoryPrice),
     };
@@ -285,6 +288,7 @@ export async function startOwnCheckout(
         lines: {
           create: priced.lines.map((l) => ({
             variantId: l.variantId,
+            variantLabel: l.label,
             qty: l.qty,
             unitPrice: l.unitPrice.toFixed(2),
             factoryPrice: l.factoryPrice.toFixed(2),
@@ -626,14 +630,8 @@ export async function ownBasketView(basketId: string, viewerId: string | null) {
           lines: {
             select: {
               qty: true,
-              variant: {
-                select: {
-                  size: true,
-                  colour: true,
-                  productId: true,
-                  product: { select: { title: true } },
-                },
-              },
+              variantLabel: true,
+              variant: { select: { productId: true, product: { select: { title: true } } } },
             },
           },
         },
@@ -664,7 +662,7 @@ export async function ownBasketView(basketId: string, viewerId: string | null) {
       photoKey: true,
       category: true,
       variants: {
-        select: { id: true, size: true, colour: true, available: true },
+        select: { id: true, label: true, available: true },
         orderBy: { id: "asc" },
       },
     },
@@ -691,8 +689,7 @@ export async function ownBasketView(basketId: string, viewerId: string | null) {
         mine: o.buyerId === viewerId,
         lines: o.lines.map((l) => ({
           title: l.variant.product.title,
-          size: l.variant.size,
-          colour: l.variant.colour,
+          label: l.variantLabel,
           qty: l.qty,
         })),
       })),
@@ -704,7 +701,7 @@ export type BasketBuyer = {
   name: string;
   you: boolean;
   owner: boolean;
-  lines: { title: string; size: string; colour: string; qty: number; amount: D | null }[];
+  lines: { title: string; label: string; qty: number; amount: D | null }[];
   items: number;
   itemsAmount: D | null;
   payhereFee: D | null;
@@ -743,9 +740,8 @@ export async function basketPayments(
             select: {
               qty: true,
               unitPrice: true,
-              variant: {
-                select: { size: true, colour: true, product: { select: { title: true } } },
-              },
+              variantLabel: true,
+              variant: { select: { product: { select: { title: true } } } },
             },
             orderBy: { id: "asc" },
           },
@@ -785,8 +781,7 @@ export async function basketPayments(
       const amount = toD(l.unitPrice).times(l.qty);
       p.lines.push({
         title: l.variant.product.title,
-        size: l.variant.size,
-        colour: l.variant.colour,
+        label: l.variantLabel,
         qty: l.qty,
         amount: showMoney ? amount : null,
       });
@@ -944,7 +939,7 @@ export async function joinRequests(ownerId: string, basketId: string) {
     (
       await db.variant.findMany({
         where: { id: { in: ids } },
-        select: { id: true, size: true, colour: true, product: { select: { title: true } } },
+        select: { id: true, label: true, product: { select: { title: true } } },
       })
     ).map((v) => [v.id, v]),
   );
@@ -953,7 +948,7 @@ export async function joinRequests(ownerId: string, basketId: string) {
     name: q.buyer.name,
     lines: (q.lines as RequestLine[]).flatMap((l) => {
       const v = variants.get(l.variantId);
-      return v ? [{ title: v.product.title, size: v.size, colour: v.colour, qty: l.qty }] : [];
+      return v ? [{ title: v.product.title, label: v.label, qty: l.qty }] : [];
     }),
   }));
 }

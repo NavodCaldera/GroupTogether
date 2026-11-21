@@ -12,6 +12,12 @@ import { canSell, canSellIn, sellingFactoryWhere } from "./agreements";
 import { buyerPrice } from "@/lib/price-rules";
 import { getSettings } from "./settings";
 import { sizeOrder } from "@/lib/fit/data";
+import {
+  type VariantOptions,
+  VariantOptionsError,
+  sizeOf,
+  variantFields,
+} from "@/lib/variant-options";
 import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 
 export class CatalogueError extends Error {}
@@ -38,7 +44,7 @@ const listSelect = {
   photoKey: true,
   sellerId: true,
   seller: { select: { name: true, company: true } },
-  variants: { select: { size: true, available: true }, orderBy: { size: "asc" } },
+  variants: { select: { available: true } },
 } satisfies Prisma.ProductSelect;
 
 /**
@@ -170,17 +176,19 @@ export async function getProduct(id: string, now = new Date()) {
       AND: [...IN_SHOP.AND, await shopEligibility(now)],
     },
     include: {
-      variants: { orderBy: [{ size: "asc" }, { colour: "asc" }] },
+      variants: { orderBy: { label: "asc" } },
       seller: { select: { name: true, company: true } },
     },
   });
   if (!product) return null;
-  // Sizes small to large (S, M, L, XL), not alphabetical; colours stay in order within a size.
+  // Sizes small to large (S, M, L, XL), not alphabetical; other options stay in label order.
   const order = sizeOrder(
     product.kind,
-    product.variants.map((v) => v.size),
+    product.variants.map((v) => sizeOf(v.options)),
   );
-  product.variants.sort((x, y) => order.indexOf(x.size) - order.indexOf(y.size));
+  product.variants.sort(
+    (x, y) => order.indexOf(sizeOf(x.options)) - order.indexOf(sizeOf(y.options)),
+  );
   return product;
 }
 
@@ -340,13 +348,12 @@ export async function saveProduct(
 }
 
 /**
- * Adds (or with a negative number, removes) free stock of a size. Never touches locked stock.
- * A factory (`sellerId`) changes only its own products.
+ * Adds (or with a negative number, removes) free stock of one option set (DEC-029). Never touches
+ * locked stock. A factory (`sellerId`) changes only its own products.
  */
 export async function adjustStock(
   productId: string,
-  size: string,
-  colour: string,
+  options: VariantOptions,
   delta: number,
   { sellerId }: { sellerId?: string } = {},
 ) {
@@ -355,16 +362,21 @@ export async function adjustStock(
   if (sellerId && !(await db.product.count({ where: { id: productId, sellerId } })))
     throw new CatalogueError("Product not found");
   if (!Number.isInteger(delta) || delta === 0) throw new CatalogueError("Enter a whole number");
-  const s = size.trim();
-  if (!s) throw new CatalogueError("Enter the size");
+  let fields: ReturnType<typeof variantFields>;
+  try {
+    fields = variantFields(options);
+  } catch (e) {
+    if (e instanceof VariantOptionsError) throw new CatalogueError(e.message);
+    throw e;
+  }
+  // Stock forms still post a size until the category decides the options (DEC-029 phase 4).
+  if (!fields.optionKey) throw new CatalogueError("Enter the size");
   const existing = await db.variant.findUnique({
-    where: { productId_size_colour: { productId, size: s, colour: colour.trim() } },
+    where: { productId_optionKey: { productId, optionKey: fields.optionKey } },
   });
   if (!existing) {
     if (delta < 0) throw new CatalogueError("That size has no stock to remove");
-    return db.variant.create({
-      data: { productId, size: s, colour: colour.trim(), available: delta },
-    });
+    return db.variant.create({ data: { productId, ...fields, available: delta } });
   }
   const r = await db.variant.updateMany({
     where: { id: existing.id, available: { gte: -delta } },

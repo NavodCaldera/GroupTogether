@@ -80,6 +80,22 @@ category approval and the removal of the old columns are still planned. `Variant
 - A change to the starting tree goes in `src/lib/categories.ts` and a new migration together; the
   unit test compares the seed rows with the category_tree migration.
 
+## Variant options code (built 2026-11-21, phase 3)
+
+- Helpers: [variant-options.ts](../../src/lib/variant-options.ts) (`cleanOptions`,
+  `parseOptions`, `readOptions`, `optionKeyOf`, `variantLabel`, `variantFields`, `formOptions`,
+  `optionAxes`, `compareOptions`, `sizeOf`). `variantFields` returns every stored column and keeps
+  the legacy `size`/`colour` in step; write variants only through it.
+- Migration `20261123200000_variant_options` backfills from `size`/`colour` with the same rules.
+- Writes: `adjustStock` in [catalogue.ts](../../src/server/catalogue.ts) takes options (stock
+  forms post `option.<name>` fields, or the older `size`/`colour`); [seed](../../prisma/seed.ts).
+  Checkout and own-basket payment copy `Variant.label` to `OrderLine.variantLabel`.
+- Readers show `variantLabel` (order lines) or `label` (stock, cart). The product page groups
+  choices by the option names its variants carry ([add-to-cart-form.tsx](../../src/app/products/[id]/add-to-cart-form.tsx)).
+  Fit code reads `sizeOf(options)`.
+- Still on the legacy `size` column: the shop size filter and size facet in `catalogue.ts`, until
+  filters come from category attributes (phase 4).
+
 ## Verification and coordination
 
 Unit tests for key normalisation, attribute inheritance and spec validation; integration tests for

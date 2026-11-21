@@ -6,6 +6,7 @@ import { ZodError } from "zod";
 import { requireFactory, requireSeller } from "./auth/session";
 import { createBrandOffer, reviseBrandOffer } from "./brands";
 import { CatalogueError, adjustStock, saveProduct } from "./catalogue";
+import { formOptions } from "@/lib/variant-options";
 import { db } from "./db";
 import { canSell } from "./agreements";
 import { flash } from "./flash";
@@ -85,7 +86,7 @@ export async function factoryStockAction(_p: SellerState, fd: FormData): Promise
   const { factoryId } = await requireFactory("products");
   const productId = str(fd, "productId");
   try {
-    await adjustStock(productId, str(fd, "size"), str(fd, "colour"), Number(str(fd, "delta")), {
+    await adjustStock(productId, formOptions(fd), Number(str(fd, "delta")), {
       sellerId: factoryId,
     });
   } catch (e) {
@@ -108,7 +109,7 @@ export async function factorySizeStockAction(fd: FormData) {
   const qty = Number(str(fd, "qty"));
   const sign = str(fd, "dir") === "remove" ? -1 : 1;
   try {
-    await adjustStock(productId, str(fd, "size"), str(fd, "colour"), sign * qty, {
+    await adjustStock(productId, formOptions(fd), sign * qty, {
       sellerId: factoryId,
     });
     await flash(sign > 0 ? `Added ${qty}` : `Removed ${qty}`);

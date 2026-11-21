@@ -62,10 +62,10 @@ const orderSelect = {
       missingQty: true,
       cashFeeEach: true,
       cashFeePaid: true,
+      variantLabel: true,
       variant: {
         select: {
-          size: true,
-          colour: true,
+          options: true,
           product: { select: { id: true, title: true, photoKey: true, category: true } },
         },
       },

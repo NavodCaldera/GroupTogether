@@ -9,7 +9,7 @@ import {
   shopFacets,
   suggestProducts,
 } from "@/server/catalogue";
-import { makeUser, resetDb } from "./helpers";
+import { makeUser, resetDb, sizeVariant } from "./helpers";
 
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -48,7 +48,9 @@ describe("independent public catalogue brand exclusion", () => {
             price: "1000",
             retailPrice: "2000",
             sellerId: owners[i === 0 ? 0 : 1].id,
-            variants: { create: { size: i === 0 ? "Ordinary-size" : "Brand-size", available: 5 } },
+            variants: {
+              create: { ...sizeVariant(i === 0 ? "Ordinary-size" : "Brand-size"), available: 5 },
+            },
           },
         }),
       );
@@ -86,7 +88,7 @@ describe("saving order", () => {
           status: "LIVE",
           price,
           retailPrice,
-          variants: { create: { size: "M", available: 5 } },
+          variants: { create: { ...sizeVariant("M"), available: 5 } },
         },
       });
     const small = await make("Small saving", "900", "1000");
@@ -123,7 +125,7 @@ describe("audience", () => {
           stockType: "FACTORY_SURPLUS",
           status: "LIVE",
           price: "1000",
-          variants: { create: { size: "M", available: 5 } },
+          variants: { create: { ...sizeVariant("M"), available: 5 } },
         },
       });
     const men = await make("Men's shirt", "MEN");

@@ -295,7 +295,8 @@ export async function pendingMissingReports(adminId: string) {
       missingNote: true,
       missingReportedAt: true,
       unitPrice: true,
-      variant: { select: { size: true, colour: true, product: { select: { title: true } } } },
+      variantLabel: true,
+      variant: { select: { product: { select: { title: true } } } },
       order: {
         select: {
           buyer: { select: { name: true } },

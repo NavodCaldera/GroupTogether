@@ -16,6 +16,8 @@ import { AddToCartForm, SizeStockPreview } from "./add-to-cart-form";
 import { FitSection } from "./fit-section";
 import { MaterialSection } from "./material-card";
 import { getMaterialCard, getProvenance } from "@/server/materials";
+import { sizesFor } from "@/lib/taxonomy";
+import { optionAxes, optionName, readOptions } from "@/lib/variant-options";
 
 export async function generateMetadata({ params }: PageProps<"/products/[id]">): Promise<Metadata> {
   const p = await getProduct((await params).id);
@@ -41,6 +43,16 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
     getMaterialCard(product.id),
   ]);
   const why = materialCard ? await getProvenance(materialCard) : null;
+  const variants = product.variants.map((v) => ({
+    id: v.id,
+    options: readOptions(v.options),
+    available: v.available,
+  }));
+  // Choices grouped by the option names the variants carry; sizes in the category's own order.
+  const axes = optionAxes(variants, sizesFor(product.kind ?? undefined)).map((a) => ({
+    ...a,
+    name: optionName(a.key),
+  }));
 
   return (
     <>
@@ -85,23 +97,12 @@ export default async function ProductPage({ params, searchParams }: PageProps<"/
             {buyer ? (
               <AddToCartForm
                 price={product.price.toString()}
-                variants={product.variants.map((v) => ({
-                  id: v.id,
-                  label: v.colour ? `${v.size} · ${v.colour}` : v.size,
-                  available: v.available,
-                }))}
+                variants={variants}
+                axes={axes}
                 cartHref={`/cart${keep}`}
               />
             ) : (
-              <div className="flex flex-col gap-4">
-                <SizeStockPreview
-                  variants={product.variants.map((v) => ({
-                    id: v.id,
-                    label: v.colour ? `${v.size} · ${v.colour}` : v.size,
-                    available: v.available,
-                  }))}
-                />
-              </div>
+              <SizeStockPreview variants={variants} axes={axes} />
             )}
           </Card>
         </div>
