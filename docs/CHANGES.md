@@ -6,6 +6,16 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Order pages: review follow-ups (DEC-026)
+
+- The pickup code shows only on an order that still has items waiting at the agent.
+- A joiner's order card names the basket owner by first name, as on the order page.
+- In the Buyers card, tokens show under Paid as "in tokens", since Paid already includes them.
+- The owner's Delivery card heading is the area only ("You" is in the Buyers card).
+- The shared-link basket page says Packing and Refunded, like the order pages.
+- The legacy `AWAITING_FEE` status counts as Packing; own-basket item counts use active lines
+  everywhere.
+
 ## 2026-11-21 - Orders in four stages, no cancelling, 10-day own baskets (DEC-026)
 
 - Every order now moves through **Filling → Packing → On the way → Delivered**; the Paid step is

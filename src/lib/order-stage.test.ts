@@ -15,6 +15,7 @@ describe("orderStage", () => {
   it("OPEN → filling", () => expect(at("PAID", "OPEN")).toBe("filling"));
   it("LOCKED → packing", () => expect(at("PAID", "LOCKED")).toBe("packing"));
   it("PACKED → packing", () => expect(at("PAID", "PACKED")).toBe("packing"));
+  it("AWAITING_FEE (legacy) → packing", () => expect(at("PAID", "AWAITING_FEE")).toBe("packing"));
   it("WITH_COURIER → on_the_way", () => expect(at("PAID", "WITH_COURIER")).toBe("on_the_way"));
   it("AT_AGENT → delivered", () => expect(at("RECEIVED", "AT_AGENT")).toBe("delivered"));
   it("collected agent order → delivered", () =>

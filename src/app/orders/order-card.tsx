@@ -86,7 +86,9 @@ export function OrderCard({
             {[
               formatDate(o.createdAt),
               o.agent?.user.name ??
-                (o.basket && o.basket.ownerId !== viewerId ? o.basket.owner?.name : null),
+                (o.basket && o.basket.ownerId !== viewerId
+                  ? o.basket.owner?.name.split(" ")[0]
+                  : null),
             ]
               .filter(Boolean)
               .join(" · ")}

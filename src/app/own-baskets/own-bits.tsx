@@ -12,10 +12,10 @@ export function itemsLabel(n: number) {
 export const OWN_STATUS: Record<string, string> = {
   OPEN: "Filling",
   LOCKED: "Packing",
-  PACKED: "Packed",
+  PACKED: "Packing",
   WITH_COURIER: "On the way",
   DELIVERED: "Delivered",
-  CANCELLED: "Cancelled",
+  CANCELLED: "Refunded",
 };
 
 export const OWN_STEPS = ["Filling", "Packing", "On the way", "Delivered"] as const;
