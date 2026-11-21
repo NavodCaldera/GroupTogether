@@ -355,7 +355,8 @@ stationery for the school new year.
    is separate from shipping (the basket).
 5. **Commission is a percentage per category** with an optional minimum per unit, inherited down
    the tree; it replaces the flat `commissionPerPiece` for new listings. Existing listings keep
-   their snapshotted commission.
+   their snapshotted commission. Built 2026-11-22: with no percent set in the chain the flat
+   `commissionPerPiece` still applies, so no prices changed; CORE sets the percent and minimum.
 6. **Clothing add-ons only for clothing.** The fit heatmap, body mesh, Material Card and the
    audience-filtered shop (`DEC-025`) switch on only for categories that carry them (Clothing and
    Shoes). Shoes are no longer excluded. Return and report reasons become general (damaged, wrong

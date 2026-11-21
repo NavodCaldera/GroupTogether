@@ -5,6 +5,7 @@ import { requireSeller } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { BrandOfferForm } from "@/app/seller/brand-offer-form";
 import { ProductForm } from "@/app/admin/products/product-form";
+import { commissionRates } from "@/server/category-commission";
 import { saveFactoryProductAction } from "@/server/seller-actions";
 import { getSettings } from "@/server/settings";
 import { snapshotTerms } from "@/server/brand-reviews";
@@ -39,6 +40,7 @@ export default async function NewOfferPage({ searchParams }: PageProps<"/seller/
     ? { ...offer, ...(offer.revisions[0] ? snapshotTerms(offer.revisions[0].snapshot) : {}) }
     : null;
   const commission = !me.isBrand ? (await getSettings()).commissionPerPiece.toString() : undefined;
+  const rates = !me.isBrand ? await commissionRates() : undefined;
   return (
     <div className="mx-auto w-full max-w-lg">
       <BackLink fallback="/seller" />
@@ -73,7 +75,7 @@ export default async function NewOfferPage({ searchParams }: PageProps<"/seller/
           />
         ) : (
           <ProductForm
-            factory={{ brand: me.company || me.name, commission }}
+            factory={{ brand: me.company || me.name, commission, rates }}
             action={saveFactoryProductAction}
           />
         )}

@@ -12,6 +12,8 @@ import {
   type TierInput,
 } from "@/lib/deal-rules";
 import { tierBuyerPrice } from "@/lib/price-rules";
+import { resolveCommission } from "@/lib/categories";
+import { loadCategoryTree } from "./categories";
 import { formatLKR } from "@/lib/format";
 import { CartError } from "@/server/errors";
 import { db, type Tx } from "./db";
@@ -362,10 +364,11 @@ export function colomboInput(value: string): Date {
 async function ownProduct(tx: Tx, factoryId: string, productId: string) {
   const p = await tx.product.findFirst({
     where: { id: productId, sellerId: factoryId, seller: { isBrand: false } },
-    select: { id: true, status: true, commission: true },
+    select: { id: true, status: true, commission: true, categoryId: true },
   });
   if (!p) throw new DealError("Product not found");
-  return p;
+  // The category commission as it stands now; tiers copy it again when the deal goes live.
+  return { ...p, rate: resolveCommission(await loadCategoryTree(), p.categoryId) };
 }
 
 /** Creates or edits a DRAFT deal on the factory's own product. Tier buyer prices are previewed now
@@ -387,7 +390,7 @@ export async function saveDealDraft(
       tiers.map((t) => ({
         minQty: t.minQty,
         factoryPrice: t.factoryPrice.toFixed(2),
-        buyerPrice: tierBuyerPrice(t.factoryPrice, product, settings).toFixed(2),
+        buyerPrice: tierBuyerPrice(t.factoryPrice, product, settings, product.rate).toFixed(2),
       })),
     );
     if (dealId) {
@@ -441,7 +444,7 @@ export async function startDeal(factoryId: string, dealId: string, now = new Dat
           where: { id: t.id },
           data: {
             buyerPrice: asDealError(() =>
-              tierBuyerPrice(t.factoryPrice.toString(), product, settings).toFixed(2),
+              tierBuyerPrice(t.factoryPrice.toString(), product, settings, product.rate).toFixed(2),
             ),
           },
         });
