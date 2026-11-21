@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { parseItems } from "@/lib/cart-items";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { CartError } from "@/server/errors";
@@ -14,12 +15,19 @@ export async function payAction(fd: FormData) {
   const user = await requireUser([...BUYER_ROLES], "/checkout");
   const agentId = str(fd, "agentId");
   const tokens = str(fd, "quotedTokens") || "0";
+  const items = parseItems(str(fd, "items"));
   let result: Awaited<ReturnType<typeof startCheckout>>;
   try {
-    result = await startCheckout(user.id, { agentId, tokens, requestKey: str(fd, "requestKey") });
+    result = await startCheckout(user.id, {
+      agentId,
+      tokens,
+      requestKey: str(fd, "requestKey"),
+      variantIds: items,
+    });
   } catch (e) {
     if (!(e instanceof CartError)) throw e;
     const back = new URLSearchParams({ agentId, tokens, error: e.message });
+    if (items) back.set("items", items.join(","));
     redirect(`/checkout?${back}`);
   }
   if (result.redirectUrl) redirect(result.redirectUrl);

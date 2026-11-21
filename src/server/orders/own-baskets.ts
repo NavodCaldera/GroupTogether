@@ -13,8 +13,8 @@ import { cancelBasketOrders, markOrdersPaid } from "./baskets";
 import { lockOwnBasket, withOrderTransaction } from "./locks";
 import { validCommission } from "@/lib/price-rules";
 
-/** Own baskets (DEC-023): a buyer starts a basket for one product, others buy that product into
- * it, and the whole basket goes to the owner's address. No agent, no agent or courier fee, no
+/** Own baskets (DEC-023, DEC-027): a buyer starts a basket for one factory, others buy any of that
+ * factory's products into it, and the whole basket goes to the owner's address. No agent, no agent or courier fee, no
  * returns. Once it holds ownMinItems items the owner places the order; the owner pays the courier
  * on delivery, outside GroupBasket. */
 
@@ -24,7 +24,6 @@ const MAX_QTY = 99;
 
 export type OwnLineInput = { variantId: string; qty: number };
 export type OwnBasketCreate = {
-  productId: string;
   visibility: "LINK" | "PUBLIC";
   address: string;
   area: string;
@@ -58,29 +57,47 @@ function parseTokens(tokens: string): D {
   return new D(tokens.trim());
 }
 
-/** Loads the product and the chosen variants; every variant must belong to the product. */
-async function loadProductLines(tx: Tx, productId: string, lines: OwnLineInput[]) {
-  const product = await tx.product.findUnique({
-    where: { id: productId },
+const ONE_FACTORY = "A basket holds items of one factory only";
+
+/** The chosen variants with their own prices. Every product must be live and priced, and all of
+ * one factory (the basket's, when `factoryId` is given). */
+async function loadFactoryLines(tx: Tx, factoryId: string | null, lines: OwnLineInput[]) {
+  const variants = await tx.variant.findMany({
+    where: { id: { in: lines.map((l) => l.variantId) } },
     select: {
       id: true,
-      title: true,
-      status: true,
-      price: true,
-      factoryPrice: true,
-      sellerId: true,
-      variants: { select: { id: true, size: true, colour: true } },
+      product: {
+        select: {
+          id: true,
+          title: true,
+          status: true,
+          price: true,
+          factoryPrice: true,
+          sellerId: true,
+        },
+      },
     },
   });
-  if (!product || product.status !== "LIVE" || !product.sellerId || product.factoryPrice === null)
-    throw new CheckoutError("This product cannot be bought");
-  const ids = new Set(product.variants.map((v) => v.id));
-  for (const l of lines)
-    if (!ids.has(l.variantId)) throw new CheckoutError("Choose sizes of this product only");
-  return { ...product, sellerId: product.sellerId, factoryPrice: product.factoryPrice };
+  const byId = new Map(variants.map((v) => [v.id, v.product]));
+  const out = lines.map((l) => {
+    const p = byId.get(l.variantId);
+    if (!p || p.status !== "LIVE" || !p.sellerId || p.factoryPrice === null)
+      throw new CheckoutError(p ? `No longer available: ${p.title}` : "No longer available");
+    return {
+      ...l,
+      factoryId: p.sellerId,
+      unitPrice: toD(p.price),
+      factoryPrice: toD(p.factoryPrice),
+    };
+  });
+  const factories = new Set(out.map((l) => l.factoryId));
+  if (factories.size !== 1 || (factoryId !== null && !factories.has(factoryId)))
+    throw new CheckoutError(ONE_FACTORY);
+  return { factoryId: out[0]!.factoryId, lines: out };
 }
 
-/** Visible, joinable basket: OPEN, the owner has paid, and the viewer may see it. */
+/** Visible, joinable basket: OPEN, the owner has paid, and the viewer may see it: the owner, a
+ * buyer already in it (`member`), anyone when public, or anyone with the share code. */
 function joinable(
   b: {
     kind: string;
@@ -92,9 +109,10 @@ function joinable(
   },
   viewerId: string | null,
   code: string | null,
+  member = false,
 ) {
   if (b.kind !== "OWN" || b.status !== "OPEN" || !b.firstOrderAt) return false;
-  if (b.ownerId && b.ownerId === viewerId) return true;
+  if ((b.ownerId && b.ownerId === viewerId) || member) return true;
   return b.visibility === "PUBLIC" || (!!code && code === b.shareCode);
 }
 
@@ -114,7 +132,10 @@ export async function startOwnCheckout(
     create?: OwnBasketCreate;
     basketId?: string;
     shareCode?: string;
-    lines: OwnLineInput[];
+    /** Sizes and quantities, or `fromCart`: the buyer's cart rows for these variant ids, read
+     * and removed inside the transaction (DEC-027). */
+    lines?: OwnLineInput[];
+    fromCart?: string[];
     tokens: string;
     requestKey: string;
   },
@@ -122,7 +143,7 @@ export async function startOwnCheckout(
   if (typeof input.requestKey !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(input.requestKey))
     throw new CheckoutError("Invalid checkout request");
   if (!input.create === !input.basketId) throw new CheckoutError("Invalid checkout request");
-  const lines = cleanLines(input.lines);
+  const given = input.fromCart ? null : cleanLines(input.lines ?? []);
 
   const outcome = await withOrderTransaction<Outcome>([buyerId], [], async (tx) => {
     const previous = await tx.order.findFirst({
@@ -148,41 +169,53 @@ export async function startOwnCheckout(
     if (previous) throw new CheckoutError("Invalid checkout request");
 
     const buyer = await assertBuyer(tx, buyerId);
+    // Read under the buyer lock, so two tabs cannot buy the same cart rows.
+    let lines: OwnLineInput[];
+    if (given) lines = given;
+    else {
+      const rows = await tx.cartItem.findMany({
+        where: { buyerId, variantId: { in: input.fromCart! } },
+        select: { variantId: true, qty: true },
+      });
+      if (!rows.length) throw new CheckoutError("Your cart is empty");
+      lines = cleanLines(rows);
+    }
     const settings = await getSettings(tx);
     const rates = ratesOf(settings);
     const now = new Date();
 
     let basketId: string;
-    let productId: string;
+    let basketFactory: string | null = null;
     let create: OwnBasketCreate | null = null;
     if (input.create) {
       create = {
-        productId: cleanText(input.create.productId, 100, "a product"),
         visibility: input.create.visibility === "PUBLIC" ? "PUBLIC" : "LINK",
         address: cleanText(input.create.address, 300, "the delivery address"),
         area: cleanText(input.create.area, 60, "the town or area"),
         phone: cleanText(input.create.phone, 30, "a phone number"),
       };
-      productId = create.productId;
       basketId = "";
     } else {
       const b = await tx.basket.findUnique({ where: { id: String(input.basketId) } });
-      if (!b || !joinable(b, buyerId, input.shareCode ?? null))
+      const member =
+        !!b &&
+        (await tx.order.count({
+          where: { basketId: b.id, buyerId, status: { in: ["PAID", "RECEIVED"] } },
+        })) > 0;
+      if (!b || !joinable(b, buyerId, input.shareCode ?? null, member))
         throw new CheckoutError("This basket is not open");
       await lockOwnBasket(tx, b.id);
       const fresh = await tx.basket.findUniqueOrThrow({ where: { id: b.id } });
-      if (!joinable(fresh, buyerId, input.shareCode ?? null))
+      if (!joinable(fresh, buyerId, input.shareCode ?? null, member))
         throw new CheckoutError("This basket is not open");
       basketId = fresh.id;
-      productId = fresh.productId!;
+      basketFactory = fresh.factoryId;
     }
 
-    const product = await loadProductLines(tx, productId, lines);
-    const unitPrice = toD(product.price);
-    const factoryPrice = toD(product.factoryPrice);
+    const priced = await loadFactoryLines(tx, basketFactory, lines);
     // No agent, so no agent fee: only the items are charged (DEC-023).
     const totals = orderTotals(
-      lines.map((l) => ({ qty: l.qty, unitPrice })),
+      priced.lines.map((l) => ({ qty: l.qty, unitPrice: l.unitPrice })),
       { ...rates, agentFeeRate: new D(0) },
     );
     const wanted = parseTokens(input.tokens);
@@ -201,9 +234,8 @@ export async function startOwnCheckout(
       const b = await tx.basket.create({
         data: {
           kind: "OWN",
-          factoryId: product.sellerId,
+          factoryId: priced.factoryId,
           ownerId: buyerId,
-          productId: product.id,
           visibility: create.visibility,
           shareCode: randomBytes(9).toString("base64url"),
           deliveryAddress: create.address,
@@ -249,7 +281,7 @@ export async function startOwnCheckout(
         buyerId,
         agentId: null,
         targetBasketId: basketId,
-        factoryId: product.sellerId,
+        factoryId: priced.factoryId,
         paymentAttemptId: attempt?.id ?? null,
         itemsTotal: totals.items.toFixed(2),
         courierTotal: "0.00",
@@ -260,11 +292,11 @@ export async function startOwnCheckout(
         holdUntil,
         checkoutKey: input.requestKey,
         lines: {
-          create: lines.map((l) => ({
+          create: priced.lines.map((l) => ({
             variantId: l.variantId,
             qty: l.qty,
-            unitPrice: unitPrice.toFixed(2),
-            factoryPrice: factoryPrice.toFixed(2),
+            unitPrice: l.unitPrice.toFixed(2),
+            factoryPrice: l.factoryPrice.toFixed(2),
             courierEach: "0.00",
             agentFeeEach: "0.00",
             cashFeeEach: "0.00",
@@ -284,6 +316,10 @@ export async function startOwnCheckout(
         orderId: order.id,
       });
     if (!attempt) await markOrdersPaid(tx, [order.id], now);
+    if (input.fromCart)
+      await tx.cartItem.deleteMany({
+        where: { buyerId, variantId: { in: lines.map((l) => l.variantId) } },
+      });
 
     return {
       attemptId: attempt?.id ?? null,
@@ -368,7 +404,7 @@ export async function announceOwnBasket(basketId: string, event: OwnEvent): Prom
     select: {
       kind: true,
       ownerId: true,
-      product: { select: { title: true } },
+      factory: { select: { name: true, company: true } },
       orders: {
         where: { status: event === "cancelled" ? "CANCELLED" : { in: ["PAID", "RECEIVED"] } },
         select: { buyerId: true },
@@ -377,7 +413,7 @@ export async function announceOwnBasket(basketId: string, event: OwnEvent): Prom
   });
   if (!b || b.kind !== "OWN" || !b.ownerId) return;
   const href = `/own-baskets/${basketId}`;
-  const title = b.product?.title ?? "Own basket";
+  const title = factoryName(b.factory) || "Own basket";
   const joiners = b.orders.map((o) => o.buyerId).filter((id) => id !== b.ownerId);
   const key = `own:${basketId}:${event}`;
   if (event === "closed") {
@@ -512,26 +548,74 @@ function itemCount(orders: { lines: { qty: number }[] }[]) {
   return orders.reduce((s, o) => s + o.lines.reduce((t, l) => t + l.qty, 0), 0);
 }
 
-/** Public own baskets for a product that can be joined now: area only, never the address. */
-export async function publicOwnBaskets(productId: string) {
+/** A factory's display name: its company, else its account name. */
+export function factoryName(f: { name: string; company: string | null } | null | undefined) {
+  return f?.company || f?.name || "";
+}
+
+const firstName = (name: string | undefined) => (name ?? "").split(" ")[0] ?? "";
+
+function cards(
+  rows: {
+    id: string;
+    deliveryArea: string | null;
+    owner: { name: string } | null;
+    orders: { lines: { qty: number }[] }[];
+  }[],
+) {
+  return rows.map((b) => ({
+    id: b.id,
+    area: b.deliveryArea ?? "",
+    owner: firstName(b.owner?.name),
+    items: itemCount(b.orders),
+  }));
+}
+
+/** Own baskets of a factory that the viewer can join now, not their own: public ones and
+ * link-only ones they are already in. Area and the owner's first name only, never the address. */
+export async function publicOwnBaskets(factoryId: string, viewerId: string | null) {
   const rows = await db.basket.findMany({
     where: {
       kind: "OWN",
       status: "OPEN",
-      productId,
-      visibility: "PUBLIC",
+      factoryId,
+      firstOrderAt: { not: null },
+      OR: [
+        { visibility: "PUBLIC" },
+        ...(viewerId
+          ? [
+              {
+                orders: {
+                  some: { buyerId: viewerId, status: { in: ["PAID" as const, "RECEIVED" as const] } },
+                },
+              },
+            ]
+          : []),
+      ],
+      ...(viewerId ? { NOT: { ownerId: viewerId } } : {}),
+    },
+    select: BASKET_CARD,
+    orderBy: { firstOrderAt: "asc" },
+    take: 20,
+  });
+  return cards(rows);
+}
+
+/** The buyer's own open baskets of a factory, once their first payment is in. */
+export async function myOpenOwnBaskets(buyerId: string, factoryId: string) {
+  const rows = await db.basket.findMany({
+    where: {
+      kind: "OWN",
+      status: "OPEN",
+      factoryId,
+      ownerId: buyerId,
       firstOrderAt: { not: null },
     },
     select: BASKET_CARD,
     orderBy: { firstOrderAt: "asc" },
     take: 20,
   });
-  return rows.map((b) => ({
-    id: b.id,
-    area: b.deliveryArea ?? "",
-    owner: b.owner?.name ?? "",
-    items: itemCount(b.orders),
-  }));
+  return cards(rows);
 }
 
 /** One own basket as the viewer may see it, or null. The owner sees everything; anyone else sees
@@ -547,43 +631,66 @@ export async function ownBasketView(
     where: { id: basketId },
     include: {
       owner: { select: { name: true } },
-      product: {
-        select: {
-          id: true,
-          title: true,
-          price: true,
-          status: true,
-          photoKey: true,
-          category: true,
-          variants: {
-            select: { id: true, size: true, colour: true, available: true },
-            orderBy: { id: "asc" },
-          },
-        },
-      },
+      factory: { select: { name: true, company: true } },
       orders: {
         where: { status: { in: ["PAID", "RECEIVED"] } },
         select: {
           id: true,
           buyerId: true,
           buyer: { select: { name: true } },
-          lines: { select: { qty: true, variant: { select: { size: true, colour: true } } } },
+          lines: {
+            select: {
+              qty: true,
+              variant: {
+                select: {
+                  size: true,
+                  colour: true,
+                  productId: true,
+                  product: { select: { title: true } },
+                },
+              },
+            },
+          },
         },
         orderBy: { paidAt: "asc" },
       },
       courier: { select: { givenToDriverAt: true } },
     },
   });
-  if (!b || b.kind !== "OWN" || !b.product) return null;
+  if (!b || b.kind !== "OWN") return null;
   const isOwner = !!viewerId && viewerId === b.ownerId;
   const hasOrder = !!viewerId && b.orders.some((o) => o.buyerId === viewerId);
   const canJoin = joinable(b, viewerId, code);
   if (!isOwner && !hasOrder && !canJoin) return null;
+  // The products already in the basket (and an older basket's own product), live ones only, for
+  // the join form.
+  const productIds = [
+    ...new Set([
+      ...(b.productId ? [b.productId] : []),
+      ...b.orders.flatMap((o) => o.lines.map((l) => l.variant.productId)),
+    ]),
+  ];
+  const products = await db.product.findMany({
+    where: { id: { in: productIds }, status: "LIVE", sellerId: b.factoryId },
+    select: {
+      id: true,
+      title: true,
+      price: true,
+      status: true,
+      photoKey: true,
+      category: true,
+      variants: {
+        select: { id: true, size: true, colour: true, available: true },
+        orderBy: { id: "asc" },
+      },
+    },
+    orderBy: { title: "asc" },
+  });
   return {
     id: b.id,
     status: b.status,
     isOwner,
-    canJoin: canJoin && b.product.status === "LIVE",
+    canJoin: canJoin && products.length > 0,
     owner: b.owner?.name ?? "",
     area: b.deliveryArea ?? "",
     visibility: b.visibility,
@@ -591,7 +698,8 @@ export async function ownBasketView(
     address: isOwner ? b.deliveryAddress : null,
     phone: isOwner ? b.deliveryPhone : null,
     minItems: (await getSettings()).ownMinItems,
-    product: b.product,
+    factory: { name: factoryName(b.factory) },
+    products,
     items: b.orders.reduce((s, o) => s + o.lines.reduce((t, l) => t + l.qty, 0), 0),
     // The owner sees who bought what, to hand items over; others see only their own.
     orders: b.orders
@@ -600,7 +708,12 @@ export async function ownBasketView(
         id: o.id,
         buyer: o.buyer.name,
         mine: o.buyerId === viewerId,
-        lines: o.lines.map((l) => ({ size: l.variant.size, colour: l.variant.colour, qty: l.qty })),
+        lines: o.lines.map((l) => ({
+          title: l.variant.product.title,
+          size: l.variant.size,
+          colour: l.variant.colour,
+          qty: l.qty,
+        })),
       })),
   };
 }

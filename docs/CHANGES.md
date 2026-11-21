@@ -6,6 +6,25 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Cart: tick items, choose how to get them; factory baskets (DEC-027)
+
+- The cart has a tick box on every item and **Select all**. The ticked items go by **Agent
+  pickup**, **My basket** or **Join a basket**; the rest stay in the cart for another way.
+- Agent pickup lists the nearest agents and checks out only the ticked items.
+- My basket lists your own open baskets of that factory and **New basket**; Join a basket lists
+  other buyers' public baskets of that factory.
+- An own basket now holds **any items of one factory** (different products allowed, no other
+  factory). The two basket ways need ticked items from one factory.
+- No limit on how many of one item, beyond stock.
+- The basket page is titled with the factory and shows each buyer's products; the separate Start
+  own basket page is gone. Notices name the factory.
+- The basket page is now only for people opening a share link to join. The owner and buyers
+  already in the basket go straight to their order page; after paying, "Your order" opens it.
+- Two payments into the same own basket show as **one card** on Orders, items and amounts
+  combined.
+- Built with the three frameworks: Spec Kit spec `specs/005-cart-delivery-choice`, Superpowers
+  plan `docs/superpowers/plans/2026-11-21-cart-delivery-choice.md`.
+
 ## 2026-11-21 - Order pages: review follow-ups (DEC-026)
 
 - The pickup code shows only on an order that still has items waiting at the agent.

@@ -7,6 +7,7 @@ import { nearestAgents, openNow } from "@/lib/agent-rules";
 import { D } from "@/lib/decimal";
 import { formatDistance } from "@/lib/distance";
 import { formatLKR } from "@/lib/format";
+import { parseItems } from "@/lib/cart-items";
 import { validCommission } from "@/lib/price-rules";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
@@ -24,9 +25,9 @@ const one = (v: string | string[] | undefined) => (typeof v === "string" ? v.tri
 
 type Quote = Awaited<ReturnType<typeof quoteCheckout>>;
 
-async function quoteOrNull(buyerId: string, agentId: string, tokens: string) {
+async function quoteOrNull(buyerId: string, agentId: string, tokens: string, items?: string[]) {
   try {
-    return { quote: await quoteCheckout(buyerId, agentId, tokens), error: null };
+    return { quote: await quoteCheckout(buyerId, agentId, tokens, items), error: null };
   } catch (e) {
     if (!(e instanceof CartError)) throw e;
     return { quote: null, error: e.message };
@@ -37,13 +38,15 @@ async function quoteOrNull(buyerId: string, agentId: string, tokens: string) {
 export default async function CheckoutPage({ searchParams }: PageProps<"/checkout">) {
   const user = await requireUser([...BUYER_ROLES], "/checkout");
   const sp = await searchParams;
+  const items = parseItems(sp.items);
   const [pin, agents, cart, balance] = await Promise.all([
     buyerPin(user.id),
     liveAgents(),
     cartView(user.id),
     tokenBalance(user.id),
   ]);
-  if (cart.factories.length === 0)
+  const inCart = new Set(cart.factories.flatMap((f) => f.lines.map((l) => l.variantId)));
+  if (cart.factories.length === 0 || (items && !items.some((id) => inCart.has(id))))
     return (
       <div className="mx-auto flex w-full max-w-2xl flex-col gap-4">
         <div>
@@ -70,12 +73,12 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
 
   let quote: Quote | null = null;
   if (chosen) {
-    const first = await quoteOrNull(user.id, chosen.id, tokens);
+    const first = await quoteOrNull(user.id, chosen.id, tokens, items);
     quote = first.quote;
     error ??= first.error;
     if (!quote && tokens !== "0") {
       tokens = "0";
-      quote = (await quoteOrNull(user.id, chosen.id, "0")).quote;
+      quote = (await quoteOrNull(user.id, chosen.id, "0", items)).quote;
     }
   }
 
@@ -181,6 +184,7 @@ export default async function CheckoutPage({ searchParams }: PageProps<"/checkou
             </Card>
           )}
 
+          {items && <input type="hidden" name="items" value={items.join(",")} />}
           <input type="hidden" name="requestKey" value={randomUUID()} />
           <input type="hidden" name="quotedTokens" value={usedTokens.toFixed(2)} />
           {quote && (

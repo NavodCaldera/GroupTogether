@@ -640,9 +640,6 @@ async function main() {
 
   // ─── Own baskets (DEC-023): started and joined through the real service, paid by demo notice ──
   let ownNo = 0;
-  const productOf = async (variantId: string) =>
-    (await db.variant.findUniqueOrThrow({ where: { id: variantId }, select: { productId: true } }))
-      .productId;
   async function own(
     buyer: { id: string; address: string | null; city: string | null; phone: string | null },
     target:
@@ -653,7 +650,6 @@ async function main() {
       ...("start" in target
         ? {
             create: {
-              productId: await productOf(target.start),
               visibility: target.visibility,
               address: buyer.address!,
               area: buyer.city!,

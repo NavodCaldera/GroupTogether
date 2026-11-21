@@ -68,3 +68,15 @@ export async function removeFromCart(buyerId: string, variantIds: string[]): Pro
   if (variantIds.length === 0) return;
   await db.cartItem.deleteMany({ where: { buyerId, variantId: { in: variantIds } } });
 }
+
+/** The buyer's cart rows for the ticked variants (ids not in the cart are skipped). */
+export async function cartLines(
+  buyerId: string,
+  variantIds: string[],
+): Promise<{ variantId: string; qty: number }[]> {
+  return db.cartItem.findMany({
+    where: { buyerId, variantId: { in: variantIds } },
+    select: { variantId: true, qty: true },
+    orderBy: { variantId: "asc" },
+  });
+}

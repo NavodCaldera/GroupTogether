@@ -77,18 +77,18 @@ async function addOneAndOpenCart(page: Page, email: string) {
   await page.getByRole("button", { name: "Add to cart" }).click();
   await expect(page.getByRole("status").getByText("Added to cart")).toBeVisible();
   await page.goto("/cart");
-  await expect(page.getByRole("heading", { name: "Get it by" })).toBeVisible();
+  await expect(page.getByLabel("Select all")).toBeChecked();
 }
 
-/** The sizes come prefilled from the cart (one item); pay with the demo gateway. */
+/** Pays for the ticked cart item with the demo gateway. */
 async function chooseOneAndPay(page: Page, button: string) {
   await page.getByRole("button", { name: button }).click();
   await expect(page).toHaveURL(/\/demo-pay\//);
   await page.getByRole("button", { name: "Pay", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Paid", level: 1 })).toBeVisible();
-  // An own-basket payment leads back to the basket, not to Orders.
-  await page.getByRole("link", { name: "Back to basket" }).click();
-  await expect(page).toHaveURL(/\/own-baskets\/c/);
+  // An own-basket payment leads to that order, where the basket is.
+  await page.getByRole("link", { name: "Your order" }).click();
+  await expect(page).toHaveURL(/\/orders\/c/);
 }
 
 test("a buyer starts a public own basket; it waits for the minimum items", async ({ page }) => {
@@ -96,27 +96,17 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   await signIn(page, DEMO_BUYERS.nimali);
   await addOneAndOpenCart(page, DEMO_BUYERS.nimali);
   await inspect(page);
-  await page.getByRole("link", { name: "Start own basket" }).click();
-  await expect(page.getByRole("heading", { name: "Start own basket", level: 1 })).toBeVisible();
+  await page.getByRole("button", { name: "My basket" }).click();
+  await expect(page.getByRole("radio", { name: "New basket" })).toBeChecked();
   await inspect(page);
   // Prefilled from the profile; the owner may change them for this basket.
   await expect(page.getByLabel("Delivery address")).not.toHaveValue("");
   await expect(page.getByLabel("Phone")).not.toHaveValue("");
-  // The cart's size and quantity come with it.
-  const filled = page.locator(`input[name^="qty-"]`);
-  await expect
-    .poll(async () => {
-      const v = await filled.evaluateAll((els) =>
-        (els as HTMLInputElement[]).map((e) => e.value).filter(Boolean),
-      );
-      return v;
-    })
-    .toEqual(["1"]);
   await page.getByLabel("Delivery address").fill("12 Lake Road, Kandy");
   await page.getByLabel("Town or area").fill("Kandy");
   await page.getByLabel("Phone").fill("0771234567");
   await page.getByLabel("Who can join").selectOption("PUBLIC");
-  await chooseOneAndPay(page, "Pay and start");
+  await chooseOneAndPay(page, "Pay");
 
   const db = pool();
   try {
@@ -133,18 +123,14 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   // Ordered sizes leave the cart.
   await page.goto("/cart");
   await expect(page.getByText("Your cart is empty")).toBeVisible();
+  // A basket member opening the basket page lands on their order page (owner, 2026-11-21).
   await page.goto(`/own-baskets/${ids.basket}`);
-  await expect(page.getByText("12 Lake Road, Kandy", { exact: false })).toBeVisible();
+  await expect(page).toHaveURL(/\/orders\/[^/?]+$/);
+  await expect(page.getByRole("heading", { name: "Filling", level: 1 })).toBeVisible();
   // Below the minimum the button is disabled and says why.
   const place = page.getByRole("button", { name: "Place order" });
   await expect(place).toBeDisabled();
-  await expect(place).toHaveAccessibleDescription("1 more item needed · 1 of 2");
-  await inspect(page);
-  // The owner runs the basket from the order page too, with no extra page to open.
-  await page.getByRole("link", { name: /^You/ }).click();
-  await expect(page).toHaveURL(/\/orders\/[^/?]+$/);
-  await expect(page.getByRole("heading", { name: "Filling", level: 1 })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Place order" })).toBeDisabled();
+  await expect(place).toHaveAccessibleDescription("1 of 2 items · needs 1 more");
   await expect(page.getByLabel("Who can join")).toBeVisible();
   await expect(page.getByRole("heading", { name: "Buyers" })).toBeVisible();
   await expect(page.getByText("Total", { exact: true })).toBeVisible();
@@ -158,12 +144,14 @@ test("another buyer joins from the cart without an agent", async ({ page }) => {
   test.setTimeout(180_000);
   await signIn(page, DEMO_BUYERS.ravindu);
   await addOneAndOpenCart(page, DEMO_BUYERS.ravindu);
-  await page.locator(`a[href="/own-baskets/${ids.basket}"]`).click();
-  await expect(page).toHaveURL(new RegExp(`/own-baskets/${ids.basket}`));
+  await page.getByRole("button", { name: "Join a basket" }).click();
+  await page.locator(`input[name="basketId"][value="${ids.basket}"]`).check();
   // Joiners never see the owner's address.
   await expect(page.getByText("12 Lake Road")).toHaveCount(0);
   await inspect(page);
-  await chooseOneAndPay(page, "Pay and add");
+  await chooseOneAndPay(page, "Pay");
+  await expect(page.getByRole("heading", { name: "Filling", level: 1 })).toBeVisible();
+  await expect(page.getByText("12 Lake Road")).toHaveCount(0);
 });
 
 test("the owner hears of the join and places the order", async ({ page }) => {
@@ -172,7 +160,7 @@ test("the owner hears of the join and places the order", async ({ page }) => {
   await page.goto("/notifications");
   await expect(page.getByText("Someone joined your basket").first()).toBeVisible();
   await page.goto(`/own-baskets/${ids.basket}`);
-  await expect(page.getByText(/more item/)).toHaveCount(0);
+  await expect(page.getByText(/needs \d+ more/)).toHaveCount(0);
   await page.getByRole("button", { name: "Place order" }).click();
   await expect(page.locator('[aria-current="step"]', { hasText: "Packing" })).toBeVisible();
   await page.reload();

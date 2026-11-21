@@ -62,10 +62,16 @@ export function ratesOf(s: {
   return { agentFeeRate: toD(s.agentFeeRate), gatewayFeeRate: toD(s.gatewayFeeRate) };
 }
 
-/** The buyer's cart grouped by factory (sorted by factory id, lines by variant id). */
-export async function loadCart(tx: Tx, buyerId: string, rates: Rates): Promise<CartGroup[]> {
+/** The buyer's cart grouped by factory (sorted by factory id, lines by variant id). With
+ * `variantIds`, only those cart items (ids not in the cart are ignored). */
+export async function loadCart(
+  tx: Tx,
+  buyerId: string,
+  rates: Rates,
+  variantIds?: string[],
+): Promise<CartGroup[]> {
   const items = await tx.cartItem.findMany({
-    where: { buyerId },
+    where: { buyerId, ...(variantIds ? { variantId: { in: variantIds } } : {}) },
     include: {
       variant: {
         include: {
@@ -134,13 +140,19 @@ async function assertAgentLive(tx: Tx, agentId: string) {
 }
 
 /** Everything checkout computes, with no writes. */
-async function planCheckout(tx: Tx, buyerId: string, agentId: string, tokens: string) {
+async function planCheckout(
+  tx: Tx,
+  buyerId: string,
+  agentId: string,
+  tokens: string,
+  variantIds?: string[],
+) {
   const buyer = await assertBuyer(tx, buyerId);
   await assertAgentLive(tx, agentId);
   const wanted = parseTokens(tokens);
   const settings = await getSettings(tx);
   const rates = ratesOf(settings);
-  const groups = await loadCart(tx, buyerId, rates);
+  const groups = await loadCart(tx, buyerId, rates, variantIds);
   if (!groups.length) throw new CheckoutError("Your cart is empty");
   for (const g of groups)
     for (const l of g.lines)
@@ -164,8 +176,9 @@ export async function quoteCheckout(
   buyerId: string,
   agentId: string,
   tokens: string,
+  variantIds?: string[],
 ): Promise<ReturnType<typeof splitCheckout> & { orders: OrderTotals[] }> {
-  const plan = await planCheckout(db, buyerId, agentId, tokens);
+  const plan = await planCheckout(db, buyerId, agentId, tokens, variantIds);
   return Object.assign(plan.split, { orders: plan.totals });
 }
 
@@ -183,7 +196,7 @@ type Outcome = {
  */
 export async function startCheckout(
   buyerId: string,
-  input: { agentId: string; tokens: string; requestKey: string },
+  input: { agentId: string; tokens: string; requestKey: string; variantIds?: string[] },
 ): Promise<{ attemptId: string | null; redirectUrl: string | null; orderIds: string[] }> {
   if (typeof input.requestKey !== "string" || !/^[A-Za-z0-9_-]{1,100}$/.test(input.requestKey))
     throw new CheckoutError("Invalid checkout request");
@@ -210,7 +223,7 @@ export async function startCheckout(
       };
     }
 
-    const plan = await planCheckout(tx, buyerId, input.agentId, input.tokens);
+    const plan = await planCheckout(tx, buyerId, input.agentId, input.tokens, input.variantIds);
     const now = new Date();
     const holdUntil = new Date(now.getTime() + plan.settings.paymentHoldMinutes * 60_000);
 
@@ -306,7 +319,9 @@ export async function startCheckout(
         now,
       );
 
-    await tx.cartItem.deleteMany({ where: { buyerId } });
+    await tx.cartItem.deleteMany({
+      where: { buyerId, variantId: { in: lines.map((l) => l.variantId) } },
+    });
     return {
       attemptId: attempt?.id ?? null,
       orderIds: orders.map((o) => o.id).sort(),

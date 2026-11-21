@@ -1,12 +1,11 @@
 import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ProductImage } from "@/components/cart-bits";
 import { BackLink, CopyLinkButton } from "@/components/client";
 import { StepTrack } from "@/components/step-track";
 import { Alert, Badge, Button, Card, Field, Select } from "@/components/ui";
-import { formatLKR } from "@/lib/format";
 import { isBuyerRole } from "@/lib/roles";
 import { getCurrentUser } from "@/server/auth/session";
 import { appUrl } from "@/server/notify";
@@ -17,7 +16,7 @@ import {
   joinOwnBasketAction,
   setVisibilityAction,
 } from "../actions";
-import { cartQtyForProduct } from "@/server/orders/cart";
+import { cartLines } from "@/server/orders/cart";
 import { itemsLabel, OWN_STEPS, ownStep, SizeQuantities, TokensField } from "../own-bits";
 
 export const metadata: Metadata = { title: "Own basket" };
@@ -32,8 +31,23 @@ export default async function OwnBasketPage({
   const user = await getCurrentUser();
   const b = await ownBasketView(id, user?.id ?? null, code);
   if (!b) notFound();
+  // Everyone already in the basket has it all on their order page (owner, 2026-11-21); this page
+  // stays only for someone opening a share link to join.
+  const mine = b.orders.filter((o) => o.mine).at(-1);
+  if (mine) redirect(`/orders/${mine.id}`);
   const buyer = !!user && isBuyerRole(user.role);
-  const inCart = user && b.canJoin ? await cartQtyForProduct(user.id, b.product.id) : {};
+  const inCart =
+    user && b.canJoin
+      ? Object.fromEntries(
+          (
+            await cartLines(
+              user.id,
+              b.products.flatMap((p) => p.variants.map((v) => v.id)),
+            )
+          ).map((l) => [l.variantId, l.qty]),
+        )
+      : {};
+  const first = b.products[0];
   const here = `/own-baskets/${b.id}${code ? `?code=${encodeURIComponent(code)}` : ""}`;
   const step = ownStep(b.status);
   const open = b.status === "OPEN";
@@ -44,27 +58,18 @@ export default async function OwnBasketPage({
       <div>
         <BackLink
           fallback={
-            b.isOwner
-              ? "/orders?tab=mine"
-              : b.orders.length
-                ? "/orders?tab=joined"
-                : `/products/${b.product.id}`
+            b.isOwner ? "/orders?tab=mine" : b.orders.length ? "/orders?tab=joined" : "/cart"
           }
         />
         <div className="flex items-start gap-3">
-          <div className="w-16 shrink-0">
-            <ProductImage {...b.product} />
-          </div>
+          {first && (
+            <div className="w-16 shrink-0">
+              <ProductImage {...first} />
+            </div>
+          )}
           <div className="flex min-w-0 flex-1 flex-col gap-0.5">
             <div className="flex items-start justify-between gap-2">
-              <h1 className="min-w-0 text-2xl font-semibold tracking-tight">
-                <Link
-                  href={`/products/${b.product.id}`}
-                  className="underline-offset-2 hover:underline"
-                >
-                  {b.product.title}
-                </Link>
-              </h1>
+              <h1 className="min-w-0 text-2xl font-semibold tracking-tight">{b.factory.name}</h1>
               {step === null && (
                 <span className="mt-1.5 shrink-0">
                   <Badge tone={b.status === "CANCELLED" ? "bad" : "good"}>
@@ -73,9 +78,7 @@ export default async function OwnBasketPage({
                 </span>
               )}
             </div>
-            <p className="text-sm text-subtle tabular-nums">
-              {formatLKR(b.product.price)} · {itemsLabel(b.items)}
-            </p>
+            <p className="text-sm text-subtle tabular-nums">{itemsLabel(b.items)}</p>
           </div>
         </div>
       </div>
@@ -192,7 +195,7 @@ export default async function OwnBasketPage({
                         key={i}
                         className="rounded-md bg-muted px-2 py-0.5 text-sm tabular-nums"
                       >
-                        {[l.size, l.colour].filter(Boolean).join(" · ")} × {l.qty}
+                        {[l.title, l.size, l.colour].filter(Boolean).join(" · ")} × {l.qty}
                       </span>
                     ))}
                   </span>
@@ -213,11 +216,15 @@ export default async function OwnBasketPage({
               <input type="hidden" name="basketId" value={b.id} />
               {code && <input type="hidden" name="code" value={code} />}
               <input type="hidden" name="requestKey" value={randomUUID()} />
-              <SizeQuantities
-                price={b.product.price}
-                variants={b.product.variants}
-                initial={inCart}
-              />
+              {b.products.map((p) => (
+                <SizeQuantities
+                  key={p.id}
+                  title={p.title}
+                  price={p.price}
+                  variants={p.variants}
+                  initial={inCart}
+                />
+              ))}
               <TokensField />
               <Button type="submit" className="self-start">
                 Pay and add

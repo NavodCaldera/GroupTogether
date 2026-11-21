@@ -334,6 +334,39 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-027 - Cart delivery choice; own baskets hold one factory
+
+**Status:** Built **2026-11-21** (`specs/005-cart-delivery-choice`). The owner's words: "it
+contains our 3 ways, Agent pickup, My basket, Join a basket … first has to select the item and
+then the delivery option … select one by one or select all together and put the selected ones
+into one delivery option and the rest in another." Then: "lets remove these limitings. A basket
+can hold only items from that particular factory, no other factory items (they can have
+different items from that factory)."
+
+1. **Cart.** Items are grouped by factory, each with a tick box, plus **Select all** (everything
+   is ticked when the cart opens). The ticked items go by one of three ways: **Agent pickup**
+   (the nearest agents, then Checkout), **My basket** (the buyer's own open baskets of that
+   factory, or **New basket** with address, town or area, phone and who can join) or **Join a
+   basket** (other buyers' public open baskets of that factory). One payment per choice; paid
+   items leave the cart and the rest stay for another way.
+2. **One factory per own basket.** An own basket holds any live products of its factory, from
+   any buyer, and refuses items of any other factory. Replaces `DEC-023` §1 (one product). My
+   basket and Join a basket need every ticked item to come from one factory. Older baskets that
+   were started for one product keep working and take the factory's other products.
+3. **No quantity limit** per item beyond stock (the owner first asked for at most 2 of an item,
+   then removed it).
+4. **Pages.** The own-basket page is titled with the factory and lists each buyer's products and
+   sizes; its share-link join form offers sizes of the products already in the basket. The
+   separate Start own basket page is gone (it sends to the cart). Notices name the factory.
+   The basket page is only for someone opening a share link to join: the owner and anyone
+   already in the basket are sent to their order page, which has everything (owner,
+   2026-11-21: "remove that page, no need"). Paying for an own basket leads to the order.
+7. **One card per basket.** A buyer who paid more than once into the same own basket sees one
+   card on Orders, with all their items and the amounts added up (owner, 2026-11-21).
+5. **Agent checkout** buys only the ticked items, one order per factory, as before.
+6. The minimum to place an own basket stays `ownMinItems` (10) pieces, counted across all its
+   products (Claude's call). Each product keeps its own price.
+
 ### DEC-026 - Orders in four stages, no cancelling, 10-day own baskets
 
 **Status:** Built **2026-11-21** (`specs/004-orders-four-stages`). The owner's words: "Filling,
@@ -413,7 +446,8 @@ other buyers buy the same product into that basket. No returns. The owner pays t
 The basket holds one design only (the same T-shirt), in different sizes. The owner chooses whether
 it is shared by link or public. Normal price.
 
-1. **One product.** An own basket is for one product; joiners buy any size or colour of it.
+1. **One product.** ~~An own basket is for one product; joiners buy any size or colour of it.~~
+   Replaced by `DEC-027` (2026-11-21): an own basket holds any products of one factory.
 2. **Starting.** The owner buys into a new basket with their address, town or area and phone,
    and picks **People with the link** or **Anyone**. The basket opens to others only once the
    owner's payment arrives; if it never does, the basket is cancelled with the unpaid order.

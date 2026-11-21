@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { parseItems } from "@/lib/cart-items";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { CartError } from "@/server/errors";
@@ -32,7 +33,7 @@ function linesOf(fd: FormData): OwnLineInput[] {
 async function finish(
   userId: string,
   lines: OwnLineInput[],
-  result: { basketId: string; redirectUrl: string | null },
+  result: { orderId: string; redirectUrl: string | null },
 ) {
   // Like agent checkout, sizes ordered into a basket leave the cart.
   await removeFromCart(
@@ -41,36 +42,50 @@ async function finish(
   );
   if (result.redirectUrl) redirect(result.redirectUrl);
   await flash("Paid");
-  redirect(`/own-baskets/${result.basketId}`);
+  redirect(`/orders/${result.orderId}`);
 }
 
-/** Starts an own basket with the owner's first order (DEC-023). */
-export async function startOwnBasketAction(fd: FormData) {
-  const productId = str(fd, "productId");
-  const user = await requireUser([...BUYER_ROLES], `/own-baskets/new?product=${productId}`);
-  const lines = linesOf(fd);
+/** From the cart (DEC-027): the ticked items go into one of the buyer's own baskets, a new one,
+ * or someone's public basket of the same factory. The quantities are the cart's. */
+export async function ownFromCartAction(fd: FormData) {
+  const items = parseItems(str(fd, "items")) ?? [];
+  const how = str(fd, "how") === "join" ? "join" : "mine";
+  const back = (error?: string) => {
+    const q = new URLSearchParams({ how });
+    for (const id of items) q.append("sel", id);
+    if (error) q.set("error", error);
+    return `/cart?${q}`;
+  };
+  const user = await requireUser([...BUYER_ROLES], back());
+  const basketId = str(fd, "basketId");
   let result: Awaited<ReturnType<typeof startOwnCheckout>>;
   try {
+    if (!items.length) throw new CartError("Choose items");
+    if (!basketId) throw new CartError("Choose a basket");
     result = await startOwnCheckout(user.id, {
-      create: {
-        productId,
-        visibility: str(fd, "visibility") === "PUBLIC" ? "PUBLIC" : "LINK",
-        address: str(fd, "address"),
-        area: str(fd, "area"),
-        phone: str(fd, "phone"),
-      },
-      lines,
+      ...(basketId === "new" && how === "mine"
+        ? {
+            create: {
+              visibility: str(fd, "visibility") === "PUBLIC" ? "PUBLIC" : "LINK",
+              address: str(fd, "address"),
+              area: str(fd, "area"),
+              phone: str(fd, "phone"),
+            },
+          }
+        : { basketId }),
+      fromCart: items,
       tokens: str(fd, "tokens") || "0",
       requestKey: str(fd, "requestKey"),
     });
   } catch (e) {
     if (!(e instanceof CartError)) throw e;
-    redirect(`/own-baskets/new?${new URLSearchParams({ product: productId, error: e.message })}`);
+    redirect(back(e.message));
   }
-  await finish(user.id, lines, result);
+  // The cart rows left the cart in the same transaction.
+  await finish(user.id, [], result);
 }
 
-/** Buys the same product into someone's own basket. */
+/** Buys sizes of the basket's products into someone's own basket (from its share link). */
 export async function joinOwnBasketAction(fd: FormData) {
   const basketId = str(fd, "basketId");
   const code = str(fd, "code");
