@@ -11,10 +11,9 @@ import {
   Field,
   Input,
   PageHeader,
-  Select,
   Textarea,
 } from "@/components/ui";
-import { ownFromCartAction } from "@/app/own-baskets/actions";
+import { askToJoinAction, ownFromCartAction } from "@/app/own-baskets/actions";
 import { itemsLabel, TokensField } from "@/app/own-baskets/own-bits";
 import { nearestAgents, openNow } from "@/lib/agent-rules";
 import { parseItems } from "@/lib/cart-items";
@@ -26,7 +25,7 @@ import { db } from "@/server/db";
 import { liveAgents } from "@/server/agents/live";
 import { buyerPin } from "@/server/orders/buyer";
 import { cartView } from "@/server/orders/cart";
-import { myOpenOwnBaskets, publicOwnBaskets } from "@/server/orders/own-baskets";
+import { myOpenOwnBaskets, openOwnBaskets } from "@/server/orders/own-baskets";
 import { tokenBalance } from "@/server/tokens";
 import { setQtyAction } from "./actions";
 import { Choices, SelectAll, type Picked } from "./cart-select";
@@ -239,8 +238,8 @@ async function AgentPanel({
   );
 }
 
-/** My basket: the buyer's open baskets of this factory and New basket. Join a basket: other
- * buyers' public baskets of this factory. Then tokens and Pay. */
+/** My basket: the buyer's open baskets of this factory and New basket. Join a basket: every
+ * other open basket of this factory; ask to join, then pay once accepted (DEC-028). */
 async function BasketPanel({
   userId,
   how,
@@ -252,8 +251,10 @@ async function BasketPanel({
   factoryId: string;
   items: string[];
 }) {
-  const [baskets, balance, profile] = await Promise.all([
-    how === "mine" ? myOpenOwnBaskets(userId, factoryId) : publicOwnBaskets(factoryId, userId),
+  const [listed, balance, profile] = await Promise.all([
+    how === "mine"
+      ? myOpenOwnBaskets(userId, factoryId).then((l) => l.map((b) => ({ ...b, state: "pay" })))
+      : openOwnBaskets(factoryId, userId),
     tokenBalance(userId),
     how === "mine"
       ? db.user.findUnique({
@@ -262,83 +263,123 @@ async function BasketPanel({
         })
       : null,
   ]);
-  if (how === "join" && baskets.length === 0)
+  if (how === "join" && listed.length === 0)
     return <p className="font-medium">No basket to join</p>;
+  const baskets = listed.filter((b) => b.state === "pay");
+  const others = listed.filter((b) => b.state !== "pay");
   return (
-    <form action={ownFromCartAction} className="flex flex-col gap-4">
-      <input type="hidden" name="items" value={items.join(",")} />
-      <input type="hidden" name="how" value={how} />
-      <input type="hidden" name="requestKey" value={randomUUID()} />
-      <fieldset className="flex flex-col gap-2">
-        <legend className="sr-only">Basket</legend>
-        {baskets.map((b, i) => (
-          <label key={b.id} className={radioCard}>
-            <input
-              type="radio"
-              name="basketId"
-              value={b.id}
-              defaultChecked={i === 0}
-              className={radio}
-            />
-            <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3">
-              <span className="font-semibold">
-                {how === "join" ? `${b.owner} · ${b.area}` : b.area}
+    <>
+      {others.length > 0 && (
+        <ul className="flex flex-col gap-2">
+          {others.map((b) => (
+            <li
+              key={b.id}
+              data-basket={b.id}
+              className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-xl border border-line bg-paper p-3"
+            >
+              <span className="flex min-w-0 flex-col">
+                <span className="font-semibold">
+                  {b.owner} · {b.area}
+                </span>
+                <span className="text-sm text-subtle tabular-nums">{itemsLabel(b.items)}</span>
               </span>
-              <span className="text-sm text-subtle tabular-nums">{itemsLabel(b.items)}</span>
-            </span>
-          </label>
-        ))}
-        {how === "mine" && (
-          <div className="flex flex-wrap items-start gap-x-3 rounded-xl border border-line bg-paper p-3">
-            <input
-              id="new-basket"
-              type="radio"
-              name="basketId"
-              value="new"
-              defaultChecked={baskets.length === 0}
-              className={`peer ${radio}`}
-            />
-            <label htmlFor="new-basket" className="min-w-0 flex-1 cursor-pointer font-semibold">
-              New basket
-            </label>
-            <div className="hidden w-full flex-col gap-3 pt-3 peer-checked:flex">
-              <Field label="Delivery address" name="address">
-                <Textarea
-                  id="address"
-                  name="address"
-                  maxLength={300}
-                  rows={3}
-                  defaultValue={profile?.address ?? ""}
+              {b.state === "ask" ? (
+                <form action={askToJoinAction}>
+                  <input type="hidden" name="items" value={items.join(",")} />
+                  <input type="hidden" name="basketId" value={b.id} />
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    aria-label={`Ask to join ${b.owner}'s basket in ${b.area}`}
+                  >
+                    Ask to join
+                  </Button>
+                </form>
+              ) : (
+                <Badge tone={b.state === "declined" ? "bad" : "neutral"}>
+                  {b.state === "declined" ? "Declined" : "Asked"}
+                </Badge>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+      {(how === "mine" || baskets.length > 0) && (
+        <form action={ownFromCartAction} className="flex flex-col gap-4">
+          <input type="hidden" name="items" value={items.join(",")} />
+          <input type="hidden" name="how" value={how} />
+          <input type="hidden" name="requestKey" value={randomUUID()} />
+          <fieldset className="flex flex-col gap-2">
+            <legend className="sr-only">Basket</legend>
+            {baskets.map((b, i) => (
+              <label key={b.id} data-basket={b.id} className={radioCard}>
+                <input
+                  type="radio"
+                  name="basketId"
+                  value={b.id}
+                  defaultChecked={i === 0}
+                  className={radio}
                 />
-              </Field>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Town or area" name="area">
-                  <Input id="area" name="area" maxLength={60} defaultValue={profile?.city ?? ""} />
-                </Field>
-                <Field label="Phone" name="phone">
-                  <Input
-                    id="phone"
-                    name="phone"
-                    type="tel"
-                    maxLength={30}
-                    defaultValue={profile?.phone ?? ""}
-                  />
-                </Field>
+                <span className="flex min-w-0 flex-1 flex-wrap items-baseline justify-between gap-x-3">
+                  <span className="font-semibold">
+                    {how === "join" ? `${b.owner} · ${b.area}` : b.area}
+                  </span>
+                  <span className="text-sm text-subtle tabular-nums">{itemsLabel(b.items)}</span>
+                </span>
+              </label>
+            ))}
+            {how === "mine" && (
+              <div className="flex flex-wrap items-start gap-x-3 rounded-xl border border-line bg-paper p-3">
+                <input
+                  id="new-basket"
+                  type="radio"
+                  name="basketId"
+                  value="new"
+                  defaultChecked={baskets.length === 0}
+                  className={`peer ${radio}`}
+                />
+                <label htmlFor="new-basket" className="min-w-0 flex-1 cursor-pointer font-semibold">
+                  New basket
+                </label>
+                <div className="hidden w-full flex-col gap-3 pt-3 peer-checked:flex">
+                  <Field label="Delivery address" name="address">
+                    <Textarea
+                      id="address"
+                      name="address"
+                      maxLength={300}
+                      rows={3}
+                      defaultValue={profile?.address ?? ""}
+                    />
+                  </Field>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <Field label="Town or area" name="area">
+                      <Input
+                        id="area"
+                        name="area"
+                        maxLength={60}
+                        defaultValue={profile?.city ?? ""}
+                      />
+                    </Field>
+                    <Field label="Phone" name="phone">
+                      <Input
+                        id="phone"
+                        name="phone"
+                        type="tel"
+                        maxLength={30}
+                        defaultValue={profile?.phone ?? ""}
+                      />
+                    </Field>
+                  </div>
+                </div>
               </div>
-              <Field label="Who can join" name="visibility">
-                <Select id="visibility" name="visibility" defaultValue="LINK">
-                  <option value="LINK">People with the link</option>
-                  <option value="PUBLIC">Anyone</option>
-                </Select>
-              </Field>
-            </div>
-          </div>
-        )}
-      </fieldset>
-      {balance.gt(0) && <TokensField />}
-      <Button type="submit" className="self-start">
-        Pay
-      </Button>
-    </form>
+            )}
+          </fieldset>
+          {balance.gt(0) && <TokensField />}
+          <Button type="submit" className="self-start">
+            Pay
+          </Button>
+        </form>
+      )}
+    </>
   );
 }

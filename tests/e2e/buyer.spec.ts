@@ -113,7 +113,7 @@ test("buyer collects, buys at the nearest agent, pays and cannot cancel", async 
   const nearest = page.getByRole("radio", { name: new RegExp(ids.agentName) });
   await expect(nearest).toBeChecked();
   await expect(page.getByText(/\d+ m away/).first()).toBeVisible();
-  for (const line of ["Item", "Tokens", "PayHere fee", "Total", "Agent fee at pickup"])
+  for (const line of ["Item", "Tokens", "PayHere fee", "Total", "Agent and courier fee at pickup"])
     await expect(page.getByRole("main").getByText(line, { exact: true })).toBeVisible();
   await inspect(page);
   await page.getByRole("button", { name: "Pay", exact: true }).click();
@@ -142,7 +142,7 @@ test("buyer collects, buys at the nearest agent, pays and cannot cancel", async 
 
   await expect(page.getByRole("heading", { name: "Filling", level: 1 })).toBeVisible();
   await expect(page.getByRole("progressbar", { name: "Basket progress" })).toBeVisible();
-  await expect(page.getByText("Agent fee at pickup", { exact: true })).toBeVisible();
+  await expect(page.getByText("Agent and courier fee at pickup", { exact: true })).toBeVisible();
   await inspect(page);
 
   await page.goto("/");

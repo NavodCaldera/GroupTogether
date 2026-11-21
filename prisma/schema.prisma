@@ -41,6 +41,7 @@ enum Role {
 
 model User {
   ownBaskets     Basket[]           @relation("BasketOwner")
+  joinRequests   OwnJoinRequest[]
   holdMessages   FaultHoldMessage[]
   factoryFaults  FactoryFault[]
   faultHolds     FaultHold[]
@@ -1026,6 +1027,30 @@ enum BasketKind {
   OWN
 }
 
+enum JoinRequestStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+/// A buyer asks to join someone's own basket; the owner accepts or declines (DEC-028). One per
+/// buyer and basket. `lines` are the items wanted when asking ([{ variantId, qty }]), shown to
+/// the owner; payment comes after acceptance, from the cart.
+model OwnJoinRequest {
+  id        String            @id @default(cuid())
+  basketId  String
+  basket    Basket            @relation(fields: [basketId], references: [id], onDelete: Cascade)
+  buyerId   String
+  buyer     User              @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  status    JoinRequestStatus @default(PENDING)
+  lines     Json
+  createdAt DateTime          @default(now())
+  decidedAt DateTime?
+
+  @@unique([basketId, buyerId])
+  @@index([buyerId])
+}
+
 enum BasketVisibility {
   LINK
   PUBLIC
@@ -1055,6 +1080,7 @@ model Basket {
   owner           User?             @relation("BasketOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   productId       String?
   product         Product?          @relation(fields: [productId], references: [id], onDelete: Restrict)
+  /// Older baskets only: joining is by request now (DEC-028)
   visibility      BasketVisibility?
   shareCode       String?           @unique
   deliveryAddress String?
@@ -1071,6 +1097,7 @@ model Basket {
   feeAttempts     PaymentAttempt[] @relation("AttemptBasket")
   courier         CourierBooking?
   sentBackReturns ReturnRequest[]  @relation("ReturnSentBack")
+  joinRequests    OwnJoinRequest[]
 
   @@index([status])
   @@index([agentId, status])
