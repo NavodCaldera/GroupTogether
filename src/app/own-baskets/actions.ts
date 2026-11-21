@@ -33,7 +33,7 @@ function linesOf(fd: FormData): OwnLineInput[] {
 async function finish(
   userId: string,
   lines: OwnLineInput[],
-  result: { basketId: string; redirectUrl: string | null },
+  result: { orderId: string; redirectUrl: string | null },
 ) {
   // Like agent checkout, sizes ordered into a basket leave the cart.
   await removeFromCart(
@@ -42,7 +42,7 @@ async function finish(
   );
   if (result.redirectUrl) redirect(result.redirectUrl);
   await flash("Paid");
-  redirect(`/own-baskets/${result.basketId}`);
+  redirect(`/orders/${result.orderId}`);
 }
 
 /** From the cart (DEC-027): the ticked items go into one of the buyer's own baskets, a new one,

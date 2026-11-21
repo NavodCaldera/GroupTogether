@@ -135,11 +135,12 @@ test("two items of one factory go into a new basket; the third stays in the cart
   await expect(page).toHaveURL(/\/demo-pay\//);
   await page.getByRole("button", { name: "Pay", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Paid", level: 1 })).toBeVisible();
-  await page.getByRole("link", { name: "Back to basket" }).click();
+  await page.getByRole("link", { name: "Your order" }).click();
+  await expect(page.getByRole("heading", { name: "Filling", level: 1 })).toBeVisible();
+  await expect(page.getByText(/2 of 10 items/)).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: DEMO_FACTORIES.ceylon.company, level: 1 }),
+    page.getByText(DEMO_FACTORIES.ceylon.company, { exact: false }).first(),
   ).toBeVisible();
-  await expect(page.getByText("2 items")).toBeVisible();
 
   await page.goto("/cart");
   await expect(page.locator('input[name="sel"]')).toHaveCount(1);

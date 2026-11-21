@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ProductImage } from "@/components/cart-bits";
 import { BackLink, CopyLinkButton } from "@/components/client";
 import { StepTrack } from "@/components/step-track";
@@ -31,6 +31,10 @@ export default async function OwnBasketPage({
   const user = await getCurrentUser();
   const b = await ownBasketView(id, user?.id ?? null, code);
   if (!b) notFound();
+  // Everyone already in the basket has it all on their order page (owner, 2026-11-21); this page
+  // stays only for someone opening a share link to join.
+  const mine = b.orders.filter((o) => o.mine).at(-1);
+  if (mine) redirect(`/orders/${mine.id}`);
   const buyer = !!user && isBuyerRole(user.role);
   const inCart =
     user && b.canJoin

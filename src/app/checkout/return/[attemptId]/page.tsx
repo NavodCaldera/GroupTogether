@@ -27,7 +27,12 @@ export default async function CheckoutReturnPage({
       amount: true,
       status: true,
       orders: {
-        select: { basketId: true, targetBasketId: true, basket: { select: { kind: true } } },
+        select: {
+          id: true,
+          basketId: true,
+          targetBasketId: true,
+          basket: { select: { kind: true } },
+        },
         take: 1,
       },
     },
@@ -47,7 +52,8 @@ export default async function CheckoutReturnPage({
     }
   }
 
-  // An own-basket payment leads back to that basket (DEC-023); agent orders go to Orders.
+  // An own-basket payment leads to that order, where the basket is (DEC-023); agent orders go to
+  // Orders.
   const o = attempt.orders[0];
   const own = o?.targetBasketId ?? (o?.basket?.kind === "OWN" ? o.basketId : null);
 
@@ -57,7 +63,7 @@ export default async function CheckoutReturnPage({
       <Card className="flex flex-col gap-4">
         <p className="text-3xl font-semibold tabular-nums">{formatLKR(attempt.amount)}</p>
         {own ? (
-          <LinkButton href={`/own-baskets/${own}`}>Back to basket</LinkButton>
+          <LinkButton href={`/orders/${o!.id}`}>Your order</LinkButton>
         ) : (
           <LinkButton href="/orders">Orders</LinkButton>
         )}

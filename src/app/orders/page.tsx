@@ -4,6 +4,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { buyerOrders } from "@/server/orders/buyer";
+import { oneCardPerBasket } from "@/lib/order-merge";
 import { STAGE_LABEL } from "@/lib/order-stage";
 import { OrderCard, type OrderGroup, groupByStage, groupOf } from "./order-card";
 
@@ -27,10 +28,12 @@ const TABS: { key: OrderGroup; label: string }[] = [
  */
 export default async function OrdersPage({ searchParams }: PageProps<"/orders">) {
   const user = await requireUser([...BUYER_ROLES], "/orders");
-  const [{ orders, own, ownMinItems, lockAt }, sp] = await Promise.all([
+  const [{ orders: paid, own, ownMinItems, lockAt }, sp] = await Promise.all([
     buyerOrders(user.id),
     searchParams,
   ]);
+  // Several payments into one own basket show as one card.
+  const orders = oneCardPerBasket(paid);
   const groups = new Map(
     TABS.map((t) => [t.key, groupByStage(orders.filter((o) => groupOf(o, user.id) === t.key))]),
   );

@@ -83,8 +83,8 @@ async function joinFromCart(page: Page, basketId: string) {
   await expect(page).toHaveURL(/\/demo-pay\//);
   await page.getByRole("button", { name: "Pay", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Paid", level: 1 })).toBeVisible();
-  await page.getByRole("link", { name: "Back to basket" }).click();
-  await expect(page).toHaveURL(new RegExp(`/own-baskets/${basketId}`));
+  await page.getByRole("link", { name: "Your order" }).click();
+  await expect(page).toHaveURL(/\/orders\/c/);
 }
 
 /** The cart's sizes come prefilled; the demo gateway pays; Back to basket. */
@@ -100,8 +100,8 @@ async function payAndAdd(page: Page) {
   await expect(page).toHaveURL(/\/demo-pay\//);
   await page.getByRole("button", { name: "Pay", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Paid", level: 1 })).toBeVisible();
-  await page.getByRole("link", { name: "Back to basket" }).click();
-  await expect(page).toHaveURL(/\/own-baskets\/c/);
+  await page.getByRole("link", { name: "Your order" }).click();
+  await expect(page).toHaveURL(/\/orders\/c/);
 }
 
 test("the cart lists only open public baskets of the factory in it", async ({ page }) => {
@@ -122,7 +122,10 @@ test("the cart lists only open public baskets of the factory in it", async ({ pa
   await joinFromCart(page, seeded.kasun.basket);
   await expect(page.getByText("45 High Level Road")).toHaveCount(0);
   await inspect(page);
-  await expect(page.getByText(/6 items/)).toBeVisible();
+  await expect(page.getByText(/6 of 10 items/)).toBeVisible();
+  // In the basket now: its page sends to the order page.
+  await page.goto(`/own-baskets/${seeded.kasun.basket}`);
+  await expect(page).toHaveURL(/\/orders\/c/);
   // The joined size left the cart.
   await page.goto("/cart");
   await expect(page.getByText("Your cart is empty")).toBeVisible();
@@ -145,9 +148,10 @@ test("a link-only basket needs its code", async ({ page }) => {
 test("the owner cannot place the order below the minimum", async ({ page }) => {
   await signIn(page, DEMO_BUYERS.ishara);
   await page.goto(`/own-baskets/${seeded.ishara.basket}`);
+  await expect(page).toHaveURL(/\/orders\/c/);
   const place = page.getByRole("button", { name: "Place order" });
   await expect(place).toBeDisabled();
-  await expect(place).toHaveAccessibleDescription("1 more item needed · 9 of 10");
+  await expect(place).toHaveAccessibleDescription("9 of 10 items · needs 1 more");
   await expect(page.getByText("102 Peradeniya Road", { exact: false })).toBeVisible();
   await inspect(page);
 });
@@ -160,7 +164,7 @@ test("a joiner takes the basket to the minimum and the owner places it", async (
 
   await signIn(page, DEMO_BUYERS.ishara);
   await page.goto(`/own-baskets/${seeded.ishara.basket}`);
-  await expect(page.getByText(/more item/)).toHaveCount(0);
+  await expect(page.getByText(/needs \d+ more/)).toHaveCount(0);
   await page.getByRole("button", { name: "Place order" }).click();
   await expect(page.locator('[aria-current="step"]', { hasText: "Packing" })).toBeVisible();
   await page.reload();
