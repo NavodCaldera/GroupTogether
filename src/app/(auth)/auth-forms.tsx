@@ -2,6 +2,7 @@
 
 import { useActionState, useRef } from "react";
 import { LocationPicker } from "@/components/location-picker";
+import { AboutYouFields } from "@/components/about-you-fields";
 import { PasswordInput } from "@/components/password-input";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { DEMO_PASSWORD, type DemoAccount } from "@/lib/demo-accounts";
@@ -84,6 +85,7 @@ export function SignUpForm({ next }: { next?: string }) {
       >
         <Input name="phone" type="tel" autoComplete="tel" placeholder="0771234567" required />
       </Field>
+      <AboutYouFields errors={e} />
       <LocationPicker errors={e} />
       <Field label="Password" name="password" error={e.password}>
         <PasswordInput name="password" autoComplete="new-password" minLength={8} required />

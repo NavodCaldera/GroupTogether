@@ -69,7 +69,7 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
       {back && user.lat == null && (
         <Alert tone="info">Pin your address on the map to continue.</Alert>
       )}
-      <ProfileForm next={back} defaults={user} />
+      <ProfileForm next={back} defaults={user} aboutYou={isBuyerRole(user.role)} />
       {balance !== null && (
         <Link
           href="/account/fit"

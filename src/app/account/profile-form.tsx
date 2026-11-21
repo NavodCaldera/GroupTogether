@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { AboutYouFields } from "@/components/about-you-fields";
 import { LocationPicker, type LocationDefaults } from "@/components/location-picker";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { type FormState, saveProfileAction } from "@/server/auth/actions";
@@ -11,9 +12,17 @@ export function ProfileForm({
   phoneHint,
   addressLabel,
   addressHint,
+  aboutYou = false,
 }: {
   next?: string;
-  defaults: LocationDefaults & { name: string; phone: string | null };
+  defaults: LocationDefaults & {
+    name: string;
+    phone: string | null;
+    gender?: string | null;
+    birthDate?: Date | null;
+  };
+  /** Buyers: gender and date of birth, which pick the shop's audience. */
+  aboutYou?: boolean;
   phoneHint?: string;
   addressLabel?: string;
   addressHint?: string;
@@ -37,6 +46,7 @@ export function ProfileForm({
           required
         />
       </Field>
+      {aboutYou && <AboutYouFields errors={e} defaults={defaults} />}
       <LocationPicker
         defaults={defaults}
         errors={e}

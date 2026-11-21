@@ -7,7 +7,7 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { SearchBox } from "@/components/search-box";
 import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { formatLKR } from "@/lib/format";
-import { findKind, isAudience, kindFits } from "@/lib/taxonomy";
+import { audienceFor, findKind, kindFits } from "@/lib/taxonomy";
 import { getCurrentUser } from "@/server/auth/session";
 import { type ProductFilters, listProducts } from "@/server/catalogue";
 import { ratingSummaries, productRatingSummaries } from "@/server/ratings";
@@ -19,14 +19,16 @@ const one = (v: string | string[] | undefined) => (typeof v === "string" && v ? 
 
 export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
   // Admins don't shop; their catalogue is Admin → Products. Nor do packing staff.
-  const role = (await getCurrentUser())?.role;
+  const user = await getCurrentUser();
+  const role = user?.role;
   if (role === "ADMIN") redirect("/admin/products");
   if (role === "SELLER") redirect("/seller");
   const sp = await searchParams;
   const agent = one(sp.agent);
   const keep = agent && /^[a-z0-9]{1,40}$/.test(agent) ? `?agent=${agent}` : "";
+  // No audience box: a buyer sees their own audience, from gender and age (owner, 2026-11-21).
+  const audience = user ? (audienceFor(user.gender, user.birthDate) ?? undefined) : undefined;
   const filters: ProductFilters = {
-    audience: isAudience(one(sp.audience)) ? (one(sp.audience) as "MEN") : undefined,
     kind: findKind(one(sp.kind)) ? one(sp.kind) : undefined,
     stockType:
       one(sp.type) === "B_GRADE" || one(sp.type) === "FACTORY_SURPLUS"
@@ -36,11 +38,14 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
     size: one(sp.size),
     q: one(sp.q),
   };
-  if (filters.audience && filters.kind && !kindFits(filters.audience, filters.kind))
-    filters.kind = undefined;
+  if (audience && filters.kind && !kindFits(audience, filters.kind)) filters.kind = undefined;
   // No filter or search: lowest prices first. Filtered: newest first.
   const unfiltered = Object.values(filters).every((v) => v === undefined);
-  const products = await listProducts(filters, 60, unfiltered ? "cheapest" : "newest");
+  const products = await listProducts(
+    { ...filters, audience },
+    60,
+    unfiltered ? "cheapest" : "newest",
+  );
   const [ratings, productScores] = await Promise.all([
     ratingSummaries(products.map((p) => p.sellerId)),
     productRatingSummaries(products.map((p) => p.id)),
@@ -58,7 +63,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
         {keep && <input type="hidden" name="agent" value={agent} />}
         <SearchBox defaultValue={filters.q} className="sm:min-w-40 sm:flex-1" />
         <TaxonomyFields
-          audience={filters.audience}
+          audience={audience}
           kind={filters.kind}
           size={filters.size}
           withSize

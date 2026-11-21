@@ -78,3 +78,27 @@ export function kindsFor(audience: Audience | "" | undefined) {
 export function sizesFor(kindId: string | undefined) {
   return findKind(kindId)?.sizes ?? [];
 }
+
+/** Whole years old on `now` (birth dates are calendar days, read in UTC). */
+export function ageOn(birthDate: Date, now = new Date()) {
+  let age = now.getUTCFullYear() - birthDate.getUTCFullYear();
+  const m = now.getUTCMonth() - birthDate.getUTCMonth();
+  if (m < 0 || (m === 0 && now.getUTCDate() < birthDate.getUTCDate())) age--;
+  return age;
+}
+
+/**
+ * The shop's audience for a buyer (owner, 2026-11-21): from 13 Men or Women, 6 to 12 Boy or Girl,
+ * under 6 Kid. Null until the buyer has given both gender and birth date.
+ */
+export function audienceFor(
+  gender: "MALE" | "FEMALE" | null | undefined,
+  birthDate: Date | null | undefined,
+  now = new Date(),
+): Audience | null {
+  if (!gender || !birthDate) return null;
+  const age = ageOn(birthDate, now);
+  if (age < 6) return "KID";
+  if (age < 13) return gender === "MALE" ? "BOY" : "GIRL";
+  return gender === "MALE" ? "MEN" : "WOMEN";
+}
