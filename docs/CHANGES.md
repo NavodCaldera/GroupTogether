@@ -6,6 +6,18 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Order page: tracker, delivery and itemised lines
+
+- The order page led with the factory name, a Paid badge and "Own basket Packing". It now leads
+  with the product ("+N more" for several), factory and date, then one status card: the same
+  four-step tracker as the order cards, a fill bar and next-step line while the basket fills
+  (with Share), the stage in words once locked ("Packing at <factory>", "With the courier"), and
+  dates for Ordered, Paid, Basket full and Ready or Delivered. Pickup shows the agent with the
+  map; Delivery shows the own basket's owner and area, and its address and phone to the owner
+  only. Items show a photo, size and colour, qty × price and the line total; line badges show
+  only Cancelled or Collected. Payment shows the piece count, hides Tokens at zero, labels the
+  total Paid or To pay, and notes the own-basket courier fee as "On delivery".
+
 ## 2026-11-21 - Orders page: item-first cards
 
 - The Orders page showed only the factory name, a Paid badge and "Own basket Packing", which told
