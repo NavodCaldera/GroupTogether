@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Personal shop by gender and age
+
+- The shop's Audience box is gone (`DEC-025`). Sign-up now asks gender and date of birth; the
+  shop and the buyer home's product row show only the buyer's own audience (13+ Men/Women, 6-12
+  Boy/Girl, under 6 Kid) plus unisex products. Existing buyers can add both on Profile and see
+  everything until they do.
+- GitHub: `main` is protected (pull request with the three CI checks passing and up to date, no
+  force pushes or deletion, admins included). No branch was ahead of `main`.
+
 ## 2026-11-21 - Home hero: direct from factory, no middlemen
 
 - The owner wanted new buyers to feel they save money because the middleman is gone, not that

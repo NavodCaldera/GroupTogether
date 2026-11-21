@@ -6,13 +6,21 @@ import { formatHours, mapLink } from "@/lib/agent-hours";
 import { formatDate, formatLKR } from "@/lib/format";
 import type { SessionUser } from "@/server/auth/service";
 import { listProducts } from "@/server/catalogue";
+import { audienceFor } from "@/lib/taxonomy";
 import { appUrl } from "@/server/notify";
 import { buyerHome, orderTotal } from "@/server/orders/buyer";
 import { BasketProgress, OrderBadge, factoryName } from "./orders/order-bits";
 
 /** Buyer home, most important first: ready to collect, returns to hand over, orders, shop. Tokens live on /tokens (owner removed the home card, 2026-11-21). */
 export async function BuyerHome({ user }: { user: SessionUser }) {
-  const [home, products] = await Promise.all([buyerHome(user.id), listProducts({}, 4, "cheapest")]);
+  const [home, products] = await Promise.all([
+    buyerHome(user.id),
+    listProducts(
+      { audience: audienceFor(user.gender, user.birthDate) ?? undefined },
+      4,
+      "cheapest",
+    ),
+  ]);
   const shop = (
     <section aria-labelledby="home-shop" className="flex flex-col gap-3">
       <div className="flex items-end justify-between">

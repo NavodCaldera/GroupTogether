@@ -105,3 +105,30 @@ describe("saving order", () => {
     ]);
   });
 });
+
+describe("audience", () => {
+  it("shows the buyer's own audience and unisex products only", async () => {
+    const make = (title: string, audience: "MEN" | "WOMEN" | null) =>
+      db.product.create({
+        data: {
+          title,
+          brand: "Ordinary",
+          category: "APPAREL",
+          audience,
+          kind: audience === "WOMEN" ? "women-tops" : audience ? "men-shirts" : null,
+          stockType: "FACTORY_SURPLUS",
+          status: "LIVE",
+          price: "1000",
+          variants: { create: { size: "M", available: 5 } },
+        },
+      });
+    const men = await make("Men's shirt", "MEN");
+    const women = await make("Women's top", "WOMEN");
+    const unisex = await make("Unisex tee", null);
+    const ids = async (audience?: "MEN" | "WOMEN") =>
+      (await listProducts({ audience }, 10, "newest")).map((p) => p.id).sort();
+    expect(await ids("MEN")).toEqual([men.id, unisex.id].sort());
+    expect(await ids("WOMEN")).toEqual([women.id, unisex.id].sort());
+    expect(await ids()).toEqual([men.id, women.id, unisex.id].sort());
+  });
+});

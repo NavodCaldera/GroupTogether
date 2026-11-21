@@ -15,6 +15,7 @@ import { IMAGE_TYPES, checkUpload, saveUpload } from "./storage";
 export class CatalogueError extends Error {}
 
 export type ProductFilters = {
+  /** The buyer's own audience; products with no audience (unisex) show to everyone. */
   audience?: Audience;
   kind?: string;
   stockType?: StockType;
@@ -92,8 +93,11 @@ async function findShopProducts(
   return db.product.findMany({
     where: {
       ...IN_SHOP,
-      AND: [...IN_SHOP.AND, await shopEligibility(now)],
-      audience: f.audience,
+      AND: [
+        ...IN_SHOP.AND,
+        await shopEligibility(now),
+        ...(f.audience ? [{ OR: [{ audience: f.audience }, { audience: null }] }] : []),
+      ],
       kind: f.kind,
       stockType: f.stockType,
       brand: f.brand ? { equals: f.brand, mode: "insensitive" } : undefined,

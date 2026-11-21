@@ -7,56 +7,61 @@ type Props = {
   audience?: string | null;
   kind?: string | null;
   size?: string | null;
-  /** Shop filter: every choice is optional and a size box follows. */
+  /**
+   * Shop filter: no audience box (the buyer's own audience is passed in, or none for everything),
+   * every choice is optional and a size box follows.
+   */
   withSize?: boolean;
   selectClass: string;
 };
 
 /**
  * Audience, then a category that follows it, then (in the shop) a size that follows the category.
- * Each box stays disabled until the one before it has a choice.
+ * Each box stays disabled until the one before it has a choice. The shop has no audience box.
  * Plain named selects, so the surrounding GET/POST form needs nothing else.
  */
 export function TaxonomyFields({ audience, kind, size, withSize = false, selectClass }: Props) {
   const [a, setA] = useState<Audience | "">(isAudience(audience) ? audience : "");
   const [k, setK] = useState(
-    audience && kind && isAudience(audience) && kindFits(audience, kind) ? kind : "",
+    kind && kindsFor(isAudience(audience) ? audience : "").some((x) => x.id === kind) ? kind : "",
   );
   const kinds = kindsFor(a);
   const sizes = sizesFor(k);
   const optional = withSize;
   return (
     <>
-      <select
-        name="audience"
-        value={a}
-        required={!optional}
-        aria-label="Audience"
-        className={selectClass}
-        onChange={(e) => {
-          const v = e.target.value as Audience | "";
-          setA(v);
-          if (!v || (k && !kindFits(v, k))) setK("");
-        }}
-      >
-        <option value="">{optional ? "Audience" : "Choose…"}</option>
-        {AUDIENCES.map((x) => (
-          <option key={x.id} value={x.id}>
-            {x.label}
-          </option>
-        ))}
-      </select>
+      {!optional && (
+        <select
+          name="audience"
+          value={a}
+          required={!optional}
+          aria-label="Audience"
+          className={selectClass}
+          onChange={(e) => {
+            const v = e.target.value as Audience | "";
+            setA(v);
+            if (!v || (k && !kindFits(v, k))) setK("");
+          }}
+        >
+          <option value="">{optional ? "Audience" : "Choose…"}</option>
+          {AUDIENCES.map((x) => (
+            <option key={x.id} value={x.id}>
+              {x.label}
+            </option>
+          ))}
+        </select>
+      )}
       <select
         name="kind"
         value={k}
-        disabled={!a}
+        disabled={!optional && !a}
         required={!optional}
         aria-label="Category"
         className={selectClass}
         onChange={(e) => setK(e.target.value)}
       >
         <option value="">
-          {a ? (optional ? "All categories" : "Choose…") : "Choose audience first"}
+          {optional ? "All categories" : a ? "Choose…" : "Choose audience first"}
         </option>
         {kinds.map((x) => (
           <option key={x.id} value={x.id}>

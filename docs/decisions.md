@@ -334,6 +334,22 @@ fee and the buyer gets it back with the item price. The owner asked Claude to se
 7. **Old orders** keep the fee they paid online, the weekly `AGENT_FEE` token credit and the
    take-back of `DEC-018`.
 
+### DEC-025 - Personal shop: the buyer's own audience
+
+**Status:** Built **2026-11-21**. The owner removed the shop's Audience box (Men, Women, Girl,
+Boy, Kid): a signed-in buyer should only be offered clothing for their own category, to make the
+site highly personal.
+
+1. **Sign-up asks** gender (Male or Female) and date of birth; the age is worked out from the
+   date, never stored. Both are required at sign-up. `User.gender` and `User.birthDate` (date only).
+2. **Audience from age:** 13 and over Men or Women, 6 to 12 Boy or Girl, under 6 Kid
+   (`audienceFor` in `src/lib/taxonomy.ts`), matching the size bands in the taxonomy.
+3. **Shop and buyer home** list only that audience plus products with no audience (unisex).
+   There is no way to switch audience in the shop; the Category list follows the audience.
+4. **Existing buyers** (no gender or birth date yet) and signed-out visitors see everything;
+   buyers can add both on Profile.
+5. The signed-out home hero's "Biggest savings" row is unchanged (no buyer known).
+
 ### DEC-024 - Home hero: factory to you, no middlemen
 
 **Status:** Built **2026-11-21**. The owner proposed "Direct factory to Consumer. No more middle

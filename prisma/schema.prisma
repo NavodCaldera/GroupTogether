@@ -54,6 +54,9 @@ model User {
   email          String             @unique
   phone          String?            @unique
   passwordHash   String
+  /// Buyers: asked at sign-up; with the birth date it picks the shop's audience (2026-11-21)
+  gender         Gender?
+  birthDate      DateTime?          @db.Date
   /// Default drop-off for carts this user owns
   address        String?
   city           String?
@@ -138,6 +141,11 @@ enum Category {
 enum StockType {
   FACTORY_SURPLUS
   B_GRADE
+}
+
+enum Gender {
+  MALE
+  FEMALE
 }
 
 enum Audience {
@@ -1059,7 +1067,7 @@ model Basket {
   targetOrders    Order[]          @relation("OrderTargetBasket")
   feeAttempts     PaymentAttempt[] @relation("AttemptBasket")
   courier         CourierBooking?
-  sentBackReturns ReturnRequest[] @relation("ReturnSentBack")
+  sentBackReturns ReturnRequest[]  @relation("ReturnSentBack")
 
   @@index([status])
   @@index([agentId, status])

@@ -23,6 +23,20 @@ export const phoneSchema = z
   .transform((v) => v.replace(/[\s-]/g, "").replace(/^\+94/, "0"))
   .pipe(z.string().regex(/^07\d{8}$/, "Enter a mobile number such as 0771234567"));
 
+/** A calendar date typed as YYYY-MM-DD, kept as midnight UTC; not in the future, at most 120 years ago. */
+const birthDateSchema = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter your date of birth")
+  .transform((v) => new Date(`${v}T00:00:00Z`))
+  .refine((d) => !Number.isNaN(d.getTime()), "Enter your date of birth")
+  .refine((d) => d.getTime() <= Date.now(), "Your date of birth can't be in the future")
+  .refine(
+    (d) => d.getUTCFullYear() >= new Date().getUTCFullYear() - 120,
+    "Enter your date of birth",
+  );
+
+const genderSchema = z.enum(["MALE", "FEMALE"], { message: "Choose your gender" });
+
 export const signUpSchema = z
   .object({
     name: z.string().trim().min(2, "Enter your name"),
@@ -32,6 +46,8 @@ export const signUpSchema = z
     city: z.string().trim().min(2, "Enter your city").max(60),
     ...pinFields,
     password: z.string().min(8, "Use at least 8 characters"),
+    gender: genderSchema,
+    birthDate: birthDateSchema,
   })
   .refine(pinInSriLanka, pinOutsideMessage);
 
@@ -45,6 +61,9 @@ export const profileSchema = z
     address: z.string().trim().min(5, "Enter your delivery address").max(300),
     city: z.string().trim().min(2, "Enter your city").max(60),
     ...pinFields,
+    // Buyers only; left out (sellers, staff) means unchanged.
+    gender: genderSchema.optional(),
+    birthDate: birthDateSchema.optional(),
   })
   .refine(pinInSriLanka, pinOutsideMessage);
 
@@ -124,6 +143,8 @@ export async function registerUser(input: SignUpInput): Promise<User> {
       city: input.city,
       lat: input.lat,
       lng: input.lng,
+      gender: input.gender,
+      birthDate: input.birthDate,
       passwordHash: await hashPassword(input.password),
     },
   });
@@ -214,7 +235,18 @@ export async function endSession(token: string) {
 
 export type SessionUser = Pick<
   User,
-  "id" | "role" | "adminArea" | "name" | "email" | "phone" | "address" | "city" | "lat" | "lng"
+  | "id"
+  | "role"
+  | "adminArea"
+  | "name"
+  | "email"
+  | "phone"
+  | "address"
+  | "city"
+  | "lat"
+  | "lng"
+  | "gender"
+  | "birthDate"
 >;
 
 export async function userForToken(token: string, now = new Date()): Promise<SessionUser | null> {
@@ -234,6 +266,8 @@ export async function userForToken(token: string, now = new Date()): Promise<Ses
           city: true,
           lat: true,
           lng: true,
+          gender: true,
+          birthDate: true,
           locked: true,
         },
       },
