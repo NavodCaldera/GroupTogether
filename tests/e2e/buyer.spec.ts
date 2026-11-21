@@ -56,9 +56,7 @@ async function inspect(page: Page) {
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
 }
 
-test("buyer collects, buys at the nearest agent, pays and cancels while the basket is open", async ({
-  page,
-}) => {
+test("buyer collects, buys at the nearest agent, pays and cannot cancel", async ({ page }) => {
   test.setTimeout(240_000);
   await signIn(page, DEMO.readyBuyer);
   await page.goto("/");

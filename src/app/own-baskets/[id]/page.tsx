@@ -68,7 +68,7 @@ export default async function OwnBasketPage({
               {step === null && (
                 <span className="mt-1.5 shrink-0">
                   <Badge tone={b.status === "CANCELLED" ? "bad" : "good"}>
-                    {b.status === "CANCELLED" ? "Cancelled" : "Delivered"}
+                    {b.status === "CANCELLED" ? "Refunded" : "Delivered"}
                   </Badge>
                 </span>
               )}

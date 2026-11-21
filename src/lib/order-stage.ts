@@ -34,6 +34,7 @@ export function orderStage(o: {
   switch (o.basket?.status) {
     case "LOCKED":
     case "PACKED":
+    case "AWAITING_FEE": // legacy own-basket status, no longer written
       return "packing";
     case "WITH_COURIER":
       return "on_the_way";

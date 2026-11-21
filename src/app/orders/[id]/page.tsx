@@ -215,10 +215,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
       ) : (
         basket && (
           <Card className="flex flex-col gap-1">
-            <h2 className="font-semibold">
-              {[isOwner ? "You" : null, basket.deliveryArea].filter(Boolean).join(" · ") ||
-                "Delivery"}
-            </h2>
+            <h2 className="font-semibold">{basket.deliveryArea || "Delivery"}</h2>
             {basket.deliveryAddress && (
               <p className="text-sm break-words">
                 {[basket.deliveryAddress, basket.deliveryPhone].filter(Boolean).join(" · ")}
@@ -496,16 +493,16 @@ function BuyerBlock({ buyer: b }: { buyer: BasketBuyer }) {
             <dd>{formatLKR(b.payhereFee)}</dd>
           </>
         )}
-        {b.tokens?.gt(0) && (
-          <>
-            <dt className="text-subtle">Tokens</dt>
-            <dd>{formatLKR(b.tokens)}</dd>
-          </>
-        )}
         {b.paid && (
           <>
             <dt className="font-medium">Paid</dt>
             <dd className="font-medium">{formatLKR(b.paid)}</dd>
+          </>
+        )}
+        {b.tokens?.gt(0) && (
+          <>
+            <dt className="text-subtle">in tokens</dt>
+            <dd className="text-subtle">{formatLKR(b.tokens)}</dd>
           </>
         )}
       </dl>

@@ -203,7 +203,7 @@ async function ownProgress(
   if (!openOwn.length) return new Map();
   const [lines, shares] = await Promise.all([
     db.orderLine.findMany({
-      where: { order: { basketId: { in: openOwn }, status: "PAID" } },
+      where: { status: "ACTIVE", order: { basketId: { in: openOwn }, status: "PAID" } },
       select: { qty: true, order: { select: { basketId: true } } },
     }),
     db.basket.findMany({
@@ -250,7 +250,11 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
   const [settings, own, ready] = await Promise.all([
     getSettings(),
     ownProgress(buyerId, [order]),
-    order.agentId && order.status === "RECEIVED" ? readyPickups(buyerId, now) : [],
+    order.agentId &&
+    order.status === "RECEIVED" &&
+    order.lines.some((l) => l.status === "ACTIVE" && !l.collectedAt && l.qty > l.missingQty)
+      ? readyPickups(buyerId, now)
+      : [],
   ]);
   // The code at this order's agent, with every piece waiting there and the cash fee for them.
   const pickup = ready.find((r) => r.agent.id === order.agentId) ?? null;
