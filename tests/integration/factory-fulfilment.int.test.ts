@@ -44,10 +44,10 @@ describe("factory-direct fulfilment", () => {
     await expect(saveProduct(p.id, listing, null, { sellerId: other.factory.id })).rejects.toThrow(
       "not found",
     );
-    await expect(adjustStock(p.id, "M", "", 5, { sellerId: other.factory.id })).rejects.toThrow(
-      "not found",
-    );
-    await adjustStock(p.id, "M", "", 5, { sellerId: factory.id });
+    await expect(
+      adjustStock(p.id, { size: "M" }, 5, { sellerId: other.factory.id }),
+    ).rejects.toThrow("not found");
+    await adjustStock(p.id, { size: "M" }, 5, { sellerId: factory.id });
     const inShop = () => db.product.count({ where: { id: p.id, ...IN_SHOP } });
     expect(await inShop()).toBe(1);
     await db.product.update({ where: { id: p.id }, data: { status: "ARCHIVED" } });
@@ -66,7 +66,7 @@ describe("factory-direct fulfilment", () => {
     await db.cartItem.create({ data: { buyerId: other.id, variantId: v.id, qty: 2 } });
 
     const [product] = await factoryProducts(factory.id);
-    expect(product).toMatchObject({ pieces: 1, bestSize: "M" });
+    expect(product).toMatchObject({ pieces: 1, bestVariantId: v.id });
     expect(product.value.toString()).toBe("1000");
     expect(product.variants[0]).toMatchObject({
       available: 5,

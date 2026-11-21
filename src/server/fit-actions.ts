@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { ZodError } from "zod";
 import { FitDataError, parseFitForm, sizeOrder } from "@/lib/fit/data";
+import { sizeOf } from "@/lib/variant-options";
 import { BUYER_ROLES } from "@/lib/roles";
 import { sizesFor } from "@/lib/taxonomy";
 import { requireAdmin, requireFactory, requireUser } from "./auth/session";
@@ -48,10 +49,15 @@ const strings = (fd: FormData) =>
 async function chartSizes(productId: string) {
   const p = await db.product.findUnique({
     where: { id: productId },
-    select: { kind: true, variants: { select: { size: true } } },
+    select: { kind: true, variants: { select: { options: true } } },
   });
   return p
-    ? sizeOrder(p.kind, [...sizesFor(p.kind ?? undefined), ...p.variants.map((v) => v.size)])
+    ? sizeOrder(
+        p.kind,
+        [...sizesFor(p.kind ?? undefined), ...p.variants.map((v) => sizeOf(v.options))].filter(
+          Boolean,
+        ),
+      )
     : [];
 }
 

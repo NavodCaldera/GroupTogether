@@ -28,7 +28,7 @@ describe("factory admin stakeholder routing", () => {
         price: "1500",
       },
     });
-    await expect(adjustStock(product.id, "M", "", 1)).rejects.toThrow("Brand rewards");
+    await expect(adjustStock(product.id, { size: "M" }, 1)).rejects.toThrow("Brand rewards");
     await expect(saveProduct(product.id, {}, null)).rejects.toThrow("Brand rewards");
     expect(await db.variant.count({ where: { productId: product.id } })).toBe(0);
   });

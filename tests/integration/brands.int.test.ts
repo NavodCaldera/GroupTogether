@@ -6,7 +6,7 @@ import { storage } from "@/server/storage";
 import { getProduct, listProducts, saveProduct, suggestProducts } from "@/server/catalogue";
 import { db } from "@/server/db";
 import { reviewBrandOffer } from "@/server/brand-reviews";
-import { giftPhotoFile, makeUser, resetDb } from "./helpers";
+import { giftPhotoFile, makeUser, resetDb, sizeVariant } from "./helpers";
 
 beforeEach(async () => {
   await resetDb();
@@ -157,7 +157,7 @@ describe("brand products", () => {
     expect((await db.product.findUniqueOrThrow({ where: { id: p.id } })).sellerId).toBeNull();
     // Legacy linked products remain stored, but no longer appear or sell as clothing.
     await db.product.update({ where: { id: p.id }, data: { sellerId: brand.id } });
-    await db.variant.create({ data: { productId: p.id, size: "M", available: 5 } });
+    await db.variant.create({ data: { productId: p.id, ...sizeVariant("M"), available: 5 } });
     expect(await listProducts()).toEqual([]);
     expect(await suggestProducts("kaftan")).toEqual([]);
     expect(await getProduct(p.id)).toBeNull();

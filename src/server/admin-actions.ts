@@ -8,6 +8,7 @@ import { requireAdmin, requireAnyAdmin } from "./auth/session";
 import { assertManagesUser } from "./admin-users";
 import { CartError } from "./errors";
 import { CatalogueError, adjustStock, saveProduct, setProductHidden } from "./catalogue";
+import { formOptions } from "@/lib/variant-options";
 import { setCommission, SettingsError } from "./settings";
 import { flash } from "./flash";
 import { UploadError } from "./storage";
@@ -80,7 +81,7 @@ export async function adjustStockAction(_p: AdminState, fd: FormData): Promise<A
   await requireAdmin("FACTORY");
   const productId = str(fd, "productId");
   const res = await attempt(
-    () => adjustStock(productId, str(fd, "size"), str(fd, "colour"), Number(str(fd, "delta"))),
+    () => adjustStock(productId, formOptions(fd), Number(str(fd, "delta"))),
     "Stock updated",
   );
   revalidatePath(`/admin/products/${productId}`);

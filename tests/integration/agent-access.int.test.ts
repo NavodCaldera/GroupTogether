@@ -37,6 +37,7 @@ async function fixture() {
     data: {
       orderId: o.order.id,
       variantId: o.variant.id,
+      variantLabel: o.variant.label,
       qty: 1,
       unitPrice: "1100",
       factoryPrice: "1000",

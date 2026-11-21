@@ -70,6 +70,7 @@ async function basket(
       lines: {
         create: {
           variantId: f.variant.id,
+          variantLabel: f.variant.label,
           qty,
           unitPrice: "1100",
           factoryPrice: "1000",
@@ -118,7 +119,7 @@ describe("factory screens", () => {
     expect(work.toPack.map((b) => b.id)).toEqual([locked.basket.id]);
     expect(work.toPack[0]).toMatchObject({ pieces: 3 });
     expect(work.toPack[0].products[0].lines).toEqual([
-      expect.objectContaining({ id: locked.line.id, size: "M", qty: 3, reportable: true }),
+      expect.objectContaining({ id: locked.line.id, label: "M", qty: 3, reportable: true }),
     ]);
     expect(work.courierBooked.map((b) => b.courier?.driverName)).toEqual(["Nimal"]);
     expect(work.waitingCourier).toBe(1);

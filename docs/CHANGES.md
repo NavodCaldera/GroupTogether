@@ -18,6 +18,18 @@ Newest first.
 - Missing items and returns before settlement reduce the count; after it the refund is the final
   price. The product page shows "N sold · M more to Rs X" and the tiers.
 
+## 2026-11-21 - Variant options (DEC-029 phase 3)
+
+- A variant is now any set of choices (`options`, for example size and colour today, pages or
+  flavour later) with a normalised `optionKey` and a display `label` such as "M / Navy"; it can
+  also carry a SKU, weight and dimensions. Existing variants are filled from size and colour.
+- Order lines keep the label they were bought with (`variantLabel`), so receipts and packing
+  tickets do not change if a variant is edited later.
+- Cart, orders, own baskets, agent pickup, packing tickets, returns, fault holds and factory stock
+  screens show the label. The product page groups choices by option name (Size, Colour, …), with
+  sizes small to large.
+- Size and colour columns stay for now and are kept in step; a later phase drops them.
+
 ## 2026-11-21 - Body guide: a fit body instead of a heavy one
 
 - The My measurements figure now uses a lean, fit standard body: the man is 175 cm with a

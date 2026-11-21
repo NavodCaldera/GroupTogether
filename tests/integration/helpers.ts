@@ -1,6 +1,10 @@
 import { randomUUID } from "node:crypto";
 import type { AgentStatus } from "@/generated/prisma/client";
 import { db } from "@/server/db";
+import { variantFields } from "@/lib/variant-options";
+
+/** Variant columns for a size-only variant. */
+export const sizeVariant = (size: string) => variantFields({ size });
 
 /** Empty every table and restore default settings. */
 export async function resetDb() {
@@ -47,7 +51,7 @@ export async function makeVariant(price: string, available: number) {
       stockType: "FACTORY_SURPLUS",
       price,
       status: "LIVE",
-      variants: { create: { size: "M", available } },
+      variants: { create: { ...sizeVariant("M"), available } },
     },
     include: { variants: true },
   });
@@ -97,7 +101,7 @@ export async function makeFactory() {
       commission: "100",
       status: "LIVE",
       sellerId: factory.id,
-      variants: { create: { size: "M", available: 50 } },
+      variants: { create: { ...sizeVariant("M"), available: 50 } },
     },
     include: { variants: true },
   });
@@ -177,6 +181,7 @@ export async function makeReceivedOrder({
       lines: {
         create: {
           variantId: f.variant.id,
+          variantLabel: f.variant.label,
           qty,
           unitPrice: "1100",
           factoryPrice: "1000",

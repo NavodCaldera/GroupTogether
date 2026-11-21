@@ -49,7 +49,8 @@ function Editor({ productId, deal, ends }: { productId: string; deal?: Deal; end
       {deal && <input type="hidden" name="dealId" value={deal.id} />}
       <div className="grid gap-3 sm:grid-cols-2 [&>*]:min-w-0">
         <Field label="Ends" name="endsAt">
-          <Input className="min-w-0"
+          <Input
+            className="min-w-0"
             name="endsAt"
             type="datetime-local"
             defaultValue={colomboValue(deal?.endsAt ?? ends)}
@@ -57,7 +58,8 @@ function Editor({ productId, deal, ends }: { productId: string; deal?: Deal; end
           />
         </Field>
         <Field label="Capacity (optional)" name="maxQty">
-          <Input className="min-w-0"
+          <Input
+            className="min-w-0"
             name="maxQty"
             type="number"
             min={1}
@@ -75,8 +77,12 @@ function Editor({ productId, deal, ends }: { productId: string; deal?: Deal; end
           <span className="text-right">Buyer</span>
         </div>
         {rows.map((t, i) => (
-          <div key={i} className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-2">
-            <Input className="min-w-0"
+          <div
+            key={i}
+            className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem] items-center gap-2"
+          >
+            <Input
+              className="min-w-0"
               name={`minQty${i}`}
               type="number"
               min={1}
@@ -86,7 +92,8 @@ function Editor({ productId, deal, ends }: { productId: string; deal?: Deal; end
               defaultValue={t?.minQty ?? (i === 0 ? 1 : "")}
               readOnly={i === 0}
             />
-            <Input className="min-w-0"
+            <Input
+              className="min-w-0"
               name={`factoryPrice${i}`}
               inputMode="decimal"
               aria-label={`Tier ${i + 1} factory price`}

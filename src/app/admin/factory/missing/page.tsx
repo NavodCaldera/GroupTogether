@@ -24,8 +24,7 @@ export default async function MissingItemsPage() {
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h2 className="font-semibold">
-                    {l.variant.product.title} · {l.variant.size}
-                    {l.variant.colour ? ` · ${l.variant.colour}` : ""}
+                    {[l.variant.product.title, l.variantLabel].filter(Boolean).join(" · ")}
                   </h2>
                   <p className="text-sm text-subtle">
                     {l.order.factory.company || l.order.factory.name} →{" "}

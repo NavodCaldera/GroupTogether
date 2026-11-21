@@ -856,9 +856,7 @@ export async function buyerFaultHistory(adminId: string) {
         select: {
           ...returnSelect.orderLine.select,
           order: { select: { factory: { select: { name: true } } } },
-          variant: {
-            select: { size: true, product: { select: { id: true, title: true } } },
-          },
+          variant: { select: { product: { select: { id: true, title: true } } } },
         },
       },
     },
@@ -928,7 +926,8 @@ const returnSelect = {
       orderId: true,
       unitPrice: true,
       factoryPrice: true,
-      variant: { select: { size: true, product: { select: { title: true } } } },
+      variantLabel: true,
+      variant: { select: { product: { select: { title: true } } } },
     },
   },
 } as const;

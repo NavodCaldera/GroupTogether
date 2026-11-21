@@ -3,6 +3,7 @@ import { z } from "zod";
 import { Prisma } from "@/generated/prisma/client";
 import type { FitClass } from "@/lib/fit/config";
 import { fitClass, readBody, readChart, sizeOrder } from "@/lib/fit/data";
+import { sizeOf } from "@/lib/variant-options";
 import { isShort } from "@/lib/fit/drape";
 import {
   closestArchetype,
@@ -274,7 +275,7 @@ export async function getFitView(productId: string, userId: string | null): Prom
         gsm: true,
         weave: true,
         careNotes: true,
-        variants: { select: { size: true } },
+        variants: { select: { options: true } },
       },
     }),
     userId
@@ -307,9 +308,10 @@ export async function getFitView(productId: string, userId: string | null): Prom
       ? { stretchPct: fabricStretchPct, careNotes }
       : null;
   const cells = fitApprovedAt ? readChart(sizeChart) : {};
-  const sizes = sizeOrder(kind, [...variants.map((v) => v.size), ...Object.keys(cells)]).filter(
-    (s) => cells[s],
-  );
+  const sizes = sizeOrder(kind, [
+    ...variants.map((v) => sizeOf(v.options)),
+    ...Object.keys(cells),
+  ]).filter((s) => cells[s]);
   const chart = sizes.length
     ? {
         sizes,
@@ -417,7 +419,7 @@ export async function saveFitFeedback(userId: string, input: unknown) {
   const line = await db.orderLine.findFirst({
     where: { id: f.orderLineId, order: { buyerId: userId }, collectedAt: { not: null } },
     select: {
-      variant: { select: { size: true, productId: true } },
+      variant: { select: { options: true, productId: true } },
       fitFeedback: { select: { id: true } },
     },
   });
@@ -432,7 +434,7 @@ export async function saveFitFeedback(userId: string, input: unknown) {
       userId,
       productId: line.variant.productId,
       orderLineId: f.orderLineId,
-      purchasedSize: line.variant.size,
+      purchasedSize: sizeOf(line.variant.options),
       verdict: f.verdict,
       regionNotes: Object.keys(regionNotes).length ? regionNotes : undefined,
       recommended: view.report?.recommendedSize ?? null,
@@ -457,8 +459,9 @@ export function linesAwaitingFit(
     take,
     select: {
       id: true,
+      variantLabel: true,
       variant: {
-        select: { size: true, product: { select: { id: true, title: true, kind: true } } },
+        select: { options: true, product: { select: { id: true, title: true, kind: true } } },
       },
     },
   });
