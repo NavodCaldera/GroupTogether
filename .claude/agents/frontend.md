@@ -43,7 +43,7 @@ guidance, not business policy. Verify code pointers before editing.
 
 - `BackLink` (components/client.tsx) uses browser history only when `NavDepth` (root layout) has counted an in-app page behind this one; otherwise it opens its fallback, so Back never leaves the site.
 - Product and compare pages call `requireUser` with `next` (2026-11-21); only Home and Shop are open to visitors.
-- Buyer home orders use `HomeOrderCard` / `homeOrders` (src/app/home-order-card.tsx): stretched-link card (the title link's `::after` covers it; Share sits above with `relative z-10`), three cards at most, action-needed first (2026-11-21).
+- Buyer home and /orders use `OrderCard` (src/app/orders/order-card.tsx; `homeOrders` for home, `splitOrders` for In progress / Past): stretched-link card (the title link's `::after` covers it; Share sits above with `relative z-10`), three cards at most, action-needed first (2026-11-21).
 - Shop has no Audience box (`DEC-025`): `TaxonomyFields` with `withSize` hides it and takes the buyer's audience from `audienceFor(user.gender, user.birthDate)`; `listProducts({ audience })` also returns unisex (null-audience) products.
 - Signed-out visitors get no section links (top bar or tab bar) until they sign in (2026-11-21).
 - Buyer home is `/` (`/dashboard` redirects there), with the phone tab bar Home, Shop, Orders, Tokens. Agents are buyers too: they keep the buyer bar and reach `/agent` sections through an in-page tab row, not a second bottom bar (open, `DEC-016`). Factories use `/seller`; admins their area home. Backend role guards remain required, and agent pages also gate on `Agent.status`.

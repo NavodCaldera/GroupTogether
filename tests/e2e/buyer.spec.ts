@@ -124,9 +124,13 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await page.getByRole("main").getByRole("link", { name: "Orders" }).click();
 
   await expect(page.getByRole("heading", { name: "Orders", level: 1 })).toBeVisible();
-  const paid = page.getByRole("main").getByRole("listitem").filter({ hasText: "Paid" }).first();
-  await expect(paid.getByRole("progressbar", { name: "Basket progress" })).toBeVisible();
-  await expect(paid.getByText(/\/ LKR\s?50,000/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "In progress" })).toBeVisible();
+  const paid = page
+    .getByRole("main")
+    .getByRole("listitem")
+    .filter({ has: page.locator('[aria-current="step"]', { hasText: "Filling" }) })
+    .first();
+  await expect(paid.getByText(/of LKR\s?50,000/)).toBeVisible();
   await inspect(page);
   await paid.getByRole("link").first().click();
 
@@ -150,7 +154,7 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await page.goto("/orders");
   await page
     .getByRole("listitem")
-    .filter({ hasText: "Paid" })
+    .filter({ has: page.locator('[aria-current="step"]', { hasText: "Filling" }) })
     .first()
     .getByRole("link")
     .first()
