@@ -45,7 +45,6 @@ const orderSelect = {
       kind: true,
       ownerId: true,
       owner: { select: { name: true } },
-      visibility: true,
       lockedAt: true,
       deliveredAt: true,
       courier: { select: { givenToDriverAt: true } },
@@ -180,17 +179,16 @@ export async function buyerOrders(buyerId: string) {
   ]);
   return {
     orders,
-    own: await ownProgress(buyerId, orders),
+    own: await ownProgress(orders),
     ownMinItems: settings.ownMinItems,
     lockAt: toD(settings.basketLockAmount),
   };
 }
 
-export type OwnProgress = Map<string, { items: number; shareCode: string | null }>;
+export type OwnProgress = Map<string, { items: number }>;
 
-/** Open own baskets on order cards: items so far, and the share link for the owner (DEC-023). */
+/** Open own baskets on order cards: items so far (DEC-023). */
 async function ownProgress(
-  buyerId: string,
   orders: { basket: { id: string; kind: string; status: string } | null }[],
 ): Promise<OwnProgress> {
   const openOwn = [
@@ -201,22 +199,15 @@ async function ownProgress(
     ),
   ];
   if (!openOwn.length) return new Map();
-  const [lines, shares] = await Promise.all([
-    db.orderLine.findMany({
-      where: { status: "ACTIVE", order: { basketId: { in: openOwn }, status: "PAID" } },
-      select: { qty: true, order: { select: { basketId: true } } },
-    }),
-    db.basket.findMany({
-      where: { id: { in: openOwn }, ownerId: buyerId },
-      select: { id: true, shareCode: true },
-    }),
-  ]);
+  const lines = await db.orderLine.findMany({
+    where: { status: "ACTIVE", order: { basketId: { in: openOwn }, status: "PAID" } },
+    select: { qty: true, order: { select: { basketId: true } } },
+  });
   return new Map(
     openOwn.map((id) => [
       id,
       {
         items: lines.reduce((n, l) => (l.order.basketId === id ? n + l.qty : n), 0),
-        shareCode: shares.find((b) => b.id === id)?.shareCode ?? null,
       },
     ]),
   );
@@ -249,7 +240,7 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
   }
   const [settings, own, ready] = await Promise.all([
     getSettings(),
-    ownProgress(buyerId, [order]),
+    ownProgress([order]),
     order.agentId &&
     order.status === "RECEIVED" &&
     order.lines.some((l) => l.status === "ACTIVE" && !l.collectedAt && l.qty > l.missingQty)
