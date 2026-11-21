@@ -90,6 +90,29 @@ export async function assertTokenHolder(tx: Tx, userId: string): Promise<void> {
   if (!user || !["CUSTOMER", "AGENT"].includes(user.role) || user.factoryId || user.locked)
     throw new TokenError("This account cannot hold tokens");
 }
+/** Accounts that can receive tokens whose name, email or phone contains `q` (2+ characters),
+ * excluding the sender: up to 6, for the Send tokens suggestions. Shows full details by owner
+ * decision (2026-11-21). */
+export async function suggestTokenRecipients(fromId: string, q: string) {
+  const text = q.trim().slice(0, 100);
+  if (text.length < 2) return [];
+  return db.user.findMany({
+    where: {
+      id: { not: fromId },
+      role: { in: ["CUSTOMER", "AGENT"] },
+      factoryId: null,
+      locked: false,
+      OR: [
+        { name: { contains: text, mode: "insensitive" } },
+        { email: { contains: text, mode: "insensitive" } },
+        { phone: { contains: text } },
+      ],
+    },
+    select: { id: true, name: true, email: true, phone: true },
+    orderBy: { name: "asc" },
+    take: 6,
+  });
+}
 /** Lock order: both user advisories (sorted) -> both ledger User rows (sorted). */
 export async function transferTokens(
   fromId: string,

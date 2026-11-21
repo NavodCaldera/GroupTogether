@@ -6,6 +6,13 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Send tokens suggests accounts while typing
+
+- From 2 characters, the Phone or email box on Tokens lists up to 6 buyers and agents whose name,
+  email or phone matches, with their full email and phone (owner decision, 2026-11-21: full
+  details, not masked). Picking one fills in the email. The sender, admins, factory accounts and
+  locked accounts are never listed. Only signed-in buyers and agents can ask.
+
 ## 2026-11-21 - Tokens page: clearer history and sending; Ishara's demo tokens
 
 - The buyer Tokens page shows the balance large, with **Send tokens** folded under it. The
