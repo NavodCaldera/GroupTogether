@@ -124,6 +124,10 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await page.getByRole("main").getByRole("link", { name: "Orders" }).click();
 
   await expect(page.getByRole("heading", { name: "Orders", level: 1 })).toBeVisible();
+  // An agent order opens on the Pickup tab.
+  await expect(
+    page.getByRole("navigation", { name: "Order groups" }).getByRole("link", { name: /^Pickup/ }),
+  ).toHaveAttribute("aria-current", "page");
   await expect(page.getByRole("heading", { name: "In progress" })).toBeVisible();
   const paid = page
     .getByRole("main")

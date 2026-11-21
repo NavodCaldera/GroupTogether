@@ -40,6 +40,14 @@ export function endOf(o: Order): { label: string; tone: "good" | "bad" } | null 
 
 const done = (o: Order) => endOf(o) !== null;
 
+export type OrderGroup = "pickup" | "mine" | "joined";
+
+/** Pickup: through an agent. Mine: an own basket the buyer started. Joined: someone else's. */
+export function groupOf(o: Order, viewerId: string): OrderGroup {
+  if (o.agentId) return "pickup";
+  return o.basket && o.basket.ownerId !== viewerId ? "joined" : "mine";
+}
+
 /** Orders page: what is still moving, then the finished ones (both newest first). */
 export function splitOrders(orders: Order[]) {
   return { active: sortActive(orders.filter((o) => !done(o))), past: orders.filter(done) };
@@ -62,11 +70,13 @@ export function OrderCard({
   own,
   ownMinItems,
   lockAt,
+  viewerId,
 }: {
   order: Order;
   own: OwnProgress;
   ownMinItems: number;
   lockAt: D;
+  viewerId: string;
 }) {
   const first = o.lines[0];
   const more = o.lines.length - 1;
@@ -99,7 +109,13 @@ export function OrderCard({
           </div>
           <p className="text-sm text-subtle">
             {more > 0 && `+${more} more item${more === 1 ? "" : "s"} · `}
-            {formatDate(o.createdAt)} · {o.agent?.user.name ?? "Own basket"}
+            {[
+              formatDate(o.createdAt),
+              o.agent?.user.name ??
+                (o.basket && o.basket.ownerId !== viewerId ? o.basket.owner?.name : null),
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
           {(end || step === null) && (
             <span className="self-start">

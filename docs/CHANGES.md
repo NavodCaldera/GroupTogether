@@ -6,6 +6,14 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Orders page: Pickup, My baskets, Joined
+
+- The Orders page is split into three tabs: **Pickup** (orders collected from an agent),
+  **My baskets** (own baskets the buyer started) and **Joined** (other buyers' own baskets the
+  buyer added to). Each tab shows In progress, then Past, and counts its in-progress orders.
+  With no tab chosen it opens the first one with something in progress. Joined cards name the
+  basket's owner. The "Own baskets" button is gone; the basket list stays at /own-baskets.
+
 ## 2026-11-21 - Buyer home: My orders removed
 
 - The signed-in home no longer lists orders: the Orders page shows the same cards in full. Home

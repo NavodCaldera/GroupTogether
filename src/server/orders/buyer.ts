@@ -37,7 +37,16 @@ const orderSelect = {
   agentId: true,
   agent: { select: { user: { select: { name: true } } } },
   factory: { select: { name: true, company: true } },
-  basket: { select: { id: true, status: true, total: true, kind: true, ownerId: true } },
+  basket: {
+    select: {
+      id: true,
+      status: true,
+      total: true,
+      kind: true,
+      ownerId: true,
+      owner: { select: { name: true } },
+    },
+  },
   lines: {
     select: {
       id: true,
