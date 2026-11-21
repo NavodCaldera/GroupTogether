@@ -7,7 +7,7 @@ import { hideProduct, removeFactory, qualityOverview } from "@/server/quality";
 import { getProduct, listProducts, suggestProducts, shopFacets } from "@/server/catalogue";
 import { authenticate, startSession, userForToken } from "@/server/auth/service";
 import { hashPassword } from "@/server/auth/password";
-import { makeReceivedOrder, makeUser, makeVariant, resetDb } from "./helpers";
+import { approveCategory, makeReceivedOrder, makeUser, makeVariant, resetDb } from "./helpers";
 
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
@@ -22,6 +22,7 @@ async function fixture() {
   await db.factoryProfile.create({
     data: { factoryUserId: factory.id, complianceDueAt: new Date("2099-01-01") },
   });
+  await approveCategory(factory.id);
   const a = await makeVariant("1500", 5),
     b = await makeVariant("1500", 5);
   for (const [v, title] of [

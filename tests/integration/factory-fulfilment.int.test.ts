@@ -3,7 +3,7 @@ import { db } from "@/server/db";
 import { IN_SHOP, adjustStock, saveProduct } from "@/server/catalogue";
 import { factoryInsights, factoryProducts } from "@/server/factory-dashboard";
 import { rateProduct, ratingSummaries } from "@/server/ratings";
-import { makeReceivedOrder, makeUser, makeVariant, resetDb } from "./helpers";
+import { approveCategory, makeReceivedOrder, makeUser, makeVariant, resetDb } from "./helpers";
 
 beforeEach(async () => {
   await resetDb();
@@ -23,6 +23,7 @@ async function factoryVariant(available = 10) {
       factoryProfile: { create: { complianceDueAt: new Date(Date.now() + 30 * 86400000) } },
     },
   });
+  await approveCategory(factory.id);
   const v = await makeVariant("25000", available);
   await db.product.update({ where: { id: v.productId }, data: { sellerId: factory.id } });
   return { factory, v };

@@ -95,7 +95,7 @@ These are summaries. Rule IDs below define behavior; the [architecture reference
 
 - **CATG-001 — Category tree (Planned, `DEC-029`):** products belong to one category in an admin-managed tree (for example Stationery > Exercise books, Clothing > Men > Shirts). A category carries its attributes, commission, add-on features (`fit`, `materials`, `audience`), whether it needs approval, and its extra return reasons; children inherit what they leave unset.
 - **CATG-002 — Attributes and variant options (Planned, `DEC-029`):** each category lists the details a product gives (pages, voltage, volume and so on), which of them are buyer choices (variant axes such as size, colour, pages, flavour) and which are shop filters. A variant is any combination of the axes with its own stock, weight and size. Products also carry condition, sell unit (piece, pack, box, kg), minimum order and step quantity, and shelf life.
-- **CATG-003 — Factory categories (Planned, `DEC-029`):** a Factory admin approves which categories each factory may list. Restricted categories also need a product licence or trademark proof.
+- **CATG-003 — Factory categories (Built 2026-11-22, `DEC-029`):** a Factory admin approves which categories each factory may list; approval covers the subtree and is enforced when a factory saves a product. Restricted categories (`needsApproval`, inherited) also need an approved product licence; factories may also send trademark proof. Existing factories keep Clothing (and Shoes when they sell shoes).
 
 ### Group deals
 

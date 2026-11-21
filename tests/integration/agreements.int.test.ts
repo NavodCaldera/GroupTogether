@@ -17,7 +17,7 @@ import {
   shopFacets,
 } from "@/server/catalogue";
 import { addStaff } from "@/server/factory-team";
-import { makeUser, makeVariant, resetDb, sizeVariant } from "./helpers";
+import { approveCategory, makeUser, makeVariant, resetDb, sizeVariant } from "./helpers";
 const now = new Date("2026-12-01T00:00:00Z");
 const listing = {
   title: "Linen Shirt",
@@ -42,6 +42,7 @@ async function setup() {
     data: { role: "SELLER", company: "Lanka Shirts" },
   });
   await db.factoryProfile.create({ data: { factoryUserId: factory.id } });
+  await approveCategory(factory.id);
   const version = await publishVersion(core.id, "Agreement v1");
   return { core, factory, version };
 }

@@ -6,6 +6,18 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-22 - Factory categories (DEC-029, phase 5)
+
+- A factory lists only in categories a Factories admin approved for it; approving a category
+  covers everything below it. Owner or Sales ask from Products > Categories; the admin approves or
+  rejects under Apparel and factories > Categories.
+- Restricted categories (`needsApproval`, inherited) are approved only after the factory has an
+  approved product licence. Factories send a product licence or trademark proof (image or PDF)
+  from the same page for review.
+- The factory application asks for an optional main category; on approval it becomes the first
+  approved category (waiting for review when it needs a licence the application lacks).
+- Existing factories were given Clothing, and Shoes when they already sell shoes, so nothing
+  changes for them. Admin-created products are not limited.
 ## 2026-11-22 - Commission per category (DEC-029, phase 6)
 
 - Commission is a percent of the factory price per category, at least a minimum per unit, both
