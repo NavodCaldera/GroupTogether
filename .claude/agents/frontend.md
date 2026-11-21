@@ -60,7 +60,7 @@ guidance, not business policy. Verify code pointers before editing.
   ([tools/body-guide](../../tools/body-guide/README.md)); regenerate it rather than hand-editing
   `src/lib/fit/body-guide.json`.
 - Profile location uses `LocationPicker`, the single on-demand map island. Keep map stacking isolated. City lookup is debounced; preserve the configured provider usage rather than switching services casually.
-- Ordinary catalogue UI uses apparel scope and free stock; do not restore product-status, condition or defect controls. Brand rewards remain separate from paid shop listings.
+- Ordinary catalogue UI uses free stock and, once built, category-driven filters and forms ([taxonomy](taxonomy.md)); clothing add-ons show only for clothing categories ([apparel-addons](apparel-addons.md)); do not restore product-status, condition or defect controls. Brand rewards remain separate from paid shop listings.
 - Factory dashboards show own design aggregates/shop prices. Brand dashboards show own gift products, paid orders, settlements and Messages. Unpaid reservations expose aggregate counts only.
 - Brand review/history/context use shared `Brand*` components and `GiftProductDetails`. Keep internal notes admin-only and partner pricing private. Preserve drafts during visible-tab refresh; read markers follow visible messages, not GET/prefetch.
 - Brand product forms retain photos unless replaced, preserve required gift details/optional expiry metadata and omit delivery-charge fields.

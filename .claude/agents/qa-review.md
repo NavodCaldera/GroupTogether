@@ -44,7 +44,7 @@ names/fixtures instead of relying on historical scenario counts.
 - Notices are in-app, after commit; retryable brand events are persisted transactionally. GET/prefetch must not trigger brand read markers.
 - Configurable defaults are not fixed policy. Gift thresholds/households remain open; no automatic host gift or implied exact-fit promise.
 - Cash goes only to factories (weekly payouts); buyers and agents get tokens only. Premium gift reconciliation is parked.
-- Preserve hidden stock-type/defect UI and the no-cash-back rule. Do not restore group carts, slips, lots, samples, owner chat, B-grade badges or footwear targeting.
+- Preserve hidden stock-type/defect UI and the no-cash-back rule. Do not restore group carts, slips, lots, samples, owner chat, B-grade badges. Since `DEC-029` any product kind (shoes included) is in scope; check that clothing add-ons stay inside clothing categories and that deal settlement and tier counts are covered by concurrency and money tests.
 - Avoid N+1 queries, over-fetching and unnecessary client dependencies. Preserve existing unrelated changes.
 - Never weaken a test just to make it pass. Check the rule and explain whether a failure is pre-existing, a regression or an unresolved requirement.
 
