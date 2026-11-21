@@ -4,12 +4,17 @@ import { Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { factoryDashboard } from "@/server/factory-admin";
 import { requireAdmin } from "@/server/auth/session";
 import { pendingMissingReports } from "@/server/orders/delivery";
+import { pendingFactoryReviewCount } from "@/server/factory-categories";
 
 export const metadata: Metadata = { title: "Apparel and factories" };
 
 export default async function FactoryAdminPage() {
   const admin = await requireAdmin("FACTORY");
-  const [d, missing] = await Promise.all([factoryDashboard(), pendingMissingReports(admin.id)]);
+  const [d, missing, reviews] = await Promise.all([
+    factoryDashboard(),
+    pendingMissingReports(admin.id),
+    pendingFactoryReviewCount(),
+  ]);
   return (
     <>
       <PageHeader title="Apparel and factories" />
@@ -30,6 +35,9 @@ export default async function FactoryAdminPage() {
         <div className="mt-4 flex flex-wrap gap-2">
           <LinkButton href="/admin/products" variant="secondary">
             Products
+          </LinkButton>
+          <LinkButton href="/admin/factory/categories" variant="secondary">
+            Categories{reviews > 0 && ` (${reviews})`}
           </LinkButton>
         </div>
       </Card>

@@ -17,6 +17,7 @@ import {
   makeVariant,
   resetDb,
   giftPhotoFile,
+  approveCategory,
 } from "./helpers";
 beforeEach(resetDb);
 afterEach(() => vi.restoreAllMocks());
@@ -30,6 +31,7 @@ async function fixture() {
       factoryProfile: { create: { complianceDueAt: new Date("2099-01-01") } },
     },
   });
+  await approveCategory(factory.id);
   const admin = await makeUser("ADMIN", "FACTORY"),
     buyer = await makeUser();
   const v = await makeVariant("1500", 40);

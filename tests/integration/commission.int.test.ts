@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { setCommission } from "@/server/settings";
 import { saveProduct } from "@/server/catalogue";
-import { makeUser, resetDb } from "./helpers";
+import { approveCategory, makeUser, resetDb } from "./helpers";
 
 beforeEach(resetDb);
 afterAll(() => db.$disconnect());
@@ -22,6 +22,7 @@ async function setup() {
   await db.factoryProfile.create({
     data: { factoryUserId: factory.id, complianceDueAt: new Date("2099-01-01") },
   });
+  await approveCategory(factory.id);
   return { core, factory };
 }
 describe("commission snapshots", () => {

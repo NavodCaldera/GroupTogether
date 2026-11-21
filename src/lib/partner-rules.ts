@@ -31,7 +31,13 @@ export const DOCUMENT_LABELS: Record<FactoryDocKind, string> = {
   BR_CERT: "BR certificate",
   NIC_PHOTO: "NIC photo",
   FACTORY_PHOTO: "Factory photo",
+  PRODUCT_LICENCE: "Product licence",
+  TRADEMARK_PROOF: "Trademark proof",
 };
+/** Every application sends these; the others are optional. */
+export const REQUIRED_DOCUMENTS: FactoryDocKind[] = ["BR_CERT", "NIC_PHOTO", "FACTORY_PHOTO"];
+/** Documents a working factory adds from its workspace (DEC-029). */
+export const WORKSPACE_DOCUMENTS: FactoryDocKind[] = ["PRODUCT_LICENCE", "TRADEMARK_PROOF"];
 export const normalizedIdentity = (value: string) =>
   value
     .normalize("NFKC")
@@ -48,8 +54,8 @@ export function bankNameMatches(
 export function missingItems(input: ApplicationInput, docs: FactoryDocKind[]): string[] {
   return [
     ...APPLICATION_FIELDS.filter(([key]) => !input[key]?.trim()).map(([, label]) => label),
-    ...(Object.keys(DOCUMENT_LABELS) as FactoryDocKind[])
-      .filter((kind) => !docs.includes(kind))
-      .map((kind) => DOCUMENT_LABELS[kind]),
+    ...REQUIRED_DOCUMENTS.filter((kind) => !docs.includes(kind)).map(
+      (kind) => DOCUMENT_LABELS[kind],
+    ),
   ];
 }
