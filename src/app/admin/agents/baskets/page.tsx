@@ -12,7 +12,7 @@ const SOON_DAYS = 7;
 
 export default async function OldBasketsPage() {
   const admin = await requireAdmin("AGENTS");
-  const { baskets, maxWaitDays } = await oldOpenBaskets(admin.id);
+  const { baskets } = await oldOpenBaskets(admin.id);
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader title="2-month baskets" />
@@ -24,10 +24,10 @@ export default async function OldBasketsPage() {
               <p
                 className={cx(
                   "text-2xl font-semibold tabular-nums",
-                  b.days >= maxWaitDays - SOON_DAYS && "text-warn",
+                  b.days >= b.limit - Math.min(SOON_DAYS, Math.ceil(b.limit / 3)) && "text-warn",
                 )}
               >
-                {b.days} / {maxWaitDays} days
+                {b.days} / {b.limit} days
               </p>
               <h2 className="font-semibold">
                 {place(b.factory)} → {b.dest.name}

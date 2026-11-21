@@ -18,6 +18,7 @@ import { handleNotice } from "@/server/payments/notice";
 import { signNotice } from "@/server/payments/demo";
 import { D } from "@/lib/decimal";
 import { fundTokens, makeBuyer, makeFactory, makeUser, resetDb } from "./helpers";
+import { oldOpenBaskets } from "@/server/agents/admin-screens";
 
 const MERCHANT = "1200000";
 const SECRET = "test-secret";
@@ -251,6 +252,15 @@ describe("basket payments (DEC-026)", () => {
     const f = await makeFactory();
     const { basketId } = await startPaid(f, "PUBLIC");
     expect(await basketPayments(basketId, (await makeBuyer()).id)).toBeNull();
+  });
+});
+
+describe("admin wait limits (DEC-026)", () => {
+  it("own baskets are measured against ownMaxWaitDays", async () => {
+    const f = await makeFactory();
+    const { basketId } = await startPaid(f, "PUBLIC");
+    const { baskets } = await oldOpenBaskets((await makeUser("ADMIN", "AGENTS")).id);
+    expect(baskets.find((b) => b.id === basketId)?.limit).toBe(10);
   });
 });
 

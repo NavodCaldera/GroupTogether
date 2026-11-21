@@ -2,7 +2,6 @@ import Link from "next/link";
 import { ProductImage } from "@/components/cart-bits";
 import { CopyLinkButton } from "@/components/client";
 import { StepTrack } from "@/components/step-track";
-import { Badge } from "@/components/ui";
 import { D, toD } from "@/lib/decimal";
 import { formatDate, formatLKR } from "@/lib/format";
 import { STAGE_LABEL, STAGES, TRACK, orderStage, type Stage } from "@/lib/order-stage";
@@ -92,11 +91,6 @@ export function OrderCard({
               .filter(Boolean)
               .join(" · ")}
           </p>
-          {stage === "refunded" && (
-            <span className="self-start">
-              <Badge tone="bad">{STAGE_LABEL.refunded}</Badge>
-            </span>
-          )}
         </div>
       </div>
 

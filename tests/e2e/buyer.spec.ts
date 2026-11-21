@@ -184,4 +184,8 @@ test("the token buyer pays with tokens and sends tokens", async ({ page }) => {
   await page.getByRole("button", { name: "Pay", exact: true }).click();
   await expect(page).toHaveURL(/\/orders\/[^/]+$/);
   await expect(page.getByText("Paid", { exact: true }).first()).toBeVisible();
+  // His own basket ran past the 10-day wait: shown once, as a group (DEC-026).
+  await page.goto("/orders?tab=mine");
+  await expect(page.getByRole("heading", { name: /^Refunded · \d+$/ })).toBeVisible();
+  await expect(page.getByRole("main").getByText("Refunded", { exact: true })).toHaveCount(0);
 });
