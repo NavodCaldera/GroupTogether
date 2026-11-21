@@ -140,16 +140,7 @@ test("buyer collects, buys at the nearest agent, pays and cancels while the bask
   await inspect(page);
 
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "My orders" })).toBeVisible();
-  await expect(page.getByRole("button", { name: "Share basket" }).first()).toBeVisible();
-  // Ready orders sort first; the basket just paid into is still filling.
-  await expect(
-    page
-      .getByRole("list", { name: "Order progress" })
-      .locator('[aria-current="step"]', { hasText: "Filling" })
-      .first(),
-  ).toBeVisible();
-  await expect(page.getByText(/of LKR\s?50,000/).first()).toBeVisible();
+  await expect(page.getByRole("heading", { name: "My orders" })).toHaveCount(0);
 
   await page.goto("/orders");
   await page

@@ -45,14 +45,6 @@ export function splitOrders(orders: Order[]) {
   return { active: sortActive(orders.filter((o) => !done(o))), past: orders.filter(done) };
 }
 
-/**
- * The buyer home's orders (owner, 2026-11-21): the ones that need the buyer first (unpaid, ready,
- * still filling), collected or delivered ones dropped, three at most.
- */
-export function homeOrders(orders: Order[]) {
-  return sortActive(orders.filter((o) => !done(o))).slice(0, 3);
-}
-
 function sortActive(orders: Order[]) {
   const rank = (o: Order) => {
     const s = stepOf(o);

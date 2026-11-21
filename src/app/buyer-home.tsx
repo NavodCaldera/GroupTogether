@@ -7,9 +7,8 @@ import type { SessionUser } from "@/server/auth/service";
 import { listProducts } from "@/server/catalogue";
 import { audienceFor } from "@/lib/taxonomy";
 import { buyerHome } from "@/server/orders/buyer";
-import { OrderCard, homeOrders } from "./orders/order-card";
 
-/** Buyer home, most important first: ready to collect, returns to hand over, orders, shop. Tokens live on /tokens (owner removed the home card, 2026-11-21). */
+/** Buyer home, most important first: ready to collect, returns to hand over, shop. Tokens live on /tokens and orders on /orders (owner removed both home sections, 2026-11-21). */
 export async function BuyerHome({ user }: { user: SessionUser }) {
   const [home, products] = await Promise.all([
     buyerHome(user.id),
@@ -43,14 +42,10 @@ export async function BuyerHome({ user }: { user: SessionUser }) {
       </div>
     </section>
   );
-  const orders = homeOrders(home.orders);
-  const noOrders = orders.length === 0;
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8">
       <h1 className="text-2xl font-semibold tracking-tight">Hi, {user.name.split(" ")[0]}</h1>
-      {noOrders && shop}
-
       {home.ready.length > 0 && (
         <section aria-labelledby="home-ready" className="flex flex-col gap-3">
           <h2 id="home-ready" className="text-lg font-semibold">
@@ -115,32 +110,7 @@ export async function BuyerHome({ user }: { user: SessionUser }) {
         </section>
       )}
 
-      {!noOrders && (
-        <section aria-labelledby="home-orders" className="flex flex-col gap-3">
-          <div className="flex items-end justify-between">
-            <h2 id="home-orders" className="text-lg font-semibold">
-              My orders
-            </h2>
-            <Link
-              href="/orders"
-              className="inline-flex min-h-11 items-center text-sm font-medium text-accent sm:min-h-10"
-            >
-              All orders →
-            </Link>
-          </div>
-          {orders.map((o) => (
-            <OrderCard
-              key={o.id}
-              order={o}
-              own={home.own}
-              ownMinItems={home.ownMinItems}
-              lockAt={home.lockAt}
-            />
-          ))}
-        </section>
-      )}
-
-      {!noOrders && shop}
+      {shop}
     </div>
   );
 }

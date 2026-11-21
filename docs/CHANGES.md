@@ -6,6 +6,12 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Buyer home: My orders removed
+
+- The signed-in home no longer lists orders: the Orders page shows the same cards in full. Home
+  now shows Ready to collect, Return to hand over, then the Shop row. `buyerHome` stops loading
+  orders and the token balance.
+
 ## 2026-11-21 - Back no longer loops; own basket pages
 
 - Back with no earlier page in the tab used to push its fallback, so two pages whose fallbacks
