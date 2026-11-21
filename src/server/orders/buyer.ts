@@ -232,10 +232,26 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
         },
       },
       productRatings: { select: { productId: true, stars: true } },
+      basket: {
+        select: {
+          ...orderSelect.basket.select,
+          lockedAt: true,
+          deliveredAt: true,
+          deliveryArea: true,
+          deliveryAddress: true,
+          deliveryPhone: true,
+          owner: { select: { name: true } },
+        },
+      },
     },
   });
   if (!order) return null;
-  const settings = await getSettings();
+  // The delivery address and phone are the owner's own (DEC-023).
+  if (order.basket && order.basket.ownerId !== buyerId) {
+    order.basket.deliveryAddress = null;
+    order.basket.deliveryPhone = null;
+  }
+  const [settings, own] = await Promise.all([getSettings(), ownProgress(buyerId, [order])]);
   const returnUntil = order.receivedAt
     ? new Date(order.receivedAt.getTime() + settings.collectHours * 3600_000)
     : null;
@@ -254,6 +270,8 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
       order.basket?.status === "OPEN" &&
       !(order.basket.kind === "OWN" && order.basket.ownerId === buyerId),
     lockAt: toD(settings.basketLockAmount),
+    own,
+    ownMinItems: settings.ownMinItems,
   };
 }
 
