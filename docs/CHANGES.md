@@ -26,6 +26,14 @@ Newest first.
 - Open: whether a deal can fail below a minimum, bulky items at agents, banned and
   approval-only categories, the agent fee on very cheap or expensive items.
 
+## 2026-11-21 - My measurements: a realistic body guide
+
+- The drawn figure beside the measurements is replaced by a realistic body rendered in Blender
+  from the standard Anny bodies: a man, or a woman when Fit is Women.
+- Each ring is the body's real cross-section at that measurement, solid in front and faint behind,
+  and draws in when its box is chosen; with none chosen it steps through them all.
+- Images are 23 KB each; [tools/body-guide](../tools/body-guide/README.md) regenerates them.
+
 ## 2026-11-21 - My measurements page tidied
 
 - Two cards, **About you** (height, fit, age group) and **Measurements** (camera button, then the

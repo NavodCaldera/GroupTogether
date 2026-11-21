@@ -56,7 +56,9 @@ guidance, not business policy. Verify code pointers before editing.
 - Each home shows its most important item first (`UX-002`). Checkout shows Item, Tokens, PayHere fee and Total, then Agent and courier fee at pickup, then Pay; the agent's hand-over form shows the fee with a required Fee received tick; the return page shows Checking until the verified notice arrives. Pickup cards show the code, agent, open now or closed, hours and a map link.
 - Profile (`/account`) has Details and Address cards; tokens are only on `/tokens`.
 - My measurements (`/account/fit`) has About you and Measurements cards; fields keep "(cm)" in
-  their accessible names for tests and screen readers while showing a "cm" suffix.
+  their accessible names for tests and screen readers while showing a "cm" suffix. Its body guide is pre-rendered
+  ([tools/body-guide](../../tools/body-guide/README.md)); regenerate it rather than hand-editing
+  `src/lib/fit/body-guide.json`.
 - Profile location uses `LocationPicker`, the single on-demand map island. Keep map stacking isolated. City lookup is debounced; preserve the configured provider usage rather than switching services casually.
 - Ordinary catalogue UI uses free stock and, once built, category-driven filters and forms ([taxonomy](taxonomy.md)); clothing add-ons show only for clothing categories ([apparel-addons](apparel-addons.md)); do not restore product-status, condition or defect controls. Brand rewards remain separate from paid shop listings.
 - Factory dashboards show own design aggregates/shop prices. Brand dashboards show own gift products, paid orders, settlements and Messages. Unpaid reservations expose aggregate counts only.
