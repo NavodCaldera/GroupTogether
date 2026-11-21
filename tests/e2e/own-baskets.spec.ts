@@ -140,6 +140,14 @@ test("a buyer starts a public own basket; it waits for the minimum items", async
   await expect(place).toBeDisabled();
   await expect(place).toHaveAccessibleDescription("1 more item needed · 1 of 2");
   await inspect(page);
+  // The owner runs the basket from the order page too, with no extra page to open.
+  await page.getByRole("link", { name: /^You/ }).click();
+  await expect(page).toHaveURL(/\/orders\/[^/?]+$/);
+  await expect(page.getByRole("button", { name: "Place order" })).toBeDisabled();
+  await expect(page.getByLabel("Who can join")).toBeVisible();
+  await expect(page.getByText("12 Lake Road, Kandy", { exact: false })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Manage basket|View basket/ })).toHaveCount(0);
+  await inspect(page);
 });
 
 test("another buyer joins from the cart without an agent", async ({ page }) => {

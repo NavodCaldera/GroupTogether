@@ -94,16 +94,23 @@ export async function joinOwnBasketAction(fd: FormData) {
   await finish(user.id, lines, result);
 }
 
+/** Where an owner step returns: the order page it was posted from, else the basket page. */
+function backOf(fd: FormData, basketId: string) {
+  const back = str(fd, "back");
+  return /^\/orders\/[A-Za-z0-9_-]+$/.test(back) ? back : `/own-baskets/${basketId}`;
+}
+
 async function ownerStep(fd: FormData, work: (userId: string, basketId: string) => Promise<void>) {
   const basketId = str(fd, "basketId");
-  const user = await requireUser([...BUYER_ROLES], `/own-baskets/${basketId}`);
+  const back = backOf(fd, basketId);
+  const user = await requireUser([...BUYER_ROLES], back);
   try {
     await work(user.id, basketId);
   } catch (e) {
     if (!(e instanceof CartError)) throw e;
-    redirect(`/own-baskets/${basketId}?${new URLSearchParams({ error: e.message })}`);
+    redirect(`${back}?${new URLSearchParams({ error: e.message })}`);
   }
-  redirect(`/own-baskets/${basketId}`);
+  redirect(back);
 }
 
 export async function setVisibilityAction(fd: FormData) {
