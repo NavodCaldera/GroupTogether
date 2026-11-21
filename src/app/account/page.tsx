@@ -1,23 +1,22 @@
-import Link from "next/link";
-import { db } from "@/server/db";
-import { tokenBalance } from "@/server/tokens";
-import { formatLKR, formatDateTime } from "@/lib/format";
-import { Card } from "@/components/ui";
 import type { Metadata } from "next";
+import Link from "next/link";
 import { BackLink } from "@/components/client";
-import { Alert, Button, PageHeader } from "@/components/ui";
+import { Alert, PageHeader } from "@/components/ui";
+import { isBuyerRole } from "@/lib/roles";
 import { signOutAction } from "@/server/auth/actions";
 import { homeFor } from "@/server/auth/service";
-import { isBuyerRole } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { ProfileForm } from "./profile-form";
 import { SellerProfile } from "./seller-profile";
 
 export const metadata: Metadata = { title: "Profile" };
 
-/** The buyer's details and map pin, used to find agents near them. */
+const rowClass =
+  "flex min-h-12 w-full items-center justify-between gap-3 px-4 text-left font-medium transition hover:bg-muted";
+
+/** The buyer's details and map pin, used to find agents near them. Tokens have their own tab. */
 export default async function ProfilePage({ searchParams }: PageProps<"/account">) {
-  const { next, before } = await searchParams;
+  const { next } = await searchParams;
   const user = await requireUser([], "/account");
   const back = typeof next === "string" && next.startsWith("/") ? next : undefined;
   // Factory sellers never join carts, so no address or map pin either (rule 11).
@@ -31,37 +30,9 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
         <SellerProfile user={user} />
       </div>
     );
-  const balance = isBuyerRole(user.role) ? await tokenBalance(user.id) : null;
-  // Cursor is constrained to this principal; never use an arbitrary other user's ledger entry.
-  const cursor =
-    typeof before === "string"
-      ? await db.tokenEntry.findFirst({
-          where: { id: before, userId: user.id },
-          select: { id: true, createdAt: true },
-        })
-      : null;
-  const entries =
-    balance !== null
-      ? await db.tokenEntry.findMany({
-          where: {
-            userId: user.id,
-            ...(cursor
-              ? {
-                  OR: [
-                    { createdAt: { lt: cursor.createdAt } },
-                    { createdAt: cursor.createdAt, id: { lt: cursor.id } },
-                  ],
-                }
-              : {}),
-          },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          take: 51,
-          select: { id: true, amount: true, kind: true, note: true, createdAt: true },
-        })
-      : [];
-  const page = entries.slice(0, 50);
+  const buyer = isBuyerRole(user.role);
   return (
-    <div className="mx-auto flex w-full max-w-lg flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
       <div>
         <BackLink fallback={homeFor(user.role, user.adminArea)} />
         <PageHeader title="Profile" description={user.email} />
@@ -69,50 +40,22 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
       {back && user.lat == null && (
         <Alert tone="info">Pin your address on the map to continue.</Alert>
       )}
-      <ProfileForm next={back} defaults={user} aboutYou={isBuyerRole(user.role)} />
-      {balance !== null && (
-        <Link
-          href="/account/fit"
-          className="flex min-h-11 items-center justify-between rounded-xl border border-line bg-paper px-4 font-medium"
-        >
-          My measurements <span aria-hidden>›</span>
-        </Link>
-      )}
-      {balance !== null && (
-        <Card className="flex flex-col gap-3">
-          <h2 className="text-lg font-semibold">Tokens</h2>
-          <p>
-            Balance: <strong>{formatLKR(balance)}</strong>
-          </p>
-          <ul className="divide-y divide-line">
-            {page.map((entry) => (
-              <li key={entry.id} className="flex flex-wrap justify-between gap-1 py-2 text-sm">
-                <span>{entry.kind.toLowerCase()}</span>
-                <strong>{formatLKR(entry.amount)}</strong>
-                <span className="basis-full break-words text-subtle">{entry.note}</span>
-                <time dateTime={entry.createdAt.toISOString()} className="text-xs text-subtle">
-                  {formatDateTime(entry.createdAt)}
-                </time>
-              </li>
-            ))}
-          </ul>
-          {entries.length > 50 && (
-            <Link className="underline" href={`/account?before=${page[49].id}`}>
-              Older token entries
-            </Link>
-          )}
-          {cursor && (
-            <Link className="underline" href="/account">
-              Latest token entries
-            </Link>
-          )}
-        </Card>
-      )}
-      <form action={signOutAction} className="border-t border-line pt-4">
-        <Button variant="secondary" className="w-full">
-          Sign out
-        </Button>
-      </form>
+      <ProfileForm next={back} defaults={user} aboutYou={buyer} />
+      <div className="divide-y divide-line overflow-hidden rounded-xl border border-line bg-paper">
+        {buyer && (
+          <Link href="/account/fit" className={rowClass}>
+            My measurements
+            <span aria-hidden className="text-subtle">
+              ›
+            </span>
+          </Link>
+        )}
+        <form action={signOutAction}>
+          <button type="submit" className={`${rowClass} text-danger`}>
+            Sign out
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

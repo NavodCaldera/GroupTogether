@@ -203,12 +203,7 @@ export function LocationPicker({
           required
         />
       </Field>
-      <Field
-        label="City"
-        name="city"
-        error={errors.city}
-        hint="Start typing your town; pick it to jump to it on the map"
-      >
+      <Field label="City" name="city" error={errors.city}>
         <div className="relative flex flex-col">
           <Input
             name="city"
@@ -287,11 +282,7 @@ export function LocationPicker({
         />
         <input type="hidden" name="lat" value={pin?.lat ?? ""} />
         <input type="hidden" name="lng" value={pin?.lng ?? ""} />
-        {pin ? (
-          <p className="text-xs text-subtle">
-            Pin set ({pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}). Drag it to adjust.
-          </p>
-        ) : (
+        {!pin && (
           <p className="text-xs text-subtle">Tap the map where the driver should come. Required.</p>
         )}
         {note && (

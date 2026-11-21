@@ -6,6 +6,15 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-21 - Profile page tidied; tokens only on the Tokens tab
+
+- The Profile page no longer lists tokens; balance and history live on the Tokens tab only.
+- The form is in two cards, **Details** (name, mobile, gender, date of birth) and **Address**
+  (address, city, map pin), then **Save changes**. My measurements and Sign out sit together in
+  one list below.
+- The map no longer prints the pin's coordinates, and the City box has no explainer line. Both
+  also apply on sign-up and the agent application, which share the map picker.
+
 ## 2026-11-21 - Send tokens suggests accounts while typing
 
 - From 2 characters, the Phone or email box on Tokens lists up to 6 buyers and agents whose name,

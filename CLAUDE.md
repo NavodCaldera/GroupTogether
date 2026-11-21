@@ -19,7 +19,7 @@ changes land only through a pull request with green, up-to-date checks.
 
 The token ledger is append-only in the database: seed data cannot backdate entries. The buyer
 Tokens page groups history by day and names the other person on transfers (2026-11-21). Its recipient box suggests any buyer or
-agent with full email and phone, by owner decision.
+agent with full email and phone, by owner decision. Profile has no tokens box (Tokens tab only).
 
 Check [implementation status](docs/implementation-status.md) before claiming a feature
 exists and [decisions](docs/decisions.md) before filling in unresolved commercial rules.

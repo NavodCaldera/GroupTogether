@@ -19,9 +19,7 @@ export async function SellerProfile({ user }: { user: SessionUser }) {
         <p className="text-lg font-semibold">{company || user.name}</p>
         <p className="text-sm text-subtle">{user.email}</p>
       </Card>
-      <Card>
-        <ProfileForm defaults={user} addressLabel="Factory address" />
-      </Card>
+      <ProfileForm defaults={user} addressLabel="Factory address" />
       <form action={signOutAction} className="border-t border-line pt-4">
         <Button variant="secondary" className="w-full">
           Sign out
