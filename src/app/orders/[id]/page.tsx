@@ -1,12 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { Fragment } from "react";
 import { ProductImage } from "@/components/cart-bits";
 import { BackLink, CopyLinkButton } from "@/components/client";
 import { ProductRatingForm } from "@/components/product-rating-form";
 import { ReturnForm } from "@/components/return-form";
-import { FillBar } from "@/components/step-track";
 import { Alert, Badge, Button, Card, Field, LinkButton, Select } from "@/components/ui";
 import { mapLink } from "@/lib/agent-hours";
 import { D, toD } from "@/lib/decimal";
@@ -16,14 +14,14 @@ import { requireUser } from "@/server/auth/session";
 import { buyerOrder, lineState } from "@/server/orders/buyer";
 import { buyerReturns } from "@/server/returns";
 import { LineBadge, factoryName } from "../order-bits";
-import { OrderSteps, endOf, nextOf, stepOf } from "../order-card";
+import { OrderSteps, endOf, fillOf, nextOf, stepOf } from "../order-card";
 import { cancelOrderAction, fileReturnAction, rateAction } from "./actions";
 import {
   closeOwnBasketAction,
   confirmDeliveryAction,
   setVisibilityAction,
 } from "@/app/own-baskets/actions";
-import { ownBasketView } from "@/server/orders/own-baskets";
+import { basketPeople, ownBasketView } from "@/server/orders/own-baskets";
 import { BUYER_FAULT_KEPT, returnStatusLabel } from "@/lib/return-rules";
 import { FitFeedbackForm } from "@/components/fit/fit-feedback-form";
 import { kindRegions } from "@/lib/fit/data";
@@ -86,28 +84,25 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   const basket = order.basket;
   const isOwn = basket?.kind === "OWN";
   const ownItems = basket ? own.get(basket.id)?.items : undefined;
-  // How full a filling basket is: items against the minimum, or value against the lock amount.
-  let fill: number | null = null;
-  if (step === 1 && basket) {
-    if (isOwn) fill = ownItems === undefined ? null : ownItems / Math.max(ownMinItems, 1);
-    else fill = lockAt.lte(0) ? 1 : toD(basket.total).div(lockAt).toNumber();
-  }
+  // Collected or delivered orders keep the full tracker so its dates stay visible.
+  const track = step ?? (end && end.label !== "Cancelled" ? 3 : null);
+  const dates = [
+    formatDate(order.paidAt),
+    basket?.lockedAt ? formatDate(basket.lockedAt) : null,
+    null,
+    isOwn
+      ? basket?.deliveredAt && formatDate(basket.deliveredAt)
+      : order.receivedAt && formatDate(order.receivedAt),
+  ];
   const stage = step === 2 && basket ? (STAGE[basket.status] ?? null) : null;
   // Own baskets are run from here (owner, 2026-11-21): the owner's controls and who else is in it.
   const isOwner = isOwn && basket?.ownerId === user.id;
   const view = isOwner && basket ? await ownBasketView(basket.id, user.id, null) : null;
-  const others = view?.orders.filter((o) => !o.mine) ?? [];
+  // Everyone else in an own basket and what they bought (owner, 2026-11-21).
+  const people = isOwn && basket ? await basketPeople(basket.id, user.id) : [];
   const canPlace = isOwner && basket?.status === "OPEN";
   const short = canPlace && (ownItems ?? 0) < ownMinItems;
   const here = `/orders/${order.id}`;
-  const timeline = (
-    [
-      ["Ordered", order.createdAt],
-      ["Paid", order.paidAt],
-      ["Basket full", basket?.lockedAt],
-      [isOwn ? "Delivered" : "Ready", isOwn ? basket?.deliveredAt : order.receivedAt],
-    ] as [string, Date | null | undefined][]
-  ).filter((t): t is [string, Date] => t[1] instanceof Date);
   const pieces = order.lines.reduce((n, l) => n + l.qty, 0);
 
   return (
@@ -130,8 +125,16 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
       {error && <Alert>{error}</Alert>}
 
       <Card className="flex flex-col gap-4">
-        {step !== null && <OrderSteps order={order} step={step} />}
-        {fill !== null && <FillBar value={fill} label="Basket progress" />}
+        {track !== null ? (
+          <OrderSteps
+            order={order}
+            step={track}
+            fill={fillOf(order, step, own, ownMinItems, lockAt)}
+            dates={dates}
+          />
+        ) : (
+          <p className="text-sm text-subtle">Ordered {formatDateTime(order.createdAt)}</p>
+        )}
         {(next || stage || share || canPlace) && (
           <div className="flex flex-wrap items-center justify-between gap-2">
             {(next || stage) && (
@@ -179,16 +182,6 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
             <Button type="submit">Received</Button>
           </form>
         )}
-        <dl
-          className={`grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-sm ${step !== null ? "border-t border-line pt-3" : ""}`}
-        >
-          {timeline.map(([label, at]) => (
-            <Fragment key={label}>
-              <dt className="text-subtle">{label}</dt>
-              <dd className="text-right tabular-nums">{formatDateTime(at)}</dd>
-            </Fragment>
-          ))}
-        </dl>
       </Card>
 
       {order.agent ? (
@@ -210,17 +203,59 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
         </Card>
       ) : (
         basket && (
-          <Card className="flex flex-col gap-1">
-            <p className="text-xs font-medium tracking-wide text-subtle uppercase">Delivery</p>
-            <h2 className="font-semibold">
-              {[isOwner ? "You" : basket.owner?.name, basket.deliveryArea]
-                .filter(Boolean)
-                .join(" · ")}
-            </h2>
-            {basket.deliveryAddress && (
-              <p className="text-sm break-words">
-                {[basket.deliveryAddress, basket.deliveryPhone].filter(Boolean).join(" · ")}
-              </p>
+          <Card className="flex flex-col gap-3">
+            <div className="flex flex-col gap-1">
+              <p className="text-xs font-medium tracking-wide text-subtle uppercase">Delivery</p>
+              <h2 className="font-semibold">
+                {[isOwner ? "You" : people.length ? null : basket.owner?.name, basket.deliveryArea]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </h2>
+              {basket.deliveryAddress && (
+                <p className="text-sm break-words">
+                  {[basket.deliveryAddress, basket.deliveryPhone].filter(Boolean).join(" · ")}
+                </p>
+              )}
+            </div>
+            {people.length > 0 && (
+              <div className="flex flex-col gap-2 border-t border-line pt-3">
+                <h3 className="text-xs font-medium tracking-wide text-subtle uppercase">
+                  Also in this basket
+                </h3>
+                <ul className="flex flex-col gap-3">
+                  {people.map((p) => (
+                    <li key={p.id} className="flex items-start gap-3">
+                      <span
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-muted text-sm font-semibold"
+                        aria-hidden
+                      >
+                        {p.name.charAt(0).toUpperCase()}
+                      </span>
+                      <div className="flex min-w-0 flex-1 flex-col gap-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="flex min-w-0 items-center gap-2 font-medium">
+                            <span className="truncate">{p.name}</span>
+                            {p.owner && <Badge>Owner</Badge>}
+                          </span>
+                          <span className="shrink-0 text-sm text-subtle tabular-nums">
+                            {p.items} {p.items === 1 ? "item" : "items"}
+                          </span>
+                        </div>
+                        <span className="flex flex-wrap gap-1.5">
+                          {p.sizes.map((z) => (
+                            <span
+                              key={z.size}
+                              className="rounded-md bg-muted px-2 py-0.5 text-xs tabular-nums"
+                            >
+                              {z.size} × {z.qty}
+                            </span>
+                          ))}
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </Card>
         )
@@ -300,36 +335,6 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
           <p className="text-sm text-warn">Returns until {formatDateTime(returnUntil)}</p>
         )}
       </section>
-
-      {others.length > 0 && (
-        <section aria-labelledby="order-others" className="flex flex-col gap-2">
-          <h2 id="order-others" className="text-lg font-semibold">
-            Joined
-          </h2>
-          <Card>
-            <ul className="flex flex-col divide-y divide-line">
-              {others.map((o) => (
-                <li
-                  key={o.id}
-                  className="flex flex-wrap items-center justify-between gap-2 py-3 first:pt-0 last:pb-0"
-                >
-                  <span className="font-medium">{o.buyer}</span>
-                  <span className="flex flex-wrap justify-end gap-1.5">
-                    {o.lines.map((l, i) => (
-                      <span
-                        key={i}
-                        className="rounded-md bg-muted px-2 py-0.5 text-sm tabular-nums"
-                      >
-                        {[l.size, l.colour].filter(Boolean).join(" · ")} × {l.qty}
-                      </span>
-                    ))}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          </Card>
-        </section>
-      )}
 
       {returns.length > 0 && (
         <section aria-labelledby="order-returns" className="flex flex-col gap-2">
