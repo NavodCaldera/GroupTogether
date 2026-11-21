@@ -15,7 +15,7 @@
  *             WITH_COURIER Kollupitiya × Lanka: Ravindu and Ayesha
  *             LOCKED      Wellawatte × Ceylon: Tharindu and Nimali, for Packing to pack
  *             PACKED      Kotahena × Ceylon: Sachini, for the admin to book a courier
- *             OPEN        Wellawatte × Lanka: Nimali (Tharindu cancelled his order: his tokens)
+ *             OPEN        Wellawatte × Lanka: Nimali. Tharindu's own basket was refunded after 10 days (tokens)
  *             OPEN        Kollupitiya × Ceylon: Ravindu
  *   Own       OPEN public Kasun's Oxford shirts, 5 of 10 (Dinithi joined)
  *             OPEN public Ishara's polo shirts, 9 of 10 (Malith joined): one more reaches 10
@@ -52,8 +52,11 @@ import { getMaterial, libraryComposition, setProductMaterial } from "../src/serv
 import { hashPassword } from "../src/server/auth/password";
 import { setCartItem } from "../src/server/orders/cart";
 import { startCheckout } from "../src/server/orders/checkout";
-import { cancelOrder } from "../src/server/orders/baskets";
-import { closeOwnBasket, startOwnCheckout } from "../src/server/orders/own-baskets";
+import {
+  closeOwnBasket,
+  startOwnCheckout,
+  sweepOwnBaskets,
+} from "../src/server/orders/own-baskets";
 import {
   bookCourier,
   givenToDriver,
@@ -627,10 +630,8 @@ async function main() {
   const packed = await basketOf(kotahena.id, ceylon.owner.id, "LOCKED");
   await markPacked(ceylon.packing.id, packed.id);
 
-  // ─── OPEN: Wellawatte × Lanka. Nimali's polos; Tharindu cancels his shorts for tokens ──
+  // ─── OPEN: Wellawatte × Lanka. Nimali's polos ──
   await buy(nimali.id, wellawatte.id, [[L[2][1], 3]]);
-  const [shorts] = await buy(tharindu.id, wellawatte.id, [[L[3][2], 4]]);
-  await cancelOrder(tharindu.id, shorts);
   await basketOf(wellawatte.id, lanka.owner.id, "OPEN");
 
   // ─── OPEN: Kollupitiya × Ceylon. Ravindu starts the next basket ──
@@ -689,6 +690,16 @@ async function main() {
   const malithBasket = await own(malith, { start: C[1][0], visibility: "PUBLIC" }, [[C[1][1], 6]]);
   await own(kasun, { basketId: malithBasket }, [[C[1][2], 4]]);
   await closeOwnBasket(malith.id, malithBasket);
+  // REFUNDED: Tharindu's shorts were still short of the minimum after 10 days, so the sweep
+  // cancelled the basket and refunded him in tokens (DEC-026). Buyers cannot cancel.
+  const tharinduBasket = await own(tharindu, { start: L[3][2], visibility: "LINK" }, [
+    [L[3][2], 4],
+  ]);
+  await db.basket.update({
+    where: { id: tharinduBasket },
+    data: { firstOrderAt: new Date(Date.now() - 11 * 86_400_000) },
+  });
+  await sweepOwnBaskets(new Date());
   const shareCode = (
     await db.basket.findUniqueOrThrow({ where: { id: dinithiBasket }, select: { shareCode: true } })
   ).shareCode;

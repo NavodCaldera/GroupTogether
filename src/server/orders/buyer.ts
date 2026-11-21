@@ -45,6 +45,10 @@ const orderSelect = {
       kind: true,
       ownerId: true,
       owner: { select: { name: true } },
+      visibility: true,
+      lockedAt: true,
+      deliveredAt: true,
+      courier: { select: { givenToDriverAt: true } },
     },
   },
   lines: {
@@ -160,7 +164,12 @@ export async function buyerHome(buyerId: string, now = new Date()) {
 export async function buyerOrders(buyerId: string) {
   await assertBuyerAccount(buyerId);
   const [orders, settings] = await Promise.all([
-    db.order.findMany({ where: { buyerId }, select: orderSelect, orderBy: { createdAt: "desc" } }),
+    // Orders never paid are not the buyer's orders (DEC-026).
+    db.order.findMany({
+      where: { buyerId, paidAt: { not: null } },
+      select: orderSelect,
+      orderBy: { createdAt: "desc" },
+    }),
     getSettings(),
   ]);
   return {
@@ -227,12 +236,9 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
       basket: {
         select: {
           ...orderSelect.basket.select,
-          lockedAt: true,
-          deliveredAt: true,
           deliveryArea: true,
           deliveryAddress: true,
           deliveryPhone: true,
-          owner: { select: { name: true } },
         },
       },
     },
@@ -257,10 +263,6 @@ export async function buyerOrder(buyerId: string, orderId: string, now = new Dat
     order,
     returnUntil,
     canReturn,
-    canCancel:
-      order.status === "PAID" &&
-      order.basket?.status === "OPEN" &&
-      !(order.basket.kind === "OWN" && order.basket.ownerId === buyerId),
     lockAt: toD(settings.basketLockAmount),
     own,
     ownMinItems: settings.ownMinItems,

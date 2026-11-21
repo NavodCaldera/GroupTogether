@@ -10,7 +10,6 @@ import { applyAsAgent } from "@/server/agents/apply";
 import { decideAgent, liftSuspension, recordLoss, suspendAgent } from "@/server/agents/admin";
 import { agentDepositPaid, startDeposit } from "@/server/agents/deposit";
 import { closeLeavingAgents, collectHeldReturns, requestLeave } from "@/server/agents/leave";
-import { cancelOrder } from "@/server/orders/baskets";
 import { lockBasketSlot } from "@/server/orders/locks";
 import { factoryDecide, fileReturn } from "@/server/returns";
 import { CartError } from "@/server/errors";
@@ -529,19 +528,13 @@ describe("leaving", () => {
     await expect(collectHeldReturns((await agentsAdmin()).id, a.agent.id)).rejects.toThrow();
   });
 
-  it("an empty OPEN basket (its only order cancelled) does not block closing", async () => {
+  it("an empty OPEN basket (no paid orders) does not block closing", async () => {
     const a = await paidAgent();
     const f = await makeFactory();
-    const buyer = await makeBuyer();
-    await fundTokens(buyer.id, "1155");
-    await setCartItem(buyer.id, f.variant.id, 1);
-    const r = await startCheckout(buyer.id, {
-      agentId: a.agent.id,
-      tokens: "1155",
-      requestKey: "k",
+    // Buyers cannot cancel (DEC-026): an OPEN basket with no paid orders is made directly.
+    const basket = await db.basket.create({
+      data: { kind: "AGENT", agentId: a.agent.id, factoryId: f.factory.id, status: "OPEN" },
     });
-    await cancelOrder(buyer.id, r.orderIds[0]);
-    const basket = await db.basket.findFirstOrThrow({ where: { agentId: a.agent.id } });
     await requestLeave(a.user.id);
     expect((await db.basket.findUniqueOrThrow({ where: { id: basket.id } })).status).toBe("OPEN");
     expect(await closeLeavingAgents(new Date())).toBe(1);

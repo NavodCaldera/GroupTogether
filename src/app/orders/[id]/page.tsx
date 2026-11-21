@@ -14,8 +14,9 @@ import { requireUser } from "@/server/auth/session";
 import { buyerOrder, lineState } from "@/server/orders/buyer";
 import { buyerReturns } from "@/server/returns";
 import { LineBadge, factoryName } from "../order-bits";
-import { OrderSteps, endOf, fillOf, nextOf, stepOf } from "../order-card";
-import { cancelOrderAction, fileReturnAction, rateAction } from "./actions";
+import { OrderSteps, fillOf, nextOf } from "../order-card";
+import { orderStage } from "@/lib/order-stage";
+import { fileReturnAction, rateAction } from "./actions";
 import {
   closeOwnBasketAction,
   confirmDeliveryAction,
@@ -47,7 +48,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   const user = await requireUser([...BUYER_ROLES], `/orders/${id}`);
   const found = await buyerOrder(user.id, id);
   if (!found) notFound();
-  const { order, canCancel, canReturn, returnUntil, lockAt, own, ownMinItems } = found;
+  const { order, canReturn, returnUntil, lockAt, own, ownMinItems } = found;
   const [returns, fitLines] = await Promise.all([
     buyerReturns(user.id, order.id),
     linesAwaitingFit(user.id, { orderId: order.id }),
@@ -78,14 +79,16 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
 
   const first = order.lines[0];
   const more = order.lines.length - 1;
-  const end = endOf(order);
-  const step = end ? null : stepOf(order);
-  const { next, share } = nextOf(order, step, own, ownMinItems, lockAt);
+  const stg = orderStage(order);
+  const end = stg === "refunded" ? { label: "Refunded", tone: "bad" as const } : null;
+  const step =
+    stg === "filling" ? 1 : stg === "packing" || stg === "on_the_way" ? 2 : stg ? 3 : null;
+  const { next, share } = nextOf(order, stg, own, ownMinItems, lockAt);
   const basket = order.basket;
   const isOwn = basket?.kind === "OWN";
   const ownItems = basket ? own.get(basket.id)?.items : undefined;
   // Collected or delivered orders keep the full tracker so its dates stay visible.
-  const track = step ?? (end && end.label !== "Cancelled" ? 3 : null);
+  const track = stg && stg !== "refunded" ? stg : null;
   const dates = [
     formatDate(order.paidAt),
     basket?.lockedAt ? formatDate(basket.lockedAt) : null,
@@ -127,9 +130,8 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
       <Card className="flex flex-col gap-4">
         {track !== null ? (
           <OrderSteps
-            order={order}
-            step={track}
-            fill={fillOf(order, step, own, ownMinItems, lockAt)}
+            stage={track}
+            fill={fillOf(order, stg, own, ownMinItems, lockAt)}
             dates={dates}
           />
         ) : (
@@ -458,20 +460,6 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
           </dl>
         </Card>
       </section>
-
-      {canCancel && (
-        <details className="rounded-xl border border-line p-4">
-          <summary className="flex min-h-11 cursor-pointer items-center font-medium sm:min-h-10">
-            Cancel order
-          </summary>
-          <form action={cancelOrderAction} className="mt-2">
-            <input type="hidden" name="orderId" value={order.id} />
-            <Button type="submit" variant="danger">
-              Confirm cancel
-            </Button>
-          </form>
-        </details>
-      )}
     </div>
   );
 }

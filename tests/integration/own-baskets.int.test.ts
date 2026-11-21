@@ -1,8 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 import { tokenBalance } from "@/server/tokens";
-import { CheckoutError } from "@/server/orders/checkout";
-import { cancelOrder, expireOrders } from "@/server/orders/baskets";
+import { expireOrders } from "@/server/orders/baskets";
 import {
   closeOwnBasket,
   confirmOwnDelivery,
@@ -201,17 +200,6 @@ describe("starting and joining", () => {
 });
 
 describe("cancelling and closing", () => {
-  it("joiners cancel while OPEN; the owner cannot", async () => {
-    const f = await makeFactory();
-    const { owner, basketId, orderId } = await startPaid(f, "PUBLIC");
-    const j = await joinPaid(basketId, f.variant.id);
-    await expect(cancelOrder(owner.id, orderId)).rejects.toThrow(CheckoutError);
-    await cancelOrder(j.buyer.id, j.orderId);
-    expect(money(await tokenBalance(j.buyer.id))).toBe("1100.00");
-    const b = await db.basket.findUniqueOrThrow({ where: { id: basketId } });
-    expect(money(b.total)).toBe("1100.00");
-  });
-
   it("the owner places the order only once the basket holds the minimum items", async () => {
     await setMin(5);
     const f = await makeFactory();
@@ -275,9 +263,7 @@ describe("cancelling and closing", () => {
     const f = await makeFactory();
     const full = await startPaid(f, "PUBLIC", 2);
     const short = await startPaid(f, "PUBLIC", 1);
-    const j = await joinPaid(short.basketId, f.variant.id);
     const one = await startPaid(f, "PUBLIC", 1);
-    await cancelOrder(j.buyer.id, j.orderId);
     const r = await sweepOwnBaskets(new Date(Date.now() + 11 * 86_400_000));
     expect(r).toEqual({ ownClosed: 1, ownCancelled: 2 });
     const status = async (id: string) =>

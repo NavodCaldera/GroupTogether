@@ -4,9 +4,16 @@ import { EmptyState, PageHeader } from "@/components/ui";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { buyerOrders } from "@/server/orders/buyer";
-import { OrderCard, type OrderGroup, groupOf, splitOrders } from "./order-card";
+import { STAGE_LABEL } from "@/lib/order-stage";
+import { OrderCard, type OrderGroup, groupByStage, groupOf } from "./order-card";
 
 export const metadata: Metadata = { title: "Orders" };
+
+/** Orders still on their way to the buyer: the count on each tab. */
+const moving = (groups: ReturnType<typeof groupByStage>) =>
+  groups
+    .filter((g) => g.stage !== "delivered" && g.stage !== "refunded")
+    .reduce((n, g) => n + g.orders.length, 0);
 
 const TABS: { key: OrderGroup; label: string }[] = [
   { key: "pickup", label: "Agent pickup" },
@@ -16,7 +23,7 @@ const TABS: { key: OrderGroup; label: string }[] = [
 
 /**
  * Three tabs (owner, 2026-11-21): Pickup (through an agent), My baskets (own baskets the buyer
- * started) and Joined (other buyers' own baskets). Each lists In progress, then Past.
+ * started) and Joined (other buyers' own baskets). Each lists its orders by stage (DEC-026).
  */
 export default async function OrdersPage({ searchParams }: PageProps<"/orders">) {
   const user = await requireUser([...BUYER_ROLES], "/orders");
@@ -25,20 +32,20 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
     searchParams,
   ]);
   const groups = new Map(
-    TABS.map((t) => [t.key, splitOrders(orders.filter((o) => groupOf(o, user.id) === t.key))]),
+    TABS.map((t) => [t.key, groupByStage(orders.filter((o) => groupOf(o, user.id) === t.key))]),
   );
   const asked = TABS.find((t) => t.key === sp.tab)?.key;
   // With no tab asked for: the first with something in progress, else the first with anything.
   const tab =
     asked ??
-    TABS.find((t) => groups.get(t.key)!.active.length > 0)?.key ??
-    TABS.find((t) => groups.get(t.key)!.past.length > 0)?.key ??
+    TABS.find((t) => moving(groups.get(t.key)!) > 0)?.key ??
+    TABS.find((t) => groups.get(t.key)!.length > 0)?.key ??
     "pickup";
-  const { active, past } = groups.get(tab)!;
+  const shown = groups.get(tab)!;
 
   const list = (title: string, id: string, items: typeof orders) =>
     items.length > 0 && (
-      <section aria-labelledby={id} className="flex flex-col gap-3">
+      <section key={id} aria-labelledby={id} className="flex flex-col gap-3">
         <h2 id={id} className="text-lg font-semibold">
           {title}
         </h2>
@@ -85,23 +92,24 @@ export default async function OrdersPage({ searchParams }: PageProps<"/orders">)
                   }`}
                 >
                   {t.label}
-                  {g.active.length > 0 && (
+                  {moving(g) > 0 && (
                     <span
                       className={`shrink-0 rounded-full px-1.5 text-xs tabular-nums ${now ? "bg-accent text-paper" : "bg-paper text-ink"}`}
                     >
-                      {g.active.length}
+                      {moving(g)}
                     </span>
                   )}
                 </Link>
               );
             })}
           </nav>
-          {active.length + past.length === 0 ? (
+          {shown.length === 0 ? (
             <EmptyState title="Nothing here yet" />
           ) : (
             <>
-              {list("In progress", "orders-active", active)}
-              {list("Past", "orders-past", past)}
+              {shown.map((g) =>
+                list(`${STAGE_LABEL[g.stage]} · ${g.orders.length}`, `orders-${g.stage}`, g.orders),
+              )}
             </>
           )}
         </>
