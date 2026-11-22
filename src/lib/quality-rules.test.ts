@@ -32,3 +32,27 @@ it("computes flags at exact rating and rolling-report thresholds", () => {
   expect(factoryFlagged({ average: 2.9, count: 19 }, 0)).toBe(false);
   expect(factoryFlagged({ average: 5, count: 1 }, 3)).toBe(true);
 });
+
+describe("return and report reasons by category", () => {
+  it("offers the general reasons everywhere and clothing ones only where listed", async () => {
+    const { reportReasonsFor } = await import("./quality-rules");
+    const { buyerReasonsFor } = await import("./return-rules");
+    expect(reportReasonsFor([])).toEqual([
+      "DAMAGED",
+      "WRONG_ITEM",
+      "NOT_AS_DESCRIBED",
+      "MISSING_PARTS",
+      "EXPIRED",
+      "OTHER",
+    ]);
+    expect(buyerReasonsFor([])).toEqual(["CHANGED_MIND", "OTHER"]);
+    expect(reportReasonsFor(["SIZE"])).toContain("SIZE");
+    expect(reportReasonsFor(["SIZE"])).not.toContain("STITCHING");
+    expect(buyerReasonsFor(["COLOUR", "SIZE"])).toEqual([
+      "SIZE",
+      "COLOUR",
+      "CHANGED_MIND",
+      "OTHER",
+    ]);
+  });
+});

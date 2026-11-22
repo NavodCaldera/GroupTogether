@@ -182,3 +182,32 @@ test("the Factory admin records a lab scope and starts a reference swatch set", 
   await expect(page.getByTestId("swatch-coverage")).toContainText("0 of 10");
   await noSideScroll(page);
 });
+
+test("a product outside clothing shows no fit or material sections", async ({ page }) => {
+  // Fit and materials follow Category.features (DEC-029).
+  await sql(
+    `INSERT INTO "Category" (id, slug, name, path, features, "returnReasons", "updatedAt")
+     VALUES ('cat_e2e_stationery', 'e2e-stationery', 'Stationery', '/cat_e2e_stationery/',
+       ARRAY[]::TEXT[], ARRAY[]::TEXT[], now()) ON CONFLICT (id) DO NOTHING`,
+  );
+  const [{ categoryId }] = await sql<{ categoryId: string }>(
+    `SELECT "categoryId" FROM "Product" WHERE id = $1`,
+    [tee],
+  );
+  await sql(`UPDATE "Product" SET "categoryId" = 'cat_e2e_stationery' WHERE id = $1`, [tee]);
+  try {
+    await signIn(page, DEMO_BUYERS.tharindu);
+    await page.goto(`/products/${tee}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByTestId("material-card")).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Fit", exact: true })).toHaveCount(0);
+
+    await signIn(page, owner);
+    await page.goto(`/seller/products/${tee}`);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Fit data" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Material", exact: true })).toHaveCount(0);
+  } finally {
+    await sql(`UPDATE "Product" SET "categoryId" = $2 WHERE id = $1`, [tee, categoryId]);
+  }
+});

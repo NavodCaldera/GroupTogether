@@ -1,4 +1,6 @@
-import { kindOfSlug } from "@/lib/categories";
+import { kindOfSlug, resolveReturnReasons } from "@/lib/categories";
+import { reportReasonsFor } from "@/lib/quality-rules";
+import { loadCategoryTree } from "@/server/categories";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -15,7 +17,7 @@ import { D, toD } from "@/lib/decimal";
 import { kindRegions } from "@/lib/fit/data";
 import { formatDate, formatDateTime, formatLKR } from "@/lib/format";
 import { STAGE_LABEL, orderStage } from "@/lib/order-stage";
-import { BUYER_FAULT_KEPT, returnStatusLabel } from "@/lib/return-rules";
+import { BUYER_FAULT_KEPT, buyerReasonsFor, returnStatusLabel } from "@/lib/return-rules";
 import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "@/server/auth/session";
 import { linesAwaitingFit } from "@/server/fit";
@@ -52,7 +54,8 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
   const { order, canReturn, returnUntil, lockAt, own, ownMinItems, pickup } = found;
   const basket = order.basket;
   const isOwn = basket?.kind === "OWN";
-  const [returns, fitLines, payments, requests] = await Promise.all([
+  const [tree, returns, fitLines, payments, requests] = await Promise.all([
+    loadCategoryTree(),
     buyerReturns(user.id, order.id),
     linesAwaitingFit(user.id, { orderId: order.id }),
     isOwn && basket ? basketPayments(basket.id, user.id) : null,
@@ -64,9 +67,11 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
     ...new Map(
       order.lines
         .filter((l) => l.collectedAt && order.status === "RECEIVED")
-        .map((l) => [l.variant.product.id, l.variant.product.title]),
+        .map((l) => [l.variant.product.id, l.variant.product] as const),
     ),
   ].filter(([productId]) => !rated.has(productId));
+  // Clothing reasons only where the category lists them (DEC-029).
+  const listed = (categoryId: string) => resolveReturnReasons(tree, categoryId);
   // The agent fee is paid in cash at pickup, so it sits outside the online total (DEC-019).
   const live = order.status !== "CANCELLED";
   const feeDue = order.lines.reduce(
@@ -363,6 +368,8 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                             maxQty={left}
                             buyerShare={l.factoryPrice.toString()}
                             action={fileReturnAction}
+                            reasons={reportReasonsFor(listed(l.variant.product.categoryId))}
+                            buyerReasons={buyerReasonsFor(listed(l.variant.product.categoryId))}
                           />
                         </details>
                       )}
@@ -464,13 +471,14 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
             Rate
           </h2>
           <Card className="flex flex-col gap-3">
-            {toRate.map(([productId, title]) => (
+            {toRate.map(([productId, product]) => (
               <ProductRatingForm
                 key={productId}
                 orderId={order.id}
                 productId={productId}
-                title={title}
+                title={product.title}
                 rateAction={rateAction}
+                reasons={reportReasonsFor(listed(product.categoryId))}
               />
             ))}
           </Card>

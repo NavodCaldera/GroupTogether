@@ -64,6 +64,12 @@ describe("category_tree migration", () => {
         `TRUNCATE "Product", "Category", "AttributeDef", "AttributeOption", "CategoryAttribute" CASCADE`,
       );
       for (const s of block("tree")) await tx.$executeRawUnsafe(s);
+      // Phase 8 sets the clothing return reasons on the roots.
+      const reasons = readFileSync(
+        "prisma/migrations/20261125100000_category_return_reasons/migration.sql",
+        "utf8",
+      );
+      await tx.$executeRawUnsafe(reasons.slice(reasons.indexOf('UPDATE "Category"')));
       return snapshot(tx);
     });
     expect(migrated).toEqual(seeded);

@@ -72,6 +72,7 @@ export type CategorySeed = {
   path: string;
   sortOrder: number;
   features: string[];
+  returnReasons: string[];
 };
 
 export type AttributeSeed = {
@@ -92,6 +93,8 @@ export type CategoryAttributeSeed = {
 };
 
 const CLOTHING_FEATURES: Feature[] = ["fit", "materials", "audience"];
+/** Clothing return and report reasons on top of the general ones, on the Clothing and Shoes roots. */
+export const CLOTHING_RETURN_REASONS = ["SIZE", "COLOUR", "STITCHING", "QUALITY_FEEL", "MATERIAL"];
 
 /** "men-tshirts" → "clothing/men/tshirts". */
 export function kindSlug(kind: string) {
@@ -119,12 +122,14 @@ export function kindOfSlug(slug: string): string | null {
 /**
  * Paths of the clothing audience nodes other than `audience` ("/cat_clothing/cat_clothing_men/"),
  * for the shop: a buyer sees their own audience and everything outside them (unisex, DEC-025).
+ * With a tree, only nodes under the `audience` feature count (DEC-029).
  */
-export function otherAudiencePaths(audience: Audience): string[] {
+export function otherAudiencePaths(audience: Audience, tree?: Tree): string[] {
   const root = childPath(null, CLOTHING_ROOT_ID);
-  return AUDIENCES.filter((a) => a.id !== audience).map((a) =>
-    childPath(root, categoryIdOf(`${CLOTHING_SLUG}/${a.id.toLowerCase()}`)),
-  );
+  return AUDIENCES.filter((a) => a.id !== audience)
+    .map((a) => categoryIdOf(`${CLOTHING_SLUG}/${a.id.toLowerCase()}`))
+    .filter((id) => !tree || hasFeature(tree, id, "audience"))
+    .map((id) => childPath(root, id));
 }
 
 /** "/a/b/" from the parent's path. */
@@ -143,6 +148,7 @@ export function seedCategories(): CategorySeed[] {
       path: childPath(parent?.path ?? null, id),
       sortOrder,
       features: parent ? [] : CLOTHING_FEATURES,
+      returnReasons: parent ? [] : CLOTHING_RETURN_REASONS,
     };
     rows.push(row);
     return row;
@@ -282,7 +288,7 @@ export function leaves(tree: Tree, { audience }: { audience?: Audience | null } 
   const walk = (parentId: string | null, trail: string[]) => {
     for (const n of childrenOf(tree, parentId)) {
       const a = audienceOfSlug(n.slug);
-      if (audience && a && a !== audience) continue;
+      if (audience && a && a !== audience && hasFeature(tree, n.id, "audience")) continue;
       const kids = childrenOf(tree, n.id);
       if (kids.length) walk(n.id, [...trail, n.name]);
       else out.push({ node: n, group: trail.join(" › ") });

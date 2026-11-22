@@ -27,6 +27,8 @@ import {
   toTree,
 } from "./categories";
 import { KINDS } from "./taxonomy";
+import { reportReasonsFor } from "./quality-rules";
+import { buyerReasonsFor } from "./return-rules";
 
 const attr = (key: string, over: Partial<CategoryNode["attributes"][number]> = {}) => ({
   key,
@@ -162,6 +164,16 @@ describe("seeded clothing tree", () => {
     expect(rows.filter((r) => r.parentId).every((r) => r.features.length === 0)).toBe(true);
   });
 
+  it("puts the clothing return reasons on both roots, inherited below", () => {
+    const t = toTree(rows.map((r) => node({ ...r, attributes: [] })));
+    const shirts = categoryIdOf("clothing/men/shirts");
+    const listed = resolveReturnReasons(t, shirts);
+    expect([...listed].sort()).toEqual(["COLOUR", "MATERIAL", "QUALITY_FEEL", "SIZE", "STITCHING"]);
+    expect(resolveReturnReasons(t, categoryIdOf("shoes")).sort()).toEqual([...listed].sort());
+    expect(reportReasonsFor(listed)).toContain("STITCHING");
+    expect(buyerReasonsFor(listed)).toContain("MATERIAL");
+  });
+
   it("builds paths from ids", () => {
     const shirts = rows.find((r) => r.slug === "clothing/men/shirts")!;
     expect(shirts.path).toBe(`/${CLOTHING_ROOT_ID}/cat_clothing_men/cat_clothing_men_shirts/`);
@@ -214,6 +226,17 @@ describe("slugs and old columns", () => {
     expect(kindOfSlug("stationery/books/exercise")).toBeNull();
     expect(audienceOfSlug("clothing/women/dresses")).toBe("WOMEN");
     expect(audienceOfSlug("stationery/women")).toBeNull();
+  });
+
+  it("leaves audiences alone outside an audience category", () => {
+    const rows = seedCategories().map((r) => node({ ...r, attributes: [] }));
+    const on = toTree(rows);
+    expect(otherAudiencePaths("WOMEN", on)).toEqual(otherAudiencePaths("WOMEN"));
+    const off = toTree(rows.map((r) => ({ ...r, features: [] })));
+    expect(otherAudiencePaths("WOMEN", off)).toEqual([]);
+    const menShirts = categoryIdOf("clothing/men/shirts");
+    expect(leaves(on, { audience: "WOMEN" }).some((l) => l.node.id === menShirts)).toBe(false);
+    expect(leaves(off, { audience: "WOMEN" }).some((l) => l.node.id === menShirts)).toBe(true);
   });
 
   it("lists the other audiences' paths for the shop", () => {

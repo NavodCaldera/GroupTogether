@@ -12,8 +12,10 @@ import {
   canMoveReturn,
   factoryOverdue,
   type BuyerFaultReason,
+  buyerReasonsFor,
 } from "@/lib/return-rules";
-import { REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
+import { REPORT_REASONS, reportReasonsFor, type ReportReason } from "@/lib/quality-rules";
+import { productReturnReasons } from "./categories";
 import { factoryOf } from "@/lib/factory-roles";
 import { D, toD } from "@/lib/decimal";
 import { factoryFaultRefund } from "@/lib/agent-money";
@@ -267,10 +269,21 @@ export async function fileReturn(
   for (const file of input.photos) checkUpload(file, IMAGE_TYPES, "return photo");
   const first = await db.orderLine.findUnique({
     where: { id: orderLineId },
-    select: { order: { select: { id: true, buyerId: true, factoryId: true, agentId: true } } },
+    select: {
+      variant: { select: { productId: true } },
+      order: { select: { id: true, buyerId: true, factoryId: true, agentId: true } },
+    },
   });
   if (!first || first.order.buyerId !== buyerId)
     throw new ReturnError("Return only your own collected item");
+  // Clothing reasons only where the product's category lists them (DEC-029).
+  const listed = await productReturnReasons(first.variant.productId);
+  if (
+    input.fault === "FACTORY"
+      ? !reportReasonsFor(listed).includes(input.reason as ReportReason)
+      : !buyerReasonsFor(listed).includes(input.buyerReason as BuyerFaultReason)
+  )
+    throw new ReturnError("Choose a return reason for this item");
   // Own baskets have no returns (DEC-023).
   if (!first.order.agentId) throw new ReturnError("Own-basket items cannot be returned");
   const { factoryId } = first.order;

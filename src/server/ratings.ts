@@ -5,10 +5,12 @@ import {
   photoRequired,
   reportRequired,
   REPORT_REASONS,
+  reportReasonsFor,
   type ReportReason,
 } from "@/lib/quality-rules";
 import { checkUpload, saveUpload, IMAGE_TYPES } from "./storage";
 import { BUYER_ROLES } from "@/lib/roles";
+import { productReturnReasons } from "./categories";
 import { db } from "./db";
 
 export type RatingSummary = { average: number; count: number };
@@ -55,6 +57,8 @@ export async function rateProduct(
       report.photos.length > 5)
   )
     throw new CartError("Check the report and use at most five photos");
+  if (report && !reportReasonsFor(await productReturnReasons(productId)).includes(report.reason))
+    throw new CartError("Choose a report reason for this product");
   if (report && photoRequired(report.reason) && !report.photos.length)
     throw new CartError("Add at least one report photo");
   for (const file of report?.photos ?? []) checkUpload(file, IMAGE_TYPES, "report photo");

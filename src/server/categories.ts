@@ -4,8 +4,12 @@ import {
   type CategoryGroup,
   type ChoiceAttribute,
   type CategoryNode,
+  type Feature,
   type Tree,
+  hasFeature,
   kindOfSlug,
+  resolveFeatures,
+  resolveReturnReasons,
   leaves,
   resolveAttributes,
   seedAttributes,
@@ -52,6 +56,41 @@ async function readTree(client: Tx = db): Promise<CategoryNode[]> {
 
 /** The whole category tree, read once per request. */
 export const loadCategoryTree = cache(async (): Promise<Tree> => toTree(await readTree()));
+
+/**
+ * The features a product's category carries, inherited down the tree (DEC-029): fit, materials and
+ * audience are clothing add-ons. Empty for an unknown product.
+ */
+export async function productFeatures(productId: string, client: Tx = db): Promise<string[]> {
+  const p = await client.product.findUnique({
+    where: { id: productId },
+    select: { categoryId: true },
+  });
+  return p ? resolveFeatures(await loadCategoryTree(), p.categoryId) : [];
+}
+
+export async function productHasFeature(productId: string, feature: Feature, client: Tx = db) {
+  const p = await client.product.findUnique({
+    where: { id: productId },
+    select: { categoryId: true },
+  });
+  return !!p && hasFeature(await loadCategoryTree(), p.categoryId, feature);
+}
+
+/** Every category id where `feature` is on (here or above), for product queries. */
+export async function featureCategoryIds(feature: Feature) {
+  const tree = await loadCategoryTree();
+  return [...tree.keys()].filter((id) => hasFeature(tree, id, feature));
+}
+
+/** The extra return reasons a product's category lists, inherited down the tree. */
+export async function productReturnReasons(productId: string, client: Tx = db) {
+  const p = await client.product.findUnique({
+    where: { id: productId },
+    select: { categoryId: true },
+  });
+  return p ? resolveReturnReasons(await loadCategoryTree(), p.categoryId) : [];
+}
 
 /**
  * A category's resolved attributes as form and filter fields (CATG-002). A clothing kind's size

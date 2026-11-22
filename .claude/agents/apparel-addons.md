@@ -19,7 +19,10 @@ Policy references: `FIT-001`, `MAT-001`, `DEC-020`, `DEC-021`, `DEC-022`, `DEC-0
 
 Since `DEC-029` these features apply only where the product's category carries the matching
 feature (`fit`, `materials`, `audience`), set on the Clothing and Shoes roots. Gating is
-**Planned**; today every product is clothing so they always apply.
+**Built** (phase 8, 2026-11-25): server checks use `productHasFeature` and `featureCategoryIds`
+in `src/server/categories.ts`; pages use `hasFeature` on the loaded tree. Clothing return reasons
+(`SIZE`, `COLOUR`, `STITCHING`, `QUALITY_FEEL`, `MATERIAL`) come from `Category.returnReasons`
+via `reportReasonsFor`/`buyerReasonsFor`.
 
 ## Ownership and code
 

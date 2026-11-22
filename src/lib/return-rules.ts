@@ -45,7 +45,10 @@ export function canMoveReturn(from: ReturnStatus, to: ReturnStatus): boolean {
   return MOVES[from].includes(to);
 }
 
-/** Buyer-fault reasons (DEC-017), in form order. */
+/**
+ * Buyer-fault reasons (DEC-017), in form order. CHANGED_MIND and OTHER apply to every product; the
+ * clothing ones only where the category lists them in `Category.returnReasons` (DEC-029).
+ */
 export const BUYER_FAULT_REASONS = [
   "MATERIAL",
   "SIZE",
@@ -55,6 +58,12 @@ export const BUYER_FAULT_REASONS = [
   "OTHER",
 ] as const;
 export type BuyerFaultReason = (typeof BUYER_FAULT_REASONS)[number];
+export const CATEGORY_BUYER_REASONS: readonly BuyerFaultReason[] = [
+  "MATERIAL",
+  "SIZE",
+  "COLOUR",
+  "QUALITY_FEEL",
+];
 export const BUYER_FAULT_LABEL: Record<BuyerFaultReason, string> = {
   MATERIAL: "Material not as expected",
   SIZE: "Size",
@@ -63,6 +72,9 @@ export const BUYER_FAULT_LABEL: Record<BuyerFaultReason, string> = {
   CHANGED_MIND: "Changed mind",
   OTHER: "Other",
 };
+/** The buyer-fault reasons offered for a category whose resolved return reasons are `listed`. */
+export const buyerReasonsFor = (listed: readonly string[]): BuyerFaultReason[] =>
+  BUYER_FAULT_REASONS.filter((r) => !CATEGORY_BUYER_REASONS.includes(r) || listed.includes(r));
 
 /** Buyer-fault states that keep the unit off the line for good: it never enters returnedQty. */
 export const BUYER_FAULT_KEPT: readonly ReturnStatus[] = [

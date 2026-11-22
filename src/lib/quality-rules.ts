@@ -1,14 +1,41 @@
-export type ReportReason = "DAMAGED" | "WRONG_ITEM" | "STITCHING" | "SIZE" | "OTHER";
-export const REPORT_REASONS: ReportReason[] = [
+/**
+ * Factory-fault return and quality report reasons. The general ones apply to every product; the
+ * clothing ones only where the category lists them in `Category.returnReasons` (DEC-029).
+ */
+export const GENERAL_REPORT_REASONS = [
   "DAMAGED",
   "WRONG_ITEM",
-  "STITCHING",
-  "SIZE",
+  "NOT_AS_DESCRIBED",
+  "MISSING_PARTS",
+  "EXPIRED",
+] as const;
+export const CATEGORY_REPORT_REASONS = ["STITCHING", "SIZE"] as const;
+export type ReportReason =
+  (typeof GENERAL_REPORT_REASONS)[number] | (typeof CATEGORY_REPORT_REASONS)[number] | "OTHER";
+/** Every value, in form order. */
+export const REPORT_REASONS: ReportReason[] = [
+  ...GENERAL_REPORT_REASONS,
+  ...CATEGORY_REPORT_REASONS,
   "OTHER",
 ];
+export const REPORT_REASON_LABEL: Record<ReportReason, string> = {
+  DAMAGED: "Damaged",
+  WRONG_ITEM: "Wrong item",
+  NOT_AS_DESCRIBED: "Not as described",
+  MISSING_PARTS: "Missing parts",
+  EXPIRED: "Expired",
+  STITCHING: "Stitching",
+  SIZE: "Size",
+  OTHER: "Other",
+};
+/** The report reasons offered for a category whose resolved return reasons are `listed`. */
+export const reportReasonsFor = (listed: readonly string[]): ReportReason[] =>
+  REPORT_REASONS.filter(
+    (r) => !(CATEGORY_REPORT_REASONS as readonly string[]).includes(r) || listed.includes(r),
+  );
 export const reportRequired = (stars: number) => stars <= 2;
 export const photoRequired = (reason: ReportReason) =>
-  ["DAMAGED", "WRONG_ITEM", "STITCHING"].includes(reason);
+  ["DAMAGED", "WRONG_ITEM", "STITCHING", "MISSING_PARTS", "EXPIRED"].includes(reason);
 export function factoryScore(
   productStars: number[],
   oldFactoryStars: number[],

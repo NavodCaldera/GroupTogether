@@ -16,6 +16,7 @@ import type {
   FabricFacts,
   FiberShare,
 } from "@/lib/materials/types";
+import { productHasFeature } from "./categories";
 import { db } from "./db";
 import { fitDataHash, FIT_DATA_SELECT } from "./deep-fit-jobs";
 import { AppError } from "./errors";
@@ -68,7 +69,11 @@ export async function listMaterials(filters: {
     where: {
       ...(filters.status ? { status: filters.status } : {}),
       ...(filters.category
-        ? { construction: { category: filters.category as LibraryMaterial["construction"]["category"] } }
+        ? {
+            construction: {
+              category: filters.category as LibraryMaterial["construction"]["category"],
+            },
+          }
         : {}),
       ...(q
         ? {
@@ -116,7 +121,9 @@ export function readComposition(json: unknown): FiberShare[] | null {
     (f): f is FiberShare =>
       !!f && typeof f === "object" && typeof f.fiber === "string" && typeof f.pct === "number",
   );
-  return out.length ? out.map((f) => ({ fiber: f.fiber, standard: f.standard ?? null, pct: f.pct })) : null;
+  return out.length
+    ? out.map((f) => ({ fiber: f.fiber, standard: f.standard ?? null, pct: f.pct }))
+    : null;
 }
 
 async function evidenceFor(tx: Tx, pm: PmRow, composition: FiberShare[]): Promise<EvidenceLite[]> {
@@ -125,7 +132,9 @@ async function evidenceFor(tx: Tx, pm: PmRow, composition: FiberShare[]): Promis
     { subjectType: "MATERIAL", subjectCode: m.code },
     { subjectType: "CONSTRUCTION", subjectCode: m.construction.code },
     { subjectType: "FINISH", subjectCode: m.finish.code },
-    ...(m.yarnProcess ? [{ subjectType: "YARN_PROCESS" as const, subjectCode: m.yarnProcess.code }] : []),
+    ...(m.yarnProcess
+      ? [{ subjectType: "YARN_PROCESS" as const, subjectCode: m.yarnProcess.code }]
+      : []),
     ...composition.map((f) => ({ subjectType: "FIBER" as const, subjectCode: f.fiber })),
   ];
   const rows = await tx.evidence.findMany({
@@ -155,7 +164,10 @@ function factsOf(pm: PmRow, evidence: EvidenceLite[], composition: FiberShare[])
     finishCode: m.finish.code,
     fibers: composition,
     gsm: pm.actualGsm,
-    gsmRange: m.defaultGsmMin != null && m.defaultGsmMax != null ? [m.defaultGsmMin, m.defaultGsmMax] : null,
+    gsmRange:
+      m.defaultGsmMin != null && m.defaultGsmMax != null
+        ? [m.defaultGsmMin, m.defaultGsmMax]
+        : null,
     evidence,
     measurements: pm.measurements.map((x) => ({
       id: x.id,
@@ -191,7 +203,10 @@ export async function calibrationValues(tx: Tx = db): Promise<CalibrationValues[
     for (const s of sets) {
       const values = s.swatches.flatMap((w) =>
         w.measurements
-          .filter((x) => x.testStandard === k.testStandard && x.property === k.property && x.unit === k.unit)
+          .filter(
+            (x) =>
+              x.testStandard === k.testStandard && x.property === k.property && x.unit === k.unit,
+          )
           .map((x) => x.value),
       );
       if (values.length && !out.some((o) => o.property === k.property && o.unit === k.unit)) {
@@ -240,7 +255,9 @@ export async function recomputeFeelProfile(tx: Tx, productMaterialId: string) {
   });
   await tx.productMaterial.update({
     where: { id: productMaterialId },
-    data: { verificationLevel: levelOf(axes, pm.measurements.length, pm.actualComposition != null) },
+    data: {
+      verificationLevel: levelOf(axes, pm.measurements.length, pm.actualComposition != null),
+    },
   });
   return axes;
 }
@@ -263,7 +280,8 @@ function storedAxes(pm: PmRow): AxisResult[] | null {
       basis: a.basis,
       value: a.value,
       band: a.bandMin != null && a.bandMax != null ? [a.bandMin, a.bandMax] : null,
-      rule: a.ruleCode && a.ruleVersion != null ? { code: a.ruleCode, version: a.ruleVersion } : null,
+      rule:
+        a.ruleCode && a.ruleVersion != null ? { code: a.ruleCode, version: a.ruleVersion } : null,
       evidenceCodes: a.evidenceCodes,
       measurementIds: a.measurementIds,
     }));
@@ -274,7 +292,10 @@ async function cardFacts(pm: PmRow): Promise<FactsForCard> {
   const evidence = await evidenceFor(db, pm, composition);
   const facts = factsOf(pm, evidence, composition);
   const [fibers, standards] = await Promise.all([
-    db.fiber.findMany({ where: { code: { in: composition.map((f) => f.fiber) } }, select: { code: true, name: true } }),
+    db.fiber.findMany({
+      where: { code: { in: composition.map((f) => f.fiber) } },
+      select: { code: true, name: true },
+    }),
     db.fiberStandard.findMany({
       where: { code: { in: composition.flatMap((f) => (f.standard ? [f.standard] : [])) } },
       select: { code: true, name: true },
@@ -299,6 +320,8 @@ async function cardFacts(pm: PmRow): Promise<FactsForCard> {
 
 /** The buyer Material Card for a product's shell fabric, or null when none is set */
 export async function getMaterialCard(productId: string): Promise<MaterialCard | null> {
+  // The Material Card is a clothing add-on (DEC-029).
+  if (!(await productHasFeature(productId, "materials"))) return null;
   const pm = await db.productMaterial.findUnique({
     where: { productId_role: { productId, role: "SHELL" } },
     include: PM_INCLUDE,
@@ -312,13 +335,30 @@ export async function getProvenance(card: MaterialCard) {
   const codes = new Set<string>();
   const ids = new Set<string>();
   const rules = new Map<string, { code: string; version: number }>();
-  const note = (p: { kind: string; evidenceCodes?: string[]; measurementIds?: string[]; rule?: { code: string; version: number } } | null | undefined) => {
+  const note = (
+    p:
+      | {
+          kind: string;
+          evidenceCodes?: string[];
+          measurementIds?: string[];
+          rule?: { code: string; version: number };
+        }
+      | null
+      | undefined,
+  ) => {
     if (!p) return;
     p.evidenceCodes?.forEach((c) => codes.add(c));
     p.measurementIds?.forEach((c) => ids.add(c));
     if (p.rule) rules.set(`${p.rule.code}@${p.rule.version}`, p.rule);
   };
-  for (const v of [card.feelsLike, card.adjectives, card.onSkin, card.madeFor, card.care, ...Object.values(card.details)])
+  for (const v of [
+    card.feelsLike,
+    card.adjectives,
+    card.onSkin,
+    card.madeFor,
+    card.care,
+    ...Object.values(card.details),
+  ])
     note(v?.provenance);
   for (const a of card.axes) {
     a.evidenceCodes.forEach((c) => codes.add(c));
@@ -333,7 +373,16 @@ export async function getProvenance(card: MaterialCard) {
         claim: true,
         locator: true,
         excerpt: true,
-        source: { select: { code: true, title: true, publisher: true, url: true, tier: true, accessedOn: true } },
+        source: {
+          select: {
+            code: true,
+            title: true,
+            publisher: true,
+            url: true,
+            tier: true,
+            accessedOn: true,
+          },
+        },
       },
       orderBy: { code: "asc" },
     }),
@@ -380,12 +429,16 @@ export async function setProductMaterial(
 ) {
   if (!(await db.product.count({ where: productWhere(productId, by) })))
     throw new MaterialError("Product not found");
+  if (!(await productHasFeature(productId, "materials")))
+    throw new MaterialError("Materials are only for clothing");
   const material = await getMaterial(input.materialCode);
   if (!material || ("sellerId" in by && material.status !== "PUBLISHED"))
     throw new MaterialError("Choose a material from the library");
   const sum = input.composition.reduce((s, f) => s + f.pct, 0);
   if (sum !== 100) throw new MaterialError(`The composition adds up to ${sum}%, not 100%`);
-  const known = await db.fiber.count({ where: { code: { in: input.composition.map((f) => f.fiber) } } });
+  const known = await db.fiber.count({
+    where: { code: { in: input.composition.map((f) => f.fiber) } },
+  });
   if (known !== new Set(input.composition.map((f) => f.fiber)).size)
     throw new MaterialError("Choose each fibre from the list");
 
@@ -421,7 +474,10 @@ export async function setProductMaterial(
     });
     // One home for gsm: mirrored to the product for the fit heatmap and cloth simulation. The
     // weave text is left alone, so picking a material clears fit approval only if gsm changes.
-    const before = await tx.product.findUniqueOrThrow({ where: { id: productId }, select: FIT_DATA_SELECT });
+    const before = await tx.product.findUniqueOrThrow({
+      where: { id: productId },
+      select: FIT_DATA_SELECT,
+    });
     const after = await tx.product.update({
       where: { id: productId },
       data: { gsm: input.gsm },
@@ -447,6 +503,8 @@ async function ownPm(productId: string, by: By) {
     select: { id: true, videoKey: true },
   });
   if (!pm) throw new MaterialError("Choose the material first");
+  if (!(await productHasFeature(productId, "materials")))
+    throw new MaterialError("Materials are only for clothing");
   return pm;
 }
 
@@ -535,7 +593,9 @@ export async function libraryProfile(code: string) {
   const axes = computeProfile(facts, await calibrationValues());
   const rows = await db.evidence.findMany({
     where: { code: { in: evidence.map((e) => e.code) } },
-    include: { source: { select: { code: true, title: true, publisher: true, url: true, tier: true } } },
+    include: {
+      source: { select: { code: true, title: true, publisher: true, url: true, tier: true } },
+    },
     orderBy: [{ subjectType: "asc" }, { code: "asc" }],
   });
   const rules = await db.methodologyRule.findMany({

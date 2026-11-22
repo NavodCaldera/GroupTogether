@@ -6,6 +6,20 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-25 - Clothing add-ons gated by category (DEC-029, phase 8)
+
+- Fit (heatmap, 3D body, Deep Fit Test), the Material Card and the shop audience filter follow
+  `Category.features` (inherited): outside a category with `fit`, `materials` or `audience` the
+  product page shows no fit or material section, the admin and factory product pages show no fit
+  data or Material block, and the server refuses fit, Deep Fit, fit feedback and material writes.
+- Return and report reasons: general `DAMAGED`, `WRONG_ITEM`, `NOT_AS_DESCRIBED`,
+  `MISSING_PARTS`, `EXPIRED` (factory fault) and `CHANGED_MIND` (buyer fault), plus Other;
+  clothing `SIZE`, `COLOUR`, `STITCHING`, `QUALITY_FEEL`, `MATERIAL` only where the category lists
+  them in `returnReasons` (seeded on the Clothing and Shoes roots). Forms and the server check
+  the product's category. Existing rows keep their values (none removed).
+- `ReturnRequest.unusedWithTags` renamed `unusedSealed`
+  ([migration](../prisma/migrations/20261125100000_category_return_reasons/migration.sql)).
+
 ## 2026-11-24 - General product fields (DEC-029, phase 4)
 
 - Products carry `condition` (New, Factory surplus, B-grade, Refurbished; filled from the old stock
