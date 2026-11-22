@@ -796,6 +796,9 @@ enum LineStatus {
 enum ReportReason {
   DAMAGED
   WRONG_ITEM
+  NOT_AS_DESCRIBED
+  MISSING_PARTS
+  EXPIRED
   STITCHING
   SIZE
   OTHER
@@ -918,7 +921,8 @@ model ReturnRequest {
   adminNote          String?
   receivedAt         DateTime?
   receivedById       String?
-  unusedWithTags     Boolean?
+  /// Received unused, tags on or seal unbroken
+  unusedSealed       Boolean?
   receivedCondition  String?
   paidBy             ReturnFault?
   photos             ReturnPhoto[]

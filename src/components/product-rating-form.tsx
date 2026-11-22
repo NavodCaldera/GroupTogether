@@ -3,17 +3,25 @@ import { useActionState, useState } from "react";
 import { Alert, Button, Input } from "./ui";
 
 type RatingState = { error?: string };
-import { photoRequired, REPORT_REASONS, type ReportReason } from "@/lib/quality-rules";
+import {
+  photoRequired,
+  REPORT_REASONS,
+  REPORT_REASON_LABEL,
+  type ReportReason,
+} from "@/lib/quality-rules";
 export function ProductRatingForm({
   orderId,
   productId,
   title,
   rateAction,
+  reasons = REPORT_REASONS,
 }: {
   orderId: string;
   productId: string;
   title: string;
   rateAction: (previous: RatingState, fd: FormData) => Promise<RatingState>;
+  /** Report reasons for this product's category */
+  reasons?: readonly ReportReason[];
 }) {
   const [state, action, pending] = useActionState<RatingState, FormData>(rateAction, {});
   const [stars, setStars] = useState("5"),
@@ -48,9 +56,9 @@ export function ProductRatingForm({
         className="min-h-11 rounded-lg border border-line bg-paper px-3 text-base"
       >
         <option value="">None</option>
-        {REPORT_REASONS.map((r) => (
+        {reasons.map((r) => (
           <option key={r} value={r}>
-            {r.replaceAll("_", " ").toLowerCase()}
+            {REPORT_REASON_LABEL[r]}
           </option>
         ))}
       </select>

@@ -9,7 +9,7 @@ import { choiceAttributes, loadCategoryTree } from "@/server/categories";
 import { Badge, Card, Field, Input, PageHeader } from "@/components/ui";
 import { requireFactory } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { kindOfSlug } from "@/lib/categories";
+import { hasFeature, kindOfSlug } from "@/lib/categories";
 import { factoryStockAction, saveFactoryProductAction } from "@/server/seller-actions";
 import { FitDataForm } from "@/components/fit-data-form";
 import { saveFactoryFitAction } from "@/server/fit-actions";
@@ -31,6 +31,9 @@ export default async function FactoryProductPage({ params }: PageProps<"/seller/
   const axes = choiceAttributes(tree, product.categoryId).filter((a) => a.isVariantAxis);
   // The clothing kind comes from the category (DEC-029); fit fields follow it.
   const kind = kindOfSlug(tree.get(product.categoryId)?.slug ?? "");
+  // Fit and materials are clothing add-ons, shown only where the category carries them.
+  const fit = hasFeature(tree, product.categoryId, "fit");
+  const materials = hasFeature(tree, product.categoryId, "materials");
   return (
     <>
       <BackLink fallback="/seller" />
@@ -49,22 +52,24 @@ export default async function FactoryProductPage({ params }: PageProps<"/seller/
               action={saveFactoryProductAction}
             />
           </Card>
-          <Card className="mt-6">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <h2 className="font-semibold">Fit data</h2>
-              {product.sizeChart !== null && (
-                <Badge tone={product.fitApprovedAt ? "good" : "neutral"}>
-                  {product.fitApprovedAt ? "Approved" : "Waiting for check"}
-                </Badge>
-              )}
-            </div>
-            <FitDataForm
-              product={{ ...product, kind }}
-              action={saveFactoryFitAction}
-              submit="Save fit data"
-            />
-          </Card>
-          <MaterialSection productId={product.id} />
+          {fit && (
+            <Card className="mt-6">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="font-semibold">Fit data</h2>
+                {product.sizeChart !== null && (
+                  <Badge tone={product.fitApprovedAt ? "good" : "neutral"}>
+                    {product.fitApprovedAt ? "Approved" : "Waiting for check"}
+                  </Badge>
+                )}
+              </div>
+              <FitDataForm
+                product={{ ...product, kind }}
+                action={saveFactoryFitAction}
+                submit="Save fit data"
+              />
+            </Card>
+          )}
+          {materials && <MaterialSection productId={product.id} />}
         </div>
         <div className="flex min-w-0 flex-col gap-4">
           <DealSection productId={product.id} factoryId={seller.factoryId} />

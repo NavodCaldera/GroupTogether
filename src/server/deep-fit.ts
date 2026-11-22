@@ -2,6 +2,7 @@ import "server-only";
 import type { Prisma } from "@/generated/prisma/client";
 import { readChart } from "@/lib/fit/data";
 import { IN_SHOP } from "./catalogue";
+import { productHasFeature } from "./categories";
 import { db } from "./db";
 import {
   DEEP_FIT_PER_DAY,
@@ -66,6 +67,8 @@ export async function requestDeepFit(
 ): Promise<{ jobId: string }> {
   if (!(await db.product.count({ where: { id: productId, ...IN_SHOP } })))
     throw new DeepFitError("Product not found");
+  if (!(await productHasFeature(productId, "fit")))
+    throw new DeepFitError("Deep Fit Test is only for clothing");
   const { bodyFitAt, fitDataHash } = await basis(userId, productId);
   if (!bodyFitAt) throw new DeepFitError("Confirm your 3D body first");
   if (!fitDataHash) throw new DeepFitError("This product has no approved size chart");
@@ -105,6 +108,7 @@ export interface DeepFit {
 
 /** The newest test of this garment on the buyer's current body and fit data, or null. */
 export async function getDeepFit(userId: string, productId: string): Promise<DeepFit | null> {
+  if (!(await productHasFeature(productId, "fit"))) return null;
   const { bodyFitAt, fitDataHash } = await basis(userId, productId);
   if (!bodyFitAt || !fitDataHash) return null;
   const job = await db.deepFitJob.findFirst({

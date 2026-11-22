@@ -2,8 +2,8 @@
 import { useActionState, useId, useState } from "react";
 import { Alert, Button, Input, Select, Textarea } from "./ui";
 import { returnAction, type ReturnState } from "@/server/return-actions";
-import { REPORT_REASONS } from "@/lib/quality-rules";
-import { BUYER_FAULT_LABEL, BUYER_FAULT_REASONS } from "@/lib/return-rules";
+import { REPORT_REASONS, REPORT_REASON_LABEL, type ReportReason } from "@/lib/quality-rules";
+import { BUYER_FAULT_LABEL, BUYER_FAULT_REASONS, type BuyerFaultReason } from "@/lib/return-rules";
 import { D } from "@/lib/decimal";
 import { formatLKR } from "@/lib/format";
 export function ReturnForm({
@@ -12,6 +12,8 @@ export function ReturnForm({
   maxQty = 1,
   buyerShare,
   action: custom,
+  reasons = REPORT_REASONS,
+  buyerReasons = BUYER_FAULT_REASONS,
 }: {
   id: string;
   op: "file" | "factory" | "admin" | "received" | "message" | "buyer-decide" | "change-to-buyer";
@@ -20,6 +22,10 @@ export function ReturnForm({
   buyerShare?: string;
   /** Replaces the shared return action, e.g. the buyer order page's own */
   action?: (previous: ReturnState, fd: FormData) => Promise<ReturnState>;
+  /** Factory-fault reasons for this item's category */
+  reasons?: readonly ReportReason[];
+  /** Buyer-fault reasons for this item's category */
+  buyerReasons?: readonly BuyerFaultReason[];
 }) {
   const [state, action, pending] = useActionState(custom ?? returnAction, {});
   const [fault, setFault] = useState("FACTORY");
@@ -57,15 +63,15 @@ export function ReturnForm({
           <label htmlFor={`${uid}-reason`}>Return reason</label>
           {fault === "FACTORY" ? (
             <Select id={`${uid}-reason`} name="reason" required>
-              {REPORT_REASONS.map((r) => (
+              {reasons.map((r) => (
                 <option key={r} value={r}>
-                  {r.replaceAll("_", " ").toLowerCase()}
+                  {REPORT_REASON_LABEL[r]}
                 </option>
               ))}
             </Select>
           ) : (
             <Select id={`${uid}-reason`} name="buyerReason" required>
-              {BUYER_FAULT_REASONS.map((r) => (
+              {buyerReasons.map((r) => (
                 <option key={r} value={r}>
                   {BUYER_FAULT_LABEL[r]}
                 </option>

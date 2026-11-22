@@ -19,6 +19,7 @@ import { db } from "./db";
 import { deepFitsLeft, getDeepFit, type DeepFit } from "./deep-fit";
 import { FIT_DATA_SELECT, fitDataHash, fitKind } from "./deep-fit-jobs";
 import { AppError } from "./errors";
+import { featureCategoryIds, productHasFeature } from "./categories";
 
 export class FitError extends AppError {}
 
@@ -52,6 +53,8 @@ export async function saveFitData(
       ? { id: productId, sellerId: by.sellerId, seller: { isBrand: false } }
       : { id: productId, OR: [{ sellerId: null }, { seller: { isBrand: false } }] };
   if (!(await db.product.count({ where }))) throw new FitError("Product not found");
+  if (!(await productHasFeature(productId, "fit")))
+    throw new FitError("Fit data is only for clothing");
   const { chart, ...fabric } = fields;
   await db.$transaction(async (tx) => {
     const before = await tx.product.findUniqueOrThrow({
@@ -83,6 +86,8 @@ export async function setFitApproved(adminId: string, productId: string, approve
     select: { sizeChart: true },
   });
   if (!p) throw new FitError("Product not found");
+  if (approved && !(await productHasFeature(productId, "fit")))
+    throw new FitError("Fit data is only for clothing");
   if (approved && !Object.keys(readChart(p.sizeChart)).length)
     throw new FitError("There is no size chart to approve");
   await db.product.update({
@@ -263,7 +268,8 @@ function simulatedTensions(
  * size switch recolours without another request. Only approved size charts are used.
  */
 export async function getFitView(productId: string, userId: string | null): Promise<FitView> {
-  const [product, profile] = await Promise.all([
+  const [fit, product, profile] = await Promise.all([
+    productHasFeature(productId, "fit"),
     db.product.findUnique({
       where: { id: productId },
       select: {
@@ -292,7 +298,8 @@ export async function getFitView(productId: string, userId: string | null): Prom
         })
       : null,
   ]);
-  if (!product)
+  // Fit is a clothing add-on: a product outside a fit category shows none (DEC-029).
+  if (!product || !fit)
     return {
       material: null,
       chart: null,
@@ -425,6 +432,8 @@ export async function saveFitFeedback(userId: string, input: unknown) {
     },
   });
   if (!line) throw new FitError("Order line not found");
+  if (!(await productHasFeature(line.variant.productId, "fit")))
+    throw new FitError("Fit data is only for clothing");
   if (line.fitFeedback) throw new FitError("You have already told us how it fitted");
   const view = await getFitView(line.variant.productId, userId);
   const regionNotes = Object.fromEntries(
@@ -444,17 +453,20 @@ export async function saveFitFeedback(userId: string, input: unknown) {
 }
 
 /** Collected lines of fitted products still waiting for the buyer's fit feedback. */
-export function linesAwaitingFit(
+export async function linesAwaitingFit(
   userId: string,
   { orderId, take = 20 }: { orderId?: string; take?: number } = {},
 ) {
+  const categoryIds = await featureCategoryIds("fit");
   return db.orderLine.findMany({
     where: {
       order: { buyerId: userId, ...(orderId ? { id: orderId } : {}) },
       collectedAt: { not: null },
       status: "ACTIVE",
       fitFeedback: null,
-      variant: { product: { fitApprovedAt: { not: null } } },
+      variant: {
+        product: { fitApprovedAt: { not: null }, categoryId: { in: categoryIds } },
+      },
     },
     orderBy: { collectedAt: "desc" },
     take,

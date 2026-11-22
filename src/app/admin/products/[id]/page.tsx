@@ -10,7 +10,7 @@ import { saveAdminFitAction, setFitApprovedAction } from "@/server/fit-actions";
 import { adjustStockAction, setProductHiddenAction } from "@/server/admin-actions";
 import { requireAdmin } from "@/server/auth/session";
 import { db } from "@/server/db";
-import { kindOfSlug } from "@/lib/categories";
+import { hasFeature, kindOfSlug } from "@/lib/categories";
 import { AdminForm } from "../../admin-form";
 import { ProductForm } from "../product-form";
 
@@ -31,6 +31,8 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
   const axes = choiceAttributes(tree, product.categoryId).filter((a) => a.isVariantAxis);
   // The clothing kind comes from the category (DEC-029); fit fields follow it.
   const kind = kindOfSlug(tree.get(product.categoryId)?.slug ?? "");
+  // Fit and materials are clothing add-ons, shown only where the category carries them.
+  const fit = hasFeature(tree, product.categoryId, "fit");
   const seller = product.sellerId
     ? await db.user.findUnique({
         where: { id: product.sellerId },
@@ -77,32 +79,34 @@ export default async function EditProductPage({ params }: PageProps<"/admin/prod
           <Card>
             <ProductForm product={product} />
           </Card>
-          <Card className="mt-6">
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <h2 className="font-semibold">Fit data</h2>
+          {fit && (
+            <Card className="mt-6">
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <h2 className="font-semibold">Fit data</h2>
+                {product.sizeChart !== null && (
+                  <Badge tone={product.fitApprovedAt ? "good" : "bad"}>
+                    {product.fitApprovedAt ? "Approved" : "To check"}
+                  </Badge>
+                )}
+              </div>
               {product.sizeChart !== null && (
-                <Badge tone={product.fitApprovedAt ? "good" : "bad"}>
-                  {product.fitApprovedAt ? "Approved" : "To check"}
-                </Badge>
+                <AdminForm
+                  action={setFitApprovedAction}
+                  submit={product.fitApprovedAt ? "Remove approval" : "Approve fit data"}
+                  variant={product.fitApprovedAt ? "secondary" : "primary"}
+                  className="mb-4 flex flex-col gap-3"
+                >
+                  <input type="hidden" name="productId" value={product.id} />
+                  <input type="hidden" name="approve" value={product.fitApprovedAt ? "0" : "1"} />
+                </AdminForm>
               )}
-            </div>
-            {product.sizeChart !== null && (
-              <AdminForm
-                action={setFitApprovedAction}
-                submit={product.fitApprovedAt ? "Remove approval" : "Approve fit data"}
-                variant={product.fitApprovedAt ? "secondary" : "primary"}
-                className="mb-4 flex flex-col gap-3"
-              >
-                <input type="hidden" name="productId" value={product.id} />
-                <input type="hidden" name="approve" value={product.fitApprovedAt ? "0" : "1"} />
-              </AdminForm>
-            )}
-            <FitDataForm
-              product={{ ...product, kind }}
-              action={saveAdminFitAction}
-              submit="Save and approve"
-            />
-          </Card>
+              <FitDataForm
+                product={{ ...product, kind }}
+                action={saveAdminFitAction}
+                submit="Save and approve"
+              />
+            </Card>
+          )}
         </div>
         <div className="flex flex-col gap-4">
           <Card>

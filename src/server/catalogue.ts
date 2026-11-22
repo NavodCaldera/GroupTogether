@@ -125,7 +125,7 @@ async function findShopProducts(
         await shopEligibility(now),
         // Audience from the category tree: other audiences' clothing is left out (DEC-025).
         ...(f.audience
-          ? otherAudiencePaths(f.audience).map((path) => ({
+          ? otherAudiencePaths(f.audience, await loadCategoryTree()).map((path) => ({
               NOT: { categoryRef: { path: { startsWith: path } } },
             }))
           : []),
