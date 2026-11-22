@@ -66,7 +66,7 @@ const orderSelect = {
       variant: {
         select: {
           options: true,
-          product: { select: { id: true, title: true, photoKey: true, category: true } },
+          product: { select: { id: true, title: true, photoKey: true, categoryRef: { select: { slug: true } } } },
         },
       },
     },

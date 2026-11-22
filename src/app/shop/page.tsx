@@ -8,10 +8,10 @@ import { SearchBox } from "@/components/search-box";
 import { TaxonomyFields } from "@/components/taxonomy-fields";
 import { formatLKR } from "@/lib/format";
 import { audienceFor } from "@/lib/taxonomy";
-import { audienceOfSlug, isActive, kindSlug } from "@/lib/categories";
+import { audienceOfSlug, isActive, kindSlug, resolveAttributes } from "@/lib/categories";
 import { getCurrentUser } from "@/server/auth/session";
 import { categoryChoices, loadCategoryTree } from "@/server/categories";
-import { type ProductFilters, listProducts } from "@/server/catalogue";
+import { type ProductFilters, listProducts, shopFacets } from "@/server/catalogue";
 import { ratingSummaries, productRatingSummaries } from "@/server/ratings";
 import { FactoryRating } from "@/components/factory-rating";
 
@@ -41,21 +41,36 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
     !(audience && audienceOfSlug(picked.slug) && audienceOfSlug(picked.slug) !== audience)
       ? picked
       : undefined;
+  // Filters come from the category's filterable attributes (CATG-002): variant axes match
+  // Variant.options, the rest Product.specs.
+  const attributes = category ? resolveAttributes(tree, category.id) : [];
+  const options: Record<string, string> = {};
+  const specs: Record<string, string> = {};
+  for (const a of attributes) {
+    const v = a.filterable ? one(sp[a.key])?.slice(0, 60) : undefined;
+    if (v) (a.isVariantAxis ? options : specs)[a.key] = v;
+  }
+  const condition = one(sp.condition);
   const filters: ProductFilters = {
     categoryPath: category?.path,
-    stockType:
-      one(sp.type) === "B_GRADE" || one(sp.type) === "FACTORY_SURPLUS"
-        ? (one(sp.type) as "B_GRADE")
+    condition:
+      condition === "NEW" ||
+      condition === "FACTORY_SURPLUS" ||
+      condition === "B_GRADE" ||
+      condition === "REFURBISHED"
+        ? condition
         : undefined,
     brand: one(sp.brand),
-    size: one(sp.size),
+    options: Object.keys(options).length ? options : undefined,
+    specs: Object.keys(specs).length ? specs : undefined,
     q: one(sp.q),
   };
   // No filter or search: lowest prices first. Filtered: newest first.
   const unfiltered = Object.values(filters).every((v) => v === undefined);
-  const [products, groups] = await Promise.all([
-    listProducts({ ...filters, audience }, 60, unfiltered ? "cheapest" : "newest"),
+  const [products, groups, facets] = await Promise.all([
+    listProducts({ ...filters, attributes, audience }, 60, unfiltered ? "cheapest" : "newest"),
     categoryChoices({ audience, by: "slug" }),
+    shopFacets(),
   ]);
   const [ratings, productScores] = await Promise.all([
     ratingSummaries(products.map((p) => p.sellerId)),
@@ -76,8 +91,7 @@ export default async function ShopPage({ searchParams }: PageProps<"/shop">) {
         <TaxonomyFields
           groups={groups}
           category={category?.slug}
-          size={filters.size}
-          withSize
+          shop={{ picked: { ...options, ...specs }, optionValues: facets.options }}
           selectClass={select}
         />
         <button className="min-h-11 rounded-lg bg-accent px-4 text-sm font-medium text-on-accent sm:min-h-10">

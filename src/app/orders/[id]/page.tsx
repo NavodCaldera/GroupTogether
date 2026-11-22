@@ -1,3 +1,4 @@
+import { kindOfSlug } from "@/lib/categories";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -488,7 +489,7 @@ export default async function OrderPage({ params, searchParams }: PageProps<"/or
                 lineId={l.id}
                 title={l.variant.product.title}
                 size={sizeOf(l.variant.options) || l.variantLabel}
-                regions={kindRegions(l.variant.product.kind)}
+                regions={kindRegions(kindOfSlug(l.variant.product.categoryRef.slug))}
                 action={fitFeedbackAction}
               />
             ))}

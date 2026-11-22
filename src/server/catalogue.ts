@@ -2,9 +2,19 @@ import "server-only";
 import { lockUserAdvisory } from "./orders/locks";
 import { coversCategory } from "./factory-categories";
 import { z } from "zod";
-import type { Prisma, StockType } from "@/generated/prisma/client";
-import { type Audience, kindFits } from "@/lib/taxonomy";
-import { childrenOf, isActive, kindSlug, legacyColumns, resolveCommission } from "@/lib/categories";
+import type { Condition, Prisma } from "@/generated/prisma/client";
+import type { Audience } from "@/lib/taxonomy";
+import {
+  type CategoryAttributeNode,
+  childrenOf,
+  isActive,
+  kindOfSlug,
+  kindSlug,
+  otherAudiencePaths,
+  resolveAttributes,
+  resolveCommission,
+} from "@/lib/categories";
+import { SpecsError, parseSpecs, specFilterValue } from "@/lib/product-specs";
 import { loadCategoryTree } from "./categories";
 import { D, toD } from "@/lib/decimal";
 import { linkOnSite } from "@/lib/brand-rules";
@@ -16,6 +26,8 @@ import { sizeOrder } from "@/lib/fit/data";
 import {
   type VariantOptions,
   VariantOptionsError,
+  compareOptionValues,
+  readOptions,
   sizeOf,
   variantFields,
 } from "@/lib/variant-options";
@@ -28,9 +40,14 @@ export type ProductFilters = {
   audience?: Audience;
   /** A category's materialised path: the category and everything below it (DEC-029) */
   categoryPath?: string;
-  stockType?: StockType;
+  condition?: Condition;
   brand?: string;
-  size?: string;
+  /** Variant options the buyer picked, e.g. {size: "M"}; one in-stock variant must match all */
+  options?: Record<string, string>;
+  /** Product-level attribute filters, typed by `attributes` */
+  specs?: Record<string, string>;
+  /** The category's resolved attributes, used to type `specs` */
+  attributes?: CategoryAttributeNode[];
   q?: string;
 };
 
@@ -38,8 +55,8 @@ const listSelect = {
   id: true,
   title: true,
   brand: true,
-  category: true,
-  stockType: true,
+  categoryRef: { select: { slug: true } },
+  condition: true,
   price: true,
   retailPrice: true,
   photoKey: true,
@@ -106,12 +123,18 @@ async function findShopProducts(
       AND: [
         ...IN_SHOP.AND,
         await shopEligibility(now),
-        ...(f.audience ? [{ OR: [{ audience: f.audience }, { audience: null }] }] : []),
+        // Audience from the category tree: other audiences' clothing is left out (DEC-025).
+        ...(f.audience
+          ? otherAudiencePaths(f.audience).map((path) => ({
+              NOT: { categoryRef: { path: { startsWith: path } } },
+            }))
+          : []),
+        ...specWhere(f),
       ],
       categoryRef: f.categoryPath ? { path: { startsWith: f.categoryPath } } : undefined,
-      stockType: f.stockType,
+      condition: f.condition,
       brand: f.brand ? { equals: f.brand, mode: "insensitive" } : undefined,
-      variants: f.size ? { some: { size: f.size, available: { gt: 0 } } } : IN_SHOP.variants,
+      variants: optionsWhere(f.options),
       OR: f.q
         ? [
             { title: { contains: f.q, mode: "insensitive" } },
@@ -124,6 +147,29 @@ async function findShopProducts(
       order === "cheapest" ? [{ price: "asc" }, { createdAt: "desc" }] : { createdAt: "desc" },
     take,
   });
+}
+
+/** One in-stock variant matching every picked option (Variant.options). */
+function optionsWhere(options: Record<string, string> | undefined) {
+  const picked = Object.entries(options ?? {}).filter(([, v]) => v);
+  if (!picked.length) return IN_SHOP.variants;
+  return {
+    some: {
+      available: { gt: 0 },
+      AND: picked.map(([k, v]) => ({ options: { path: [k], equals: v } })),
+    },
+  } satisfies Prisma.VariantListRelationFilter;
+}
+
+/** Product.specs filters, each value typed by its attribute. */
+function specWhere(f: ProductFilters): Prisma.ProductWhereInput[] {
+  const out: Prisma.ProductWhereInput[] = [];
+  for (const [k, raw] of Object.entries(f.specs ?? {})) {
+    const attr = f.attributes?.find((a) => a.key === k && !a.isVariantAxis);
+    const value = attr ? specFilterValue(attr, raw) : undefined;
+    if (value !== undefined) out.push({ specs: { path: [k], equals: value } });
+  }
+  return out;
 }
 
 /** A few products in the shop matching what the shopper has typed, for the search dropdown. */
@@ -150,7 +196,7 @@ export async function suggestProducts(q: string, take = 6, now = new Date()) {
 
 export async function shopFacets(now = new Date()) {
   const eligibility = await shopEligibility(now);
-  const [brands, sizes] = await Promise.all([
+  const [brands, variants] = await Promise.all([
     db.product.findMany({
       where: { ...IN_SHOP, AND: [...IN_SHOP.AND, eligibility] },
       distinct: ["brand"],
@@ -159,12 +205,21 @@ export async function shopFacets(now = new Date()) {
     }),
     db.variant.findMany({
       where: { available: { gt: 0 }, product: { ...IN_SHOP, AND: [...IN_SHOP.AND, eligibility] } },
-      distinct: ["size"],
-      select: { size: true },
-      orderBy: { size: "asc" },
+      distinct: ["optionKey"],
+      select: { options: true },
     }),
   ]);
-  return { brands: brands.map((b) => b.brand), sizes: sizes.map((s) => s.size) };
+  // Values per option name from Variant.options, e.g. {size: ["L", "M"], colour: ["Navy"]}.
+  const values = new Map<string, Set<string>>();
+  for (const v of variants)
+    for (const [k, value] of Object.entries(readOptions(v.options))) {
+      if (!values.has(k)) values.set(k, new Set());
+      values.get(k)!.add(value);
+    }
+  const options: Record<string, string[]> = Object.fromEntries(
+    [...values].map(([k, set]) => [k, [...set].sort((a, b) => compareOptionValues(k, a, b))]),
+  );
+  return { brands: brands.map((b) => b.brand), sizes: options.size ?? [], options };
 }
 
 /** One product with its sizes. Opens even when sold out, so links from carts keep working. */
@@ -179,18 +234,21 @@ export async function getProduct(id: string, now = new Date()) {
     include: {
       variants: { orderBy: { label: "asc" } },
       seller: { select: { name: true, company: true } },
+      categoryRef: { select: { slug: true } },
     },
   });
   if (!product) return null;
+  // The clothing kind comes from the category (DEC-029); null outside clothing.
+  const kind = kindOfSlug(product.categoryRef.slug);
   // Sizes small to large (S, M, L, XL), not alphabetical; other options stay in label order.
   const order = sizeOrder(
-    product.kind,
+    kind,
     product.variants.map((v) => sizeOf(v.options)),
   );
   product.variants.sort(
     (x, y) => order.indexOf(sizeOf(x.options)) - order.indexOf(sizeOf(y.options)),
   );
-  return product;
+  return { ...product, kind };
 }
 
 // ─── Admin ────────────────────────────────────────────────────────────────
@@ -200,17 +258,36 @@ const money = z
   .trim()
   .regex(/^\d+(\.\d{1,2})?$/, "Enter an amount such as 4500 or 4500.50");
 
+/** An optional whole number from a form field ("" leaves it unset). */
+function wholeField(min: number, max: number) {
+  return z
+    .string()
+    .trim()
+    .regex(/^\d*$/, "Enter a whole number")
+    .optional()
+    .transform((v) => (v ? Number(v) : undefined))
+    .refine((n) => n === undefined || (n >= min && n <= max), {
+      message: `Enter a whole number from ${min} to ${max}`,
+    });
+}
+
 const productSchema = z
   .object({
     title: z.string().trim().min(2, "Enter a title").max(120),
     brand: z.string().trim().min(1, "Enter the brand").max(60),
     description: z.string().trim().max(2000).default(""),
-    // The form sends a category from the tree; older callers send the clothing audience and kind.
+    // The form sends a category from the tree; older callers send a clothing kind.
     categoryId: z.string().trim().max(100).optional().or(z.literal("")),
-    audience: z.enum(["MEN", "WOMEN", "GIRL", "BOY", "KID"]).optional().or(z.literal("")),
     kind: z.string().trim().max(60).optional().or(z.literal("")),
-    // No longer chosen in the form (product owner, 2026-10-20): kept as stored, new ones surplus.
-    stockType: z.enum(["FACTORY_SURPLUS", "B_GRADE"]).optional(),
+    condition: z.enum(["NEW", "FACTORY_SURPLUS", "B_GRADE", "REFURBISHED"]).optional(),
+    sellUnit: z.string().trim().max(20).optional().or(z.literal("")),
+    minOrderQty: wholeField(1, 10_000),
+    stepQty: wholeField(1, 10_000),
+    shelfLifeDays: wholeField(0, 36_500),
+    hazmat: z
+      .union([z.literal("on"), z.literal("true"), z.literal("1"), z.literal("")])
+      .optional()
+      .transform((v) => (v === undefined ? undefined : v !== "")),
     price: money.optional().or(z.literal("")),
     retailPrice: money.optional().or(z.literal("")),
     // A luxury brand's product: its page on the brand's website showing the actual price.
@@ -228,20 +305,16 @@ const productSchema = z
     message: "Choose a category",
     path: ["categoryId"],
   })
-  .refine((v) => !v.audience || !v.kind || kindFits(v.audience, v.kind), {
-    message: "That category isn't offered for this audience",
-    path: ["kind"],
-  })
   .refine((v) => v.price, {
     message: "Enter the price",
     path: ["price"],
   });
 
 /**
- * The tree category a listing goes in, and the old columns it still writes. Only an active category
- * with nothing below it can hold products.
+ * The tree category a listing goes in and its resolved attributes. Only an active category with
+ * nothing below it can hold products.
  */
-async function categoryFor(v: { categoryId?: string; audience?: string; kind?: string }) {
+async function categoryFor(v: { categoryId?: string; kind?: string }) {
   const tree = await loadCategoryTree();
   const slug = v.categoryId ? undefined : v.kind ? kindSlug(v.kind) : undefined;
   const node = v.categoryId
@@ -249,10 +322,20 @@ async function categoryFor(v: { categoryId?: string; audience?: string; kind?: s
     : [...tree.values()].find((n) => n.slug === slug);
   if (!node || !isActive(tree, node.id) || childrenOf(tree, node.id).length > 0)
     throw new CatalogueError("Choose a category");
-  const legacy = legacyColumns(node.slug);
-  if (v.audience && legacy.audience && v.audience !== legacy.audience)
-    throw new CatalogueError("That category isn't offered for this audience");
-  return { categoryId: node.id, ...legacy, rate: resolveCommission(tree, node.id) };
+  return {
+    categoryId: node.id,
+    attributes: resolveAttributes(tree, node.id),
+    rate: resolveCommission(tree, node.id),
+  };
+}
+
+/** `spec.<key>` form fields as raw values. */
+function specInput(input: unknown): Record<string, string> {
+  const out: Record<string, string> = {};
+  if (!input || typeof input !== "object") return out;
+  for (const [k, v] of Object.entries(input as Record<string, unknown>))
+    if (k.startsWith("spec.") && typeof v === "string") out[k.slice(5)] = v;
+  return out;
 }
 
 /**
@@ -274,6 +357,9 @@ export async function saveProduct(
     ? await db.product.findUnique({ where: { id }, select: { sellerId: true } })
     : null;
   const ownerId = sellerId ?? existing?.sellerId;
+  const stored = id
+    ? await db.product.findUnique({ where: { id }, select: { specs: true } })
+    : null;
   if (ownerId && !(await canSell(ownerId)))
     throw new CatalogueError("Accept the current factory agreement before listing products");
   const parsed = productSchema.parse(input);
@@ -281,14 +367,26 @@ export async function saveProduct(
   const {
     price,
     categoryId: _categoryId,
-    audience: _audience,
     kind: _kind,
+    sellUnit,
     ...p
   } = sellerId ? { ...parsed, brandUrl: "" } : parsed;
-  const { rate, ...category } = await categoryFor(parsed);
+  const { categoryId, attributes, rate } = await categoryFor(parsed);
+  // Product-level values checked against the category's attributes (CATG-002). Stored keys the
+  // category no longer has are kept: category edits never rewrite stored specs.
+  let specs: Prisma.InputJsonObject;
+  try {
+    specs = parseSpecs(attributes, specInput(input), stored?.specs);
+  } catch (e) {
+    if (e instanceof SpecsError) throw new CatalogueError(e.message);
+    throw e;
+  }
   const data = {
     ...p,
-    ...category,
+    categoryId,
+    specs,
+    ...(sellUnit ? { sellUnit } : {}),
+    shelfLifeDays: p.shelfLifeDays ?? null,
     price: price!,
     retailPrice: p.retailPrice || null,
     brandUrl: p.brandUrl || null,
@@ -346,7 +444,6 @@ export async function saveProduct(
           data: {
             ...data,
             ...pricing,
-            stockType: p.stockType ?? "FACTORY_SURPLUS",
             ...(sellerId ? { sellerId, status: "LIVE" as const } : {}),
           },
         });
@@ -376,13 +473,23 @@ export async function adjustStock(
     if (e instanceof VariantOptionsError) throw new CatalogueError(e.message);
     throw e;
   }
-  // Stock forms still post a size until the category decides the options (DEC-029 phase 4).
-  if (!fields.optionKey) throw new CatalogueError("Enter the size");
+  // The stock form posts the category's variant axes (CATG-002).
+  const axes = await variantAxesOf(productId);
+  const missing = axes.find((a) => a.required && !(a.key in fields.options));
+  if (missing) throw new CatalogueError(`Enter the ${missing.label.toLowerCase()}`);
+  if (axes.length && Object.keys(fields.options).some((k) => !axes.some((a) => a.key === k)))
+    throw new CatalogueError("Choose options from the category");
+  for (const a of axes) {
+    const v = fields.options[a.key];
+    const known = (o: { value: string }) => o.value.toLowerCase() === v?.toLowerCase();
+    if (v && a.type === "ENUM" && a.options.length && !a.options.some(known))
+      throw new CatalogueError(`Choose a ${a.label.toLowerCase()} from the list`);
+  }
   const existing = await db.variant.findUnique({
     where: { productId_optionKey: { productId, optionKey: fields.optionKey } },
   });
   if (!existing) {
-    if (delta < 0) throw new CatalogueError("That size has no stock to remove");
+    if (delta < 0) throw new CatalogueError("That option has no stock to remove");
     return db.variant.create({ data: { productId, ...fields, available: delta } });
   }
   const r = await db.variant.updateMany({
@@ -390,6 +497,13 @@ export async function adjustStock(
     data: { available: { increment: delta } },
   });
   if (r.count === 0) throw new CatalogueError("Can't remove more than the free stock");
+}
+
+/** The variant axes of a product's category (inherited), in display order. */
+async function variantAxesOf(productId: string) {
+  const p = await db.product.findUnique({ where: { id: productId }, select: { categoryId: true } });
+  if (!p) throw new CatalogueError("Product not found");
+  return resolveAttributes(await loadCategoryTree(), p.categoryId).filter((a) => a.isVariantAxis);
 }
 
 /**

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { snapQty } from "@/lib/order-qty";
 import { setQtyAction } from "./actions";
 
 const MAX = 999;
@@ -11,16 +12,22 @@ export function QtyStepper({
   agent,
   qty,
   label,
+  minOrderQty = 1,
+  stepQty = 1,
 }: {
   variantId: string;
   agent: string;
   qty: number;
   label: string;
+  /** Order quantity rule (src/lib/order-qty.ts) */
+  minOrderQty?: number;
+  stepQty?: number;
 }) {
+  const rule = { minOrderQty, stepQty };
   const form = useRef<HTMLFormElement>(null);
   const [value, setValue] = useState(String(qty));
   const save = (next: number) => {
-    const n = Math.min(MAX, Math.max(1, next));
+    const n = Math.min(MAX, snapQty(next, rule));
     setValue(String(n));
     if (n === qty) return;
     // Let React write the new value into the field before the form is read.
@@ -42,8 +49,8 @@ export function QtyStepper({
         type="button"
         className={step}
         aria-label={`One less ${label}`}
-        disabled={current <= 1}
-        onClick={() => save(current - 1)}
+        disabled={current <= minOrderQty}
+        onClick={() => save(current - stepQty)}
       >
         −
       </button>
@@ -55,7 +62,8 @@ export function QtyStepper({
         name="qty"
         type="number"
         inputMode="numeric"
-        min={1}
+        min={minOrderQty}
+        step={stepQty}
         max={MAX}
         value={value}
         onChange={(e) => setValue(e.target.value)}
@@ -76,8 +84,8 @@ export function QtyStepper({
         type="button"
         className={step}
         aria-label={`One more ${label}`}
-        disabled={current >= MAX}
-        onClick={() => save(current + 1)}
+        disabled={current + stepQty > MAX}
+        onClick={() => save(current + stepQty)}
       >
         +
       </button>

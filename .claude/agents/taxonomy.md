@@ -18,23 +18,27 @@ Policy references: `CATG-001`–`CATG-003`, `DEC-029`, `SUP-002`, `CAT-001`, `CA
 
 **Status: Partly built.** Phase 2 (category tree) is done: `Category`, `AttributeDef`,
 `AttributeOption`, `CategoryAttribute`, `Product.categoryId` (required) and `Product.specs` exist,
-and the shop filter and product forms read the tree. Variant options, spec validation, factory
-category approval and the removal of the old columns are still planned. `Variant` is still keyed by
-`size` + `colour`.
+and the shop filter and product forms read the tree. Variant options, spec validation
+([product-specs.ts](../../src/lib/product-specs.ts)), attribute-driven forms and shop filters, and
+the general fields (phase 4) are built; the old columns are gone. Factory category approval is
+still planned.
 
 ## Code pointers
 
-- Schema: `Category`, `AttributeDef`, `AttributeOption`, `CategoryAttribute` and `LegacyCategory`
-  (the old `enum Category`, renamed so the table could take the name) in
-  [schema.prisma](../../prisma/schema.prisma). The relation field is `Product.categoryRef` because
-  `Product.category` is still the legacy enum column.
+- Schema: `Category`, `AttributeDef`, `AttributeOption`, `CategoryAttribute` in
+  [schema.prisma](../../prisma/schema.prisma). The relation field is `Product.categoryRef`.
+  Audience comes from the tree (`otherAudiencePaths`), the clothing kind from `kindOfSlug`
+  (`fitKind` in deep-fit-jobs.ts for fit code).
+- Forms and filters: `choiceAttributes` (server/categories.ts), `TaxonomyFields` (shop filters and
+  `spec.<key>` fields), `VariantAxisFields` (stock forms, `option.<key>`); order quantity rule in
+  [order-qty.ts](../../src/lib/order-qty.ts).
 - Migration [20261123100000_category_tree](../../prisma/migrations/20261123100000_category_tree/migration.sql)
   inserts the starting tree between `-- tree:start`/`-- tree:end` and links products between
   `-- backfill:start`/`-- backfill:end` (kind leaf, else stored `SHOES` to Shoes, else the Clothing
   root). Tests run both blocks.
 - Pure module [src/lib/categories.ts](../../src/lib/categories.ts): seed rows
   (`seedCategories`, `seedAttributes`, `seedCategoryAttributes`, ids from `categoryIdOf(slug)`),
-  slug helpers (`kindSlug`, `kindOfSlug`, `audienceOfSlug`, `legacyColumns`) and resolvers
+  slug helpers (`kindSlug`, `kindOfSlug`, `audienceOfSlug`, `otherAudiencePaths`) and resolvers
   (`ancestors`, `inSubtree`, `subtreeIds`, `isActive`, `resolveFeatures`, `hasFeature`,
   `resolveAttributes`, `resolveCommission`, `resolveNeedsApproval`, `resolveReturnReasons`,
   `leaves`).

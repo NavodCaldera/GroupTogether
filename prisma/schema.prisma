@@ -140,13 +140,6 @@ model Session {
 
 // ─── Catalogue ─────────────────────────────────────────────────────────────
 
-/// The old two-value category (was `enum Category`); still written, removed once every reader uses
-/// `Product.categoryId` (DEC-029)
-enum LegacyCategory {
-  SHOES
-  APPAREL
-}
-
 /// The category tree (DEC-029, CATG-001): Clothing > Men > Shirts. Fields left null or empty are
 /// inherited from the parent (src/lib/categories.ts)
 model Category {
@@ -225,22 +218,17 @@ model CategoryAttribute {
   @@index([defId])
 }
 
-enum StockType {
+/// The state of what is sold (DEC-029)
+enum Condition {
+  NEW
   FACTORY_SURPLUS
   B_GRADE
+  REFURBISHED
 }
 
 enum Gender {
   MALE
   FEMALE
-}
-
-enum Audience {
-  MEN
-  WOMEN
-  GIRL
-  BOY
-  KID
 }
 
 enum ProductStatus {
@@ -263,16 +251,19 @@ model Product {
   title          String
   brand          String
   description    String          @default("")
-  category       LegacyCategory
-  /// The category tree node (DEC-029); `category`, `audience` and `kind` are still written
+  /// The category tree node (DEC-029); audience and clothing kind come from its slug
   categoryId     String
   categoryRef    Category        @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   /// Product-level attribute values, checked against the category's attributes
   specs          Json            @default("{}")
-  /// Who it is for and the finer category (ids in src/lib/taxonomy.ts); null on older products
-  audience       Audience?
-  kind           String?
-  stockType      StockType
+  condition      Condition       @default(NEW)
+  /// What one unit is: "piece", "pack", "box", "kg"
+  sellUnit       String          @default("piece")
+  /// Fewest units a buyer may order, and the step above it (a dozen pens: 12 and 12)
+  minOrderQty    Int             @default(1)
+  stepQty        Int             @default(1)
+  shelfLifeDays  Int?
+  hazmat         Boolean         @default(false)
   /// No longer used (defects removed by the product owner, 2026-10-17); kept so old notes aren't lost
   defectNotes    String?
   retailPrice    Decimal?        @db.Decimal(14, 2)
@@ -324,9 +315,7 @@ model Product {
   /// Group deals with price tiers (DEAL-001)
   groupDeals     GroupDeal[]
 
-  @@index([status, category])
   @@index([sellerId])
-  @@index([status, audience, kind])
   @@index([categoryId])
   @@index([specs(ops: JsonbPathOps)], type: Gin)
 }
@@ -336,10 +325,6 @@ model Variant {
   id        String  @id @default(cuid())
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  /// Legacy: kept in step with options.size until a later phase drops it
-  size      String
-  /// Legacy: kept in step with options.colour until a later phase drops it
-  colour    String  @default("")
   /// The buyer's choices, e.g. {"size":"M","colour":"Navy"}; built by src/lib/variant-options.ts
   options   Json
   /// Normalised options: sorted lower-case "key=value" joined by "|"; "" when there are none
@@ -361,7 +346,6 @@ model Variant {
   orderLines OrderLine[]
   cartItems  CartItem[]
 
-  @@unique([productId, size, colour])
   @@unique([productId, optionKey])
 }
 

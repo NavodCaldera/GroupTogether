@@ -9,6 +9,7 @@ import { BUYER_ROLES } from "@/lib/roles";
 import { sizesFor } from "@/lib/taxonomy";
 import { requireAdmin, requireFactory, requireUser } from "./auth/session";
 import { BodyFitError, confirmBody, deleteBody, rebuildBody } from "./body-fit";
+import { kindOfSlug } from "@/lib/categories";
 import { db } from "./db";
 import { DeepFitError, requestDeepFit } from "./deep-fit";
 import {
@@ -49,16 +50,14 @@ const strings = (fd: FormData) =>
 async function chartSizes(productId: string) {
   const p = await db.product.findUnique({
     where: { id: productId },
-    select: { kind: true, variants: { select: { options: true } } },
+    select: { categoryRef: { select: { slug: true } }, variants: { select: { options: true } } },
   });
-  return p
-    ? sizeOrder(
-        p.kind,
-        [...sizesFor(p.kind ?? undefined), ...p.variants.map((v) => sizeOf(v.options))].filter(
-          Boolean,
-        ),
-      )
-    : [];
+  if (!p) return [];
+  const kind = kindOfSlug(p.categoryRef.slug);
+  return sizeOrder(
+    kind,
+    [...sizesFor(kind ?? undefined), ...p.variants.map((v) => sizeOf(v.options))].filter(Boolean),
+  );
 }
 
 /** A factory's size chart and fabric details; any change waits for an admin's approval. */

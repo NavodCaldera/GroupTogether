@@ -6,6 +6,19 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-24 - General product fields (DEC-029, phase 4)
+
+- Products carry `condition` (New, Factory surplus, B-grade, Refurbished; filled from the old stock
+  type), `sellUnit`, `minOrderQty`, `stepQty`, `shelfLifeDays` and `hazmat`. Cart add, checkout and
+  own-basket orders refuse a line below the minimum or off the step ([rule](../src/lib/order-qty.ts)).
+- `Product.specs` is checked with zod against the category's inherited attributes in `saveProduct`
+  ([specs](../src/lib/product-specs.ts)); the product form shows those fields and the product page
+  lists the values.
+- Stock forms ask for the category's variant axes; shop filters are the category's filterable
+  attributes (axes match `Variant.options`, the rest `Product.specs`).
+- Removed `Product.category`, `audience`, `kind`, `stockType`, `Variant.size`/`colour`, the old
+  unique key and the `LegacyCategory`, `Audience` and `StockType` enums. The shop audience
+  (DEC-025) now comes from the category tree: other audiences' clothing subtrees are left out.
 ## 2026-11-22 - Factory categories (DEC-029, phase 5)
 
 - A factory lists only in categories a Factories admin approved for it; approving a category

@@ -1,4 +1,5 @@
 import "server-only";
+import { qtyProblem } from "@/lib/order-qty";
 import { randomUUID } from "node:crypto";
 import { D, toD } from "@/lib/decimal";
 import { orderTotals, splitCheckout } from "@/lib/agent-money";
@@ -75,6 +76,8 @@ async function loadFactoryLines(tx: Tx, factoryId: string | null, lines: OwnLine
           price: true,
           factoryPrice: true,
           sellerId: true,
+          minOrderQty: true,
+          stepQty: true,
         },
       },
     },
@@ -90,6 +93,8 @@ async function loadFactoryLines(tx: Tx, factoryId: string | null, lines: OwnLine
     const p = v?.product;
     if (!p || p.status !== "LIVE" || !p.sellerId || p.factoryPrice === null)
       throw new CheckoutError(p ? `No longer available: ${p.title}` : "No longer available");
+    const problem = qtyProblem(l.qty, p, p.title);
+    if (problem) throw new CheckoutError(problem);
     const deal = deals.get(p.id);
     return {
       ...l,
@@ -671,7 +676,7 @@ export async function ownBasketView(basketId: string, viewerId: string | null) {
       price: true,
       status: true,
       photoKey: true,
-      category: true,
+      categoryRef: { select: { slug: true } },
       variants: {
         select: { id: true, label: true, available: true },
         orderBy: { id: "asc" },

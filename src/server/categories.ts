@@ -2,6 +2,7 @@ import "server-only";
 import { cache } from "react";
 import {
   type CategoryGroup,
+  type ChoiceAttribute,
   type CategoryNode,
   type Tree,
   kindOfSlug,
@@ -52,15 +53,31 @@ async function readTree(client: Tx = db): Promise<CategoryNode[]> {
 /** The whole category tree, read once per request. */
 export const loadCategoryTree = cache(async (): Promise<Tree> => toTree(await readTree()));
 
-/** Sizes to offer for a category: its kind's sizes for clothing, else the size attribute's options. */
-function sizesOf(tree: Tree, node: CategoryNode) {
-  const kind = kindOfSlug(node.slug);
-  if (kind) return sizesFor(kind);
-  return (
-    resolveAttributes(tree, node.id)
-      .find((a) => a.key === "size")
-      ?.options.map((o) => o.value) ?? []
-  );
+/**
+ * A category's resolved attributes as form and filter fields (CATG-002). A clothing kind's size
+ * choices are its own sizes (taxonomy.ts); other ENUMs offer their options; BOOLs Yes and No.
+ */
+export function choiceAttributes(tree: Tree, id: string): ChoiceAttribute[] {
+  const node = tree.get(id);
+  const kind = node ? kindOfSlug(node.slug) : null;
+  return resolveAttributes(tree, id).map((a) => ({
+    key: a.key,
+    label: a.label,
+    type: a.type,
+    unit: a.unit,
+    required: a.required,
+    isVariantAxis: a.isVariantAxis,
+    filterable: a.filterable,
+    values:
+      a.key === "size" && kind
+        ? sizesFor(kind).map((v) => ({ value: v, label: v }))
+        : a.type === "BOOL"
+          ? [
+              { value: "true", label: "Yes" },
+              { value: "false", label: "No" },
+            ]
+          : a.options,
+  }));
 }
 
 /**
@@ -79,7 +96,7 @@ export async function categoryChoices({
     g.options.push({
       value: by === "id" ? node.id : node.slug,
       label: node.name,
-      sizes: sizesOf(tree, node),
+      attributes: choiceAttributes(tree, node.id),
     });
   }
   return groups;
