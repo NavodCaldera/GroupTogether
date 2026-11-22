@@ -38,15 +38,8 @@ async function factory() {
 
 /** A restricted root with one leaf, outside clothing. */
 async function foodTree() {
-  const root = await db.category.create({
-    data: {
-      id: "cat_food",
-      slug: "food",
-      name: "Food",
-      path: "/cat_food/",
-      needsApproval: true,
-    },
-  });
+  // The Food root is seeded as restricted (phase 9).
+  const root = await db.category.findUniqueOrThrow({ where: { id: "cat_food" } });
   const leaf = await db.category.create({
     data: {
       id: "cat_food_tea",

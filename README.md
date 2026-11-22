@@ -29,7 +29,7 @@ Demo accounts:
 - `core@groupbasket.lk` (settings and admin accounts), `premium@groupbasket.lk` (luxury
   brands), `factory@groupbasket.lk` (factories) and `buyers@groupbasket.lk` (buyers and orders).
 - `buyer@example.com` (Dilan), `buyer2@example.com` (Sachini) and `buyer3@example.com`
-  (Tharindu), the buyers. `seller@example.com` is the factory and `brand@example.com` the luxury brand. Packing staff (`packer@`, `packer2@`) are seeded but parked.
+  (Tharindu), the buyers. `seller@example.com` is the factory and `brand@example.com` the luxury brand. `stationery@example.com`, `household@example.com` and `snacks@example.com` are factories outside clothing, each with live group deals. Packing staff (`packer@`, `packer2@`) are seeded but parked.
 
 ## Operational admin accounts
 

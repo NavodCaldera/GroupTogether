@@ -29,8 +29,16 @@
 import "dotenv/config";
 import { D } from "../src/lib/decimal";
 import { findKind } from "../src/lib/taxonomy";
-import { categoryIdOf, kindSlug } from "../src/lib/categories";
-import { ensureCategoryTree } from "../src/server/categories";
+import {
+  categoryIdOf,
+  kindSlug,
+  resolveAttributes,
+  resolveCommission,
+} from "../src/lib/categories";
+import { ensureCategoryTree, loadCategoryTree } from "../src/server/categories";
+import { parseSpecs } from "../src/lib/product-specs";
+import { categoryCommission } from "../src/lib/price-rules";
+import { saveDealDraft, startDeal } from "../src/server/deals";
 import { optionsFromSizeColour, variantFields } from "../src/lib/variant-options";
 import type { Hours } from "../src/lib/agent-rules";
 import {
@@ -38,6 +46,7 @@ import {
   DEMO_AGENTS,
   DEMO_BUYERS,
   DEMO_FACTORIES,
+  DEMO_GENERAL_FACTORIES,
   DEMO_PASSWORD,
   DEMO_PICKUP_CODE,
 } from "../src/lib/demo-accounts";
@@ -198,6 +207,127 @@ const LANKA_PRODUCTS: ProductSeed[] = [
     factoryPrice: "3800",
     retail: "7200",
     description: "White school uniform shirt.",
+  },
+];
+
+/** A product outside clothing (DEC-029 phase 9): specs, variant options and a live group deal. */
+type GeneralProductSeed = {
+  title: string;
+  category: string;
+  description: string;
+  specs: Record<string, string>;
+  variants: Record<string, string>[];
+  sellUnit?: string;
+  minOrderQty?: number;
+  stepQty?: number;
+  shelfLifeDays?: number;
+  /** [minQty, factoryPrice] per tier, tier 1 first */
+  tiers: [number, string][];
+};
+
+const GENERAL_FACTORIES: {
+  key: keyof typeof DEMO_GENERAL_FACTORIES;
+  owner: string;
+  phone: string;
+  place: { address: string; city: string; lat: number; lng: number };
+  roots: string[];
+  products: GeneralProductSeed[];
+}[] = [
+  {
+    key: "stationery",
+    owner: "Sanjeewa Kumara",
+    phone: "0754444401",
+    place: { address: "18 Mill Lane", city: "Homagama", lat: 6.8441, lng: 80.0022 },
+    roots: ["stationery"],
+    products: [
+      {
+        title: "Exercise book",
+        category: "stationery/exercise-books",
+        description: "Stitched spine, 70 gsm paper.",
+        specs: {},
+        variants: [
+          { pages: "80", ruling: "Single rule" },
+          { pages: "120", ruling: "Single rule" },
+          { pages: "120", ruling: "Square" },
+          { pages: "200", ruling: "Blank" },
+        ],
+        tiers: [
+          [1, "120"],
+          [100, "105"],
+          [500, "92"],
+        ],
+      },
+      {
+        title: "Ballpoint pens, pack of 12",
+        category: "stationery/pens",
+        description: "0.7 mm tip.",
+        specs: { pack_size: "12" },
+        variants: [{ ink_colour: "Blue" }, { ink_colour: "Black" }, { ink_colour: "Red" }],
+        sellUnit: "pack",
+        minOrderQty: 12,
+        stepQty: 12,
+        tiers: [
+          [1, "540"],
+          [120, "480"],
+          [600, "420"],
+        ],
+      },
+    ],
+  },
+  {
+    key: "household",
+    owner: "Roshan Silva",
+    phone: "0754444402",
+    place: { address: "5 Kandy Road", city: "Kadawatha", lat: 7.0016, lng: 79.9535 },
+    roots: ["household"],
+    products: [
+      {
+        title: "Steel water bottle",
+        category: "household/kitchenware",
+        description: "Double wall, keeps cold for 12 hours.",
+        specs: { material: "Stainless steel", capacity_ml: "750" },
+        variants: [{}],
+        tiers: [
+          [1, "1450"],
+          [50, "1300"],
+          [200, "1150"],
+        ],
+      },
+      {
+        title: "Floor cleaner",
+        category: "household/cleaning",
+        description: "Concentrate for tiles and wood.",
+        specs: { volume_ml: "1000" },
+        variants: [{ scent: "Lemon" }, { scent: "Lavender" }],
+        tiers: [
+          [1, "520"],
+          [100, "460"],
+        ],
+      },
+    ],
+  },
+  {
+    key: "food",
+    owner: "Fazeena Hameed",
+    phone: "0754444403",
+    place: { address: "21 Station Road", city: "Kurunegala", lat: 7.4863, lng: 80.3647 },
+    roots: ["food"],
+    products: [
+      {
+        title: "Cassava chips",
+        category: "food/snacks",
+        description: "Fried in coconut oil.",
+        specs: { weight_g: "200" },
+        variants: [{ flavour: "Salted" }, { flavour: "Chilli" }],
+        sellUnit: "pack",
+        shelfLifeDays: 120,
+        tiers: [
+          [1, "340"],
+          [200, "300"],
+          [1000, "260"],
+        ],
+      },
+    ],
   },
 ];
 
@@ -990,6 +1120,91 @@ async function main() {
   ];
   for (const { userId, ...p } of fitProfiles)
     await saveBodyProfileFor(userId, { ...p, captureMeta: { seed: true }, consent: true });
+
+  // ─── Factories outside clothing (DEC-029 phase 9): an owner login each, live group deals ──
+  const tree = await loadCategoryTree();
+  const settingsRow = await db.settings.findUniqueOrThrow({ where: { id: 1 } });
+  // Colombo wall time 30 days ahead, as the deal form sends it.
+  const dealEnds = new Date(Date.now() + 30 * 86_400_000 + 5.5 * 3_600_000)
+    .toISOString()
+    .slice(0, 16);
+  for (const g of GENERAL_FACTORIES) {
+    const login = DEMO_GENERAL_FACTORIES[g.key];
+    const owner = await db.user.create({
+      data: {
+        role: "SELLER",
+        name: g.owner,
+        company: login.company,
+        email: login.owner,
+        phone: g.phone,
+        ...g.place,
+        passwordHash,
+      },
+    });
+    await db.factoryProfile.create({
+      data: {
+        factoryUserId: owner.id,
+        status: "ACTIVE",
+        complianceDueAt: new Date(Date.now() + 30 * 86_400_000),
+      },
+    });
+    // A restricted category (food) is approved only with an approved product licence.
+    if (g.roots.some((r) => tree.get(categoryIdOf(r))?.needsApproval))
+      await db.factoryDocument.create({
+        data: {
+          factoryId: owner.id,
+          kind: "PRODUCT_LICENCE",
+          storageKey: `seed/${g.key}-licence.pdf`,
+          contentType: "application/pdf",
+          status: "APPROVED",
+          reviewedById: categoryReviewer.id,
+          reviewedAt: new Date(),
+        },
+      });
+    await db.factoryCategory.createMany({
+      data: g.roots.map((root) => ({
+        factoryId: owner.id,
+        categoryId: categoryIdOf(root),
+        status: "APPROVED" as const,
+        approvedById: categoryReviewer.id,
+        reviewedAt: new Date(),
+      })),
+    });
+    for (const p of g.products) {
+      const categoryId = categoryIdOf(p.category);
+      const factoryPrice = p.tiers[0]![1];
+      const commission = categoryCommission(
+        factoryPrice,
+        resolveCommission(tree, categoryId),
+        settingsRow.commissionPerPiece,
+      );
+      const product = await db.product.create({
+        data: {
+          title: p.title,
+          brand: login.company,
+          categoryId,
+          specs: parseSpecs(resolveAttributes(tree, categoryId), p.specs),
+          sellUnit: p.sellUnit ?? "piece",
+          minOrderQty: p.minOrderQty ?? 1,
+          stepQty: p.stepQty ?? 1,
+          shelfLifeDays: p.shelfLifeDays ?? null,
+          factoryPrice,
+          commission: commission.toFixed(2),
+          price: new D(factoryPrice).plus(commission).toFixed(2),
+          description: p.description,
+          status: "LIVE",
+          sellerId: owner.id,
+          variants: { create: p.variants.map((o) => ({ ...variantFields(o), available: 600 })) },
+        },
+      });
+      const dealId = await saveDealDraft(owner.id, product.id, null, {
+        endsAt: dealEnds,
+        maxQty: "",
+        tiers: p.tiers.map(([minQty, price]) => ({ minQty: String(minQty), factoryPrice: price })),
+      });
+      await startDeal(owner.id, dealId);
+    }
+  }
 
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}

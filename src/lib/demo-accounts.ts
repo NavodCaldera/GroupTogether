@@ -25,6 +25,13 @@ export const DEMO_FACTORIES = {
   },
 } as const;
 
+/** Factories outside clothing (DEC-029 phase 9): an owner login each, no staff. */
+export const DEMO_GENERAL_FACTORIES = {
+  stationery: { company: "Lanka Paper Products", owner: "stationery@example.com" },
+  household: { company: "Kelani Home Goods", owner: "household@example.com" },
+  food: { company: "Wayamba Snacks", owner: "snacks@example.com" },
+} as const;
+
 /** Agent logins. `kollupitiya` is the main seeded agent; `applicant` has only applied. */
 export const DEMO_AGENTS = {
   kollupitiya: "agent@example.com",
@@ -129,6 +136,24 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
     role: "Factory sales",
     name: "Dinusha · Lanka Knit Works",
     email: DEMO_FACTORIES.lanka.sales,
+    lands: "/seller",
+  },
+  {
+    role: "Factory owner",
+    name: "Sanjeewa · Lanka Paper Products",
+    email: DEMO_GENERAL_FACTORIES.stationery.owner,
+    lands: "/seller",
+  },
+  {
+    role: "Factory owner",
+    name: "Roshan · Kelani Home Goods",
+    email: DEMO_GENERAL_FACTORIES.household.owner,
+    lands: "/seller",
+  },
+  {
+    role: "Factory owner",
+    name: "Fazeena · Wayamba Snacks",
+    email: DEMO_GENERAL_FACTORIES.food.owner,
     lands: "/seller",
   },
   {

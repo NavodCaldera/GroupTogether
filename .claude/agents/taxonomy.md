@@ -47,7 +47,11 @@ still planned.
   the shop) and `ensureCategoryTree` (upsert by id; the seed and test `resetDb` call it).
 - Starting tree: Clothing (features `fit`, `materials`, `audience`; size and colour as variant
   axes) > Men/Women/Girl/Boy/Kid > the kinds in [taxonomy.ts](../../src/lib/taxonomy.ts), plus an
-  empty Shoes root with the same features. Slugs are `clothing/men/shirts`; paths are
+  empty Shoes root with the same features. Phase 9 adds `GENERAL_ROOTS` (Stationery, Household,
+  Food with `needsApproval`) with their own attributes and root commission, written by the
+  [general_categories](../../prisma/migrations/20261126100000_general_categories/migration.sql)
+  migration's tree block (tests replay it). Keep the migration, `GENERAL_ROOTS` and the tests in
+  step; a new category for real deployments needs a new migration. Slugs are `clothing/men/shirts`; paths are
   `/<rootId>/<id>/` built from ids.
 - Saving: [`saveProduct`](../../src/server/catalogue.ts) takes `categoryId` (or the older
   `audience` + `kind`), accepts only an active leaf, and still writes `category`, `audience` and

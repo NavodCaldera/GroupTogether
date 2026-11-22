@@ -6,6 +6,19 @@ affected specialist guidance in the same work. Business rules live in
 Historical entries describe the state at the time, not competing current instructions.
 Newest first.
 
+## 2026-11-26 - Categories outside clothing and a multi-category seed (DEC-029, phase 9)
+
+- New roots in every database ([migration](../prisma/migrations/20261126100000_general_categories/migration.sql),
+  same rows as `seedCategories()`): Stationery (8%, min Rs 5) > Exercise books (pages, ruling as
+  variant axes), Pens (ink colour axis, pens per pack); Household (10%, min Rs 10) > Kitchenware
+  (material, capacity ml), Cleaning (scent axis, volume ml); Food (12%, min Rs 20, needs approval)
+  > Packaged snacks (flavour axis, weight g). No add-ons; only the general return reasons.
+- Demo factories `stationery@example.com`, `household@example.com`, `snacks@example.com` (owner
+  logins, approved for their root; the food factory has an approved product licence), each product
+  with validated specs, variants and a live group deal priced by the category commission. Pens are
+  sold by the pack in steps of 12. No demo orders on deals and no token entries.
+- Shoes stays an empty root (a child would turn existing Shoes listings into a parent category).
+
 ## 2026-11-25 - Clothing add-ons gated by category (DEC-029, phase 8)
 
 - Fit (heatmap, 3D body, Deep Fit Test), the Material Card and the shop audience filter follow

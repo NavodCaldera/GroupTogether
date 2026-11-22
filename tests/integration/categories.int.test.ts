@@ -3,7 +3,15 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { db } from "@/server/db";
 import { CatalogueError, listProducts, saveProduct } from "@/server/catalogue";
 import { categoryChoices, ensureCategoryTree, loadCategoryTree } from "@/server/categories";
-import { CLOTHING_ROOT_ID, categoryIdOf, kindSlug } from "@/lib/categories";
+import {
+  CLOTHING_ROOT_ID,
+  categoryIdOf,
+  kindSlug,
+  resolveAttributes,
+  resolveCommission,
+  resolveFeatures,
+  resolveNeedsApproval,
+} from "@/lib/categories";
 import { resetDb, sizeVariant } from "./helpers";
 
 beforeEach(resetDb);
@@ -13,11 +21,16 @@ const MIGRATION = readFileSync(
   "prisma/migrations/20261123100000_category_tree/migration.sql",
   "utf8",
 );
-const block = (name: string) =>
-  MIGRATION.slice(
-    MIGRATION.indexOf(`-- ${name}:start`) + `-- ${name}:start`.length,
-    MIGRATION.indexOf(`-- ${name}:end`),
-  )
+const GENERAL = readFileSync(
+  "prisma/migrations/20261126100000_general_categories/migration.sql",
+  "utf8",
+);
+const block = (name: string, sql = MIGRATION) =>
+  sql
+    .slice(
+      sql.indexOf(`-- ${name}:start`) + `-- ${name}:start`.length,
+      sql.indexOf(`-- ${name}:end`),
+    )
     .split(/;\s*\n/)
     .map((s) => s.trim())
     .filter((s) => s && !s.split("\n").every((l) => l.trim().startsWith("--")));
@@ -70,9 +83,47 @@ describe("category_tree migration", () => {
         "utf8",
       );
       await tx.$executeRawUnsafe(reasons.slice(reasons.indexOf('UPDATE "Category"')));
+      // Phase 9 adds the roots outside clothing.
+      for (const s of block("tree", GENERAL)) await tx.$executeRawUnsafe(s);
       return snapshot(tx);
     });
     expect(migrated).toEqual(seeded);
+  });
+
+  it("adds the roots outside clothing with valid attributes", async () => {
+    const tree = await loadCategoryTree();
+    for (const slug of ["stationery", "household", "food"]) {
+      const root = tree.get(categoryIdOf(slug))!;
+      expect(root).toMatchObject({ parentId: null, features: [], returnReasons: [] });
+      expect(root.commissionPct).not.toBeNull();
+    }
+    expect(tree.get("cat_food")!.needsApproval).toBe(true);
+    expect(resolveNeedsApproval(tree, "cat_food_snacks")).toBe(true);
+    expect(resolveNeedsApproval(tree, "cat_stationery_pens")).toBe(false);
+    expect(resolveCommission(tree, "cat_stationery_pens")).toEqual({ pct: "8", min: "5" });
+    const leaves = [
+      ["cat_stationery_exercise_books", ["pages", "ruling"]],
+      ["cat_stationery_pens", ["ink_colour", "pack_size"]],
+      ["cat_household_kitchenware", ["material", "capacity_ml"]],
+      ["cat_household_cleaning", ["scent", "volume_ml"]],
+      ["cat_food_snacks", ["flavour", "weight_g"]],
+    ] as const;
+    for (const [id, keys] of leaves) {
+      expect(tree.get(id)).toBeDefined();
+      expect(resolveFeatures(tree, id)).toEqual([]);
+      const attrs = resolveAttributes(tree, id);
+      expect(attrs.map((a) => a.key)).toEqual(keys);
+      for (const a of attrs) {
+        expect(["ENUM", "NUMBER"]).toContain(a.type);
+        if (a.type === "ENUM") expect(a.options.length).toBeGreaterThan(1);
+        if (a.isVariantAxis) expect(a.type).toBe("ENUM");
+      }
+    }
+    const shop = await categoryChoices({ by: "slug" });
+    expect(shop.find((g) => g.label === "Stationery")?.options.map((o) => o.value)).toEqual([
+      "stationery/exercise-books",
+      "stationery/pens",
+    ]);
   });
 
   it("is safe to write again", async () => {
