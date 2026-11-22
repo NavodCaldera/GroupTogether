@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import {
   CLOTHING_ROOT_ID,
+  GENERAL_ROOTS,
   type CategoryNode,
   ancestors,
   audienceOfSlug,
@@ -139,7 +140,14 @@ describe("category resolvers", () => {
 });
 
 describe("seeded clothing tree", () => {
-  const rows = seedCategories();
+  const all = seedCategories();
+  const general = new Set(
+    GENERAL_ROOTS.flatMap((r) => [
+      categoryIdOf(r.slug),
+      ...r.children.map((c) => categoryIdOf(c.slug)),
+    ]),
+  );
+  const rows = all.filter((r) => !general.has(r.id));
 
   it("has a Clothing root, audiences, every kind and an empty Shoes root", () => {
     const kinds = Object.values(KINDS).flat();
@@ -181,7 +189,7 @@ describe("seeded clothing tree", () => {
   });
 
   it("makes size and colour variant axes on the Clothing root", () => {
-    expect(seedCategoryAttributes()).toEqual([
+    expect(seedCategoryAttributes().filter((a) => a.categoryId === CLOTHING_ROOT_ID)).toEqual([
       expect.objectContaining({
         categoryId: CLOTHING_ROOT_ID,
         defId: "attr_size",
@@ -210,10 +218,62 @@ describe("seeded clothing tree", () => {
         `(${q(r.id)}, ${r.parentId ? q(r.parentId) : "NULL"}, ${q(r.slug)}, ${q(r.name)}, ${q(r.path)}, ${r.sortOrder},`,
       );
     expect(block.match(/'cat_[a-z_]+', (NULL|'cat_[a-z_]+'), '/g)).toHaveLength(rows.length);
-    for (const a of seedAttributes()) {
+    for (const a of seedAttributes().filter((a) => ["size", "colour"].includes(a.key))) {
       expect(block).toContain(`(${q(a.id)}, ${q(a.key)}, ${q(a.label)}, '${a.type}')`);
       for (const o of a.options) expect(block).toContain(`(${q(o.id)}, ${q(a.id)}, ${q(o.value)},`);
     }
+  });
+});
+
+describe("seeded general tree", () => {
+  const all = seedCategories();
+  const sql = readFileSync(
+    "prisma/migrations/20261126100000_general_categories/migration.sql",
+    "utf8",
+  );
+  const block = sql.slice(sql.indexOf("-- tree:start"), sql.indexOf("-- tree:end"));
+  const q = (s: string | null) => (s === null ? "NULL" : `'${s.replace(/'/g, "''")}'`);
+
+  it("adds Stationery, Household and Food with no add-ons, Food restricted", () => {
+    const t = toTree(all.map((r) => node({ ...r, attributes: [] })));
+    const roots = all.filter((r) => !r.parentId).map((r) => r.slug);
+    expect(roots).toEqual(["clothing", "shoes", "stationery", "household", "food"]);
+    for (const r of GENERAL_ROOTS)
+      for (const c of r.children) {
+        const id = categoryIdOf(c.slug);
+        expect(resolveFeatures(t, id)).toEqual([]);
+        expect(resolveReturnReasons(t, id)).toEqual([]);
+        expect(resolveCommission(t, id).pct).toBe(r.commissionPct);
+      }
+    expect(resolveNeedsApproval(t, categoryIdOf("food/snacks"))).toBe(true);
+    expect(resolveNeedsApproval(t, categoryIdOf("stationery/pens"))).toBe(false);
+  });
+
+  it("links only known attributes, variant axes as choices", () => {
+    const defs = new Map(seedAttributes().map((a) => [a.id, a]));
+    for (const l of seedCategoryAttributes()) {
+      const d = defs.get(l.defId)!;
+      expect(d).toBeDefined();
+      if (l.isVariantAxis && l.categoryId !== CLOTHING_ROOT_ID) expect(d.type).toBe("ENUM");
+      if (d.type === "ENUM" && d.key !== "size") expect(d.options.length).toBeGreaterThan(1);
+    }
+  });
+
+  it("matches the rows the general_categories migration inserts", () => {
+    for (const r of all.filter((r) => r.slug.split("/")[0] !== "clothing" && r.slug !== "shoes"))
+      expect(block).toContain(
+        `(${q(r.id)}, ${q(r.parentId)}, ${q(r.slug)}, ${q(r.name)}, ${q(r.path)}, ${r.sortOrder}, ${r.commissionPct ?? "NULL"}, ${r.minCommission ?? "NULL"}, ARRAY[]::TEXT[], ${r.needsApproval},`,
+      );
+    for (const a of seedAttributes().filter((a) => !["size", "colour"].includes(a.key))) {
+      expect(block).toContain(
+        `(${q(a.id)}, ${q(a.key)}, ${q(a.label)}, '${a.type}', ${q(a.unit)})`,
+      );
+      for (const o of a.options) expect(block).toContain(`(${q(o.id)}, ${q(a.id)}, ${q(o.value)},`);
+    }
+    for (const l of seedCategoryAttributes().filter((l) => l.categoryId !== CLOTHING_ROOT_ID))
+      expect(block).toContain(
+        `(${q(l.categoryId)}, ${q(l.defId)}, ${l.required}, ${l.isVariantAxis}, ${l.filterable}, ${l.sortOrder})`,
+      );
   });
 });
 

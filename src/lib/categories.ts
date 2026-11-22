@@ -73,6 +73,9 @@ export type CategorySeed = {
   sortOrder: number;
   features: string[];
   returnReasons: string[];
+  commissionPct: string | null;
+  minCommission: string | null;
+  needsApproval: boolean;
 };
 
 export type AttributeSeed = {
@@ -80,6 +83,7 @@ export type AttributeSeed = {
   key: string;
   label: string;
   type: AttributeTypeName;
+  unit: string | null;
   options: { id: string; value: string; label: string; sortOrder: number }[];
 };
 
@@ -149,6 +153,9 @@ export function seedCategories(): CategorySeed[] {
       sortOrder,
       features: parent ? [] : CLOTHING_FEATURES,
       returnReasons: parent ? [] : CLOTHING_RETURN_REASONS,
+      commissionPct: null,
+      minCommission: null,
+      needsApproval: false,
     };
     rows.push(row);
     return row;
@@ -159,7 +166,173 @@ export function seedCategories(): CategorySeed[] {
     KINDS[a.id].forEach((k, j) => add(node, kindSlug(k.id), k.label, j));
   });
   add(null, SHOES_SLUG, "Shoes", 1);
+  return [...rows, ...generalCategories()];
+}
+
+/**
+ * Roots outside clothing (DEC-029 phase 9), written by the general_categories migration: no
+ * add-ons and only the general return reasons. Commission is set on each root and inherited.
+ */
+type GeneralRoot = {
+  slug: string;
+  name: string;
+  commissionPct: string;
+  minCommission: string;
+  needsApproval?: boolean;
+  children: { slug: string; name: string; attributes: GeneralLink[] }[];
+};
+type GeneralLink = {
+  defId: string;
+  required: boolean;
+  isVariantAxis: boolean;
+  filterable: boolean;
+};
+
+const link = (defId: string, required: boolean, isVariantAxis: boolean, filterable: boolean) => ({
+  defId,
+  required,
+  isVariantAxis,
+  filterable,
+});
+
+export const GENERAL_ROOTS: GeneralRoot[] = [
+  {
+    slug: "stationery",
+    name: "Stationery",
+    commissionPct: "8.00",
+    minCommission: "5.00",
+    children: [
+      {
+        slug: "stationery/exercise-books",
+        name: "Exercise books",
+        attributes: [link("attr_pages", true, true, true), link("attr_ruling", true, true, true)],
+      },
+      {
+        slug: "stationery/pens",
+        name: "Pens",
+        attributes: [
+          link("attr_ink_colour", true, true, true),
+          link("attr_pack_size", true, false, false),
+        ],
+      },
+    ],
+  },
+  {
+    slug: "household",
+    name: "Household",
+    commissionPct: "10.00",
+    minCommission: "10.00",
+    children: [
+      {
+        slug: "household/kitchenware",
+        name: "Kitchenware",
+        attributes: [
+          link("attr_material", true, false, true),
+          link("attr_capacity_ml", false, false, false),
+        ],
+      },
+      {
+        slug: "household/cleaning",
+        name: "Cleaning",
+        attributes: [
+          link("attr_scent", true, true, true),
+          link("attr_volume_ml", true, false, false),
+        ],
+      },
+    ],
+  },
+  {
+    slug: "food",
+    name: "Food",
+    commissionPct: "12.00",
+    minCommission: "20.00",
+    needsApproval: true,
+    children: [
+      {
+        slug: "food/snacks",
+        name: "Packaged snacks",
+        attributes: [
+          link("attr_flavour", true, true, true),
+          link("attr_weight_g", true, false, false),
+        ],
+      },
+    ],
+  },
+];
+
+function generalCategories(): CategorySeed[] {
+  const rows: CategorySeed[] = [];
+  GENERAL_ROOTS.forEach((r, i) => {
+    const id = categoryIdOf(r.slug);
+    const root: CategorySeed = {
+      id,
+      parentId: null,
+      slug: r.slug,
+      name: r.name,
+      path: childPath(null, id),
+      sortOrder: i + 2,
+      features: [],
+      returnReasons: [],
+      commissionPct: r.commissionPct,
+      minCommission: r.minCommission,
+      needsApproval: r.needsApproval ?? false,
+    };
+    rows.push(root);
+    r.children.forEach((c, j) => {
+      const cid = categoryIdOf(c.slug);
+      rows.push({
+        ...root,
+        id: cid,
+        parentId: id,
+        slug: c.slug,
+        name: c.name,
+        path: childPath(root.path, cid),
+        sortOrder: j,
+        commissionPct: null,
+        minCommission: null,
+        needsApproval: false,
+      });
+    });
+  });
   return rows;
+}
+
+const enumDef = (key: string, label: string, values: string[]): AttributeSeed => ({
+  id: `attr_${key}`,
+  key,
+  label,
+  type: "ENUM",
+  unit: null,
+  options: values.map((v, i) => ({
+    id: `attr_${key}_${v.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`,
+    value: v,
+    label: v,
+    sortOrder: i,
+  })),
+});
+const numberDef = (key: string, label: string, unit: string | null): AttributeSeed => ({
+  id: `attr_${key}`,
+  key,
+  label,
+  type: "NUMBER",
+  unit,
+  options: [],
+});
+
+/** The attributes the general roots' children use. */
+export function generalAttributes(): AttributeSeed[] {
+  return [
+    enumDef("pages", "Pages", ["80", "120", "160", "200"]),
+    enumDef("ruling", "Ruling", ["Single rule", "Square", "Blank"]),
+    enumDef("ink_colour", "Ink colour", ["Blue", "Black", "Red"]),
+    numberDef("pack_size", "Pens per pack", null),
+    enumDef("material", "Material", ["Stainless steel", "Aluminium", "Plastic", "Glass"]),
+    numberDef("capacity_ml", "Capacity", "ml"),
+    enumDef("scent", "Scent", ["Lemon", "Lavender", "Unscented"]),
+    numberDef("volume_ml", "Volume", "ml"),
+    enumDef("flavour", "Flavour", ["Salted", "Chilli", "Cheese"]),
+    numberDef("weight_g", "Weight", "g"),
+  ];
 }
 
 export function seedAttributes(): AttributeSeed[] {
@@ -169,6 +342,7 @@ export function seedAttributes(): AttributeSeed[] {
       key: "size",
       label: "Size",
       type: "ENUM",
+      unit: null,
       options: ALL_SIZES.map((s, i) => ({
         id: `attr_size_${s.toLowerCase()}`,
         value: s,
@@ -176,7 +350,8 @@ export function seedAttributes(): AttributeSeed[] {
         sortOrder: i,
       })),
     },
-    { id: "attr_colour", key: "colour", label: "Colour", type: "TEXT", options: [] },
+    { id: "attr_colour", key: "colour", label: "Colour", type: "TEXT", unit: null, options: [] },
+    ...generalAttributes(),
   ];
 }
 
@@ -185,6 +360,11 @@ export function seedCategoryAttributes(): CategoryAttributeSeed[] {
   return [
     { ...base, defId: "attr_size", required: true, sortOrder: 0 },
     { ...base, defId: "attr_colour", required: false, sortOrder: 1 },
+    ...GENERAL_ROOTS.flatMap((r) =>
+      r.children.flatMap((c) =>
+        c.attributes.map((a, i) => ({ categoryId: categoryIdOf(c.slug), ...a, sortOrder: i })),
+      ),
+    ),
   ];
 }
 

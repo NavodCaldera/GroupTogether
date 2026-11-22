@@ -140,3 +140,11 @@ test("the sweep settles the deal and each buyer sees the rebate", async ({ page 
   await page.goto(`/products/${ids.product}`);
   await expect(page.getByTestId("deal-bar")).toHaveCount(0);
 });
+
+test("a buyer filters the shop by a stationery category", async ({ page }) => {
+  await signIn(page, DEMO_BUYERS.malith);
+  await page.goto("/shop?category=stationery%2Fpens");
+  await expect(page.getByText("Ballpoint pens, pack of 12").first()).toBeVisible();
+  await expect(page.getByText("Exercise book", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Cassava chips")).toHaveCount(0);
+});
