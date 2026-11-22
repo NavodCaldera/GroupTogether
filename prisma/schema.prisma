@@ -97,6 +97,11 @@ model User {
   sessions           Session[]
   notifications      Notification[]
   products           Product[]               @relation("SellerProducts")
+  packMembers        PackMember[]
+  startedPackGroups  PackGroup[]             @relation("PackGroupStarter")
+  /// Buyers: the pickup point picked for family-pack groups (DEC-030)
+  pickupAgentId      String?
+  pickupAgent        Agent?                  @relation("BuyerPickup", fields: [pickupAgentId], references: [id], onDelete: SetNull)
   stockOffers        StockOffer[]            @relation("OfferSeller")
   stockReceived      StockOffer[]            @relation("StockReceivedBy")
   giftOrders         GiftOrder[]             @relation("GiftRecipient")
@@ -165,6 +170,7 @@ model Category {
   updatedAt     DateTime             @updatedAt
   attributes    CategoryAttribute[]
   products      Product[]
+  companies     Company[]
   factories     FactoryCategory[]
   applications  FactoryApplication[]
 
@@ -1083,6 +1089,8 @@ model Agent {
   pickupAttempts  PickupAttempt[]
   losses          AgentLoss[]
   paymentAttempts PaymentAttempt[]
+  packGroups      PackGroup[]
+  pickupBuyers    User[]             @relation("BuyerPickup")
   handoverReturns ReturnRequest[]    @relation("ReturnHandoverAgent")
   feeClawbacks    AgentFeeClawback[]
 
@@ -2154,4 +2162,94 @@ model FeelAxis {
   measurementIds String[]
 
   @@unique([profileId, axis])
+}
+
+// ─── Family packs (DEC-030) ────────────────────────────────────────────────
+
+/// A company that publishes standard family packs in one category. Demo rows are not partners.
+model Company {
+  id         String         @id @default(cuid())
+  slug       String         @unique
+  name       String
+  categoryId String
+  category   Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  demo       Boolean        @default(false)
+  active     Boolean        @default(true)
+  packs      StandardPack[]
+
+  @@index([categoryId])
+}
+
+model StandardPack {
+  id           String        @id @default(cuid())
+  slug         String        @unique
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  name         String
+  durationDays Int
+  active       Boolean       @default(true)
+  versions     PackVersion[]
+}
+
+/// Fixed contents, price and group size; groups point at a version, so edits publish a new one.
+model PackVersion {
+  id             String       @id @default(cuid())
+  packId         String
+  pack           StandardPack @relation(fields: [packId], references: [id], onDelete: Restrict)
+  version        Int
+  publishedAt    DateTime?
+  pricePerFamily Decimal      @db.Decimal(14, 2)
+  /// Families needed to unlock the group order, 5 to 15
+  groupSize      Int
+  householdSize  Int?
+  items          PackItem[]
+  groups         PackGroup[]
+
+  @@unique([packId, version])
+}
+
+model PackItem {
+  id        String      @id @default(cuid())
+  versionId String
+  version   PackVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  name      String
+  size      String
+  qty       Int
+  sortOrder Int         @default(0)
+}
+
+enum PackGroupStatus {
+  OPEN
+  FULL
+  CLOSED
+}
+
+/// Buyers at one pickup point joining one exact pack version.
+model PackGroup {
+  id          String          @id @default(cuid())
+  versionId   String
+  version     PackVersion     @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  agentId     String
+  agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Restrict)
+  status      PackGroupStatus @default(OPEN)
+  joined      Int             @default(0)
+  closesAt    DateTime?
+  createdById String
+  createdBy   User            @relation("PackGroupStarter", fields: [createdById], references: [id], onDelete: Restrict)
+  createdAt   DateTime        @default(now())
+  members     PackMember[]
+
+  @@index([versionId, agentId, status])
+}
+
+model PackMember {
+  id       String    @id @default(cuid())
+  groupId  String
+  group    PackGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  userId   String
+  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+  joinedAt DateTime  @default(now())
+
+  @@unique([groupId, userId])
+  @@index([userId])
 }

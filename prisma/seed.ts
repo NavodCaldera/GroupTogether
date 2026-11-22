@@ -31,6 +31,7 @@ import { D } from "../src/lib/decimal";
 import { findKind } from "../src/lib/taxonomy";
 import { categoryIdOf, kindSlug } from "../src/lib/categories";
 import { ensureCategoryTree } from "../src/server/categories";
+import { seedFamilyPacks } from "./seed-packs";
 import { optionsFromSizeColour, variantFields } from "../src/lib/variant-options";
 import type { Hours } from "../src/lib/agent-rules";
 import {
@@ -991,12 +992,15 @@ async function main() {
   for (const { userId, ...p } of fitProfiles)
     await saveBodyProfileFor(userId, { ...p, captureMeta: { seed: true }, consent: true });
 
+  await seedFamilyPacks();
+
   console.log(`Seeded. Every password is ${DEMO_PASSWORD}; logins are in src/lib/demo-accounts.ts.
   Ready to collect: ${DEMO_BUYERS.dilan} at ${DEMO_AGENTS.kollupitiya}, code ${DEMO_PICKUP_CODE}
   Return to hand over: ${DEMO_BUYERS.sachini} at ${DEMO_AGENTS.kollupitiya}
   Tokens: ${DEMO_BUYERS.tharindu}; full token history: ${DEMO_BUYERS.ishara}
   Own baskets: Kasun's (5 of 10, Dilan's join request waiting), Ishara's (9 of 10), Dinithi's (2 of 10)
-  Fit heatmap: ${DEMO_BUYERS.dilan}, ${DEMO_BUYERS.sachini} (and Ravindu, Ayesha) are measured; ${DEMO_BUYERS.tharindu} is not`);
+  Fit heatmap: ${DEMO_BUYERS.dilan}, ${DEMO_BUYERS.sachini} (and Ravindu, Ayesha) are measured; ${DEMO_BUYERS.tharindu} is not
+  Family packs: ${DEMO_BUYERS.dilan} can join Hemas 30-day at Kollupitiya (7 of 10); ${DEMO_BUYERS.tharindu} at Wellawatte can start one`);
 }
 
 main()
