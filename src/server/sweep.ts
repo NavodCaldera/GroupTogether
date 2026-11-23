@@ -13,6 +13,7 @@ import { enforceHold } from "./fault-holds";
 import { removeFactory } from "./quality";
 import { expireOrders, lockBasket } from "./orders/baskets";
 import { sweepOwnBaskets } from "./orders/own-baskets";
+import { sweepPackGroups } from "./packs-sweep";
 import { lockBasketSlot, withOrderTransaction } from "./orders/locks";
 import { buildWeeklyPayouts, creditAgentFees } from "./payouts";
 import { escalateOverdue, flushReturnNotices, lapseReturns } from "./returns";
@@ -128,6 +129,7 @@ export async function runSweep(now = new Date()): Promise<Record<string, number>
   await step("deals", () => sweepDeals(now));
   await step("maxWaitLocked", () => lockWaitedBaskets(now));
   await step("ownBaskets", () => sweepOwnBaskets(now));
+  await step("packBaskets", () => sweepPackGroups(now));
   await step("escalatedReturns", () => escalateOverdue(now));
   await step("lapsedReturns", () => lapseReturns(now));
   await step("agentsClosed", () => closeLeavingAgents(now));

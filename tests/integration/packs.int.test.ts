@@ -2,6 +2,7 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { db } from "@/server/db";
 import { getBasket, openBaskets } from "@/server/packs";
 import { confirmPackSpot, joinBasket, releasePackSpot, startBasket } from "@/server/packs-join";
+import { sweepPackGroups } from "@/server/packs-sweep";
 import { makeBuyer, resetDb } from "./helpers";
 
 beforeEach(async () => {
@@ -148,5 +149,30 @@ describe("family-pack baskets (DEC-030)", () => {
     expect(g.delivery).toMatchObject({ families: 5, status: "ORDERED" });
     expect(g.delivery?.amountDue.toFixed(2)).toBe("675.00");
     await expect(joinBasket((await buyerAt(5)).id, groupId)).rejects.toThrow(/no longer/);
+  });
+
+  it("extends an unfilled basket twice, then closes it and refunds paid spots as tokens", async () => {
+    const v = await pack(5, "150.00");
+    const { owner, groupId } = await openBasket(v.id, 1);
+    const later = (days: number) => new Date(Date.now() + days * 86_400_000);
+    await sweepPackGroups(later(31));
+    await sweepPackGroups(later(61));
+    expect(await db.packGroup.findUniqueOrThrow({ where: { id: groupId } })).toMatchObject({ status: "OPEN", extensions: 2 });
+    await sweepPackGroups(later(91));
+    await sweepPackGroups(later(92));
+    expect((await db.packGroup.findUniqueOrThrow({ where: { id: groupId } })).status).toBe("CLOSED");
+    const refunds = await db.tokenEntry.findMany({ where: { kind: "PACK_REFUND" } });
+    expect(refunds).toHaveLength(2);
+    expect(refunds.find((r) => r.userId === owner.id)?.amount.toFixed(2)).toBe("150.00");
+  });
+
+  it("frees a spot whose payment window ran out", async () => {
+    const v = await pack();
+    const { groupId } = await openBasket(v.id);
+    const b = await buyerAt(20);
+    await joinBasket(b.id, groupId);
+    await sweepPackGroups(new Date(Date.now() + 24 * 3_600_000));
+    expect((await group(v.id)).joined).toBe(1);
+    expect((await attemptOf(b.id)).status).toBe("EXPIRED");
   });
 });
