@@ -3,6 +3,10 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-23: "Family of 4 members"
+
+The household badge on pack cards and pages now reads "Family of 4 members".
+
 ## 2026-11-23: Item photos and shop prices
 
 The owner asked for these changes:
