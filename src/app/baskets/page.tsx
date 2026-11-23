@@ -1,35 +1,32 @@
 import { BasketCard } from "@/components/basket-card";
-import { BasketFilter } from "@/components/client";
-import { Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { Button, EmptyState, LinkButton, PageHeader, Select } from "@/components/ui";
 import { redirectCompany, requireUser } from "@/server/auth/session";
-import { homeCategories, openBaskets } from "@/server/packs";
+import { homeCompanies, openBaskets } from "@/server/packs";
 
-/** Every open basket within 1 km, contacts first; filter by company or category. */
+/** Every open basket within 1 km, contacts first; filter by company. */
 export default async function BasketsPage({ searchParams }: PageProps<"/baskets">) {
   const q = await searchParams;
   const one = (v: string | string[] | undefined) => (typeof v === "string" && v ? v : undefined);
   const company = one(q.company);
-  const category = one(q.category);
   const user = await requireUser("/baskets");
   await redirectCompany();
-  const [cats, baskets] = await Promise.all([
-    homeCategories(),
-    openBaskets(user, { companySlug: company, categorySlug: category }),
-  ]);
+  const [companies, baskets] = await Promise.all([homeCompanies(), openBaskets(user, company)]);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <PageHeader title="Open baskets" />
       <form method="get" className="flex flex-wrap items-end gap-2">
-        <BasketFilter
-          cats={cats.map((c) => ({
-            slug: c.slug,
-            name: c.name,
-            companies: c.companies.map((co) => ({ slug: co.slug, name: co.name })),
-          }))}
-          category={category ?? ""}
-          company={company ?? ""}
-        />
+        <label className="flex flex-col gap-1 text-sm">
+          Company
+          <Select name="company" defaultValue={company ?? ""}>
+            <option value="">All</option>
+            {companies.map((c) => (
+              <option key={c.slug} value={c.slug}>
+                {c.name}
+              </option>
+            ))}
+          </Select>
+        </label>
         <Button type="submit">Filter</Button>
       </form>
       {baskets === null ? (

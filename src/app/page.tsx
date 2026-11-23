@@ -1,12 +1,12 @@
 import Link from "next/link";
 import { CompanyLogo, EmptyState } from "@/components/ui";
 import { redirectCompany } from "@/server/auth/session";
-import { homeCategories } from "@/server/packs";
+import { homeCompanies } from "@/server/packs";
 
-/** Home (DEC-030): companies grouped under their categories. */
+/** Home (DEC-030): every company. */
 export default async function HomePage() {
   await redirectCompany();
-  const categories = await homeCategories();
+  const companies = await homeCompanies();
 
   return (
     <div className="flex flex-col gap-8">
@@ -15,26 +15,21 @@ export default async function HomePage() {
           Direct factory to consumer. <span className="text-accent">No more middle man.</span>
         </h1>
       </section>
-      {categories.length === 0 ? <EmptyState title="No companies yet" /> : null}
-      {categories.map((c) => (
-        <section key={c.slug} aria-labelledby={`cat-${c.slug}`}>
-          <h2 id={`cat-${c.slug}`} className="mb-3 text-lg font-semibold">
-            {c.name}
-          </h2>
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-            {c.companies.map((co) => (
-              <li key={co.slug}>
-                <Link
-                  href={`/companies/${co.slug}`}
-                  className="flex h-full min-h-28 items-center justify-center rounded-xl border border-line bg-paper p-4 transition hover:border-accent hover:shadow-sm"
-                >
-                  <CompanyLogo name={co.name} logo={co.logo} />
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ))}
+      {companies.length === 0 ? <EmptyState title="No companies yet" /> : null}
+      {companies.length > 0 ? (
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {companies.map((co) => (
+            <li key={co.slug}>
+              <Link
+                href={`/companies/${co.slug}`}
+                className="flex h-full min-h-28 items-center justify-center rounded-xl text-center border border-line bg-paper p-4 transition hover:border-accent hover:shadow-sm"
+              >
+                <CompanyLogo name={co.name} logo={co.logo} />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </div>
   );
 }

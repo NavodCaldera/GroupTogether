@@ -3,6 +3,13 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-24: No categories, 26 companies
+
+The owner asked for these changes:
+
+- **No categories:** the `Category` table and `Company.categoryId` are gone (migration `20261124120000_drop_categories`). The home page shows every company in one grid, and the Baskets filter has only Company.
+- **Companies:** the seed lists 26 sample companies in the owner's order: CBL Group, Maliban Group, Hemas Consumer Brands, Renuka Foods, Sunshine Consumer Lanka, Harischandra Mills, Wijaya Products, Kingdom of Raigam, Lanka Canneries, Edinborough Products, C.W. Mackie, Swadeshi Industrial Works, Multichemi International, Pelwatte Dairy Industries, Lanka Milk Foods, Milco, Ceylon Cold Stores, CIC Holdings, Ruhunu Foods, Marina Foods, Uswatte Confectionery Works, Finagle Lanka, Pussalla Meat Producers, Bairaha Farms, Nature’s Beauty Creations and Antler Industries. Cargills and Keells Food Products were left out. They are potential suppliers, not partners (`demo: true`). Pack contents and prices are samples. Only CBL, Maliban, Hemas and Pelwatte have logos; the rest show their name.
+
 ## 2026-11-23: Company logins see only their dashboard
 
 A company login signs in to `/company`. Its header has no Home, Baskets or Tokens tabs, and the

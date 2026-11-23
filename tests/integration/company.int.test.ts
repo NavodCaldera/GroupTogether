@@ -9,9 +9,8 @@ afterAll(() => db.$disconnect());
 let n = 0;
 async function company() {
   n++;
-  const category = await db.category.create({ data: { slug: `c-${n}`, name: "Dairy" } });
   const co = await db.company.create({
-    data: { slug: `co-${n}`, name: `Co ${n}`, categoryId: category.id },
+    data: { slug: `co-${n}`, name: `Co ${n}` },
   });
   const pack = await db.standardPack.create({
     data: { slug: `pk-${n}`, name: "Budget Pack", durationDays: 30, companyId: co.id },

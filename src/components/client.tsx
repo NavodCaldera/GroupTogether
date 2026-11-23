@@ -2,60 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { Select } from "./ui";
-
-type FilterCategory = { slug: string; name: string; companies: { slug: string; name: string }[] };
-
-/** Category and company pickers; the company list shows only the chosen category's companies. */
-export function BasketFilter({
-  cats,
-  category,
-  company,
-}: {
-  cats: FilterCategory[];
-  category: string;
-  company: string;
-}) {
-  const [cat, setCat] = useState(category);
-  const [co, setCo] = useState(company);
-  const shown = cats.filter((c) => !cat || c.slug === cat).flatMap((c) => c.companies);
-  return (
-    <>
-      <label className="flex flex-col gap-1 text-sm">
-        Category
-        <Select
-          name="category"
-          value={cat}
-          onChange={(e) => {
-            const next = e.target.value;
-            setCat(next);
-            if (next && !cats.find((c) => c.slug === next)?.companies.some((x) => x.slug === co))
-              setCo("");
-          }}
-        >
-          <option value="">All</option>
-          {cats.map((c) => (
-            <option key={c.slug} value={c.slug}>
-              {c.name}
-            </option>
-          ))}
-        </Select>
-      </label>
-      <label className="flex flex-col gap-1 text-sm">
-        Company
-        <Select name="company" value={co} onChange={(e) => setCo(e.target.value)}>
-          <option value="">All</option>
-          {shown.map((x) => (
-            <option key={x.slug} value={x.slug}>
-              {x.name}
-            </option>
-          ))}
-        </Select>
-      </label>
-    </>
-  );
-}
+import { useEffect } from "react";
 
 // How many GroupBasket pages sit behind this one in the tab's history, so Back never leaves the
 // site for a page the visitor came from (a shared link, a search result). Kept in memory: a full

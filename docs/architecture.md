@@ -22,7 +22,7 @@ stateDiagram-v2
 | --- | --- |
 | Pages | `src/app/page.tsx` (home), `companies/[slug]`, `packs/[slug]`, `baskets` (open baskets), `baskets/[id]`, `baskets/return/[attemptId]`, `tokens`, `account`, `(auth)/sign-in`, `(auth)/sign-up`, `demo-pay/[attemptId]`, `company` (company dashboard), `img/[id]` (uploaded images) |
 | API | `api/payments/notify` (gateway notices), `api/cron/sweep` (daily job) |
-| Reading packs and baskets | `src/server/packs.ts`: home categories, company, pack, open baskets within 1 km, one basket |
+| Reading packs and baskets | `src/server/packs.ts`: home companies, company, pack, open baskets within 1 km, one basket |
 | Joining and paying | `src/server/packs-join.ts`: start, join, confirm a paid spot, release an unpaid one, fill |
 | Company dashboard | `src/server/company.ts` and `company-actions.ts`: banner, logo and pack photos (stored in the `Image` table), new pack versions, orders. `npm run company:login -- <email> <slug>` gives a login a company |
 | Daily job | `src/server/packs-sweep.ts`: expire unpaid spots, extend or close due baskets |

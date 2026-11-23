@@ -5,129 +5,502 @@ import { type BasketSize, sizePrice } from "../src/lib/pack-money";
 import { hashPassword } from "../src/server/auth/password";
 import { db } from "../src/server/db";
 
-type Item = [name: string, size: string, qty: number];
-// Sample shop price for one unit of each item, by name and size.
-const RETAIL: Record<string, string> = {
-  "Butter 200 g": "780.00",
-  "Chocolate biscuits 200 g": "320.00",
-  "Chocolate cream 200 g": "300.00",
-  "Coconut hair oil 200 ml": "450.00",
-  "Cream crackers 490 g": "520.00",
-  "Full cream milk powder 1 kg": "2950.00",
-  "Full cream milk powder 400 g": "1220.00",
-  "Herbal soap 100 g": "140.00",
-  "Lemon puff 200 g": "280.00",
-  "Marie biscuits 400 g": "390.00",
-  "Shampoo 180 ml": "690.00",
-  "Shampoo 400 ml": "1350.00",
-  "Toothpaste 120 g": "260.00",
-  "Wafers 100 g": "220.00",
-};
+// Item: name, size, quantity for the family, sample shop price for one unit.
+type Item = [name: string, size: string, qty: number, retail: string];
 type Pack = { price: string; items: Item[] };
 // Discount % for baskets of 5, 10 and 15 families.
 const DISCOUNTS = {
   budget: { discount5: "5.00", discount10: "8.00", discount15: "10.00" },
   premium: { discount5: "6.00", discount10: "10.00", discount15: "15.00" },
 };
-type Company = { slug: string; name: string; logo: string; budget: Pack; premium: Pack };
+type Company = { slug: string; name: string; logo?: string; budget: Pack; premium: Pack };
 
 // Every company has a Budget and a Premium pack, both 30 days, for a family of 4.
-const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
+// Listed on the home page in this order. Pack contents and prices are samples.
+const COMPANIES: Company[] = [
   {
-    slug: "personal-care",
-    name: "Personal Care",
-    companies: [
-      {
-        slug: "hemas",
-        name: "Hemas",
-        logo: "/logos/hemas.png",
-        budget: {
-          price: "2450.00",
-          items: [
-            ["Herbal soap", "100 g", 4],
-            ["Toothpaste", "120 g", 1],
-            ["Shampoo", "180 ml", 1],
-          ],
-        },
-        premium: {
-          price: "4600.00",
-          items: [
-            ["Herbal soap", "100 g", 8],
-            ["Toothpaste", "120 g", 2],
-            ["Shampoo", "400 ml", 1],
-            ["Coconut hair oil", "200 ml", 1],
-          ],
-        },
-      },
-    ],
+    slug: "cbl",
+    name: "CBL Group",
+    logo: "/logos/cbl.png",
+    budget: {
+      price: "1900.00",
+      items: [
+        ["Cream crackers", "490 g", 2, "520.00"],
+        ["Marie biscuits", "400 g", 2, "390.00"],
+      ],
+    },
+    premium: {
+      price: "3200.00",
+      items: [
+        ["Cream crackers", "490 g", 3, "520.00"],
+        ["Chocolate biscuits", "200 g", 4, "320.00"],
+        ["Wafers", "100 g", 3, "220.00"],
+      ],
+    },
   },
   {
-    slug: "biscuits-snacks",
-    name: "Biscuits & Snacks",
-    companies: [
-      {
-        slug: "cbl",
-        name: "CBL",
-        logo: "/logos/cbl.png",
-        budget: {
-          price: "1900.00",
-          items: [
-            ["Cream crackers", "490 g", 2],
-            ["Marie biscuits", "400 g", 2],
-          ],
-        },
-        premium: {
-          price: "3200.00",
-          items: [
-            ["Cream crackers", "490 g", 3],
-            ["Chocolate biscuits", "200 g", 4],
-            ["Wafers", "100 g", 3],
-          ],
-        },
-      },
-      {
-        slug: "maliban",
-        name: "Maliban",
-        logo: "/logos/maliban.webp",
-        budget: {
-          price: "1850.00",
-          items: [
-            ["Marie biscuits", "400 g", 2],
-            ["Lemon puff", "200 g", 2],
-          ],
-        },
-        premium: {
-          price: "3400.00",
-          items: [
-            ["Marie biscuits", "400 g", 3],
-            ["Lemon puff", "200 g", 3],
-            ["Chocolate cream", "200 g", 3],
-          ],
-        },
-      },
-    ],
+    slug: "maliban",
+    name: "Maliban Group",
+    logo: "/logos/maliban.webp",
+    budget: {
+      price: "1850.00",
+      items: [
+        ["Marie biscuits", "400 g", 2, "390.00"],
+        ["Lemon puff", "200 g", 2, "280.00"],
+      ],
+    },
+    premium: {
+      price: "3400.00",
+      items: [
+        ["Marie biscuits", "400 g", 3, "390.00"],
+        ["Lemon puff", "200 g", 3, "280.00"],
+        ["Chocolate cream", "200 g", 3, "300.00"],
+      ],
+    },
   },
   {
-    slug: "dairy",
-    name: "Dairy",
-    companies: [
-      {
-        slug: "pelwatte",
-        name: "Pelwatte Dairy Industries",
-        logo: "/logos/pelwatte.png",
-        budget: {
-          price: "3100.00",
-          items: [["Full cream milk powder", "400 g", 3]],
-        },
-        premium: {
-          price: "5400.00",
-          items: [
-            ["Full cream milk powder", "1 kg", 2],
-            ["Butter", "200 g", 1],
-          ],
-        },
-      },
-    ],
+    slug: "hemas",
+    name: "Hemas Consumer Brands",
+    logo: "/logos/hemas.png",
+    budget: {
+      price: "2450.00",
+      items: [
+        ["Herbal soap", "100 g", 4, "140.00"],
+        ["Toothpaste", "120 g", 1, "260.00"],
+        ["Shampoo", "180 ml", 1, "690.00"],
+      ],
+    },
+    premium: {
+      price: "4600.00",
+      items: [
+        ["Herbal soap", "100 g", 8, "140.00"],
+        ["Toothpaste", "120 g", 2, "260.00"],
+        ["Shampoo", "400 ml", 1, "1350.00"],
+        ["Coconut hair oil", "200 ml", 1, "450.00"],
+      ],
+    },
+  },
+  {
+    slug: "renuka",
+    name: "Renuka Foods",
+    budget: {
+      price: "2200.00",
+      items: [
+        ["Coconut milk powder", "300 g", 2, "640.00"],
+        ["Coconut milk", "400 ml", 2, "450.00"],
+      ],
+    },
+    premium: {
+      price: "4100.00",
+      items: [
+        ["Coconut milk powder", "300 g", 4, "640.00"],
+        ["Coconut milk", "400 ml", 3, "450.00"],
+        ["Virgin coconut oil", "500 ml", 1, "1250.00"],
+      ],
+    },
+  },
+  {
+    slug: "sunshine",
+    name: "Sunshine Consumer Lanka",
+    budget: { price: "1700.00", items: [["Black tea", "200 g", 2, "900.00"]] },
+    premium: {
+      price: "3300.00",
+      items: [
+        ["Black tea", "400 g", 2, "1700.00"],
+        ["Green tea bags", "50 bags", 1, "650.00"],
+      ],
+    },
+  },
+  {
+    slug: "harischandra",
+    name: "Harischandra Mills",
+    budget: {
+      price: "2000.00",
+      items: [
+        ["Noodles", "400 g", 3, "330.00"],
+        ["Coffee", "100 g", 1, "1100.00"],
+      ],
+    },
+    premium: {
+      price: "3800.00",
+      items: [
+        ["Noodles", "400 g", 5, "330.00"],
+        ["Coffee", "200 g", 1, "2100.00"],
+        ["Soya meat", "90 g", 4, "160.00"],
+      ],
+    },
+  },
+  {
+    slug: "wijaya",
+    name: "Wijaya Products",
+    budget: {
+      price: "1500.00",
+      items: [
+        ["Chilli powder", "250 g", 1, "620.00"],
+        ["Curry powder", "250 g", 1, "580.00"],
+        ["Turmeric powder", "100 g", 1, "350.00"],
+      ],
+    },
+    premium: {
+      price: "2900.00",
+      items: [
+        ["Chilli powder", "500 g", 1, "1180.00"],
+        ["Curry powder", "500 g", 1, "1100.00"],
+        ["Turmeric powder", "100 g", 1, "350.00"],
+        ["Black pepper", "100 g", 1, "520.00"],
+      ],
+    },
+  },
+  {
+    slug: "raigam",
+    name: "Kingdom of Raigam",
+    budget: {
+      price: "1100.00",
+      items: [
+        ["Table salt", "1 kg", 2, "180.00"],
+        ["Soya meat", "90 g", 5, "160.00"],
+      ],
+    },
+    premium: {
+      price: "2300.00",
+      items: [
+        ["Table salt", "1 kg", 2, "180.00"],
+        ["Soya meat", "90 g", 8, "160.00"],
+        ["Instant noodles", "75 g", 10, "110.00"],
+      ],
+    },
+  },
+  {
+    slug: "lanka-canneries",
+    name: "Lanka Canneries",
+    budget: {
+      price: "1600.00",
+      items: [
+        ["Mixed fruit jam", "500 g", 1, "780.00"],
+        ["Fruit cordial", "750 ml", 1, "900.00"],
+      ],
+    },
+    premium: {
+      price: "3100.00",
+      items: [
+        ["Mixed fruit jam", "500 g", 2, "780.00"],
+        ["Fruit cordial", "750 ml", 2, "900.00"],
+        ["Tomato sauce", "400 g", 1, "520.00"],
+      ],
+    },
+  },
+  {
+    slug: "edinborough",
+    name: "Edinborough Products",
+    budget: {
+      price: "1300.00",
+      items: [
+        ["Custard powder", "300 g", 1, "620.00"],
+        ["Jelly crystals", "100 g", 3, "240.00"],
+      ],
+    },
+    premium: {
+      price: "2500.00",
+      items: [
+        ["Custard powder", "300 g", 2, "620.00"],
+        ["Jelly crystals", "100 g", 4, "240.00"],
+        ["Vanilla essence", "28 ml", 1, "380.00"],
+      ],
+    },
+  },
+  {
+    slug: "cw-mackie",
+    name: "C.W. Mackie",
+    budget: {
+      price: "2700.00",
+      items: [
+        ["Coconut oil", "1 l", 1, "980.00"],
+        ["Red dhal", "1 kg", 2, "890.00"],
+      ],
+    },
+    premium: {
+      price: "5200.00",
+      items: [
+        ["Coconut oil", "1 l", 2, "980.00"],
+        ["Red dhal", "1 kg", 3, "890.00"],
+        ["Rice", "5 kg", 1, "1150.00"],
+      ],
+    },
+  },
+  {
+    slug: "swadeshi",
+    name: "Swadeshi Industrial Works",
+    budget: {
+      price: "1200.00",
+      items: [
+        ["Herbal soap", "100 g", 6, "160.00"],
+        ["Baby soap", "75 g", 2, "190.00"],
+      ],
+    },
+    premium: {
+      price: "2400.00",
+      items: [
+        ["Herbal soap", "100 g", 10, "160.00"],
+        ["Baby soap", "75 g", 4, "190.00"],
+        ["Sandalwood soap", "100 g", 2, "220.00"],
+      ],
+    },
+  },
+  {
+    slug: "multichemi",
+    name: "Multichemi International",
+    budget: {
+      price: "1400.00",
+      items: [
+        ["Dishwash liquid", "500 ml", 2, "420.00"],
+        ["Toilet cleaner", "500 ml", 1, "650.00"],
+      ],
+    },
+    premium: {
+      price: "2800.00",
+      items: [
+        ["Dishwash liquid", "500 ml", 3, "420.00"],
+        ["Toilet cleaner", "500 ml", 2, "650.00"],
+        ["Floor cleaner", "1 l", 1, "780.00"],
+      ],
+    },
+  },
+  {
+    slug: "pelwatte",
+    name: "Pelwatte Dairy Industries",
+    logo: "/logos/pelwatte.png",
+    budget: { price: "3100.00", items: [["Full cream milk powder", "400 g", 3, "1220.00"]] },
+    premium: {
+      price: "5400.00",
+      items: [
+        ["Full cream milk powder", "1 kg", 2, "2950.00"],
+        ["Butter", "200 g", 1, "780.00"],
+      ],
+    },
+  },
+  {
+    slug: "lanka-milk-foods",
+    name: "Lanka Milk Foods",
+    budget: { price: "2900.00", items: [["Milk powder", "400 g", 3, "1150.00"]] },
+    premium: {
+      price: "5600.00",
+      items: [
+        ["Milk powder", "1 kg", 2, "2800.00"],
+        ["Malted drink", "400 g", 1, "1050.00"],
+      ],
+    },
+  },
+  {
+    slug: "milco",
+    name: "Milco",
+    budget: {
+      price: "3000.00",
+      items: [
+        ["Milk powder", "400 g", 2, "1180.00"],
+        ["Fresh milk", "1 l", 2, "600.00"],
+      ],
+    },
+    premium: {
+      price: "5900.00",
+      items: [
+        ["Milk powder", "1 kg", 2, "2850.00"],
+        ["Fresh milk", "1 l", 2, "600.00"],
+        ["Set yoghurt", "80 g", 8, "90.00"],
+      ],
+    },
+  },
+  {
+    slug: "ceylon-cold-stores",
+    name: "Ceylon Cold Stores",
+    budget: {
+      price: "2100.00",
+      items: [
+        ["Soft drink", "1.5 l", 3, "450.00"],
+        ["Vanilla ice cream", "1 l", 1, "1100.00"],
+      ],
+    },
+    premium: {
+      price: "4000.00",
+      items: [
+        ["Soft drink", "1.5 l", 5, "450.00"],
+        ["Vanilla ice cream", "1 l", 2, "1100.00"],
+        ["Chicken sausages", "500 g", 1, "980.00"],
+      ],
+    },
+  },
+  {
+    slug: "cic",
+    name: "CIC Holdings",
+    budget: {
+      price: "2600.00",
+      items: [
+        ["Rice", "5 kg", 1, "1150.00"],
+        ["Eggs", "10 eggs", 2, "650.00"],
+      ],
+    },
+    premium: {
+      price: "4900.00",
+      items: [
+        ["Rice", "5 kg", 2, "1150.00"],
+        ["Eggs", "10 eggs", 3, "650.00"],
+        ["Set yoghurt", "80 g", 8, "90.00"],
+      ],
+    },
+  },
+  {
+    slug: "ruhunu-foods",
+    name: "Ruhunu Foods",
+    budget: {
+      price: "1400.00",
+      items: [
+        ["Curry powder", "250 g", 1, "560.00"],
+        ["Chilli pieces", "250 g", 1, "600.00"],
+        ["Cinnamon", "50 g", 1, "320.00"],
+      ],
+    },
+    premium: {
+      price: "2700.00",
+      items: [
+        ["Curry powder", "500 g", 1, "1080.00"],
+        ["Chilli pieces", "250 g", 1, "600.00"],
+        ["Cinnamon", "50 g", 2, "320.00"],
+        ["Cardamom", "25 g", 1, "650.00"],
+      ],
+    },
+  },
+  {
+    slug: "marina-foods",
+    name: "Marina Foods",
+    budget: {
+      price: "1300.00",
+      items: [
+        ["Coconut cream", "400 ml", 2, "480.00"],
+        ["Coconut water", "330 ml", 2, "220.00"],
+      ],
+    },
+    premium: {
+      price: "2600.00",
+      items: [
+        ["Coconut cream", "400 ml", 3, "480.00"],
+        ["Coconut water", "330 ml", 4, "220.00"],
+        ["Desiccated coconut", "250 g", 1, "420.00"],
+      ],
+    },
+  },
+  {
+    slug: "uswatte",
+    name: "Uswatte Confectionery Works",
+    budget: {
+      price: "1000.00",
+      items: [
+        ["Toffees", "200 g", 2, "320.00"],
+        ["Wafers", "100 g", 2, "210.00"],
+      ],
+    },
+    premium: {
+      price: "2000.00",
+      items: [
+        ["Toffees", "200 g", 3, "320.00"],
+        ["Wafers", "100 g", 3, "210.00"],
+        ["Chocolate bar", "100 g", 3, "260.00"],
+      ],
+    },
+  },
+  {
+    slug: "finagle",
+    name: "Finagle Lanka",
+    budget: {
+      price: "1500.00",
+      items: [
+        ["Sandwich bread", "450 g", 3, "260.00"],
+        ["Tea buns", "6 buns", 2, "380.00"],
+      ],
+    },
+    premium: {
+      price: "2900.00",
+      items: [
+        ["Sandwich bread", "450 g", 5, "260.00"],
+        ["Tea buns", "6 buns", 3, "380.00"],
+        ["Butter cake", "500 g", 1, "650.00"],
+      ],
+    },
+  },
+  {
+    slug: "pussalla",
+    name: "Pussalla Meat Producers",
+    budget: {
+      price: "3400.00",
+      items: [
+        ["Chicken sausages", "500 g", 2, "940.00"],
+        ["Chicken meatballs", "500 g", 2, "880.00"],
+      ],
+    },
+    premium: {
+      price: "6500.00",
+      items: [
+        ["Chicken sausages", "500 g", 3, "940.00"],
+        ["Chicken meatballs", "500 g", 3, "880.00"],
+        ["Pork bacon", "200 g", 2, "760.00"],
+      ],
+    },
+  },
+  {
+    slug: "bairaha",
+    name: "Bairaha Farms",
+    budget: {
+      price: "4200.00",
+      items: [
+        ["Whole chicken", "1 kg", 2, "1650.00"],
+        ["Chicken sausages", "500 g", 1, "950.00"],
+      ],
+    },
+    premium: {
+      price: "8000.00",
+      items: [
+        ["Whole chicken", "1 kg", 3, "1650.00"],
+        ["Chicken sausages", "500 g", 2, "950.00"],
+        ["Pre-cooked chicken", "400 g", 2, "1200.00"],
+      ],
+    },
+  },
+  {
+    slug: "natures-beauty-creations",
+    name: "Nature’s Beauty Creations",
+    budget: {
+      price: "1800.00",
+      items: [
+        ["Herbal face wash", "100 ml", 1, "650.00"],
+        ["Body lotion", "200 ml", 1, "850.00"],
+        ["Herbal soap", "100 g", 2, "180.00"],
+      ],
+    },
+    premium: {
+      price: "3500.00",
+      items: [
+        ["Herbal face wash", "100 ml", 2, "650.00"],
+        ["Body lotion", "400 ml", 1, "1500.00"],
+        ["Herbal soap", "100 g", 4, "180.00"],
+      ],
+    },
+  },
+  {
+    slug: "antler",
+    name: "Antler Industries",
+    budget: {
+      price: "1600.00",
+      items: [
+        ["Washing powder", "1 kg", 1, "780.00"],
+        ["Bar soap", "120 g", 4, "190.00"],
+      ],
+    },
+    premium: {
+      price: "3100.00",
+      items: [
+        ["Washing powder", "2 kg", 1, "1500.00"],
+        ["Bar soap", "120 g", 6, "190.00"],
+        ["Fabric softener", "1 l", 1, "620.00"],
+      ],
+    },
   },
 ];
 
@@ -174,13 +547,10 @@ async function main() {
   }
 
   const versions = new Map<string, Awaited<ReturnType<typeof db.packVersion.create>>>();
-  for (const [order, cat] of CATALOGUE.entries()) {
-    const category = await db.category.create({
-      data: { slug: cat.slug, name: cat.name, sortOrder: order },
-    });
-    for (const co of cat.companies) {
+  for (const [order, co] of COMPANIES.entries()) {
+    {
       const company = await db.company.create({
-        data: { slug: co.slug, name: co.name, logo: co.logo, categoryId: category.id, demo: true },
+        data: { slug: co.slug, name: co.name, logo: co.logo, sortOrder: order, demo: true },
       });
       for (const [kind, p] of [
         ["budget", co.budget],
@@ -205,11 +575,11 @@ async function main() {
             commissionPct: "10.00",
             householdSize: 4,
             items: {
-              create: p.items.map(([name, size, qty], sortOrder) => ({
+              create: p.items.map(([name, size, qty, retailPrice], sortOrder) => ({
                 name,
                 size,
                 qty,
-                retailPrice: RETAIL[`${name} ${size}`],
+                retailPrice,
                 sortOrder,
               })),
             },

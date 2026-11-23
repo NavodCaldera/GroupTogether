@@ -12,7 +12,7 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[slu
   const slug = (await params).slug;
   const [company, user] = await Promise.all([getCompany(slug), getCurrentUser()]);
   if (!company) notFound();
-  const baskets = user ? await openBaskets(user, { companySlug: slug }) : null;
+  const baskets = user ? await openBaskets(user, slug) : null;
 
   return (
     <div className="flex flex-col gap-8">
@@ -33,7 +33,6 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[slu
               className="-mt-12 sm:-mt-16"
             />
             <h1 className="mt-3 text-2xl font-semibold tracking-tight">{company.name}</h1>
-            <p className="text-sm text-subtle">{company.category.name}</p>
             <p className="mt-2 text-sm font-semibold" data-testid="packs-bought">
               {company.boughtToday.toLocaleString("en-LK")} family{" "}
               {company.boughtToday === 1 ? "pack" : "packs"} bought today
