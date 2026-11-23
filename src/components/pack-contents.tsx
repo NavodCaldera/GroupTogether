@@ -58,7 +58,7 @@ export function PackContents({
       <div className="flex flex-wrap gap-2 text-sm">
         <Badge>{durationDays} days</Badge>
         {families ? <Badge tone="info">{families} families per basket</Badge> : null}
-        {householdSize ? <Badge>Family of {householdSize}</Badge> : null}
+        {householdSize ? <Badge>Family of {householdSize} members</Badge> : null}
       </div>
     </Card>
   );

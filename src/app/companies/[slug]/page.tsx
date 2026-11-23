@@ -62,7 +62,9 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[slu
                       <span className="font-medium">{p.name}</span>
                       <span className="flex gap-1">
                         <Badge>{p.durationDays} days</Badge>
-                        {p.householdSize ? <Badge>Family of {p.householdSize}</Badge> : null}
+                        {p.householdSize ? (
+                          <Badge>Family of {p.householdSize} members</Badge>
+                        ) : null}
                       </span>
                     </div>
                     <span className="text-lg font-semibold">{formatLKR(p.price)}</span>
