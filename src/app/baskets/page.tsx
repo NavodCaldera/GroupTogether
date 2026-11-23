@@ -1,5 +1,6 @@
 import { BasketCard } from "@/components/basket-card";
-import { Button, EmptyState, LinkButton, PageHeader, Select } from "@/components/ui";
+import { BasketFilter } from "@/components/client";
+import { Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
 import { requireUser } from "@/server/auth/session";
 import { homeCategories, openBaskets } from "@/server/packs";
 
@@ -19,30 +20,15 @@ export default async function BasketsPage({ searchParams }: PageProps<"/baskets"
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <PageHeader title="Open baskets" />
       <form method="get" className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-sm">
-          Category
-          <Select name="category" defaultValue={category ?? ""}>
-            <option value="">All</option>
-            {cats.map((c) => (
-              <option key={c.slug} value={c.slug}>
-                {c.name}
-              </option>
-            ))}
-          </Select>
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Company
-          <Select name="company" defaultValue={company ?? ""}>
-            <option value="">All</option>
-            {cats.flatMap((c) =>
-              c.companies.map((co) => (
-                <option key={co.slug} value={co.slug}>
-                  {co.name}
-                </option>
-              )),
-            )}
-          </Select>
-        </label>
+        <BasketFilter
+          cats={cats.map((c) => ({
+            slug: c.slug,
+            name: c.name,
+            companies: c.companies.map((co) => ({ slug: co.slug, name: co.name })),
+          }))}
+          category={category ?? ""}
+          company={company ?? ""}
+        />
         <Button type="submit">Filter</Button>
       </form>
       {baskets === null ? (
