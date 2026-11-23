@@ -22,6 +22,7 @@ const KIND: Record<TokenKind, string> = {
   TRANSFER_OUT: "Sent",
   TRANSFER_IN: "Received",
   DEAL_REBATE: "Deal rebate",
+  PACK_REFUND: "Basket refund",
 };
 
 export default async function TokensPage({ searchParams }: PageProps<"/admin/core/tokens">) {

@@ -1,4 +1,5 @@
 import "server-only";
+import { confirmPackSpot, releasePackSpot } from "../packs-join";
 import { D, toD } from "@/lib/decimal";
 import { db, type Tx } from "../db";
 import { post } from "../tokens";
@@ -135,6 +136,7 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
     case "FAILED":
     case "CANCELLED": {
       if (attempt.status !== "PENDING") return "IGNORED";
+      if (attempt.purpose === "PACK_JOIN") await releasePackSpot(tx, attempt.id);
       await releasePendingOrders(tx, orderIds);
       await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "FAILED" } });
       return "FAILED";
@@ -163,6 +165,7 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
         // A deposit for an agent that is no longer APPROVED takes the late path below.
         let applied = true;
         if (attempt.purpose === "DEPOSIT") applied = await agentDepositPaid(tx, attempt.id);
+        else if (attempt.purpose === "PACK_JOIN") applied = await confirmPackSpot(tx, attempt.id, now);
         else await markOrdersPaid(tx, orderIds, now);
         if (applied) {
           await tx.paymentAttempt.update({
@@ -190,7 +193,9 @@ async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Pro
         note:
           attempt.purpose === "DEPOSIT"
             ? "Deposit payment arrived when it was no longer due"
-            : attempt.purpose === "DELIVERY_FEE"
+            : attempt.purpose === "PACK_JOIN"
+              ? "Basket payment arrived after the spot was released"
+              : attempt.purpose === "DELIVERY_FEE"
               ? "Delivery fee arrived when the basket no longer needed it"
               : ownOrders
                 ? "Payment arrived after the items sold out; PayHere fee kept"
