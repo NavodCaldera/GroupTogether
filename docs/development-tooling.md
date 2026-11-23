@@ -6,7 +6,7 @@ Follow [AGENTS.md](../AGENTS.md) and the [operating brief](../.claude/agents/gro
 ## Installed repository skills
 
 Codex discovers `.agents/skills/` on a subsequent turn/session. The four project skills cover
-money, cart concurrency, role/data boundaries and browser verification. They reference the
+money, basket concurrency, browser verification and choosing checks. They reference the
 canonical rules rather than creating new commercial requirements. Skill instructions do not
 prove a check ran: report actual commands and results.
 
@@ -98,14 +98,13 @@ still asks for approval. **Only Claude Code uses the Sentry MCP. Do not add it t
 
 `npm run mcp:setup-reader -- --apply` is explicit administrative setup, separate from inspection.
 It requires the development URL to target localhost port 5546 and database `groupbasket`.
-It creates a new restricted role, sets read-only/timeout defaults, creates three sanitized
+It creates a new restricted role, sets read-only/timeout defaults, creates two sanitized
 views in `groupbasket_ai` and writes a generated password to ignored `.env.mcp` without printing it.
 It changes no application rows and refuses existing role/config/schema conflicts rather than
 overwriting access. Keep this local credential file private, including Windows file permissions.
 
-The role receives SELECT only on `groupbasket_ai.schema_columns`, `stock_summary` and
-`order_summary` (before Task 18, `cart_summary`); no blanket access to user profiles, private messages, partner terms or
-application tables. Schema inspection exposes column types; operational views expose aggregates.
+The role receives SELECT only on `groupbasket_ai.schema_columns` and `basket_summary` (basket
+counts by status); no access to user profiles or application tables. Schema inspection exposes column types; operational views expose aggregates.
 Do not grant new tables by default when migrations introduce sensitive fields.
 
 After setup, run `npm run mcp:verify -- postgres`, verify denial on direct `public."User"`
@@ -114,34 +113,31 @@ Never use the development application's privileged connection as a substitute fo
 
 ## Executable verification
 
-- `npm run check`: typecheck, ESLint, monetary structural guard, local documentation-file links, seven tooling safety tests,
-  and unit/property tests. `check:money` checks all Prisma Decimal fields for `(14,2)` and
+- `npm run check`: typecheck, ESLint, monetary structural guard, local documentation-file links, tooling safety tests
+  and unit tests. `check:money` checks all Prisma Decimal fields for `(14,2)` and
   selected type-aware arithmetic/conversion hazards. It cannot identify every monetary string,
   float calculation, unsafe rounding or wrongly scoped query; use the project skills and tests.
-- Monetary property tests compare totals against an independent integer-cent model with fixed
-  seeds. Existing PostgreSQL race, active-cart, merge and gift tests verify database behavior.
+- PostgreSQL integration tests cover the last-spot race, payment notices, the daily sweep and the
+  append-only token ledger.
 - All integration/browser setup uses `scripts/test-database.mjs`. It accepts only loopback
   `groupbasket_test`, rejects equivalent development targets and never prints credentials.
   Local test port is 5547; CI uses its disposable 5432 service. Test operations are intentionally
   write-capable and destructive only in that isolated database.
-- `npm run e2e`: existing desktop journeys plus desktop/mobile accessibility smoke checks.
-  Mobile project is limited to the smoke spec so stateful seeded journeys are not rerun on
-  already-consumed fixtures. Each serial spec re-seeds its own test fixtures, keeping brand
-  checkout independent of buyer journeys. CI uses the production build; local runs use the
-  isolated development build. `e2e:mobile` selects 360 px smoke coverage.
+- `npm run e2e`: the basket journey plus desktop and 360 px mobile accessibility checks. Each spec
+  re-seeds the test database. CI uses the production build; local runs use the isolated
+  development build.
 - `npm run browser -- --help`: pinned interactive Playwright CLI, with its repository skill.
   Use synthetic fixtures. Browser state, reports, traces and screenshots stay ignored.
 
 ## Testing on a phone
 
-A phone's camera only works over HTTPS, so the fit photos cannot be tested on plain
-`http://<address>:3002`.
+Location and other device features need HTTPS on a phone, so use the HTTPS dev server.
 
 1. Find this computer's Wi-Fi address (`ipconfig`, IPv4) and set `DEV_PHONE_HOST` to it in `.env`.
 2. Stop `npm run dev`, then run `npm run dev:phone`. The first run creates a self-signed
    certificate in `certificates/` (git-ignored) and may ask to trust it.
 3. On a phone on the same Wi-Fi open `https://<address>:3002` and accept the certificate warning.
-4. Sign in as a buyer, go to Account → My measurements and take both photos.
+4. Sign in as a demo buyer and try the basket journey.
 
 Windows Firewall may ask to allow Node on private networks the first time.
 
@@ -167,7 +163,7 @@ No paid Context7, Semgrep, GitHub Code Security or Figma subscription is purchas
 
 ## Pilot acceptance checks
 
-Compare review corrections, task time and tool usage on a monetary change, last-unit race,
-cross-brand denial, mobile payment journey and runtime failure. Record baseline and assisted
+Compare review corrections, task time and tool usage on a monetary change, last-spot race,
+mobile payment journey and runtime failure. Record baseline and assisted
 results before claiming a percentage improvement. CI runs and handshake results are evidence
 for their specific checks, not proof of production readiness.

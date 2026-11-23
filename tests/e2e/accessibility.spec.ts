@@ -13,17 +13,8 @@ async function inspect(page: Page) {
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
 }
 
-test("home lists companies by category without overflow or Axe violations", async ({ page }) => {
-  await page.goto("/");
-  await expect(page.getByRole("heading", { level: 1, name: "Family packs", exact: true })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Hemas/ })).toBeVisible();
-  await inspect(page);
-});
-
-test("public catalogue and sign-in are accessible without horizontal overflow", async ({
-  page,
-}) => {
-  for (const route of ["/factories/apply", "/shop", "/sign-in"]) {
+test("public pages are accessible without horizontal overflow", async ({ page }) => {
+  for (const route of ["/", "/companies/hemas", "/packs/hemas-30-day", "/sign-up", "/sign-in"]) {
     await page.goto(route);
     await inspect(page);
   }
@@ -32,33 +23,18 @@ test("public catalogue and sign-in are accessible without horizontal overflow", 
   await expect(page.getByLabel("Password", { exact: true })).toBeFocused();
 });
 
-test("buyer, admin, brand and packing workspaces remain usable at the configured viewport", async ({
-  page,
-}) => {
-  // Sixteen sign-ins and scans; a cold dev server compiles each page on first visit.
-  test.setTimeout(240_000);
-  for (const [email, route] of [
-    ["buyer@example.com", "/"],
-    ["factory@groupbasket.lk", "/admin"],
-    ["factory@groupbasket.lk", "/admin/factory/applications"],
-    ["buyers@groupbasket.lk", "/admin/agents"],
-    ["premium@groupbasket.lk", "/admin/brands"],
-    ["brand@example.com", "/seller?tab=products"],
-    ["seller@example.com", "/seller"],
-    ["seller@example.com", "/seller/orders"],
-    ["seller@example.com", "/seller/products"],
-    ["seller@example.com", "/seller/insights"],
-    ["seller@example.com", "/seller/team"],
-    ["seller@example.com", "/seller/agreement"],
-    ["packing@example.com", "/seller"],
-  ]) {
-    await page.context().clearCookies();
-    await page.goto("/sign-in");
-    await page.getByLabel("Email").fill(email);
-    await page.getByLabel("Password", { exact: true }).fill("password123");
-    await page.getByRole("button", { name: "Sign in", exact: true }).click();
-    await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+test("buyer pages are accessible without horizontal overflow", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill("buyer@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("password123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+  for (const route of ["/", "/companies/hemas", "/baskets", "/tokens", "/account"]) {
     await page.goto(route);
     await inspect(page);
   }
+  await page.goto("/baskets");
+  await page.getByTestId("open-basket").first().click();
+  await inspect(page);
 });

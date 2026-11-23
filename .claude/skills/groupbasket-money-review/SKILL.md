@@ -1,6 +1,6 @@
 ---
 name: groupbasket-money-review
-description: Review GroupBasket monetary calculations, pricing snapshots and Prisma money fields when changing order totals, PayHere fees, baskets, payouts, tokens, deposits or gifts.
+description: Review GroupBasket money: basket prices, commission, the company's amount due, payments and token refunds, and Prisma money fields.
 ---
 
 <!-- Pointer for Claude Code. The canonical skill is .agents/skills/groupbasket-money-review/SKILL.md; edit it there. -->

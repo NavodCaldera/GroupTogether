@@ -1,6 +1,6 @@
 ---
 name: groupbasket-browser-review
-description: Verify changed GroupBasket buyer, agent, factory or admin screens with local Playwright, mobile layout, accessibility and role-specific journeys.
+description: Verify changed GroupBasket screens with local Playwright: mobile layout, accessibility and the buyer basket journey.
 ---
 
 <!-- Pointer for Claude Code. The canonical skill is .agents/skills/groupbasket-browser-review/SKILL.md; edit it there. -->

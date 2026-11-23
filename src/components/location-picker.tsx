@@ -82,13 +82,9 @@ export type LocationDefaults = {
 export function LocationPicker({
   defaults,
   errors = {},
-  addressLabel = "Delivery address",
-  addressHint,
 }: {
   defaults?: LocationDefaults | null;
   errors?: Record<string, string[] | undefined>;
-  addressLabel?: string;
-  addressHint?: string;
 }) {
   const el = useRef<HTMLDivElement>(null);
   const place = useRef<(lat: number, lng: number, pan?: boolean) => void>(() => {});
@@ -195,7 +191,7 @@ export function LocationPicker({
 
   return (
     <div className="flex flex-col gap-3">
-      <Field label={addressLabel} name="address" error={errors.address} hint={addressHint}>
+      <Field label="Delivery address" name="address" error={errors.address}>
         <Input
           name="address"
           autoComplete="street-address"

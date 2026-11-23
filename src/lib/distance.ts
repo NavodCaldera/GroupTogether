@@ -1,4 +1,4 @@
-export type Point = { lat: number; lng: number };
+type Point = { lat: number; lng: number };
 
 /** Straight-line distance in km between two map pins (haversine). */
 export function distanceKm(a: Point, b: Point): number {

@@ -5,7 +5,6 @@ import { StartBasketForm } from "@/components/basket-forms";
 import { PackContents } from "@/components/pack-contents";
 import { Badge, LinkButton, PageHeader } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
-import { isBuyerRole } from "@/lib/roles";
 import { getCurrentUser } from "@/server/auth/session";
 import { getPack, openBaskets } from "@/server/packs";
 
@@ -15,9 +14,10 @@ export default async function PackPage({ params }: PageProps<"/packs/[slug]">) {
   if (!pack) notFound();
   const v = pack.version;
   const path = `/packs/${slug}`;
-  const buyer = user && isBuyerRole(user.role) ? user : null;
-  const baskets = buyer
-    ? (await openBaskets(buyer, { companySlug: pack.company.slug }))?.filter((b) => b.packSlug === slug) ?? null
+  const baskets = user
+    ? ((await openBaskets(user, { companySlug: pack.company.slug }))?.filter(
+        (b) => b.packSlug === slug,
+      ) ?? null)
     : null;
 
   return (
@@ -43,8 +43,10 @@ export default async function PackPage({ params }: PageProps<"/packs/[slug]">) {
         <h2 id="pack-baskets" className="text-lg font-semibold">
           Open baskets near you
         </h2>
-        {!buyer ? (
-          <LinkButton href={`/sign-in?next=${encodeURIComponent(path)}`}>Sign in to join or start a basket</LinkButton>
+        {!user ? (
+          <LinkButton href={`/sign-in?next=${encodeURIComponent(path)}`}>
+            Sign in to join or start a basket
+          </LinkButton>
         ) : baskets === null ? (
           <LinkButton href="/account/location">Set your address pin</LinkButton>
         ) : (

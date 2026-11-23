@@ -106,19 +106,6 @@ export function Select({ className, ...props }: ComponentProps<"select">) {
   );
 }
 
-export function Textarea({ className, ...props }: ComponentProps<"textarea">) {
-  return (
-    <textarea
-      id={props.id ?? props.name}
-      className={cx(
-        "min-h-20 rounded-lg border border-line bg-paper px-3 py-2 text-base outline-none focus:border-ink sm:text-sm",
-        className,
-      )}
-      {...props}
-    />
-  );
-}
-
 export function Card({ className, ...props }: ComponentProps<"div">) {
   return (
     <div

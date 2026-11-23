@@ -59,7 +59,7 @@ try {
     const summary = await client.callTool({
       name: "query",
       arguments: {
-        sql: "SELECT * FROM groupbasket_ai.stock_summary",
+        sql: "SELECT * FROM groupbasket_ai.basket_summary",
       },
     });
     const denied = await client.callTool({

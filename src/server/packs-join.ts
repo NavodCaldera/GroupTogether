@@ -5,14 +5,13 @@ import { distanceKm } from "@/lib/distance";
 import { packAmountDue } from "@/lib/pack-money";
 import { db, type Tx } from "./db";
 import { AppError } from "./errors";
-import { lockUserAdvisory } from "./orders/locks";
 import { getGateway } from "./payments/gateway";
 import { NEARBY_KM } from "./packs";
+import { getSettings } from "./settings";
 
 /**
- * Joining a family-pack basket (DEC-030). Lock order (AD-2): user advisory → PackGroup row →
- * PackMember / PaymentAttempt rows → ledger User rows. A spot is held while its payment is
- * pending and counts toward `joined`, so a basket is never overfilled (AD-1).
+ * Joining a basket (DEC-030). Lock order: PaymentAttempt row → PackGroup row. A spot is held
+ * while its payment is pending and counts toward `joined`, so a basket is never overfilled.
  */
 
 const DAY = 86_400_000;
@@ -38,22 +37,21 @@ export async function lockGroup(tx: Tx, groupId: string): Promise<LockedGroup | 
   return rows[0] ?? null;
 }
 
-async function holdMinutes(tx: Tx) {
-  const s = await tx.settings.findUnique({ where: { id: 1 }, select: { paymentHoldMinutes: true } });
-  return s?.paymentHoldMinutes ?? 15;
+export async function lockAttempt(tx: Tx, attemptId: string) {
+  await tx.$queryRaw`SELECT 1 FROM "PaymentAttempt" WHERE "id" = ${attemptId} FOR UPDATE`;
 }
 
-/** Holds a spot and opens a PACK_JOIN payment attempt for it. Caller holds the group row. */
+/** Holds a spot and opens a payment attempt for it. Caller holds the group row. */
 async function holdSpot(tx: Tx, userId: string, g: LockedGroup) {
   const existing = await tx.packMember.findUnique({
     where: { groupId_userId: { groupId: g.id, userId } },
-    select: { status: true, heldUntil: true },
+    select: { status: true },
   });
   if (existing?.status === "PAID") throw new AppError("You are already in this basket.");
   if (existing) throw new AppError("Your payment for this basket is still open.");
   if (g.joined >= g.groupSize) throw new AppError("This basket is full.");
-  const minutes = await holdMinutes(tx);
-  const heldUntil = new Date(Date.now() + minutes * 60_000);
+  const { paymentHoldMinutes } = await getSettings(tx);
+  const heldUntil = new Date(Date.now() + paymentHoldMinutes * 60_000);
   const member = await tx.packMember.create({
     data: { groupId: g.id, userId, status: "HELD", heldUntil },
     select: { id: true },
@@ -61,11 +59,9 @@ async function holdSpot(tx: Tx, userId: string, g: LockedGroup) {
   await tx.packGroup.update({ where: { id: g.id }, data: { joined: { increment: 1 } } });
   const attempt = await tx.paymentAttempt.create({
     data: {
-      purpose: "PACK_JOIN",
       buyerId: userId,
       packMemberId: member.id,
       amount: g.price,
-      currency: "LKR",
       gatewayRef: `ga_${randomUUID()}`,
       expiresAt: heldUntil,
     },
@@ -79,7 +75,8 @@ async function buyer(userId: string) {
     where: { id: userId },
     select: { id: true, name: true, email: true, lat: true, lng: true, address: true, city: true },
   });
-  if (u.lat == null || u.lng == null || !u.address) throw new AppError("Set your address pin first.");
+  if (u.lat == null || u.lng == null || !u.address)
+    throw new AppError("Set your address pin first.");
   return u as typeof u & { lat: number; lng: number; address: string };
 }
 
@@ -87,7 +84,6 @@ async function buyer(userId: string) {
 export async function joinBasket(userId: string, groupId: string) {
   const u = await buyer(userId);
   const pay = await db.$transaction(async (tx) => {
-    await lockUserAdvisory(tx, userId);
     const g = await lockGroup(tx, groupId);
     if (!g || g.status !== "OPEN" || g.closesAt <= new Date())
       throw new AppError("This basket is no longer taking families.");
@@ -97,11 +93,10 @@ export async function joinBasket(userId: string, groupId: string) {
   return checkout(u, pay);
 }
 
-/** Pay to start a basket for a pack; the payer becomes its owner (AD-3). */
+/** Pay to start a basket for a pack; the payer becomes its owner. */
 export async function startBasket(userId: string, versionId: string) {
   const u = await buyer(userId);
   const pay = await db.$transaction(async (tx) => {
-    await lockUserAdvisory(tx, userId);
     const v = await tx.packVersion.findUnique({
       where: { id: versionId },
       select: { publishedAt: true, pack: { select: { active: true, durationDays: true } } },
@@ -139,11 +134,13 @@ async function checkout(
   });
 }
 
-/**
- * A verified SUCCEEDED notice for a PACK_JOIN attempt. Caller holds the payer advisory.
- * Returns false when the spot is gone (released or closed): the caller takes the late path.
- */
-export async function confirmPackSpot(tx: Tx, attemptId: string, now = new Date()): Promise<boolean> {
+/** A verified payment for a spot. Caller holds the attempt row. False when the spot is gone
+ * (released, or the basket full or closed): the caller gives the money back as tokens. */
+export async function confirmPackSpot(
+  tx: Tx,
+  attemptId: string,
+  now = new Date(),
+): Promise<boolean> {
   const a = await tx.paymentAttempt.findUniqueOrThrow({
     where: { id: attemptId },
     select: { packMember: { select: { id: true, groupId: true, status: true } } },
@@ -161,14 +158,20 @@ export async function confirmPackSpot(tx: Tx, attemptId: string, now = new Date(
   return true;
 }
 
-/** The last spot is paid: the basket is FULL and its order goes to the company (AD-7). */
+/** The last spot is paid: the basket is FULL and its order goes to the company. */
 async function fillBasket(tx: Tx, groupId: string, now: Date) {
   const g = await tx.packGroup.update({
     where: { id: groupId },
     data: { status: "FULL" },
     select: {
       joined: true,
-      version: { select: { pricePerFamily: true, commissionPct: true, pack: { select: { companyId: true } } } },
+      version: {
+        select: {
+          pricePerFamily: true,
+          commissionPct: true,
+          pack: { select: { companyId: true } },
+        },
+      },
     },
   });
   await tx.packDelivery.create({
@@ -176,13 +179,15 @@ async function fillBasket(tx: Tx, groupId: string, now: Date) {
       groupId,
       companyId: g.version.pack.companyId,
       families: g.joined,
-      amountDue: packAmountDue(g.version.pricePerFamily, g.version.commissionPct, g.joined).toFixed(2),
+      amountDue: packAmountDue(g.version.pricePerFamily, g.version.commissionPct, g.joined).toFixed(
+        2,
+      ),
       createdAt: now,
     },
   });
 }
 
-/** A failed, cancelled or expired PACK_JOIN payment frees its spot. Caller holds the payer advisory. */
+/** A failed, cancelled or expired payment frees its spot. Caller holds the attempt row. */
 export async function releasePackSpot(tx: Tx, attemptId: string): Promise<void> {
   const a = await tx.paymentAttempt.findUniqueOrThrow({
     where: { id: attemptId },
@@ -192,10 +197,9 @@ export async function releasePackSpot(tx: Tx, attemptId: string): Promise<void> 
   if (!m || m.status !== "HELD") return;
   const g = await lockGroup(tx, m.groupId);
   if (!g) return;
-  await tx.paymentAttempt.update({ where: { id: attemptId }, data: { packMemberId: null } });
   await tx.packMember.delete({ where: { id: m.id } });
   if (g.status === "PENDING") {
-    // The owner never paid: the basket was never opened (AD-3).
+    // The owner never paid: the basket never opened.
     await tx.packGroup.delete({ where: { id: g.id } });
     return;
   }

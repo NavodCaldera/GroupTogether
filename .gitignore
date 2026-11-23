@@ -43,7 +43,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-/src/generated/prisma
 !.env.example
 
 # prisma generated client
@@ -64,17 +63,6 @@ next-env.d.ts
 
 # editor settings
 /.vscode/
-
-# fit runtimes and models (scripts/copy-fit-assets.mjs, npm run fit:models)
-/public/draco/
-/public/fit-vision/
-
-# Python bytecode (tools/fit-simulation)
-__pycache__/
-
-# Python virtual environments and test caches (tools/body-fitting)
-.venv/
-.pytest_cache/
 
 # Local QA screenshots and browser snapshots
 /qa-output/

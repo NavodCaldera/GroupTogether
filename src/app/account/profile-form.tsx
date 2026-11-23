@@ -1,7 +1,6 @@
 "use client";
 
 import { useActionState, type ReactNode } from "react";
-import { AboutYouFields } from "@/components/about-you-fields";
 import { LocationPicker, type LocationDefaults } from "@/components/location-picker";
 import { Alert, Button, Card, Field, Input } from "@/components/ui";
 import { type FormState, saveProfileAction } from "@/server/auth/actions";
@@ -21,23 +20,9 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 export function ProfileForm({
   next,
   defaults,
-  phoneHint,
-  addressLabel,
-  addressHint,
-  aboutYou = false,
 }: {
   next?: string;
-  defaults: LocationDefaults & {
-    name: string;
-    phone: string | null;
-    gender?: string | null;
-    birthDate?: Date | null;
-  };
-  /** Buyers: gender and date of birth, which pick the shop's audience. */
-  aboutYou?: boolean;
-  phoneHint?: string;
-  addressLabel?: string;
-  addressHint?: string;
+  defaults: LocationDefaults & { name: string; phone: string | null };
 }) {
   const [state, action, pending] = useActionState<FormState, FormData>(saveProfileAction, {});
   const e = state.fieldErrors ?? {};
@@ -49,7 +34,7 @@ export function ProfileForm({
         <Field label="Name" name="name" error={e.name}>
           <Input name="name" autoComplete="name" defaultValue={defaults.name} required />
         </Field>
-        <Field label="Mobile" name="phone" error={e.phone} hint={phoneHint}>
+        <Field label="Mobile" name="phone" error={e.phone}>
           <Input
             name="phone"
             type="tel"
@@ -59,15 +44,9 @@ export function ProfileForm({
             required
           />
         </Field>
-        {aboutYou && <AboutYouFields errors={e} defaults={defaults} />}
       </Section>
       <Section title="Address">
-        <LocationPicker
-          defaults={defaults}
-          errors={e}
-          addressLabel={addressLabel}
-          addressHint={addressHint}
-        />
+        <LocationPicker defaults={defaults} errors={e} />
       </Section>
       <Button type="submit" disabled={pending} className="w-full sm:w-auto sm:self-end sm:px-10">
         {pending ? "Saving…" : "Save changes"}

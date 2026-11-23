@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { demoReturnPath, signNotice, verifyNotice } from "./demo";
+import { signNotice, verifyNotice } from "./demo";
 
 const fields = {
   merchant_id: "1200000",
@@ -45,12 +45,5 @@ describe("demo gateway notices", () => {
   it("accepts a lowercase signature", () => {
     const sig = signNotice(fields, "s3cret").toLowerCase();
     expect(verifyNotice(body(fields, sig), {})).not.toBeNull();
-  });
-});
-
-describe("demo payment return", () => {
-  it("returns a deposit to the deposit page and orders to checkout", () => {
-    expect(demoReturnPath({ id: "att_1", purpose: "DEPOSIT" })).toBe("/agent/deposit/att_1");
-    expect(demoReturnPath({ id: "att_2", purpose: "ORDERS" })).toBe("/checkout/return/att_2");
   });
 });

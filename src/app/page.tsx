@@ -1,15 +1,9 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { Badge, EmptyState } from "@/components/ui";
-import { getCurrentUser } from "@/server/auth/session";
 import { homeCategories } from "@/server/packs";
 
 /** Home (DEC-030): companies grouped under their categories. */
 export default async function HomePage() {
-  // Admins and factory logins have their own back office.
-  const user = await getCurrentUser();
-  if (user?.role === "ADMIN") redirect("/admin");
-  if (user?.role === "SELLER") redirect("/seller");
   const categories = await homeCategories();
 
   if (categories.length === 0) return <EmptyState title="No companies yet" />;

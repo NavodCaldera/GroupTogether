@@ -26,17 +26,6 @@ export function signNotice(f: NoticeFields, secret: string): string {
   );
 }
 
-/** Where the demo payment page returns the payer: the deposit page for a deposit, else checkout. */
-export function demoReturnPath(attempt: {
-  id: string;
-  purpose: "ORDERS" | "DEPOSIT" | "DELIVERY_FEE" | "PACK_JOIN";
-}): string {
-  if (attempt.purpose === "PACK_JOIN") return `/baskets/return/${attempt.id}`;
-  return attempt.purpose === "DEPOSIT"
-    ? `/agent/deposit/${attempt.id}`
-    : `/checkout/return/${attempt.id}`;
-}
-
 const STATUS: Record<string, NoticeStatus> = {
   "2": "SUCCEEDED",
   "0": "PENDING",
@@ -79,15 +68,4 @@ export const demoGateway: Gateway = {
     return { redirectUrl: appUrl(`/demo-pay/${a.attemptId}`) };
   },
   verifyNotice,
-  async fetchStatus(attemptId) {
-    // Lazy: keeps the pure helpers above importable without a database (unit tests).
-    const { db } = await import("../db");
-    const row = await db.paymentAttempt.findUnique({
-      where: { id: attemptId },
-      select: { status: true },
-    });
-    if (row?.status === "SUCCEEDED" || row?.status === "LATE_PAID") return "SUCCEEDED";
-    if (row?.status === "FAILED" || row?.status === "EXPIRED") return "FAILED";
-    return "PENDING";
-  },
 };

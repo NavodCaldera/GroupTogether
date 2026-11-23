@@ -1,247 +1,41 @@
 ---
 name: groupbasket
-description: "Lead agent for GroupBasket. Canonical business model, scope, responsibilities and business rules, with links to implementation status, open decisions, architecture and specialist guidance. Read first for planning or work spanning domains."
+description: Lead agent for GroupBasket. The family-pack business model, its rules and where they live in code. Read first for any planning or change.
 ---
 
 # GroupBasket operating brief
 
-## 1. Purpose and authority
-
-This is the canonical project brief for GroupBasket's business model and product rules. Read it before planning or changing behavior. Last consolidated: **2026-11-08**, for the area agent model ([spec 003](../../specs/003-area-agent-model/spec.md), approved by the owner on 2026-11-07). Direction updated **2026-11-21** for any product (`DEC-029`).
-
-- Explicit user instructions govern the task, subject to the agent's system and developer instructions. Follow [AGENTS.md](../../AGENTS.md), including its Next.js documentation requirement.
-- This brief defines current business intent. [Implementation status](../../docs/implementation-status.md) records what the code supports. Code that differs from an approved requirement is a gap, not a new policy.
-- [Open decisions](../../docs/decisions.md) records unresolved questions. Do not invent an answer when it affects the requested work; progress on independent work and seek the missing decision.
-- Specialist files provide technical guidance. Historical notes and the [changelog](../../docs/CHANGES.md) do not override this brief. Dates alone do not resolve contradictory requirements.
-- Update each fact in its authoritative home and link to it elsewhere. Do not recreate another business-rule list in `CLAUDE.md` or specialist introductions.
-
-**Policy and implementation are separate.** Rules below are established requirements unless marked **Planned**, **Parked**, **Paused** or **Open**. Planned means recorded business intent, not a working feature. Parked means hidden from users with its data kept. Recommendations and illustrative figures do not become policy automatically.
-
-The rule IDs for buying, payment, baskets and delivery were rewritten for the area agent model on 2026-11-08. The retired IDs (`CART-*`, `INV-001`, `LOT-*`, `PAY-001`–`PAY-003`, `FUL-*`, `SAMPLE-001`, `COM-002`, `ADMIN-001`) are listed with their replacements in the [legacy mapping](../../docs/decisions.md#legacy-rule-references) and the [changelog](../../docs/CHANGES.md).
-
-## 2. Business model
-
-**Direction (`DEC-029`, 2026-11-21, Planned):** GroupBasket becomes group buying for **any product from any kind of factory**, with no middleman. The seller is always the maker or brand owner. Price tiers by quantity (`DEAL-*`), a category tree with attributes (`CATG-*`) and percentage commission per category replace the clothing-only catalogue and the flat commission. Area agents stay as pickup points. Until each part is built, the rules below describe the code as it is.
-
-GroupBasket is a Sri Lankan group-buying marketplace (today: clothing). Partner factories list their own products, keep the stock and pack it. Buyers pay upfront and collect from a nearby **area agent**. GroupBasket earns a fixed commission per piece (`commissionPerPiece`, LKR 100 by default) on top of the factory price. It does not buy or store stock.
-
-### Area agents and baskets
-
-Each paid order joins the chosen agent's open **basket** for that factory. A basket locks at the lock amount (LKR 50,000 of goods by default) or ships when its first order is two months old. The factory packs the locked basket, an admin books a courier from the factory to the agent, and the agent pays the driver from its 5% agent fee. Buyers collect with a 6-digit pickup code.
-
-The promise is low cost for buyers (one shared courier per basket) and fast stock clearance for factories, which are paid in cash every Sunday for items collected and past the return window.
-
-### Money flows
-
-- **Buyers** pay the item price and the PayHere fee on the part paid by gateway; tokens apply first. They pay the agent fee (5% of the item price) in cash to the agent at pickup (`DEC-019`).
-- **Factories** receive cash only: every Sunday, the factory price of payable items, minus deductions. Factory accounts and staff hold no tokens.
-- **Agents** take the 5% agent fee in cash from each buyer at pickup and pay every courier from the factory to themselves. Their deposit comes back as tokens when they leave.
-- **No cash back.** Buyers and agents are never paid cash; late, duplicate and mismatched payments, cancellations, returns and missing items become tokens.
-
-### Parked, paused and planned
-
-- **Premium-brand rewards — Parked** (FR-034): brand workspaces, gift reservations and settlement are hidden; their data is kept. The `BRAND-*` and `GIFT-*` rules below describe the parked model and must not be rebuilt on baskets without an owner decision.
-- **Design tests and likes — Parked** (FR-034): approved on 2026-11-07 but not built, then hidden by the area agent model. Factory design history (`SUP-003`) is parked with them.
-- **Preorders — Paused, not built** (`DEC-015`): the owner paused only the preorder part on 2026-11-07. It is not approved policy and must not be built until the owner resumes it and answers Question 25.
-- **Body measurements — Built, uncalibrated** (`FIT-001`, `DEC-020`): personalized fit heatmap.
-- **Own baskets — Built 2026-11-18** (`BSK-008`, `DEC-023`): buyers group together and the basket goes to the owner's address.
-- **Material Library and Material Card — Built and published 2026-11-17** (`MAT-001`, `DEC-022`): all 33 materials are published on the owner's sign-off of the rule bands.
-
-## 3. Scope, identity and vocabulary
-
-| Topic               | Boundary                                                                                                                                                                                                                                                                           |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Range               | Any product kind from its maker (`DEC-029`, Planned): stationery, household goods, food, electronics, clothing, shoes and more. Built today: clothing only. Banned and approval-only categories are open.                                                                          |
-| Condition           | New, factory surplus, B-grade or refurbished, set per product (`CATG-002`).                                                                                                                                                                                                        |
-| Selling model       | Group buying only, factory or maker to buyer. No resellers, no single-seller retail shop.                                                                                                                                                                                          |
-| Premium gifts       | Parked. Brands would retain and directly fulfil gift stock, separate from clothing.                                                                                                                                                                                                |
-| Geography and money | Sri Lanka; LKR; display dates and business days in `Asia/Colombo`. Weeks end Saturday 23:59:59 Asia/Colombo (fixed UTC+05:30).                                                                                                                                                     |
-| Name                | The company and customer-facing name is **GroupBasket**. Always use GroupBasket in business references and `groupbasket` in technical names. The canonical brief is `groupbasket.md`; the npm package, agent and local databases use `groupbasket` (`groupbasket_test` for tests). |
-| Independence        | Standalone code, database and rules. Do not import rules, prices or styling from unrelated projects.                                                                                                                                                                               |
-
-**Cart** is a buyer's personal list of items; it reserves nothing. An **order** is one buyer's paid items from one factory, collected at one agent. A **basket** belongs to one agent and one factory and gathers paid orders until it locks. A **pickup code** is one buyer's 6-digit code at one agent. **Tokens** are LKR credits (1 token = LKR 1) that never expire. A **design** is a factory-linked product whose test and bulk share history (parked).
-
-## 4. Participants and responsibilities
-
-| Participant                            | Responsibilities and permitted information                                                                                                                                                                                                                                      |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Buyer (`CUSTOMER`)                     | Signs up, keeps an address and map pin, fills a personal cart, chooses an agent, pays, collects with the pickup code, files returns and rates collected products. Holds tokens and can send them.                                                                               |
-| Area agent (`AGENT`)                   | Applies with NIC, photos, address and pin; pays the deposit to go live; sets weekly hours; pays couriers and marks baskets received; hands parcels over by code; collects returns. Holds tokens. Also shops as a buyer. A person cannot be a factory user and an agent at once. |
-| Factory (`SELLER`, with `factoryRole`) | Admin-approved partner. Three jobs only (`FAC-001`): Owner, Sales and Packing. Lists products and stock, packs locked baskets, decides returns and is paid every Sunday. Sees agents' names and areas, never buyer names or phones. Holds no tokens.                            |
-| Premium brand (`SELLER`, `isBrand`)    | Parked. Data kept; the workspace is hidden.                                                                                                                                                                                                                                     |
-| Admin (`ADMIN`)                        | One area each (`ADMIN-002`): Agents and orders (`AGENTS`), Factory (`FACTORY`), Core (`CORE`) and Luxury brands (`PREMIUM`, parked). There is no unrestricted admin.                                                                                                            |
-
-Role homes: buyers `/`, agents `/agent`, factories `/seller`, admins their area's admin home. Packing staff accounts and the `PACKER` role were removed; factory Packing staff do the packing.
-
-## 5. Main journeys
-
-| Journey         | Sequence                                                                                                                                                                                                     |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Buy             | Cart → checkout (agent, prices, tokens) → gateway (or tokens only) → verified notice → order joins the agent's open basket for that factory.                                                                 |
-| Basket to agent | Basket locks (amount, two months or agent suspended) → factory Packing checks lines and taps Packed → admin books the courier → Packing taps Given to driver → agent pays the driver and taps Mark received. |
-| Collect         | Buyer gets an in-app notice with the pickup code → agent types the code → Hand over.                                                                                                                         |
-| Return          | Buyer files within 48 hours of receipt → factory decides within 24 hours, else Factory admin → buyer hands the item to the agent within 7 days → tokens → item goes back with the next courier.              |
-| Factory payout  | Items past the return window with no open return → weekly payout after Saturday 23:59 → Core admin pays and records the bank reference on Sunday.                                                            |
-| Become an agent | Apply → Agents and orders admin approves (no clash within 2 km) → pay deposit → set hours → live.                                                                                                            |
-
-These are summaries. Rule IDs below define behavior; the [architecture reference](../../docs/architecture.md) describes code and transitions.
-
-## 6. Business rules
-
-### Catalogue
-
-- **CAT-001 — Availability:** ordinary products appear in listings/search while some variant has free stock. Product links still open without free stock. Removing free stock prevents further purchases without releasing existing holds. Draft/review/live/archive statuses are unused.
-- **CAT-002 — Condition fields:** the current owner rule hides stock type and defect fields. Existing stock types are retained; new products are stored as `FACTORY_SURPLUS`. Legacy defect notes remain unused. Condition disclosure and after-sales exceptions are open (`DEC-005`), not permission to change behavior during unrelated work.
-
-- **CATG-001 — Category tree (Built, `DEC-029`):** products belong to one category in an admin-managed tree (for example Stationery > Exercise books, Clothing > Men > Shirts). A category carries its attributes, commission, add-on features (`fit`, `materials`, `audience`), whether it needs approval, and its extra return reasons; children inherit what they leave unset. Clothing add-ons and clothing return reasons apply only where the category carries them (Built 2026-11-25, phase 8).
-- **CATG-002 — Attributes and variant options (Built, `DEC-029`):** each category lists the details a product gives (pages, voltage, volume and so on), which of them are buyer choices (variant axes such as size, colour, pages, flavour) and which are shop filters. A variant is any combination of the axes with its own stock, weight and size. Products also carry condition, sell unit (piece, pack, box, kg), minimum order and step quantity, and shelf life.
-- **CATG-003 — Factory categories (Built 2026-11-22, `DEC-029`):** a Factory admin approves which categories each factory may list; approval covers the subtree and is enforced when a factory saves a product. Restricted categories (`needsApproval`, inherited) also need an approved product licence; factories may also send trademark proof. Existing factories keep Clothing (and Shoes when they sell shoes).
-
-### Group deals
-
-- **DEAL-001 — Deals and tiers (Built 2026-11-22, `DEC-029`):** a factory runs a deal on a product for a set time with quantity tiers (tier 1 starts at 1) and an optional capacity. Every unit ordered by all buyers in the deal, through any agent or own basket, counts toward the tier. The product page shows units sold and how many more reach the next price.
-- **DEAL-002 — Pay first tier, rebate later (Built 2026-11-22):** buyers pay tier 1's price. When the deal ends the sweep settles it once at the highest tier reached; each buyer gets `(paid − final) × qty` back as `DEAL_REBATE` tokens, and the factory is paid the final tier's factory price under `PAY-007`.
-- **DEAL-003 — Pricing apart from shipping (Built 2026-11-22):** the deal sets the price; baskets still decide delivery (`BSK-*`). A basket may ship before its deal settles. Missing items and returns before settlement reduce the count; after settlement the tier never changes.
-- **DEAL-004 — Commission per category (Built 2026-11-22):** each tier's buyer price is the factory price plus the category's commission percentage (with its minimum per unit), copied when the deal goes live. CORE sets category commission. Existing listings keep their snapshot. With no percent in the chain the flat `Settings.commissionPerPiece` applies.
-
-### Administrative workspaces
-
-- **ADMIN-002 — Four admin areas:** every admin works in exactly one area, enforced in server pages, actions, private routes and services. **Agents and orders** (`AGENTS`, formerly `WAREHOUSE`): courier booking, payment problems, agent applications, deposits, suspension and losses, two-month baskets, order search, buyer accounts and buyer-fault return decisions and history. **Factory** (`FACTORY`): factory applications and accounts, listings visibility, quality, returns decisions after refusal or timeout, and missing items. **Core** (`CORE`): weekly payouts, token reports, Settings, admin accounts and the buyer-fault return history (read only); it also shares quality flags, hide/removal controls and private report photos with FACTORY under `DEC-013`. **Luxury brands** (`PREMIUM`): parked. No admin can reach another area's pages, actions, private files or money. The first admins of a deployment are created from the command line. Notices target only the responsible area.
-
-### Buying and orders
-
-- **ORD-001 — Personal cart:** a buyer puts items from any factory into one personal cart. The cart reserves no stock. Only buyer accounts (including agents shopping as buyers) can check out.
-- **ORD-002 — Agent choice at checkout:** a buyer must have an address and map pin inside Sri Lanka before checkout (`LOC-001`). Checkout pre-selects the nearest live agent by distance from the buyer's pin and lets the buyer choose any live agent, showing its distance and weekly hours. A suspended, leaving or left agent cannot be chosen.
-- **ORD-003 — Stock hold:** starting payment reserves stock for each line; a verified payment moves it to sold. The hold ends `paymentHoldMinutes` (15) after payment starts if no verified payment has arrived, releasing the stock and any held tokens. A payment verified after that becomes tokens (`PAY-006`). Never oversell.
-- **ORD-004 — No buyer cancel (`DEC-026`, 2026-11-21):** once paid, a buyer cannot cancel an order. Before 2026-11-21: a buyer could cancel a paid order while its basket was still open. Everything paid online, including the PayHere fee (and the agent fee on older orders that paid it online), comes back as `ORDER_CANCEL` tokens, the stock is released and the basket total falls. The basket's two-month clock moves to its earliest remaining paid order, or clears. After the basket locks, the order cannot be cancelled.
-- **ORD-005 — Pickup code and handover:** each buyer has one 6-digit pickup code per agent, unique among that agent's codes, shown to the buyer. When an agent marks a delivery received, every buyer with items in it gets an in-app notice with that code. Typing the code shows every received, uncollected item of that buyer at this agent, across factories, with the cash agent fee for the ticked items and a Hand over button; the agent must tick Fee received for that exact amount (`DEC-019`), which is stored per line. A wrong code shows only that it was not found; five failed lookups in ten minutes block the agent briefly. There is no pickup deadline: a parcel waits at the agent until collected. GroupBasket takes no action for a buyer who does not collect within 2 days of the parcel reaching the agent, and the 48-hour return window is not extended (`DEC-019`).
-- **RETURN-001 — Returns through agents:** a buyer files a return for collected items within `collectHours` (48) of the agent receiving them, choosing factory fault or buyer fault. **Factory fault** needs a reason and a photo. The factory's Owner or Sales decides within 24 hours; every refusal or timeout goes to a Factory admin, whose decision is final, with a private admin–factory thread. A Factory admin may change it to buyer fault, which records no fault and notifies the Agents and orders admin to decide it as a buyer-fault return. After acceptance the buyer is told which agent to hand the item to and has `returnHandoverDays` (7); otherwise the return lapses and the line earns for the factory again. When the agent collects it, the buyer gets the item price and the cash agent fee they paid as tokens, not the PayHere fee; that fee is deducted from the factory's next payout (Agent fee on returns) and the agent keeps the cash (`DEC-019`). Older orders that paid the fee online refund it and take it back from the agent (`DEC-018`). The item goes back to the factory with its next courier for that agent; the factory pays that driver on arrival and marks it received. **Buyer fault** (`DEC-017`) needs one reason (Material not as expected, Size, Colour, Quality feel, Changed mind, Other) and a note, and never becomes a factory fault. GroupBasket gives no tokens. The buyer sees the amount they get if it sells before filing. The Agents and orders admin accepts or refuses; on acceptance the agent and buyer are notified and the buyer has 2 days to hand it over, else it closes as Not brought. The agent resells it at the price the buyer paid, keeps the commission share and gives the buyer the factory price, privately, and marks it Sold, or Taken back if the buyer collects it unsold. The factory is paid as normal. Whether the agent checks a factory-fault item's condition is open (`DEC-016`).
-
-### Baskets and delivery
-
-- **BSK-001 — One open basket:** each active agent has at most one open basket per factory. Only paid orders join it, and an order is never split. A new open basket starts when the previous one locks.
-- **BSK-002 — Lock amount:** a basket locks automatically when its goods total reaches `basketLockAmount` (LKR 50,000). The order that crosses the amount joins whole. Agent fee and PayHere fee do not count toward it (Claude's call, owner to confirm).
-- **BSK-003 — Maximum wait:** a basket locks and ships when its first paid order is older than `maxWaitDays` (60). A suspended or leaving agent's open baskets lock early and ship.
-- **BSK-004 — Factory packing:** factory Packing (or Owner) sees locked baskets with the agent's name and area and the lines by product, size and colour. Packing reports a missing line, then taps Packed. Packing never sees money.
-- **BSK-005 — Courier booking:** an Agents and orders admin books each packed basket by hand, entering the courier fee and the driver's name, phone and vehicle. Packing records Given to driver; the agent then sees it in Arriving today with the fee to pay. After a failed trip Packing records Parcel is back and the admin rebooks. There is no courier provider integration.
-- **BSK-006 — Receipt at the agent:** the agent pays the driver from its agent fees and taps Mark received; there is no courier repayment (`DEC-018`). The orders become received, buyers get their pickup-code notice with the agent fee to bring, and the return window starts for those items. Factory-fault returns waiting at the agent go back with that courier.
-- **BSK-008 — Own baskets (Built 2026-11-18, `DEC-023`):** a buyer can start an own basket instead of using an agent. It holds any products of one factory (`DEC-027`, 2026-11-21), never another factory's. The owner pays first and gives a delivery address. Others ask to join from the cart; the owner accepts or declines, and accepted buyers pay that factory's products into it at the normal price (`DEC-028`, no share links). Buyers start, add to or join one from the Cart: tick items, then Agent pickup, My basket or Join a basket (one factory needed for the two basket ways); no per-item quantity limit beyond stock. No agent fee, no pickup code, no returns. There is no delivery, courier or agent fee in GroupBasket: the owner pays the courier on delivery. The owner can place the order only once the basket holds `ownMinItems` (10) items; after `ownMaxWaitDays` (10) it is ordered if full enough, otherwise cancelled with everyone refunded in tokens. A joiner whose payment arrives after their hold ran out (the stock sold meanwhile) gets the payment back as tokens less the PayHere fee. The owner confirms receipt; the factory and courier steps are those of `BSK-004`/`BSK-005`, delivered to the owner's address.
-- **BSK-007 — Missing items:** when Packing reports a line the factory cannot supply, a Factory admin either removes it or dismisses a wrong report. Removal gives the buyer the item price as `MISSING_ITEM` tokens (not the PayHere fee; the cash agent fee is never owed for it), and deducts GroupBasket's loss (the commission, plus the agent fee on older online-fee orders) from the factory's next payout. The factory price is never paid for that line.
-
-### Payment
-
-- **PAY-004 — Checkout prices:** checkout shows Item, Tokens, PayHere fee and Total, then Agent and courier fee at pickup (`agentFeeRate`, 5% of the item price, rounded to the whole rupee per item, paid in cash to the agent; `DEC-019`). Tokens apply first and cannot pay the agent fee. The PayHere fee is charged only on the remainder paid by gateway: `round2(remainder / (1 − rate) − remainder)`, with `gatewayFeeRate` 0.033, and 0 when the remainder is 0. A LKR 1,000 item with no tokens gives a fee of **34.13**, a total of **1,034.13** online and **LKR 50** at pickup. A fully token-paid checkout makes no gateway payment. One payment covers every factory's order from one checkout; the fee is shared across orders in proportion to their remainders. Orders already placed keep the fees they paid.
-- **PAY-005 — Verified gateway notice:** only a gateway notice whose signature, amount and currency are verified confirms a payment, once, even when the notice repeats. A browser return never confirms a payment; the return page shows Checking until the notice arrives. The first release uses a demo gateway that copies the PayHere flow (hosted page with Pay, Fail and Cancel, signed server notice, return page). Switching to PayHere must not change anything else, and waits for PayHere's written approval of this model (`DEC-016`).
-- **PAY-006 — No cash back:** GroupBasket pays cash only to factories. Late, duplicate and amount-mismatched payments become the payer's `LATE_PAYMENT` tokens. There are no bank or cash refunds; unresolved after-sales exceptions stay in `DEC-005`.
-- **PAY-007 — Weekly factory payout:** each item becomes payable `collectHours` (48) after the agent receives it if it has no open factory-fault return; buyer-fault returns never hold it (`DEC-017`). After Saturday 23:59 Asia/Colombo the payout totals each factory's payable items at the factory price, minus missing-item deductions, listed on the statement. A Core admin pays by bank transfer on Sunday and records the bank reference; the factory Owner sees it in payout history. Items with an open factory-fault return or an unresolved missing report are held. The commission stays with GroupBasket.
-
-### Tokens
-
-- **TOK-001 — Token ledger:** 1 token = LKR 1; tokens never expire and can be spent on the holder's own checkouts. Every entry has a type (late payment, order cancel, agent fee, fee taken back, return, missing item, deposit return, transfers, holds; courier repay is kept only for old entries) and is never changed or deleted. A balance can never go below zero. Factory accounts and factory staff hold no tokens.
-- **TOK-002 — Transfers:** any token holder can send tokens to another token holder. The transfer is immediate, appears in both histories and cannot be undone. Transfers to factory users are refused. Admins take no action on cash deals made outside the platform.
-- **TOK-003 — Token reporting:** a Core admin sees tokens issued by type and the total outstanding, which must equal the sum of balances.
-
-### Agents
-
-- **AGT-001 — Application:** applicants submit NIC, their own photo, address, map pin and storage photos. An Agents and orders admin approves or rejects. Approval is blocked within `agentGapM` (2 km) of an active agent; the application shows the clash. The service radius `agentRadiusM` (1 km) is for display.
-- **AGT-002 — Deposit:** an approved applicant pays the `agentDeposit` (LKR 200,000) plus the PayHere fee by gateway to go live; tokens cannot pay it. The deposit stays locked while the agent is active. A late deposit payment becomes tokens.
-- **AGT-003 — Opening hours:** each agent sets weekly days with open and close times. They show at checkout and on the buyer's pickup card.
-- **AGT-004 — Suspension and leaving:** an Agents and orders admin can suspend an agent and lift the suspension. A suspended or leaving agent takes no new orders; its open baskets lock early and ship, and buyers keep collecting there. A leaving agent closes once every parcel and accepted return there has been handed over and it holds no buyer-fault item waiting for resale; the admin records any losses with photos and a reason, and the deposit minus losses comes back as `DEPOSIT_RETURN` tokens, never cash. Core admin reviews disputes.
-- **AGT-005 — Agent earnings:** agents take the agent fee (`agentFeeRate`, 5% of the item price) in cash from the buyer at handover and pay their own couriers from it (`DEC-019`); the agent screens show Fees collected. A factory-fault return never takes the cash back; the factory pays the buyer that fee. Older orders that paid the fee online still earn `AGENT_FEE` tokens once per week after Saturday 23:59 and give it back on a factory-fault return, from tokens, the next weekly fee or the deposit at leaving (`DEC-018`).
-
-### Location and communication
-
-- **LOC-001 — Location:** buyer signup and checkout require an address and exact map pin inside Sri Lanka. Agents apply with a pin. Older accounts without pins must complete their profile before checkout.
-- **COM-001 — Notifications:** in-app only; no email, SMS or WhatsApp. Notices are sent after the transaction commits. Time-based rules run only in the scheduled sweep (`runSweep`); page loads do not run it, so a deployment must schedule the cron (`DEC-016`).
-- **COM-003 — Brand communication (Parked):** admins and premium brands use a separate partnership inbox linked to products, paid gift orders, settlements or general discussion. Brands see only their own shared history; internal admin notes never leave the admin workspace. Messages allow 2,000 characters and ten sends per minute, with per-user read markers, needs-reply/resolved states and deduplicated in-app notices.
-
-### Suppliers, quality and visibility
-
-- **SUP-001 — Factory supply:** factories list products, keep the stock, pack locked baskets and are paid weekly in cash under `PAY-007`. GroupBasket does not buy, store or price-drop stock.
-- **SUP-002 — Listings:** a factory publishes its own listings without approval: title, brand, audience/category, its factory price, optional retail price, description, photo, and sizes with stock. The buyer price is the factory price plus the commission snapshotted when the listing is created (`commissionPerPiece`, CORE only). A listing shows in the shop once it has free stock; a Factory admin can hide any listing and show it again. Factories edit only their own listings and stock.
-- **SUP-003 — Design history (Parked):** test and later bulk pieces share one product and its history. Parked with design tests and likes.
-- **FAC-001 — Factory staff:** each person at a factory has their own login linked to the factory account with one fixed job: Owner, Sales or Packing (Planner work moved to Sales). The factory account itself is always an Owner; Owners add staff, change jobs and lock leavers. Packing sees Home and Orders (To pack, Courier booked). Sales sees Home, Products, Ratings, Returns and Baskets. Owners see everything, including Team and Earnings. Only Owners see money; whether Sales should see basket totals, and which tabs the Owner gets, are open (`DEC-016`). Actions record the person who did them.
-- **FAC-002 — Factory joining and agreement (2026-11-05, `DEC-013`):** factory owners apply publicly or by seven-day, single-use admin invite. Submission requires BR number/certificate, owner NIC/photo, factory address/photo and bank details; rejected BR/NIC identities cannot reapply. FACTORY/CORE admins alone view private documents, record optional visits and review applications; approval requires an account name matching the business or owner. CORE publishes immutable agreement versions; the factory account records acceptance of the latest version for 12 calendar months. Listing, selling and staff creation require current unexpired acceptance; owners receive a reminder within 30 days of the term ending. Agreement expiry hides new sales and stops listing while paid orders continue.
-- **RATE-001 — Product ratings:** a buyer who has collected a line of a product can rate it once per order, 1–5 stars. Ratings of 1–2 require a report; DAMAGED, WRONG_ITEM and STITCHING reports require a photo. Photos are private to the rater and FACTORY/CORE admins. A factory's score is the average of its product ratings (the old cart-keyed factory ratings were dropped in Task 18). Ratings cannot be edited or removed.
-- **QUAL-001 — Manual quality action (DEC-013):** product flags mean average below 3 over 10+ ratings or 3 reports in the last 30 days; factory flags mean below 3 over 20+ combined ratings or 3+ flagged products. Flags are computed on demand and never act automatically. FACTORY/CORE admins hide products or remove a factory with a reason. A hide stops new sales. What a hide, hold or removal does to paid orders already in baskets is not set by the area agent spec and is open (`DEC-016`); do not reuse the retired cart cleanup. Factory removal locks owner and staff and ends sessions, hides all products and never notifies factory users. Earnings may be marked held with a note.
-- **FAULT-001 — Factory fault limit (DEC-013):** each unit of an accepted FACTORY-fault return records a fault. Uncancelled faults from the last 12 calendar months count. At 2 units an open hold blocks selling and hides listings. Owners and FACTORY/CORE admins are notified and talk in a private hold thread (not Sales): 1–1000 characters, ten messages per minute per author. Admins decide Continue or Remove with a 1–2000 character note. Continue restores only listings the hold hid and faults keep counting. Admins may cancel a mistaken fault with a note.
-- **DATA-001 — Commercial visibility:** factories see their own listings, sales, baskets (agent name, area and totals), returns and payouts, never buyer names, phones or other factories' records. Packing sees no money. Agents see the items and pickup codes of their own parcels, never prices beyond the courier fee they pay and their own tokens, except the price and the buyer's share of buyer-fault returns they hold (`DEC-017`). Buyers see their own orders and their basket's progress. Internal commission records and other users' tokens stay private. City figures appear only for cities with 5 or more orders, and a factory sees its average rating only from 5 ratings.
-
-### Premium rewards (Parked) and personalization
-
-Premium-brand rules are kept for the parked data and for any future restart. They are not active: the brand workspace and gift routes are hidden and nothing reserves gifts on baskets. Restarting them needs an owner decision on how gifts attach to agent orders (`DEC-001`–`DEC-004`).
-
-- **BRAND-001 — Distribution:** premium products are complimentary gifts fulfilled directly by the brand after verified clothing payment. GroupBasket does not purchase or hold premium gift inventory. No standalone discounted public sale. Present genuine retail value and keep partner pricing private.
-- **BRAND-002 — Offers:** brands submit a product photo, gift contents, size/weight/volume, dispatch time, genuine retail value, private partner price, quantity available and an HTTPS product link on their own website. Submission alone does not authorize a campaign.
-- **BRAND-003 — Weekly settlement:** an authorized gift becomes a bill at its snapshotted partner price. An admin approves bills and records external Sunday transfers against selected bill IDs and a bank reference. The app prevents duplicate settlement.
-- **BRAND-004 — Partnership reviews and reconciliation:** submissions have immutable revision snapshots and named review events. Approved terms stay live until a new revision is approved; existing gift price snapshots never change.
-- **GIFT-001 — Spending unit (Planned):** no automatic host gift. Family and individual qualification remain open (`DEC-002`).
-- **GIFT-002 — Qualification (Planned; details Open):** gift threshold, inclusive or strict comparison, tiers and overlaps remain open (`DEC-003`/`DEC-004`).
-- **GIFT-003 — Direct fulfilment:** each gift snapshots its retail value, private partner charge and recipient details; the brand ships it and records courier, delivery and issues. Customers pay separate gift delivery.
-- **FIT-001 — Measurements and fit heatmap (Built 2026-11-15, `DEC-020`):** buyers measure themselves on their phone (photos never leave it; only numbers, intervals and consent are saved; they can edit or delete them). Factories give a size chart, stretch and care per product, approved by a Factory admin before buyers see them; gsm now comes from the Material card (`MAT-001`), and the comfort temperature range and 1–5 breathability score are no longer collected or shown. The product page shows every size's per-area tension (green comfortable → deep red tight) from precomputed simulations plus a per-buyer adjustment; nothing is simulated per buyer. Do not promise exact fit: the fit card says _Guidance, not a guarantee_. Open details remain in `DEC-006`. The buyer's own 3D body and the Deep Fit Test (`DEC-021`) are in progress: the Anny fitting service, outline upload, job queue and worker, the buyer's check screen and the garment drawn over the confirmed body on the product page are built (synthetic tests only), on the recommended answers until the owner says otherwise. Clusters and a queued Deep Fit Test wait for a real cloth simulator. Photos still never leave the phone; only outlines and joints are sent. Never use SMPL-family or other non-commercial body models (`npm run check:licences`).
-
-- **MAT-001 — Material Library and Material Card (Built 2026-11-17, `DEC-022`):** a curated fabric library (fibres, yarns, constructions, finishes, 33 materials) loaded from `seeds/` with `npm run materials:load`. A factory picks one published material per product and declares gsm and composition; it may add lab results (with a PDF) and a video. Buyers see the Material Card: verification badge, feels-like, four 0–100 bars (Soft–Firm, Light–Substantial, Smooth–Textured, Breathable–Insulating), on skin, made for, details, care and "How we know this". **No unsourced numbers:** every shown value traces to a lab measurement, a quoted published source or a versioned rule; anything else is null and shown as "Not yet measured". `npm run check` fails on an unsourced seed value. A result is accredited only from a library lab whose checked scope (recorded by a Factory admin with the date read and the SLAB document link) lists the test. Measured bars rank against an active reference swatch set and switch on per test at 10 accredited swatch results. Figures more than 15% off the library need the factory's tick and go to a Factory admin to check; the card shows at once (`SUP-002`). Rules are append-only and versioned. Details: [material-system.md](../../docs/material-system.md).
-
-### Product interface
-
-- **UX-001 — Concise screens:** titles, data and actions without page descriptions or explanatory-flow text. Exceptions: the fit card's colour legend and its one _Guidance, not a guarantee_ line (`DEC-020`); the Material Card's "estimate", "Not yet measured", verification badge and "How we know this" disclosure (`DEC-022`). Success uses `flash()`/`FlashToast` pop-ups; inline `Alert` is for errors. Every screen works at 360 px and by keyboard. This interface rule does not limit agent documentation clarity.
-- **UX-002 — Role homes, most important first:** Buyer: Ready to collect, Return to hand over, My orders with basket progress and Share basket, Tokens, Shop. Agent: Hand over, Arriving today, Waiting for pickup, Returns to collect, Open baskets, Tokens; Returns lists To collect, To resell and To send back. Factory Packing: To pack, Courier booked. Factory Sales: Filling baskets, Returns waiting, Products and stock. Factory Owner: everything plus Earnings and payouts. Admin Agents and orders: Courier to book, Payment problems, then Applications, Deposits, 2-month baskets, Search, Buyer returns. Admin Factory: existing workspace plus Missing items. Admin Core: Payouts first, then Tokens, Settings and Admins. How agents reach their own sections alongside the buyer tab bar is open (`DEC-016`).
-
-## 7. Implementation status
-
-Read [implementation-status.md](../../docs/implementation-status.md) before claiming a capability exists. It owns the evidence-based inventory of implemented, partial, missing and parked behavior. Static inspection is not a claim of deployed service, successful tests or commercial readiness.
-
-## 8. Open decisions
-
-[decisions.md](../../docs/decisions.md) owns unresolved questions and their reasons. Resolve only those needed for the task; do not block unrelated work. When the owner decides, update the rule here, the decision record, affected implementation guidance and the changelog together.
-
-The register covers the area agent model's open owner questions (`DEC-016`), premium distribution, family identity, gift qualification, after-sales exceptions, fit recommendations, seller geographic insights, launch dependencies and paused preorders. Business-review suggestions are not approved policy.
-
-## 9. Architecture and specialist ownership
-
-Use [architecture.md](../../docs/architecture.md) for the data model, lifecycle, routes, services and deployment dependencies. Code is the evidence for current implementation; this brief does not duplicate exhaustive technical tables.
-
-| Specialist                            | Responsibility                                                                    |
-| ------------------------------------- | --------------------------------------------------------------------------------- |
-| [backend-data](backend-data.md)       | Schema, migrations, seed and persistence.                                         |
-| [orders-baskets](orders-baskets.md)   | Cart, checkout, orders, baskets, stock holds, pickup codes, handover and returns. |
-| [payments](payments.md)               | Gateway adapter, verified notices, late payments, tokens and weekly payouts.      |
-| [agents](agents.md)                   | Agent applications, deposits, hours, suspension, leaving and agent screens.       |
-| [courier](courier.md)                 | Factory packing, missing items, manual courier booking and receipt at the agent.  |
-| [notifications](notifications.md)     | In-app notices and partnership communication.                                     |
-| [catalogue-admin](catalogue-admin.md) | Catalogue, stock, factory listings, quality and general admin.                    |
-| [taxonomy](taxonomy.md)               | Category tree, attributes, variant options and factory categories (planned).      |
-| [group-deals](group-deals.md)         | Deals, price tiers, settlement and rebate tokens (planned).                       |
-| [apparel-addons](apparel-addons.md)   | Fit, body mesh, Material Card and audience shop, for clothing categories only.    |
-| [brands-rewards](brands-rewards.md)   | Parked brand reviews, gift reservations, direct fulfilment and settlements.       |
-| [frontend](frontend.md)               | Role-specific pages, components and mobile interaction.                           |
-| [qa-review](qa-review.md)             | Rule verification and appropriate test coverage.                                  |
-
-## 10. Engineering and verification standards
-
-Shared engineering standards and documentation-maintenance instructions live in
-[AGENTS.md](../../AGENTS.md#engineering-standards). Follow them for every domain;
-specialist files add domain-specific implementation guards and verification pointers.
-
-The [QA brief](qa-review.md) maps changes to appropriate checks. This brief owns business
-policy rather than a second copy of repository workflow.
-
-## 11. Supporting documentation
-
-| Document                                                       | Authoritative purpose                                              |
-| -------------------------------------------------------------- | ------------------------------------------------------------------ |
-| This brief                                                     | Business model, scope, rules and responsibilities.                 |
-| [AGENTS.md](../../AGENTS.md)                                   | Repository workflow, engineering standards and specialist routing. |
-| [CLAUDE.md](../../CLAUDE.md)                                   | Short entry point directing agents here.                           |
-| [Area agent spec](../../specs/003-area-agent-model/spec.md)    | Approved requirements FR-001 to FR-036 for the current model.      |
-| [Implementation status](../../docs/implementation-status.md)   | Code evidence and feature gaps.                                    |
-| [Decisions](../../docs/decisions.md)                           | Open decisions and legacy rule mapping.                            |
-| [Architecture](../../docs/architecture.md)                     | Technical reference and code pointers.                             |
-| [README](../../README.md) / [package.json](../../package.json) | Setup and executable commands.                                     |
-| [Changelog](../../docs/CHANGES.md)                             | History, not competing current policy.                             |
-
-Keep rule IDs stable. Reference IDs and named topics rather than section positions or old numbers; the [legacy mapping](../../docs/decisions.md#legacy-rule-references) preserves older references.
-
-## Login rate limiting
-
-- **AUTH-001 (2026-11-05):** password sign-in counts consecutive failures per trimmed, lower-case email, including unknown emails. The fifth failure locks that email for ten minutes. Active locks refuse before password verification with the same message for every email and are not extended by refused attempts. The first attempt at or after expiry starts at zero; successful sign-in clears the counter. Wrong passwords count even for administratively locked users; their correct-password support message remains. Unknown unlocked emails retain dummy-hash timing protection.
+GroupBasket is group buying of **family packs** from companies people already know (`DEC-030`,
+2026-11-23). Families near each other fill a basket together and one order goes to the company.
+The system is not public yet. Earlier models (clothing, agents, group deals) are saved at the
+`archive/any-product-pivot` branch and the `any-product-pivot-2026-11-23` tag.
+
+## Words
+
+- **Category:** a shelf on the home page, such as Personal Care or Dairy.
+- **Company:** a maker listed under one category. `demo: true` marks a sample listing, never a real partnership.
+- **Standard pack:** one company's fixed pack for one family, such as Hemas 30-day Family Pack. It has versions.
+- **Pack version:** fixed items, price per family, basket size (5 to 15 families), household size and commission %. It is never edited once published; a change is a new version.
+- **Basket** (`PackGroup` in code): one pack version bought together by families within 1 km of each other.
+- **Owner:** the family that started the basket and paid first. The order is delivered to them.
+- **Tokens:** GroupBasket credit. Every refund is paid in tokens, never cash.
+
+## Rules
+
+| ID   | Rule                                                                                                                                                                                              |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PK-1 | Home lists categories, each with its companies. A company page lists its packs, then its open baskets near you.                                                                                   |
+| PK-2 | A buyer must have an address pin. Baskets are found within **1 km** of it, the buyer's contacts' baskets first, then nearest.                                                                     |
+| PK-3 | Starting a basket means paying for your spot. It stays hidden (`PENDING`) until that payment succeeds, then opens. A failed first payment deletes the basket.                                     |
+| PK-4 | Joining means paying. An unpaid spot is held for `paymentHoldMinutes` (15) and counts toward the total, so a basket is never overfilled. One spot per family; payment is final and nobody leaves. |
+| PK-5 | When every spot is paid, the basket is **full**: one order (`PackDelivery`) goes to the company, delivered to the owner. The company is owed `(price − commission) × families`.                   |
+| PK-6 | A basket that has not filled by its closing date is extended by the pack's duration, **twice** at most. Then it closes and every paid family gets its price back as tokens.                       |
+| PK-7 | A payment that arrives after its spot was released, or for the wrong amount, comes back as tokens, once per payment.                                                                              |
+| PK-8 | The owner gets no reward. There are no agents.                                                                                                                                                    |
+| PK-9 | The token ledger is append-only: the database refuses updates and deletes.                                                                                                                        |
+
+## Not decided yet
+
+See [decisions](../../docs/decisions.md): showing contacts once a basket is full, the owner's
+Received step, the company's view of its orders, paying companies, notifications, spending
+tokens and the mobile app.

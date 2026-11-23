@@ -1,207 +1,84 @@
 import "server-only";
-import { confirmPackSpot, releasePackSpot } from "../packs-join";
 import { D, toD } from "@/lib/decimal";
 import { db, type Tx } from "../db";
-import { post } from "../tokens";
-import { markOrdersPaid, releasePendingOrders } from "../orders/baskets";
-import { withOrderTransaction } from "../orders/locks";
-import { agentDepositPaid } from "../agents/deposit";
+import { confirmPackSpot, lockAttempt, releasePackSpot } from "../packs-join";
+import { credit } from "../tokens";
 import { getGateway, type VerifiedNotice } from "./gateway";
 
 type Outcome =
-  | "PAID"
-  | "LATE_PAID"
-  | "AMOUNT_MISMATCH"
-  | "CURRENCY_MISMATCH"
-  | "FAILED"
-  | "NOTED"
-  | "IGNORED"
-  | "UNKNOWN_ATTEMPT";
+  "PAID" | "LATE_PAID" | "AMOUNT_MISMATCH" | "CURRENCY_MISMATCH" | "FAILED" | "NOTED" | "IGNORED";
 
-const validAmount = (given: string) => /^\d{1,12}(\.\d{1,2})?$/.test(given);
+const money = (given: string) => (/^\d{1,12}(\.\d{1,2})?$/.test(given) ? new D(given) : null);
 
-function sameAmount(given: string, expected: { toString(): string }): boolean {
-  return validAmount(given) && new D(given).eq(toD(expected));
-}
-
-/** A unique violation on PaymentEvent (gateway, eventId): another delivery of the same event won. */
-function isDuplicateEvent(error: unknown): boolean {
-  const e = error as {
-    code?: string;
-    meta?: {
-      target?: unknown;
-      modelName?: string;
-      driverAdapterError?: {
-        cause?: { constraint?: { index?: string; fields?: string[] }; table?: string };
-      };
-    };
-  };
-  if (e.code !== "P2002") return false;
-  const target = e.meta?.target;
-  if (Array.isArray(target))
-    return target.includes("gateway") && target.includes("eventId") && target.length === 2;
-  if (target === "PaymentEvent_gateway_eventId_key") return true;
-  const constraint = e.meta?.driverAdapterError?.cause?.constraint;
-  if (constraint?.index === "PaymentEvent_gateway_eventId_key") return true;
-  const fields = constraint?.fields;
-  return (
-    e.meta?.modelName === "PaymentEvent" &&
-    Array.isArray(fields) &&
-    fields.length === 2 &&
-    fields.includes("gateway") &&
-    fields.includes("eventId")
-  );
-}
-
-/** Verifies a signed gateway notice and applies it exactly once.
- * Lock order: payer advisory -> the attempt's Order rows -> (markOrdersPaid: basket advisories ->
- * Variant rows -> Basket rows -> ledger) or (release: Variant rows -> ledger).
- */
+/** Verifies a signed gateway notice and applies it exactly once per gateway event. */
 export async function handleNotice(raw: string, headers: Headers): Promise<{ status: 200 | 400 }> {
-  const gatewayName = process.env.PAYMENT_GATEWAY ?? "";
   const notice = getGateway().verifyNotice(raw, headers);
   if (!notice) return { status: 400 };
-
-  const attempt = await db.paymentAttempt.findUnique({
-    where: { id: notice.attemptId },
-    select: {
-      id: true,
-      buyerId: true,
-      agent: { select: { userId: true } },
-      orders: { select: { id: true } },
-    },
-  });
-  if (!attempt) {
-    await db.paymentEvent.createMany({
-      data: [{ gateway: gatewayName, eventId: notice.eventId, outcome: "UNKNOWN_ATTEMPT" }],
+  const gateway = process.env.PAYMENT_GATEWAY ?? "";
+  const known = await db.paymentAttempt.count({ where: { id: notice.attemptId } });
+  await db.$transaction(async (tx) => {
+    if (known) await lockAttempt(tx, notice.attemptId);
+    const event = await tx.paymentEvent.createManyAndReturn({
+      data: [
+        {
+          gateway,
+          eventId: notice.eventId,
+          attemptId: known ? notice.attemptId : null,
+          outcome: "UNKNOWN_ATTEMPT",
+        },
+      ],
       skipDuplicates: true,
+      select: { id: true },
     });
-    return { status: 200 };
-  }
-
-  const payerId = attempt.buyerId ?? attempt.agent?.userId ?? attempt.id;
-  try {
-    await withOrderTransaction(
-      [payerId],
-      attempt.orders.map((o) => o.id),
-      async (tx) => {
-        const seen = await tx.paymentEvent.findUnique({
-          where: { gateway_eventId: { gateway: gatewayName, eventId: notice.eventId } },
-          select: { id: true },
-        });
-        if (seen) return;
-        const event = await tx.paymentEvent.create({
-          data: {
-            gateway: gatewayName,
-            eventId: notice.eventId,
-            attemptId: attempt.id,
-            outcome: "RECEIVED",
-          },
-          select: { id: true },
-        });
-        const outcome = await applyNotice(tx, notice, payerId);
-        await tx.paymentEvent.update({ where: { id: event.id }, data: { outcome } });
-      },
-    );
-  } catch (error) {
-    if (isDuplicateEvent(error)) return { status: 200 };
-    throw error;
-  }
+    if (!event.length || !known) return;
+    await tx.paymentEvent.update({
+      where: { id: event[0].id },
+      data: { outcome: await apply(tx, notice) },
+    });
+  });
   return { status: 200 };
 }
 
-/** Caller holds the payer advisory and the attempt's Order rows. */
-async function applyNotice(tx: Tx, notice: VerifiedNotice, payerId: string): Promise<Outcome> {
-  const attempt = await tx.paymentAttempt.findUniqueOrThrow({
-    where: { id: notice.attemptId },
-    include: {
-      orders: {
-        select: { id: true, status: true, targetBasketId: true, gatewayFee: true },
-        orderBy: { id: "asc" },
-      },
-    },
-  });
-  // Checkout stores a placeholder; the first verified notice records the gateway's payment id.
+/** Caller holds the attempt row. */
+async function apply(tx: Tx, notice: VerifiedNotice): Promise<Outcome> {
+  const attempt = await tx.paymentAttempt.findUniqueOrThrow({ where: { id: notice.attemptId } });
+  // The first verified notice records the gateway's payment id over the placeholder.
   if (attempt.gatewayRef.startsWith("ga_"))
     await tx.paymentAttempt.update({
       where: { id: attempt.id },
       data: { gatewayRef: notice.gatewayRef },
     });
-  const orderIds = attempt.orders.map((o) => o.id);
-  const now = new Date();
+  const setStatus = (status: "SUCCEEDED" | "FAILED" | "LATE_PAID") =>
+    tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status } });
+  // Each distinct real charge is credited once.
+  const giveBack = (amount: D, note: string) =>
+    credit(
+      tx,
+      attempt.buyerId,
+      amount,
+      "LATE_PAYMENT",
+      `late:${attempt.id}:${notice.gatewayRef}`,
+      note,
+    );
 
-  switch (notice.status) {
-    case "PENDING":
-      return "NOTED";
-    case "FAILED":
-    case "CANCELLED": {
-      if (attempt.status !== "PENDING") return "IGNORED";
-      if (attempt.purpose === "PACK_JOIN") await releasePackSpot(tx, attempt.id);
-      await releasePendingOrders(tx, orderIds);
-      await tx.paymentAttempt.update({ where: { id: attempt.id }, data: { status: "FAILED" } });
-      return "FAILED";
-    }
-    case "SUCCEEDED": {
-      // Each distinct real charge is credited once; replays of one payment id stop at the event gate.
-      const lateKey = `late:${attempt.id}:${notice.gatewayRef}`;
-      if (notice.currency !== "LKR" || notice.currency !== attempt.currency)
-        return "CURRENCY_MISMATCH";
-      if (!sameAmount(notice.amount, attempt.amount)) {
-        // Money was taken but does not match: credit what was received; the orders expire.
-        const received = validAmount(notice.amount) ? new D(notice.amount) : null;
-        if (received && received.gt(0))
-          await post(tx, {
-            userId: payerId,
-            amount: received,
-            kind: "LATE_PAYMENT",
-            eventKey: lateKey,
-            note: "Payment did not match the order amount",
-          });
-        return "AMOUNT_MISMATCH";
-      }
-      const onTime =
-        attempt.status === "PENDING" && attempt.orders.every((o) => o.status === "PENDING");
-      if (onTime) {
-        // A deposit for an agent that is no longer APPROVED takes the late path below.
-        let applied = true;
-        if (attempt.purpose === "DEPOSIT") applied = await agentDepositPaid(tx, attempt.id);
-        else if (attempt.purpose === "PACK_JOIN") applied = await confirmPackSpot(tx, attempt.id, now);
-        else await markOrdersPaid(tx, orderIds, now);
-        if (applied) {
-          await tx.paymentAttempt.update({
-            where: { id: attempt.id },
-            data: { status: "SUCCEEDED" },
-          });
-          return "PAID";
-        }
-      }
-      if (attempt.status !== "SUCCEEDED")
-        await tx.paymentAttempt.update({
-          where: { id: attempt.id },
-          data: { status: "LATE_PAID" },
-        });
-      // Own-basket orders (DEC-023) get the payment back less the PayHere fee.
-      const ownOrders = attempt.orders.some((o) => o.targetBasketId);
-      const keptFee = ownOrders
-        ? attempt.orders.reduce((s, o) => s.plus(toD(o.gatewayFee)), new D(0))
-        : new D(0);
-      await post(tx, {
-        userId: payerId,
-        amount: D.max(toD(attempt.amount).minus(keptFee), new D(0)),
-        kind: "LATE_PAYMENT",
-        eventKey: lateKey,
-        note:
-          attempt.purpose === "DEPOSIT"
-            ? "Deposit payment arrived when it was no longer due"
-            : attempt.purpose === "PACK_JOIN"
-              ? "Basket payment arrived after the spot was released"
-              : attempt.purpose === "DELIVERY_FEE"
-              ? "Delivery fee arrived when the basket no longer needed it"
-              : ownOrders
-                ? "Payment arrived after the items sold out; PayHere fee kept"
-                : "Payment arrived after the order closed",
-      });
-      return "LATE_PAID";
-    }
+  if (notice.status === "PENDING") return "NOTED";
+  if (notice.status !== "SUCCEEDED") {
+    if (attempt.status !== "PENDING") return "IGNORED";
+    await releasePackSpot(tx, attempt.id);
+    await setStatus("FAILED");
+    return "FAILED";
   }
+  if (notice.currency !== attempt.currency) return "CURRENCY_MISMATCH";
+  const received = money(notice.amount);
+  if (!received?.eq(toD(attempt.amount))) {
+    if (received?.gt(0)) await giveBack(received, "Payment did not match the basket price");
+    return "AMOUNT_MISMATCH";
+  }
+  if (attempt.status === "PENDING" && (await confirmPackSpot(tx, attempt.id))) {
+    await setStatus("SUCCEEDED");
+    return "PAID";
+  }
+  if (attempt.status !== "SUCCEEDED") await setStatus("LATE_PAID");
+  await giveBack(received, "Basket payment arrived after the spot was released");
+  return "LATE_PAID";
 }

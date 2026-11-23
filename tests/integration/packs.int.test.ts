@@ -18,8 +18,10 @@ let n = 0;
 
 async function pack(groupSize = 5, price = "150.00") {
   n++;
-  const category = await db.category.create({ data: { slug: `pc-${n}`, name: "Personal Care", path: "/" } });
-  const company = await db.company.create({ data: { slug: `co-${n}`, name: `Co ${n}`, categoryId: category.id } });
+  const category = await db.category.create({ data: { slug: `pc-${n}`, name: "Personal Care" } });
+  const company = await db.company.create({
+    data: { slug: `co-${n}`, name: `Co ${n}`, categoryId: category.id },
+  });
   const p = await db.standardPack.create({
     data: { slug: `pk-${n}`, name: "30-day Pack", durationDays: 30, companyId: company.id },
   });
@@ -43,7 +45,10 @@ async function buyerAt(metres = 0) {
 }
 
 const attemptOf = (userId: string) =>
-  db.paymentAttempt.findFirstOrThrow({ where: { buyerId: userId, purpose: "PACK_JOIN" }, orderBy: { createdAt: "desc" } });
+  db.paymentAttempt.findFirstOrThrow({
+    where: { buyerId: userId },
+    orderBy: { createdAt: "desc" },
+  });
 const pay = async (userId: string) => {
   const a = await attemptOf(userId);
   return db.$transaction((tx) => confirmPackSpot(tx, a.id));
@@ -76,7 +81,9 @@ describe("family-pack baskets (DEC-030)", () => {
     expect(await getBasket(g.id, viewer)).toBeNull();
     await pay(owner.id);
     expect((await group(v.id)).status).toBe("OPEN");
-    expect(await openBaskets(viewer)).toEqual([expect.objectContaining({ id: g.id, joined: 1, size: 5 })]);
+    expect(await openBaskets(viewer)).toEqual([
+      expect.objectContaining({ id: g.id, joined: 1, size: 5 }),
+    ]);
   });
 
   it("drops the basket when the owner's payment fails", async () => {
@@ -94,7 +101,10 @@ describe("family-pack baskets (DEC-030)", () => {
     const viewer = await buyerAt(400);
     // A second basket by a contact, farther away but still within 1 km.
     const friend = await makeBuyer({ lat: HOME.lat + 900 / 111_000, lng: HOME.lng });
-    await db.user.update({ where: { id: friend.id }, data: { address: "2 Main St", phone: "0771234567" } });
+    await db.user.update({
+      where: { id: friend.id },
+      data: { address: "2 Main St", phone: "0771234567" },
+    });
     await startBasket(friend.id, v.id);
     await pay(friend.id);
     const far = await buyerAt(3000);
@@ -143,7 +153,10 @@ describe("family-pack baskets (DEC-030)", () => {
   it("fills on the last payment and places the order with the company", async () => {
     const v = await pack(5, "150.00");
     const { groupId } = await openBasket(v.id, 4);
-    const g = await db.packGroup.findUniqueOrThrow({ where: { id: groupId }, include: { delivery: true } });
+    const g = await db.packGroup.findUniqueOrThrow({
+      where: { id: groupId },
+      include: { delivery: true },
+    });
     expect(g.status).toBe("FULL");
     // (150 − 15 commission) × 5 families
     expect(g.delivery).toMatchObject({ families: 5, status: "ORDERED" });
@@ -157,10 +170,15 @@ describe("family-pack baskets (DEC-030)", () => {
     const later = (days: number) => new Date(Date.now() + days * 86_400_000);
     await sweepPackGroups(later(31));
     await sweepPackGroups(later(61));
-    expect(await db.packGroup.findUniqueOrThrow({ where: { id: groupId } })).toMatchObject({ status: "OPEN", extensions: 2 });
+    expect(await db.packGroup.findUniqueOrThrow({ where: { id: groupId } })).toMatchObject({
+      status: "OPEN",
+      extensions: 2,
+    });
     await sweepPackGroups(later(91));
     await sweepPackGroups(later(92));
-    expect((await db.packGroup.findUniqueOrThrow({ where: { id: groupId } })).status).toBe("CLOSED");
+    expect((await db.packGroup.findUniqueOrThrow({ where: { id: groupId } })).status).toBe(
+      "CLOSED",
+    );
     const refunds = await db.tokenEntry.findMany({ where: { kind: "PACK_REFUND" } });
     expect(refunds).toHaveLength(2);
     expect(refunds.find((r) => r.userId === owner.id)?.amount.toFixed(2)).toBe("150.00");

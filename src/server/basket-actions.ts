@@ -1,7 +1,6 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { BUYER_ROLES } from "@/lib/roles";
 import { requireUser } from "./auth/session";
 import { AppError } from "./errors";
 import { joinBasket, startBasket } from "./packs-join";
@@ -22,12 +21,12 @@ async function pay(work: () => Promise<{ redirectUrl: string }>): Promise<Basket
 }
 
 export async function startBasketAction(_p: BasketState, fd: FormData): Promise<BasketState> {
-  const user = await requireUser([...BUYER_ROLES], str(fd, "path") || "/");
+  const user = await requireUser(str(fd, "path") || "/");
   return pay(() => startBasket(user.id, str(fd, "versionId")));
 }
 
 export async function joinBasketAction(_p: BasketState, fd: FormData): Promise<BasketState> {
   const id = str(fd, "groupId");
-  const user = await requireUser([...BUYER_ROLES], `/baskets/${id}`);
+  const user = await requireUser(`/baskets/${id}`);
   return pay(() => joinBasket(user.id, id));
 }

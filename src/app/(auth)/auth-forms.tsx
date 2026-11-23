@@ -2,7 +2,6 @@
 
 import { useActionState, useRef } from "react";
 import { LocationPicker } from "@/components/location-picker";
-import { AboutYouFields } from "@/components/about-you-fields";
 import { PasswordInput } from "@/components/password-input";
 import { Alert, Button, Field, Input } from "@/components/ui";
 import { DEMO_PASSWORD, type DemoAccount } from "@/lib/demo-accounts";
@@ -30,9 +29,7 @@ export function SignInForm({ next, demo = [] }: { next?: string; demo?: DemoAcco
             {demo.map((a) => (
               <li key={a.email} className="flex items-center justify-between gap-2 py-2">
                 <div className="min-w-0">
-                  <p className="font-medium">
-                    {a.role} <span className="font-normal text-subtle">· {a.name}</span>
-                  </p>
+                  <p className="font-medium">{a.name}</p>
                   <p className="truncate font-mono text-xs">{a.email}</p>
                 </div>
                 <Button
@@ -77,15 +74,9 @@ export function SignUpForm({ next }: { next?: string }) {
       <Field label="Email" name="email" error={e.email}>
         <Input name="email" type="email" autoComplete="email" required />
       </Field>
-      <Field
-        label="Mobile number"
-        name="phone"
-        error={e.phone}
-        hint="Friends can invite you with this number"
-      >
+      <Field label="Mobile number" name="phone" error={e.phone}>
         <Input name="phone" type="tel" autoComplete="tel" placeholder="0771234567" required />
       </Field>
-      <AboutYouFields errors={e} />
       <LocationPicker errors={e} />
       <Field label="Password" name="password" error={e.password}>
         <PasswordInput name="password" autoComplete="new-password" minLength={8} required />

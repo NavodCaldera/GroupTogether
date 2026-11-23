@@ -36,8 +36,6 @@ jobs:
       DATABASE_URL: postgresql://groupbasket_ci:disposable_ci_only@localhost:5432/groupbasket
       TEST_DATABASE_URL: postgresql://groupbasket_ci:disposable_ci_only@localhost:5432/groupbasket_test
       APP_URL: http://localhost:3200
-      STORAGE_DIR: .data/ci-uploads
-      DELIVERY_PROVIDER: manual
       SHOW_DEMO_LOGINS: "false"
       CRON_SECRET: ci-only-not-a-production-secret
     steps:

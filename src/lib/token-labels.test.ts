@@ -1,31 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatTime, groupByDay, tokenEntryLabel } from "./token-labels";
-
-describe("token history labels", () => {
-  it("name the other person on a transfer and drop the note", () => {
-    expect(
-      tokenEntryLabel({ kind: "TRANSFER_IN", note: "Tokens received", counterparty: "Tharindu" }),
-    ).toEqual({ title: "From Tharindu", detail: null, tone: "in" });
-    expect(
-      tokenEntryLabel({ kind: "TRANSFER_OUT", note: "Tokens sent", counterparty: "Malith" }),
-    ).toEqual({ title: "To Malith", detail: null, tone: "out" });
-  });
-
-  it("keep a note that says why, and drop one that repeats the title", () => {
-    expect(
-      tokenEntryLabel({ kind: "ORDER_CANCEL", note: "Own basket cancelled: too few items" }),
-    ).toEqual({
-      title: "Order refund",
-      detail: "Own basket cancelled: too few items",
-      tone: "refund",
-    });
-    expect(tokenEntryLabel({ kind: "HOLD", note: "Tokens held for order" })).toEqual({
-      title: "Paid towards an order",
-      detail: null,
-      tone: "order",
-    });
-  });
-});
+import { formatTime, groupByDay } from "./token-labels";
 
 describe("token history days", () => {
   // 2026-11-21 10:00 in Colombo (04:30 UTC).

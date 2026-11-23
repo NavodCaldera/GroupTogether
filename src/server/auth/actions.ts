@@ -4,7 +4,6 @@ import { redirect } from "next/navigation";
 import {
   AuthError,
   authenticate,
-  homeFor,
   profileSchema,
   registerUser,
   signUpSchema,
@@ -34,25 +33,23 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
 }
 
 export async function signInAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  let home = "/";
   try {
     const user = await authenticate(
       String(formData.get("email") ?? ""),
       String(formData.get("password") ?? ""),
     );
     await signInAs(user.id);
-    home = homeFor(user.role, user.adminArea);
   } catch (e) {
     if (e instanceof AuthError) return { error: e.message };
     throw e;
   }
   await flash("Signed in");
-  redirect(safeNext(formData.get("next")) ?? home);
+  redirect(safeNext(formData.get("next")) ?? "/");
 }
 
 /** Saves the profile; with `next` (sent here to finish something) it goes back there. */
 export async function saveProfileAction(_prev: FormState, formData: FormData): Promise<FormState> {
-  const user = await requireUser([], "/account");
+  const user = await requireUser("/account");
   const parsed = profileSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { fieldErrors: parsed.error.flatten().fieldErrors };
   try {

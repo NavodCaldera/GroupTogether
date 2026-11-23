@@ -26,7 +26,6 @@ export interface Gateway {
     raw: string,
     headers: Headers | Record<string, string | undefined>,
   ): VerifiedNotice | null;
-  fetchStatus(attemptId: string): Promise<"SUCCEEDED" | "FAILED" | "PENDING">;
 }
 
 /** The active gateway. PayHere is added later behind the same interface. */
