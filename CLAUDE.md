@@ -4,7 +4,8 @@ Start with [AGENTS.md](AGENTS.md), then the [operating brief](.claude/agents/gro
 
 GroupBasket is group buying of family packs (`DEC-030`, 2026-11-23). Companies are listed under
 categories (shown by brand logo), and each company has two fixed standard packs, Budget and
-Premium, both 30 days for a family of 4. Families within 1 km of
+Premium, both 30 days for a family of 4. A company login manages its banner, logo, pack
+photos, pack versions and orders at `/company`. Families within 1 km of
 each other fill a basket. The first family to pay owns it and receives the delivery. Everyone
 pays when they join. A full basket places one order with the company. An unfilled basket is
 extended twice, then closed with token refunds.

@@ -33,3 +33,29 @@ test("a buyer finds a basket near them, pays and is in", async ({ page }) => {
   await expect(page.getByLabel("Company")).toHaveValue("");
   await expect(page.getByLabel("Company").locator("option")).toHaveText(["All", "CBL", "Maliban"]);
 });
+
+test("a company updates a pack and buyers see the new version", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill("hemas@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("password123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+
+  await page.goto("/company");
+  const budget = page
+    .locator("form", { has: page.getByRole("button", { name: "Publish new version" }) })
+    .first();
+  await budget.getByLabel("Price per family (LKR)").fill("2600");
+  await budget.getByRole("button", { name: "+ Add item" }).click();
+  await budget.getByLabel("Item 4 name").fill("Body lotion");
+  await budget.getByLabel("Item 4 size").fill("100 ml");
+  await budget.getByRole("button", { name: "Publish new version" }).click();
+  await expect(page.getByText("Version 2")).toBeVisible();
+
+  await page.goto("/packs/hemas-budget");
+  await expect(page.getByText("LKR 2,600").first()).toBeVisible();
+  await expect(page.getByText("Body lotion")).toBeVisible();
+  await page.goto("/companies/hemas");
+  await expect(page.getByTestId("packs-bought")).toHaveText(/^\d+ family packs bought$/);
+});

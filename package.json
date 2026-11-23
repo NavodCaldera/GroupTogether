@@ -30,7 +30,8 @@
     "db:studio": "prisma studio",
     "db:start": "node scripts/local-db.mjs start",
     "db:stop": "node scripts/local-db.mjs stop",
-    "db:status": "node scripts/local-db.mjs status"
+    "db:status": "node scripts/local-db.mjs status",
+    "company:login": "tsx --import ./prisma/seed-hooks.mjs scripts/company-login.ts"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

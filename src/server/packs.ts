@@ -9,7 +9,7 @@ const livePack = { active: true, versions: { some: published } } as const;
 
 /** Home: every category that has a company with a published pack, companies under each. */
 export async function homeCategories() {
-  const rows = await db.category.findMany({
+  return db.category.findMany({
     where: { active: true, companies: { some: { active: true, packs: { some: livePack } } } },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
     select: {
@@ -18,56 +18,59 @@ export async function homeCategories() {
       companies: {
         where: { active: true, packs: { some: livePack } },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        select: {
-          slug: true,
-          name: true,
-          logo: true,
-          _count: { select: { packs: { where: livePack } } },
-        },
+        select: { slug: true, name: true, logo: true },
       },
     },
   });
-  return rows.map((c) => ({
-    slug: c.slug,
-    name: c.name,
-    companies: c.companies.map((co) => ({
-      slug: co.slug,
-      name: co.name,
-      logo: co.logo,
-      packs: co._count.packs,
-    })),
-  }));
 }
 
 const latest = { where: published, orderBy: { version: "desc" }, take: 1 } as const;
 
-/** A company page: its standard packs, each at its latest published version. */
+/** A company page: brand, family packs bought so far, and its standard packs at their latest version. */
 export async function getCompany(slug: string) {
   const company = await db.company.findFirst({
     where: { slug, active: true },
-    select: { id: true, slug: true, name: true, logo: true, category: { select: { name: true } } },
-  });
-  if (!company) return null;
-  const packs = await db.standardPack.findMany({
-    where: { companyId: company.id, ...livePack },
-    orderBy: [{ durationDays: "asc" }, { name: "asc" }],
     select: {
+      id: true,
       slug: true,
       name: true,
-      durationDays: true,
-      versions: {
-        ...latest,
-        select: {
-          pricePerFamily: true,
-          groupSize: true,
-          householdSize: true,
-          _count: { select: { items: true } },
-        },
-      },
+      logo: true,
+      banner: true,
+      category: { select: { name: true } },
     },
   });
+  if (!company) return null;
+  // Paid spots in baskets that were not refunded.
+  const [bought, packs] = await Promise.all([
+    db.packMember.count({
+      where: {
+        status: "PAID",
+        group: { status: { not: "CLOSED" }, version: { pack: { companyId: company.id } } },
+      },
+    }),
+    db.standardPack.findMany({
+      where: { companyId: company.id, ...livePack },
+      orderBy: [{ durationDays: "asc" }, { name: "asc" }],
+      select: {
+        slug: true,
+        name: true,
+        durationDays: true,
+        photo: true,
+        versions: {
+          ...latest,
+          select: {
+            pricePerFamily: true,
+            groupSize: true,
+            householdSize: true,
+            _count: { select: { items: true } },
+          },
+        },
+      },
+    }),
+  ]);
   return {
     ...company,
+    bought,
     packs: packs.map(({ versions: [v], ...p }) => ({
       ...p,
       price: v.pricePerFamily,
@@ -86,6 +89,7 @@ export async function getPack(slug: string) {
       slug: true,
       name: true,
       durationDays: true,
+      photo: true,
       company: { select: { slug: true, name: true } },
       versions: {
         ...latest,

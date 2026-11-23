@@ -3,6 +3,18 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-23: Company page and dashboard
+
+The owner asked for these changes:
+
+- **Company page:** styled like LinkedIn. A banner, the round logo over its lower left, the name and category, then "N family packs bought", which counts paid spots in baskets that were not refunded.
+- **Pack cards:** each card shows a photo of all the pack's items, or a placeholder until one is uploaded.
+- **Pack page:** the photo, then the items and quantities for one family, then the baskets.
+- **Company dashboard** (`/company`, shown as a Company tab for company logins): upload a banner, logo and pack photos (PNG, JPEG or WebP, 3 MB at most, checked by content). Uploads are stored in the new `Image` table, served by `/img/<id>`, and a replaced image is deleted. A company can edit items and price, which publishes a new version; baskets already started keep theirs. It can also see its orders.
+- **Logins:** only the site owner links a login to a company, with `npm run company:login -- <email> <slug>`. The demo login `hemas@example.com` manages Hemas.
+- **Home:** a larger hero for "Direct factory to consumer. No more middle man." The pack count under each logo is gone.
+- **Database:** migration `20261123130000_company_dashboard` adds `User.companyId`, `Company.banner`, `StandardPack.photo` and `Image`.
+
 ## 2026-11-23: Brand logos, Budget and Premium packs
 
 The owner asked for these changes:

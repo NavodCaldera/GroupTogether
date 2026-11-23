@@ -14,6 +14,11 @@ const SECTIONS = [
     icon: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9h6M9 15h6M12 7v10" />,
   },
 ];
+const COMPANY = {
+  href: "/company",
+  label: "Company",
+  icon: <path d="M4 21V5l8-3v19M12 9h8v12M8 7v.01M8 11v.01M8 15v.01M16 13v.01M16 17v.01M2 21h20" />,
+};
 
 function Icon({ size = 20, children }: { size?: number; children: ReactNode }) {
   return (
@@ -43,6 +48,7 @@ export async function SiteHeader() {
   const underline =
     "relative text-ink after:absolute after:inset-x-2 sm:after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
   const dark = theme === "dark";
+  const sections = user?.companyId ? [...SECTIONS, COMPANY] : SECTIONS;
 
   return (
     <>
@@ -52,7 +58,7 @@ export async function SiteHeader() {
             Group<span className="text-accent">Basket</span>
           </Link>
           {user &&
-            SECTIONS.slice(1).map((s) => (
+            sections.slice(1).map((s) => (
               <NavLink
                 key={s.href}
                 href={s.href}
@@ -118,7 +124,7 @@ export async function SiteHeader() {
           className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"
         >
           <ul className="flex">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <li key={s.href} className="flex-1">
                 <NavLink
                   href={s.href}

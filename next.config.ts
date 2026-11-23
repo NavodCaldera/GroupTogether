@@ -43,6 +43,8 @@ const nextConfig: NextConfig = {
   },
   serverExternalPackages: ["@prisma/client", "pg"],
   poweredByHeader: false,
+  // Company image uploads are up to 3 MB.
+  experimental: { serverActions: { bodySizeLimit: "4mb" } },
 };
 
 // Source maps upload only when SENTRY_AUTH_TOKEN is set, then are deleted from the build.

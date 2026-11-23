@@ -114,6 +114,7 @@ const sessionUser = {
   city: true,
   lat: true,
   lng: true,
+  companyId: true,
 } as const;
 
 export type SessionUser = Pick<User, keyof typeof sessionUser>;

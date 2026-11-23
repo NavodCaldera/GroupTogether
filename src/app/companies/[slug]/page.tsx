@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BasketCard } from "@/components/basket-card";
 import { BackLink } from "@/components/client";
-import { Badge, CompanyLogo, EmptyState, LinkButton, PageHeader } from "@/components/ui";
+import { PackPhoto } from "@/components/pack-contents";
+import { Badge, CompanyLogo, EmptyState, LinkButton } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { getCompany, openBaskets } from "@/server/packs";
@@ -17,8 +18,28 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[slu
     <div className="flex flex-col gap-8">
       <div>
         <BackLink fallback="/" />
-        <CompanyLogo name={company.name} logo={company.logo} className="mb-3" />
-        <PageHeader title={company.name} description={company.category.name} />
+        <div className="overflow-hidden rounded-2xl border border-line bg-paper">
+          {company.banner ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={company.banner} alt="" className="aspect-[4/1] w-full object-cover" />
+          ) : (
+            <div className="aspect-[4/1] w-full bg-gradient-to-br from-accent/40 to-accent/10" />
+          )}
+          <div className="px-4 pb-4 sm:px-6 sm:pb-6">
+            <CompanyLogo
+              name={company.name}
+              logo={company.logo}
+              round
+              className="-mt-12 sm:-mt-16"
+            />
+            <h1 className="mt-3 text-2xl font-semibold tracking-tight">{company.name}</h1>
+            <p className="text-sm text-subtle">{company.category.name}</p>
+            <p className="mt-2 text-sm font-semibold" data-testid="packs-bought">
+              {company.bought.toLocaleString("en-LK")} family{" "}
+              {company.bought === 1 ? "pack" : "packs"} bought
+            </p>
+          </div>
+        </div>
       </div>
 
       <section aria-labelledby="packs">
@@ -33,20 +54,23 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[slu
               <li key={p.slug}>
                 <Link
                   href={`/packs/${p.slug}`}
-                  className="flex h-full flex-col gap-2 rounded-xl border border-line bg-paper p-4 transition hover:border-accent"
+                  className="flex h-full flex-col gap-2 overflow-hidden rounded-xl border border-line bg-paper pb-4 transition hover:border-accent"
                 >
-                  <div className="flex flex-wrap items-baseline justify-between gap-2">
-                    <span className="font-medium">{p.name}</span>
-                    <span className="flex gap-1">
-                      <Badge>{p.durationDays} days</Badge>
-                      {p.householdSize ? <Badge>Family of {p.householdSize}</Badge> : null}
+                  <PackPhoto src={p.photo} />
+                  <div className="flex flex-col gap-2 px-4">
+                    <div className="flex flex-wrap items-baseline justify-between gap-2">
+                      <span className="font-medium">{p.name}</span>
+                      <span className="flex gap-1">
+                        <Badge>{p.durationDays} days</Badge>
+                        {p.householdSize ? <Badge>Family of {p.householdSize}</Badge> : null}
+                      </span>
+                    </div>
+                    <span className="text-sm">{p.families} family packs per basket</span>
+                    <span className="text-sm text-subtle">{p.items} items in each family pack</span>
+                    <span className="mt-auto text-lg font-semibold">
+                      {formatLKR(p.price)} per family
                     </span>
                   </div>
-                  <span className="text-sm">{p.families} family packs per basket</span>
-                  <span className="text-sm text-subtle">{p.items} items in each family pack</span>
-                  <span className="mt-auto text-lg font-semibold">
-                    {formatLKR(p.price)} per family
-                  </span>
                 </Link>
               </li>
             ))}

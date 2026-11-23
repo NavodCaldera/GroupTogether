@@ -1,5 +1,5 @@
 import { formatLKR } from "@/lib/format";
-import { Badge, Card } from "./ui";
+import { Badge, Card, cx } from "./ui";
 
 /** What ONE family gets: fixed items, the price per family and the basket size. */
 export function PackContents({
@@ -37,5 +37,25 @@ export function PackContents({
         {householdSize ? <Badge>Family of {householdSize}</Badge> : null}
       </div>
     </Card>
+  );
+}
+
+/** The company's photo of all the pack's items together, or a plain placeholder. */
+export function PackPhoto({ src, className }: { src: string | null; className?: string }) {
+  return src ? (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={src} alt="" className={cx("aspect-video w-full bg-muted object-cover", className)} />
+  ) : (
+    <div
+      className={cx("grid aspect-video w-full place-items-center bg-muted text-subtle", className)}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        aria-hidden="true"
+        className="size-10 fill-none stroke-current stroke-[1.5]"
+      >
+        <path d="M3 9h18l-2 11H5zM8 9l4-6 4 6" />
+      </svg>
+    </div>
   );
 }
