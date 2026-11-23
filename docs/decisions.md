@@ -42,4 +42,4 @@ The plan documents live in [specs/007-family-packs](../specs/007-family-packs/sp
 | How and when companies are paid | Payout timing and method. |
 | Notifications | When a basket fills, extends or closes. |
 | Spending tokens | Tokens can't be spent yet. |
-| Mobile app | Expo through `/api/v1`, to be recorded as DEC-031. |
+| Mobile app | Expo through `/api/v1`, to be recorded as DEC-032. |
