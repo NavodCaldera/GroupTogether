@@ -23,7 +23,7 @@ describe("demo seed", () => {
 
   it("marks every company as a demo listing", async () => {
     expect(await db.company.count({ where: { demo: false } })).toBe(0);
-    expect(await db.company.count()).toBe(4);
+    expect(await db.company.count()).toBe(26);
   });
 
   it("shows Dilan two baskets nearby, his contact's first, and Tharindu none", async () => {
