@@ -1,9 +1,11 @@
 import Link from "next/link";
 import { CompanyLogo, EmptyState } from "@/components/ui";
+import { redirectCompany } from "@/server/auth/session";
 import { homeCategories } from "@/server/packs";
 
 /** Home (DEC-030): companies grouped under their categories. */
 export default async function HomePage() {
+  await redirectCompany();
   const categories = await homeCategories();
 
   return (

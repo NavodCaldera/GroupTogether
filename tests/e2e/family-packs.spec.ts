@@ -42,7 +42,10 @@ test("a company updates a pack and buyers see the new version", async ({ page })
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
 
-  await page.goto("/company");
+  await expect(page).toHaveURL(/\/company$/);
+  await expect(page.getByRole("link", { name: "Baskets" })).toHaveCount(0);
+  await page.goto("/tokens");
+  await expect(page).toHaveURL(/\/company$/);
   const budget = page
     .locator("form", { has: page.getByRole("button", { name: "Publish new version" }) })
     .first();

@@ -33,18 +33,20 @@ export async function signUpAction(_prev: FormState, formData: FormData): Promis
 }
 
 export async function signInAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  let home = "/";
   try {
     const user = await authenticate(
       String(formData.get("email") ?? ""),
       String(formData.get("password") ?? ""),
     );
     await signInAs(user.id);
+    if (user.companyId) home = "/company";
   } catch (e) {
     if (e instanceof AuthError) return { error: e.message };
     throw e;
   }
   await flash("Signed in");
-  redirect(safeNext(formData.get("next")) ?? "/");
+  redirect(safeNext(formData.get("next")) ?? home);
 }
 
 /** Saves the profile; with `next` (sent here to finish something) it goes back there. */

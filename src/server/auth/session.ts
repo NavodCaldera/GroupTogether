@@ -36,3 +36,8 @@ export async function requireUser(next?: string): Promise<SessionUser> {
   if (!user) redirect(next ? `/sign-in?next=${encodeURIComponent(next)}` : "/sign-in");
   return user;
 }
+
+/** Company logins work in their dashboard, so buyer pages send them there. */
+export async function redirectCompany() {
+  if ((await getCurrentUser())?.companyId) redirect("/company");
+}
