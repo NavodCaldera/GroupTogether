@@ -46,7 +46,7 @@ test("buyer, map and error pages have no CSP violations", async ({ page }) => {
   for (const path of [
     "/",
     "/companies/hemas",
-    "/packs/hemas-30-day",
+    "/packs/hemas-premium",
     "/baskets",
     "/tokens",
     "/account",

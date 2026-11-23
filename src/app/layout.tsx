@@ -8,7 +8,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "GroupBasket", template: "%s · GroupBasket" },
-  description: "Family packs from the companies you know, bought together with families near you.",
+  description: "Direct factory to consumer. No more middle man.",
 };
 
 export async function generateViewport(): Promise<Viewport> {
@@ -33,7 +33,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <footer
           className={`border-t border-line px-4 pt-6 text-center text-xs text-subtle sm:pb-6 ${user ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"}`}
         >
-          GroupBasket · Family packs, bought together
+          GroupBasket
         </footer>
         <FlashToast />
         <NavDepth />

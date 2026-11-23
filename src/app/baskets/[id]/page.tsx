@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { JoinBasketForm } from "@/components/basket-forms";
+import { BackLink } from "@/components/client";
 import { PackContents } from "@/components/pack-contents";
 import { Alert, Badge, Card, LinkButton, PageHeader } from "@/components/ui";
 import { formatDistance } from "@/lib/distance";
@@ -8,7 +9,12 @@ import { formatDate, formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { getBasket } from "@/server/packs";
 
-const STATUS = { PENDING: "Waiting for payment", OPEN: "Open", FULL: "Full · order placed", CLOSED: "Closed" } as const;
+const STATUS = {
+  PENDING: "Waiting for payment",
+  OPEN: "Open",
+  FULL: "Full · order placed",
+  CLOSED: "Closed",
+} as const;
 
 export default async function BasketPage({ params }: PageProps<"/baskets/[id]">) {
   const id = (await params).id;
@@ -19,15 +25,18 @@ export default async function BasketPage({ params }: PageProps<"/baskets/[id]">)
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <PageHeader
-        title={b.pack.name}
-        description={
-          <Link className="underline" href={`/companies/${b.pack.company.slug}`}>
-            {b.pack.company.name}
-          </Link>
-        }
-        actions={<Badge tone={b.status === "FULL" ? "good" : "info"}>{STATUS[b.status]}</Badge>}
-      />
+      <div>
+        <BackLink fallback="/baskets" />
+        <PageHeader
+          title={b.pack.name}
+          description={
+            <Link className="underline" href={`/companies/${b.pack.company.slug}`}>
+              {b.pack.company.name}
+            </Link>
+          }
+          actions={<Badge tone={b.status === "FULL" ? "good" : "info"}>{STATUS[b.status]}</Badge>}
+        />
+      </div>
 
       <Card className="flex flex-col gap-3">
         <div className="flex flex-wrap justify-between gap-2 text-sm">
@@ -66,7 +75,9 @@ export default async function BasketPage({ params }: PageProps<"/baskets/[id]">)
       {b.joinable ? (
         <JoinBasketForm groupId={b.id} price={formatLKR(b.price)} />
       ) : !user ? (
-        <LinkButton href={`/sign-in?next=${encodeURIComponent(`/baskets/${id}`)}`}>Sign in to join</LinkButton>
+        <LinkButton href={`/sign-in?next=${encodeURIComponent(`/baskets/${id}`)}`}>
+          Sign in to join
+        </LinkButton>
       ) : null}
     </div>
   );

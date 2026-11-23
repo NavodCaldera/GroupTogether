@@ -5,21 +5,11 @@ import { hashPassword } from "../src/server/auth/password";
 import { db } from "../src/server/db";
 
 type Item = [name: string, size: string, qty: number];
-type Pack = {
-  slug: string;
-  name: string;
-  days: number;
-  price: string;
-  size: number;
-  household?: number;
-  items: Item[];
-};
+type Pack = { price: string; size: number; items: Item[] };
+type Company = { slug: string; name: string; logo: string; budget: Pack; premium: Pack };
 
-const CATALOGUE: {
-  slug: string;
-  name: string;
-  companies: { slug: string; name: string; packs: Pack[] }[];
-}[] = [
+// Every company has a Budget and a Premium pack, both 30 days, for a family of 4.
+const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
   {
     slug: "personal-care",
     name: "Personal Care",
@@ -27,35 +17,26 @@ const CATALOGUE: {
       {
         slug: "hemas",
         name: "Hemas",
-        packs: [
-          {
-            slug: "hemas-15-day",
-            name: "15-day Family Pack",
-            days: 15,
-            price: "2450.00",
-            size: 10,
-            household: 4,
-            items: [
-              ["Herbal soap", "100 g", 4],
-              ["Toothpaste", "120 g", 1],
-              ["Shampoo", "180 ml", 1],
-            ],
-          },
-          {
-            slug: "hemas-30-day",
-            name: "30-day Family Pack",
-            days: 30,
-            price: "4600.00",
-            size: 10,
-            household: 4,
-            items: [
-              ["Herbal soap", "100 g", 8],
-              ["Toothpaste", "120 g", 2],
-              ["Shampoo", "400 ml", 1],
-              ["Coconut hair oil", "200 ml", 1],
-            ],
-          },
-        ],
+        logo: "/logos/hemas.png",
+        budget: {
+          price: "2450.00",
+          size: 10,
+          items: [
+            ["Herbal soap", "100 g", 4],
+            ["Toothpaste", "120 g", 1],
+            ["Shampoo", "180 ml", 1],
+          ],
+        },
+        premium: {
+          price: "4600.00",
+          size: 10,
+          items: [
+            ["Herbal soap", "100 g", 8],
+            ["Toothpaste", "120 g", 2],
+            ["Shampoo", "400 ml", 1],
+            ["Coconut hair oil", "200 ml", 1],
+          ],
+        },
       },
     ],
   },
@@ -66,36 +47,46 @@ const CATALOGUE: {
       {
         slug: "cbl",
         name: "CBL",
-        packs: [
-          {
-            slug: "cbl-30-day",
-            name: "30-day Snack Pack",
-            days: 30,
-            price: "3200.00",
-            size: 8,
-            items: [
-              ["Cream crackers", "490 g", 3],
-              ["Chocolate biscuits", "200 g", 4],
-            ],
-          },
-        ],
+        logo: "/logos/cbl.png",
+        budget: {
+          price: "1900.00",
+          size: 8,
+          items: [
+            ["Cream crackers", "490 g", 2],
+            ["Marie biscuits", "400 g", 2],
+          ],
+        },
+        premium: {
+          price: "3200.00",
+          size: 8,
+          items: [
+            ["Cream crackers", "490 g", 3],
+            ["Chocolate biscuits", "200 g", 4],
+            ["Wafers", "100 g", 3],
+          ],
+        },
       },
       {
         slug: "maliban",
         name: "Maliban",
-        packs: [
-          {
-            slug: "maliban-15-day",
-            name: "15-day Tea-time Pack",
-            days: 15,
-            price: "1850.00",
-            size: 6,
-            items: [
-              ["Marie biscuits", "400 g", 2],
-              ["Lemon puff", "200 g", 2],
-            ],
-          },
-        ],
+        logo: "/logos/maliban.webp",
+        budget: {
+          price: "1850.00",
+          size: 6,
+          items: [
+            ["Marie biscuits", "400 g", 2],
+            ["Lemon puff", "200 g", 2],
+          ],
+        },
+        premium: {
+          price: "3400.00",
+          size: 6,
+          items: [
+            ["Marie biscuits", "400 g", 3],
+            ["Lemon puff", "200 g", 3],
+            ["Chocolate cream", "200 g", 3],
+          ],
+        },
       },
     ],
   },
@@ -106,20 +97,20 @@ const CATALOGUE: {
       {
         slug: "pelwatte",
         name: "Pelwatte Dairy Industries",
-        packs: [
-          {
-            slug: "pelwatte-30-day",
-            name: "30-day Milk Powder Pack",
-            days: 30,
-            price: "5400.00",
-            size: 12,
-            household: 4,
-            items: [
-              ["Full cream milk powder", "1 kg", 2],
-              ["Butter", "200 g", 1],
-            ],
-          },
-        ],
+        logo: "/logos/pelwatte.png",
+        budget: {
+          price: "3100.00",
+          size: 12,
+          items: [["Full cream milk powder", "400 g", 3]],
+        },
+        premium: {
+          price: "5400.00",
+          size: 12,
+          items: [
+            ["Full cream milk powder", "1 kg", 2],
+            ["Butter", "200 g", 1],
+          ],
+        },
       },
     ],
   },
@@ -174,11 +165,20 @@ async function main() {
     });
     for (const co of cat.companies) {
       const company = await db.company.create({
-        data: { slug: co.slug, name: co.name, categoryId: category.id, demo: true },
+        data: { slug: co.slug, name: co.name, logo: co.logo, categoryId: category.id, demo: true },
       });
-      for (const p of co.packs) {
+      for (const [kind, p] of [
+        ["budget", co.budget],
+        ["premium", co.premium],
+      ] as const) {
+        const slug = `${co.slug}-${kind}`;
         const pack = await db.standardPack.create({
-          data: { slug: p.slug, name: p.name, durationDays: p.days, companyId: company.id },
+          data: {
+            slug,
+            name: kind === "budget" ? "Budget Pack" : "Premium Pack",
+            durationDays: 30,
+            companyId: company.id,
+          },
         });
         const v = await db.packVersion.create({
           data: {
@@ -188,7 +188,7 @@ async function main() {
             pricePerFamily: p.price,
             groupSize: p.size,
             commissionPct: "10.00",
-            householdSize: p.household ?? null,
+            householdSize: 4,
             items: {
               create: p.items.map(([name, size, qty], sortOrder) => ({
                 name,
@@ -199,7 +199,7 @@ async function main() {
             },
           },
         });
-        versions.set(p.slug, v.id);
+        versions.set(slug, v.id);
       }
     }
   }
@@ -228,8 +228,8 @@ async function main() {
       },
     });
   }
-  await basket("hemas-30-day", DEMO_BUYERS.sachini, [DEMO_BUYERS.ravindu, DEMO_BUYERS.ayesha], 7);
-  await basket("hemas-15-day", DEMO_BUYERS.nimali, [], 12);
+  await basket("hemas-premium", DEMO_BUYERS.sachini, [DEMO_BUYERS.ravindu, DEMO_BUYERS.ayesha], 7);
+  await basket("hemas-budget", DEMO_BUYERS.nimali, [], 12);
   // Nimali is in Dilan's contacts, so her basket is listed first for him.
   await db.userContact.create({
     data: { userId: users.get(DEMO_BUYERS.dilan)!.id, phone: "0771000004" },

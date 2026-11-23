@@ -18,14 +18,24 @@ export async function homeCategories() {
       companies: {
         where: { active: true, packs: { some: livePack } },
         orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        select: { slug: true, name: true, demo: true, _count: { select: { packs: { where: livePack } } } },
+        select: {
+          slug: true,
+          name: true,
+          logo: true,
+          _count: { select: { packs: { where: livePack } } },
+        },
       },
     },
   });
   return rows.map((c) => ({
     slug: c.slug,
     name: c.name,
-    companies: c.companies.map((co) => ({ slug: co.slug, name: co.name, demo: co.demo, packs: co._count.packs })),
+    companies: c.companies.map((co) => ({
+      slug: co.slug,
+      name: co.name,
+      logo: co.logo,
+      packs: co._count.packs,
+    })),
   }));
 }
 
@@ -35,7 +45,7 @@ const latest = { where: published, orderBy: { version: "desc" }, take: 1 } as co
 export async function getCompany(slug: string) {
   const company = await db.company.findFirst({
     where: { slug, active: true },
-    select: { id: true, slug: true, name: true, demo: true, category: { select: { name: true } } },
+    select: { id: true, slug: true, name: true, logo: true, category: { select: { name: true } } },
   });
   if (!company) return null;
   const packs = await db.standardPack.findMany({
@@ -47,7 +57,12 @@ export async function getCompany(slug: string) {
       durationDays: true,
       versions: {
         ...latest,
-        select: { pricePerFamily: true, groupSize: true, _count: { select: { items: true } } },
+        select: {
+          pricePerFamily: true,
+          groupSize: true,
+          householdSize: true,
+          _count: { select: { items: true } },
+        },
       },
     },
   });
@@ -57,6 +72,7 @@ export async function getCompany(slug: string) {
       ...p,
       price: v.pricePerFamily,
       families: v.groupSize,
+      householdSize: v.householdSize,
       items: v._count.items,
     })),
   };
@@ -70,7 +86,7 @@ export async function getPack(slug: string) {
       slug: true,
       name: true,
       durationDays: true,
-      company: { select: { slug: true, name: true, demo: true } },
+      company: { select: { slug: true, name: true } },
       versions: {
         ...latest,
         select: {
@@ -78,7 +94,10 @@ export async function getPack(slug: string) {
           pricePerFamily: true,
           groupSize: true,
           householdSize: true,
-          items: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, size: true, qty: true } },
+          items: {
+            orderBy: { sortOrder: "asc" },
+            select: { id: true, name: true, size: true, qty: true },
+          },
         },
       },
     },
@@ -133,7 +152,9 @@ export async function openBaskets(
           select: {
             groupSize: true,
             pricePerFamily: true,
-            pack: { select: { slug: true, name: true, company: { select: { slug: true, name: true } } } },
+            pack: {
+              select: { slug: true, name: true, company: { select: { slug: true, name: true } } },
+            },
           },
         },
       },
@@ -163,7 +184,10 @@ export async function openBaskets(
 }
 
 /** One basket for its page: the pack, progress and the viewer's place in it. */
-export async function getBasket(id: string, viewer: { id: string; lat: number | null; lng: number | null } | null) {
+export async function getBasket(
+  id: string,
+  viewer: { id: string; lat: number | null; lng: number | null } | null,
+) {
   const g = await db.packGroup.findUnique({
     where: { id },
     select: {
@@ -180,9 +204,17 @@ export async function getBasket(id: string, viewer: { id: string; lat: number | 
           groupSize: true,
           pricePerFamily: true,
           householdSize: true,
-          items: { orderBy: { sortOrder: "asc" }, select: { id: true, name: true, size: true, qty: true } },
+          items: {
+            orderBy: { sortOrder: "asc" },
+            select: { id: true, name: true, size: true, qty: true },
+          },
           pack: {
-            select: { slug: true, name: true, durationDays: true, company: { select: { slug: true, name: true } } },
+            select: {
+              slug: true,
+              name: true,
+              durationDays: true,
+              company: { select: { slug: true, name: true } },
+            },
           },
         },
       },
@@ -196,7 +228,10 @@ export async function getBasket(id: string, viewer: { id: string; lat: number | 
         select: { status: true },
       })
     : null;
-  const km = viewer?.lat != null && viewer.lng != null ? distanceKm({ lat: viewer.lat, lng: viewer.lng }, g) : null;
+  const km =
+    viewer?.lat != null && viewer.lng != null
+      ? distanceKm({ lat: viewer.lat, lng: viewer.lng }, g)
+      : null;
   return {
     id: g.id,
     status: g.status,
@@ -211,6 +246,12 @@ export async function getBasket(id: string, viewer: { id: string; lat: number | 
     pack: g.version.pack,
     isOwner: viewer?.id === g.createdById,
     myStatus: me?.status ?? null,
-    joinable: g.status === "OPEN" && g.closesAt > new Date() && g.joined < g.version.groupSize && !me && km !== null && km <= NEARBY_KM,
+    joinable:
+      g.status === "OPEN" &&
+      g.closesAt > new Date() &&
+      g.joined < g.version.groupSize &&
+      !me &&
+      km !== null &&
+      km <= NEARBY_KM,
   };
 }

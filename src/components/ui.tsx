@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import Image from "next/image";
 
 /** Small set of shared UI primitives. Keep styling here so pages stay consistent. */
 
@@ -186,5 +187,28 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
       <p className="font-medium">{title}</p>
       {children && <div className="mt-2 text-sm text-subtle">{children}</div>}
     </div>
+  );
+}
+
+/** A company's brand logo, or its name when it has none. */
+export function CompanyLogo({
+  name,
+  logo,
+  className,
+}: {
+  name: string;
+  logo: string | null;
+  className?: string;
+}) {
+  return logo ? (
+    <Image
+      src={logo}
+      alt={name}
+      width={160}
+      height={64}
+      className={cx("h-14 w-auto rounded-md bg-white object-contain p-1", className)}
+    />
+  ) : (
+    <span className={cx("text-lg font-semibold", className)}>{name}</span>
   );
 }

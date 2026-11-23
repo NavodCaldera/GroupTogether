@@ -14,7 +14,7 @@ async function inspect(page: Page) {
 }
 
 test("public pages are accessible without horizontal overflow", async ({ page }) => {
-  for (const route of ["/", "/companies/hemas", "/packs/hemas-30-day", "/sign-up", "/sign-in"]) {
+  for (const route of ["/", "/companies/hemas", "/packs/hemas-premium", "/sign-up", "/sign-in"]) {
     await page.goto(route);
     await inspect(page);
   }

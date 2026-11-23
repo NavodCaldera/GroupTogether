@@ -70,6 +70,8 @@ model Company {
   category   Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   /// Sample listing, not a real partnership
   demo       Boolean        @default(false)
+  /// Logo image path, e.g. /logos/hemas.png
+  logo       String?
   active     Boolean        @default(true)
   sortOrder  Int            @default(0)
   packs      StandardPack[]
