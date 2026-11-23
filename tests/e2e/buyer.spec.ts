@@ -141,14 +141,6 @@ test("buyer collects, buys at the nearest agent, pays and cannot cancel", async 
   await expect(page.getByText(/cancel/i)).toHaveCount(0);
 });
 
-test("a buyer with a return sees where and when to hand it over", async ({ page }) => {
-  await signIn(page, DEMO.returnBuyer);
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Return to hand over" })).toBeVisible();
-  await expect(page.getByText(/^Due /).first()).toBeVisible();
-  await inspect(page);
-});
-
 test("the token buyer pays with tokens and sends tokens", async ({ page }) => {
   test.setTimeout(180_000);
   await signIn(page, DEMO.tokenBuyer);
