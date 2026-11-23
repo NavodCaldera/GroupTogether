@@ -47,6 +47,11 @@ export async function SiteHeader() {
       : [
           { href: "/", label: "Home", icon: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" /> },
           {
+            href: "/baskets",
+            label: "Baskets",
+            icon: <path d="M3 9h18l-2 11H5zM8 9l4-6 4 6" />,
+          },
+          {
             href: "/orders",
             label: "Orders",
             also: ["/checkout"],
