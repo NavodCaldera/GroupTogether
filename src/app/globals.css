@@ -242,6 +242,6 @@ body {
 }
 
 /* Map attribution links (Leaflet) must not rely on colour alone. */
-.leaflet-control-attribution a {
+.leaflet-container .leaflet-control-attribution a {
   text-decoration: underline;
 }
