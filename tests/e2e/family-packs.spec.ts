@@ -30,7 +30,7 @@ test("a buyer finds a basket near them, pays and is in", async ({ page }) => {
 
   await page.goto("/baskets?company=hemas");
   await expect(page.getByLabel("Company")).toHaveValue("hemas");
-  await expect(page.getByLabel("Company").locator("option")).toHaveCount(26);
+  await expect(page.getByLabel("Company").locator("option")).toHaveCount(27);
 });
 
 test("a company updates a pack and buyers see the new version", async ({ page }) => {
