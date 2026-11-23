@@ -9,6 +9,11 @@ const SECTIONS = [
   { href: "/", label: "Home", icon: <path d="M3 10.5 12 3l9 7.5V21h-6v-6H9v6H3z" /> },
   { href: "/baskets", label: "Baskets", icon: <path d="M3 9h18l-2 11H5zM8 9l4-6 4 6" /> },
   {
+    href: "/reselling",
+    label: "Reselling",
+    icon: <path d="M4 12a8 8 0 0 1 14-5.3M20 4v4h-4M20 12a8 8 0 0 1-14 5.3M4 20v-4h4" />,
+  },
+  {
     href: "/tokens",
     label: "Tokens",
     icon: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9h6M9 15h6M12 7v10" />,

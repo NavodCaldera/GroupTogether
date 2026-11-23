@@ -29,8 +29,10 @@ model User {
   tokenEntries      TokenEntry[]
   paymentAttempts   PaymentAttempt[]
   packMembers       PackMember[]
-  startedPackGroups PackGroup[]      @relation("PackGroupStarter")
+  startedPackGroups PackGroup[]         @relation("PackGroupStarter")
   contacts          UserContact[]
+  resaleListings    ResaleListing[]
+  reservations      ResaleReservation[]
 }
 
 model Session {
@@ -117,17 +119,20 @@ model PackVersion {
 }
 
 model PackItem {
-  id          String      @id @default(cuid())
+  id          String          @id @default(cuid())
   versionId   String
-  version     PackVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  version     PackVersion     @relation(fields: [versionId], references: [id], onDelete: Cascade)
   name        String
   size        String
   qty         Int
   /// Shop price for one unit, shown next to the item
-  retailPrice Decimal?    @db.Decimal(14, 2)
+  retailPrice Decimal?        @db.Decimal(14, 2)
   /// Item photo: /img/<id>
   photo       String?
-  sortOrder   Int         @default(0)
+  /// Chilled or frozen goods can never be resold
+  chilled     Boolean         @default(false)
+  sortOrder   Int             @default(0)
+  listings    ResaleListing[]
 }
 
 enum PackGroupStatus {
@@ -184,6 +189,7 @@ model PackMember {
   paidAt    DateTime?
   joinedAt  DateTime         @default(now())
   attempts  PaymentAttempt[]
+  listings  ResaleListing[]
 
   @@unique([groupId, userId])
   @@index([userId])
@@ -279,4 +285,64 @@ model TokenEntry {
   createdAt DateTime  @default(now())
 
   @@index([userId, createdAt])
+}
+
+enum ResaleAudience {
+  CONTACTS
+  NEARBY
+  BOTH
+}
+
+/// Unopened units from a buyer's paid spot in a full basket, offered at what the buyer paid
+model ResaleListing {
+  id           String              @id @default(cuid())
+  sellerId     String
+  seller       User                @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  memberId     String
+  member       PackMember          @relation(fields: [memberId], references: [id], onDelete: Restrict)
+  itemId       String
+  item         PackItem            @relation(fields: [itemId], references: [id], onDelete: Restrict)
+  /// Units offered; cancelling keeps only the units already handed over
+  qty          Int
+  /// What the seller paid for one unit within the basket; never edited
+  unitPrice    Decimal             @db.Decimal(14, 2)
+  audience     ResaleAudience
+  /// Public meeting place, shown only to the seller and buyers holding a reservation
+  spot         String
+  /// The basket's delivery point: only the area is shown, the point measures nearness
+  city         String?
+  lat          Float
+  lng          Float
+  cancelledAt  DateTime?
+  createdAt    DateTime            @default(now())
+  reservations ResaleReservation[]
+
+  @@index([memberId, itemId])
+  @@index([lat, lng])
+  @@index([sellerId])
+}
+
+enum ResaleReservationStatus {
+  RESERVED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+model ResaleReservation {
+  id          String                  @id @default(cuid())
+  listingId   String
+  listing     ResaleListing           @relation(fields: [listingId], references: [id], onDelete: Restrict)
+  buyerId     String
+  buyer       User                    @relation(fields: [buyerId], references: [id], onDelete: Restrict)
+  qty         Int
+  status      ResaleReservationStatus @default(RESERVED)
+  /// A reservation not completed by then no longer holds its units
+  expiresAt   DateTime
+  completedAt DateTime?
+  createdAt   DateTime                @default(now())
+
+  @@index([listingId, status])
+  @@index([buyerId])
+  @@index([status, expiresAt])
 }

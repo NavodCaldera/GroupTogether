@@ -36,3 +36,32 @@ export function sizeTable(v: Discounts) {
     price: sizePrice(v, size),
   }));
 }
+
+/**
+ * What one family paid for each item line of its basket: the basket price split by each line's shop
+ * value (shop price × quantity), in whole cents, largest remainder first, so the lines add up to the
+ * price exactly. `unit` is the line over its quantity, to the cent. Null when any item has no shop
+ * price, because the split cannot be known then; today's prices are never used instead.
+ */
+export function itemCosts(price: Money, items: { qty: number; retailPrice: Money | null }[]) {
+  if (items.length === 0 || items.some((i) => i.retailPrice == null)) return null;
+  const cents = new D(price.toString()).times(100);
+  const weights = items.map((i) => new D(i.retailPrice!.toString()).times(i.qty));
+  const total = weights.reduce((a, w) => a.plus(w), new D(0));
+  if (total.lte(0)) return null;
+  const exact = weights.map((w) => cents.times(w).div(total));
+  const lines = exact.map((e) => e.floor());
+  let left = cents.minus(lines.reduce((a, l) => a.plus(l), new D(0))).toNumber();
+  const order = exact
+    .map((_, i) => i)
+    .sort((a, b) => exact[b].minus(lines[b]).comparedTo(exact[a].minus(lines[a])) || a - b);
+  for (const i of order) {
+    if (left <= 0) break;
+    lines[i] = lines[i].plus(1);
+    left--;
+  }
+  return lines.map((l, i) => ({
+    line: l.div(100),
+    unit: roundMoney(l.div(100).div(items[i].qty)),
+  }));
+}

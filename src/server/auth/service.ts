@@ -9,7 +9,7 @@ import { hashPassword, verifyPassword } from "./password";
 const SESSION_TTL_DAYS = 30;
 
 /** Sri Lankan mobile: 07XXXXXXXX or +947XXXXXXXX, stored as 07XXXXXXXX. */
-const phoneSchema = z
+export const phoneSchema = z
   .string()
   .trim()
   .transform((v) => v.replace(/[\s-]/g, "").replace(/^\+94/, "0"))

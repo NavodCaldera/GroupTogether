@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
-import { isBasketSize, packAmountDue, packCommission, sizePrice, sizeTable } from "./pack-money";
+import { D } from "./decimal";
+import {
+  isBasketSize,
+  itemCosts,
+  packAmountDue,
+  packCommission,
+  sizePrice,
+  sizeTable,
+} from "./pack-money";
 
 describe("pack money (DEC-030)", () => {
   it("takes the pack's percentage of the price per family", () => {
@@ -33,5 +41,37 @@ describe("basket sizes", () => {
       [15, "12.5", "2143.75"],
     ]);
     expect([4, 5, 8, 10, 15, 20].filter(isBasketSize)).toEqual([5, 10, 15]);
+  });
+});
+
+describe("item costs for resale", () => {
+  it("splits the basket price by shop value and the lines add up to it exactly", () => {
+    const items = [
+      { qty: 4, retailPrice: "140.00" },
+      { qty: 1, retailPrice: "260.00" },
+      { qty: 1, retailPrice: "690.00" },
+    ];
+    const c = itemCosts("2327.50", items)!;
+    expect(c.map((x) => x.line.toFixed(2))).toEqual(["863.18", "400.76", "1063.56"]);
+    expect(c.reduce((a, x) => a.plus(x.line), new D(0)).toFixed(2)).toBe("2327.50");
+    expect(c[0].unit.toFixed(2)).toBe("215.80");
+  });
+
+  it("gives leftover cents to the largest remainders, earliest first on ties", () => {
+    const c = itemCosts("100.00", [
+      { qty: 1, retailPrice: "1" },
+      { qty: 1, retailPrice: "1" },
+      { qty: 1, retailPrice: "1" },
+    ])!;
+    expect(c.map((x) => x.line.toFixed(2))).toEqual(["33.34", "33.33", "33.33"]);
+  });
+
+  it("is unknown when any item has no shop price", () => {
+    expect(
+      itemCosts("100.00", [
+        { qty: 1, retailPrice: null },
+        { qty: 1, retailPrice: "5" },
+      ]),
+    ).toBe(null);
   });
 });

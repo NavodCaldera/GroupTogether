@@ -19,20 +19,25 @@ The system is not public yet. Earlier models (clothing, agents, group deals) are
 - **Company login:** a user with `companyId` manages that company at `/company`: banner, logo, a photo of each pack's items, new pack versions (items with photos and shop prices, price and the three discounts; household and commission are kept) and its orders. Only the site owner gives a login a company (`npm run company:login`). A company login sees only its dashboard: no buyer tabs, and the buyer pages send it to `/company`.
 - **Owner:** the family that started the basket and paid first. The order is delivered to them.
 - **Tokens:** GroupBasket credit. Every refund is paid in tokens, never cash.
+- **Resale listing:** unopened units from a buyer's paid spot in a full basket, offered at what the buyer paid (DEC-031). A **reservation** holds units for 48 hours; the buyer pays the seller at pickup.
 
 ## Rules
 
-| ID   | Rule                                                                                                                                                                                                                 |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PK-1 | Home lists every company. A company page lists its packs, then its open baskets near you.                                                                                                                            |
-| PK-2 | A buyer must have an address pin. Baskets are found within **1 km** of it, the buyer's contacts' baskets first, then nearest.                                                                                        |
-| PK-3 | Starting a basket means choosing 5, 10 or 15 families and paying for your spot at that size's price. It stays hidden (`PENDING`) until that payment succeeds, then opens. A failed first payment deletes the basket. |
-| PK-4 | Joining means paying. An unpaid spot is held for `paymentHoldMinutes` (15) and counts toward the total, so a basket is never overfilled. One spot per family; payment is final and nobody leaves.                    |
-| PK-5 | When every spot is paid, the basket is **full**: one order (`PackDelivery`) goes to the company, delivered to the owner. The company is owed `(price − commission) × families`.                                      |
-| PK-6 | A basket that has not filled by its closing date is extended by the pack's duration, **twice** at most. Then it closes and every paid family gets its price back as tokens.                                          |
-| PK-7 | A payment that arrives after its spot was released, or for the wrong amount, comes back as tokens, once per payment.                                                                                                 |
-| PK-8 | The owner gets no reward. There are no agents.                                                                                                                                                                       |
-| PK-9 | The token ledger is append-only: the database refuses updates and deletes.                                                                                                                                           |
+| ID    | Rule                                                                                                                                                                                                                                  |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| PK-1  | Home lists every company. A company page lists its packs, then its open baskets near you.                                                                                                                                             |
+| PK-2  | A buyer must have an address pin. Baskets are found within **1 km** of it, the buyer's contacts' baskets first, then nearest.                                                                                                         |
+| PK-3  | Starting a basket means choosing 5, 10 or 15 families and paying for your spot at that size's price. It stays hidden (`PENDING`) until that payment succeeds, then opens. A failed first payment deletes the basket.                  |
+| PK-4  | Joining means paying. An unpaid spot is held for `paymentHoldMinutes` (15) and counts toward the total, so a basket is never overfilled. One spot per family; payment is final and nobody leaves.                                     |
+| PK-5  | When every spot is paid, the basket is **full**: one order (`PackDelivery`) goes to the company, delivered to the owner. The company is owed `(price − commission) × families`.                                                       |
+| PK-6  | A basket that has not filled by its closing date is extended by the pack's duration, **twice** at most. Then it closes and every paid family gets its price back as tokens.                                                           |
+| PK-7  | A payment that arrives after its spot was released, or for the wrong amount, comes back as tokens, once per payment.                                                                                                                  |
+| PK-8  | The owner gets no reward. There are no agents.                                                                                                                                                                                        |
+| PK-10 | Resale price is the unit's share of the basket price, split by shop value in whole cents (`itemCosts`). Never edited, never today's price. No shop price on any item: no resale.                                                      |
+| PK-11 | Only the buyer's own paid spot in a **full** basket, never chilled or frozen items, never more units than bought. Cancelling a listing frees its unsold units.                                                                        |
+| PK-12 | From Contacts: both buyers saved each other's number. Nearby: within 1 km of the basket's delivery point. Only the area is shown; the public pickup spot only to the seller and a buyer holding a reservation. Checked on the server. |
+| PK-13 | Reservations lock the listing row; units held = collected + reserved and not expired. Either side cancels; only the seller marks collected. Lock order: `PackMember` row, then `ResaleListing` row.                                   |
+| PK-9  | The token ledger is append-only: the database refuses updates and deletes.                                                                                                                                                            |
 
 ## Not decided yet
 

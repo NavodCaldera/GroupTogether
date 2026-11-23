@@ -30,12 +30,29 @@ test("buyer pages are accessible without horizontal overflow", async ({ page }) 
   await page.getByLabel("Password", { exact: true }).fill("password123");
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
-  for (const route of ["/", "/companies/hemas", "/baskets", "/tokens", "/account"]) {
+  for (const route of [
+    "/",
+    "/companies/hemas",
+    "/baskets",
+    "/tokens",
+    "/account",
+    "/reselling",
+    "/reselling?view=nearby",
+    "/reselling/mine",
+    "/purchases",
+  ]) {
     await page.goto(route);
     await inspect(page);
   }
   await page.goto("/baskets");
   await page.getByTestId("open-basket").first().click();
+  await inspect(page);
+  await page.goto("/purchases");
+  await page.getByRole("link", { name: /CBL Group/ }).click();
+  await page.getByText("Resell", { exact: true }).first().click();
+  await inspect(page);
+  await page.goto("/reselling?view=nearby");
+  await page.getByTestId("listing").first().click();
   await inspect(page);
 });
 

@@ -1,13 +1,25 @@
 // Demo data: buyers near Kollupitiya, sample companies with packs, and two open baskets.
 // Company names are examples only, not partners (`demo: true`). Wipes the database first.
 import { DEMO_BUYERS, DEMO_COMPANY, DEMO_PASSWORD } from "../src/lib/demo-accounts";
-import { type BasketSize, sizePrice } from "../src/lib/pack-money";
+import { type BasketSize, itemCosts, packAmountDue, sizePrice } from "../src/lib/pack-money";
 import { hashPassword } from "../src/server/auth/password";
 import { db } from "../src/server/db";
 
 // Item: name, size, quantity for the family, sample shop price for one unit.
 type Item = [name: string, size: string, qty: number, retail: string];
 type Pack = { price: string; items: Item[] };
+// Kept cold, so never resold.
+const CHILLED = new Set([
+  "Butter",
+  "Chicken meatballs",
+  "Chicken sausages",
+  "Fresh milk",
+  "Pork bacon",
+  "Pre-cooked chicken",
+  "Set yoghurt",
+  "Vanilla ice cream",
+  "Whole chicken",
+]);
 // Discount % for baskets of 5, 10 and 15 families.
 const DISCOUNTS = {
   budget: { discount5: "5.00", discount10: "8.00", discount15: "10.00" },
@@ -580,6 +592,7 @@ async function main() {
                 size,
                 qty,
                 retailPrice,
+                chilled: CHILLED.has(name),
                 sortOrder,
               })),
             },
@@ -598,27 +611,30 @@ async function main() {
     data: { email: DEMO_COMPANY, name: "Hemas", passwordHash, companyId: hemas.id },
   });
 
-  /** An OPEN basket of `size` families where the owner and members have paid. */
+  /** A basket of `size` families where the owner and members have paid; FULL places the order. */
   async function basket(
     slug: string,
     size: BasketSize,
     ownerEmail: string,
     memberEmails: string[],
     daysLeft: number,
+    status: "OPEN" | "FULL" = "OPEN",
   ) {
     const owner = users.get(ownerEmail)!;
     const members = [owner, ...memberEmails.map((e) => users.get(e)!)];
-    await db.packGroup.create({
+    const v = versions.get(slug)!;
+    const price = sizePrice(v, size).toFixed(2);
+    return db.packGroup.create({
       data: {
         versionId: versions.get(slug)!.id,
         size,
-        price: sizePrice(versions.get(slug)!, size).toFixed(2),
+        price,
         createdById: owner.id,
         lat: owner.lat,
         lng: owner.lng,
         address: owner.address,
         city: owner.city,
-        status: "OPEN",
+        status,
         joined: members.length,
         closesAt: new Date(Date.now() + daysLeft * 86_400_000),
         members: {
@@ -628,6 +644,25 @@ async function main() {
             paidAt: new Date(),
           })),
         },
+        ...(status === "FULL"
+          ? {
+              delivery: {
+                create: {
+                  companyId: (await db.standardPack.findUniqueOrThrow({ where: { slug } }))
+                    .companyId,
+                  families: size,
+                  amountDue: packAmountDue(price, v.commissionPct, size).toFixed(2),
+                },
+              },
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        lat: true,
+        lng: true,
+        city: true,
+        members: { select: { id: true, userId: true } },
       },
     });
   }
@@ -644,10 +679,55 @@ async function main() {
     data: { userId: users.get(DEMO_BUYERS.dilan)!.id, phone: "0771000004" },
   });
 
+  // A CBL basket that filled and was ordered; Sachini resells some of her share.
+  const cbl = await basket(
+    "cbl-budget",
+    5,
+    DEMO_BUYERS.sachini,
+    [DEMO_BUYERS.dilan, DEMO_BUYERS.nimali, DEMO_BUYERS.ravindu, DEMO_BUYERS.ayesha],
+    0,
+    "FULL",
+  );
+  const cblItems = await db.packItem.findMany({
+    where: { versionId: versions.get("cbl-budget")!.id },
+    orderBy: { sortOrder: "asc" },
+  });
+  const costs = itemCosts(sizePrice(versions.get("cbl-budget")!, 5), cblItems)!;
+  const sachini = users.get(DEMO_BUYERS.sachini)!;
+  const tharindu = users.get(DEMO_BUYERS.tharindu)!;
+  const share = cbl.members.find((m) => m.userId === sachini.id)!;
+  for (const [i, audience, spot] of [
+    [0, "BOTH", "Liberty Plaza main entrance"],
+    [1, "CONTACTS", "Kollupitiya railway station"],
+  ] as const) {
+    await db.resaleListing.create({
+      data: {
+        sellerId: sachini.id,
+        memberId: share.id,
+        itemId: cblItems[i].id,
+        qty: 1,
+        unitPrice: costs[i].unit.toFixed(2),
+        audience,
+        spot,
+        city: cbl.city,
+        lat: cbl.lat,
+        lng: cbl.lng,
+      },
+    });
+  }
+  // Sachini and Tharindu saved each other's numbers, so he sees her contacts-only listing.
+  await db.userContact.createMany({
+    data: [
+      { userId: sachini.id, phone: "0771000003" },
+      { userId: tharindu.id, phone: "0771000002" },
+    ],
+  });
+
   console.log(`Seeded. Password for every demo buyer: ${DEMO_PASSWORD}`);
   console.log("  buyer@example.com: two Hemas baskets nearby (Nimali's first, a contact)");
   console.log(`  ${DEMO_COMPANY}: Hemas company dashboard at /company`);
   console.log("  buyer3@example.com: in Wellawatte with no basket nearby, can start one");
+  console.log("  Sachini resells two CBL items: one to contacts and nearby, one to contacts only");
 }
 
 main()
