@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import { BasketCard } from "@/components/basket-card";
 import { StartBasketForm } from "@/components/basket-forms";
 import { PackContents } from "@/components/pack-contents";
-import { Badge, LinkButton, PageHeader } from "@/components/ui";
+import { BackLink } from "@/components/client";
+import { LinkButton, PageHeader } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
 import { getPack, openBaskets } from "@/server/packs";
@@ -22,15 +23,17 @@ export default async function PackPage({ params }: PageProps<"/packs/[slug]">) {
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <PageHeader
-        title={pack.name}
-        description={
-          <Link className="underline" href={`/companies/${pack.company.slug}`}>
-            {pack.company.name}
-          </Link>
-        }
-        actions={pack.company.demo ? <Badge>Demo</Badge> : null}
-      />
+      <div>
+        <BackLink fallback={`/companies/${pack.company.slug}`} />
+        <PageHeader
+          title={pack.name}
+          description={
+            <Link className="underline" href={`/companies/${pack.company.slug}`}>
+              {pack.company.name}
+            </Link>
+          }
+        />
+      </div>
       <PackContents
         items={v.items}
         price={v.pricePerFamily}

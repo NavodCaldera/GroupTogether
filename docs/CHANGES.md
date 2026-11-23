@@ -3,6 +3,16 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-23: Brand logos, Budget and Premium packs
+
+The owner asked for these changes:
+
+- **Home:** the heading is "Direct factory to consumer. No more middle man." The words "Family packs" are gone from the home page and the footer.
+- **Brand logos:** companies show their logo instead of their name. The logos come from each company's own website and are stored in `public/logos/`, with a new `Company.logo` field (migration `20261123120000_company_logo`).
+- **Demo badge:** no longer shown. The `demo` field stays as an internal marker.
+- **Packs:** every company has exactly two standard packs, Budget and Premium. Both run for 30 days and are made for a family of 4, shown as "Family of 4". The 15-day packs are gone. Slugs are `<company>-budget` and `<company>-premium`.
+- **Back links:** added to the company, pack and basket pages.
+
 ## 2026-11-23: Basket filter follows the category
 
 On Open baskets, the Company list shows only the companies in the chosen category, and a company

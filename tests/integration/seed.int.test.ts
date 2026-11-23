@@ -29,8 +29,8 @@ describe("demo seed", () => {
   it("shows Dilan two baskets nearby, his contact's first, and Tharindu none", async () => {
     const list = await openBaskets(await buyer(DEMO_BUYERS.dilan));
     expect(list?.map((b) => [b.packSlug, b.fromContact, b.joined])).toEqual([
-      ["hemas-15-day", true, 1],
-      ["hemas-30-day", false, 3],
+      ["hemas-budget", true, 1],
+      ["hemas-premium", false, 3],
     ]);
     expect(await openBaskets(await buyer(DEMO_BUYERS.tharindu))).toEqual([]);
   });

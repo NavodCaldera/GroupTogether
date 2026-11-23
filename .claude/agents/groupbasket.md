@@ -13,8 +13,8 @@ The system is not public yet. Earlier models (clothing, agents, group deals) are
 ## Words
 
 - **Category:** a shelf on the home page, such as Personal Care or Dairy.
-- **Company:** a maker listed under one category. `demo: true` marks a sample listing, never a real partnership.
-- **Standard pack:** one company's fixed pack for one family, such as Hemas 30-day Family Pack. It has versions.
+- **Company:** a maker listed under one category, shown by its brand logo (`logo`). `demo: true` marks a sample listing, never a real partnership; it is not shown on screen.
+- **Standard pack:** one company's fixed pack for one family of 4. Every company has exactly two, **Budget** and **Premium**, both 30 days. It has versions.
 - **Pack version:** fixed items, price per family, basket size (5 to 15 families), household size and commission %. It is never edited once published; a change is a new version.
 - **Basket** (`PackGroup` in code): one pack version bought together by families within 1 km of each other.
 - **Owner:** the family that started the basket and paid first. The order is delivered to them.
