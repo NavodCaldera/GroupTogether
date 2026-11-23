@@ -31,12 +31,19 @@ export async function imageAction(_p: CompanyState, fd: FormData): Promise<Compa
 }
 
 export async function packAction(_p: CompanyState, fd: FormData): Promise<CompanyState> {
-  const sizes = fd.getAll("size").map(String);
-  const qtys = fd.getAll("qty").map(Number);
-  const items = fd
-    .getAll("name")
-    .map((n, i) => ({ name: String(n).trim(), size: (sizes[i] ?? "").trim(), qty: qtys[i] }))
-    .filter((i) => i.name || i.size);
+  // One entry per item row in each list, in row order (a file input with no file sends an empty file).
+  const col = (k: string) => fd.getAll(k);
+  const [sizes, qtys, retail, kept, files] = ["size", "qty", "retail", "photoUrl", "photo"].map(
+    col,
+  );
+  const items = col("name").map((n, i) => ({
+    name: String(n).trim(),
+    size: String(sizes[i] ?? "").trim(),
+    qty: Number(qtys[i]),
+    retailPrice: String(retail[i] ?? "").trim(),
+    photo: String(kept[i] ?? "") || null,
+    file: files[i] ?? null,
+  }));
   return run(
     (id) =>
       publishPackVersion(

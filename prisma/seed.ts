@@ -6,6 +6,23 @@ import { hashPassword } from "../src/server/auth/password";
 import { db } from "../src/server/db";
 
 type Item = [name: string, size: string, qty: number];
+// Sample shop price for one unit of each item, by name and size.
+const RETAIL: Record<string, string> = {
+  "Butter 200 g": "780.00",
+  "Chocolate biscuits 200 g": "320.00",
+  "Chocolate cream 200 g": "300.00",
+  "Coconut hair oil 200 ml": "450.00",
+  "Cream crackers 490 g": "520.00",
+  "Full cream milk powder 1 kg": "2950.00",
+  "Full cream milk powder 400 g": "1220.00",
+  "Herbal soap 100 g": "140.00",
+  "Lemon puff 200 g": "280.00",
+  "Marie biscuits 400 g": "390.00",
+  "Shampoo 180 ml": "690.00",
+  "Shampoo 400 ml": "1350.00",
+  "Toothpaste 120 g": "260.00",
+  "Wafers 100 g": "220.00",
+};
 type Pack = { price: string; items: Item[] };
 // Discount % for baskets of 5, 10 and 15 families.
 const DISCOUNTS = {
@@ -192,6 +209,7 @@ async function main() {
                 name,
                 size,
                 qty,
+                retailPrice: RETAIL[`${name} ${size}`],
                 sortOrder,
               })),
             },

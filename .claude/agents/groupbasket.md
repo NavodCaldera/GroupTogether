@@ -17,7 +17,7 @@ The system is not public yet. Earlier models (clothing, agents, group deals) are
 - **Standard pack:** one company's fixed pack for one family of 4. Every company has exactly two, **Budget** and **Premium**, both 30 days. It has versions.
 - **Pack version:** fixed items, full price per family, a discount % for baskets of 5, 10 and 15 families, household size and commission %. It is never edited once published; a change is a new version.
 - **Basket** (`PackGroup` in code): one pack version bought together by families within 1 km of each other. Its size (5, 10 or 15 families) is chosen by the family that starts it, and its price per family (the full price less that size's discount) is fixed then; neither ever changes.
-- **Company login:** a user with `companyId` manages that company at `/company`: banner, logo, a photo of each pack's items, new pack versions (items, price and the three discounts; household and commission are kept) and its orders. Only the site owner gives a login a company (`npm run company:login`).
+- **Company login:** a user with `companyId` manages that company at `/company`: banner, logo, a photo of each pack's items, new pack versions (items with photos and shop prices, price and the three discounts; household and commission are kept) and its orders. Only the site owner gives a login a company (`npm run company:login`).
 - **Owner:** the family that started the basket and paid first. The order is delivered to them.
 - **Tokens:** GroupBasket credit. Every refund is paid in tokens, never cash.
 

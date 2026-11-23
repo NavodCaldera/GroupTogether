@@ -12,7 +12,6 @@ export async function requireCompany() {
   return user.companyId;
 }
 
-const MAX_IMAGE = 3 * 1024 * 1024;
 const startsWith = (b: Uint8Array, bytes: number[], at = 0) =>
   bytes.every((x, i) => b[at + i] === x);
 function imageType(b: Uint8Array) {
@@ -23,6 +22,16 @@ function imageType(b: Uint8Array) {
   return null;
 }
 
+/** A checked PNG, JPEG or WebP upload of at most `maxMb` MB; null when no file was chosen. */
+async function readImage(file: FormDataEntryValue | null, maxMb: number) {
+  if (!(file instanceof File) || file.size === 0) return null;
+  if (file.size > maxMb * 1024 * 1024) throw new AppError(`Images must be ${maxMb} MB or smaller.`);
+  const data = new Uint8Array(await file.arrayBuffer());
+  const type = imageType(data);
+  if (!type) throw new AppError("Use a PNG, JPEG or WebP image.");
+  return { type, data };
+}
+
 export type ImageTarget = "banner" | "logo" | { packId: string };
 
 /** Stores an uploaded PNG, JPEG or WebP (3 MB at most) and points the banner, logo or pack photo at it. */
@@ -31,14 +40,11 @@ export async function replaceImage(
   target: ImageTarget,
   file: FormDataEntryValue | null,
 ) {
-  if (!(file instanceof File) || file.size === 0) throw new AppError("Choose an image.");
-  if (file.size > MAX_IMAGE) throw new AppError("The image must be 3 MB or smaller.");
-  const data = new Uint8Array(await file.arrayBuffer());
-  const type = imageType(data);
-  if (!type) throw new AppError("Use a PNG, JPEG or WebP image.");
+  const img = await readImage(file, 3);
+  if (!img) throw new AppError("Choose an image.");
 
   await db.$transaction(async (tx) => {
-    const { id } = await tx.image.create({ data: { companyId, type, data }, select: { id: true } });
+    const { id } = await tx.image.create({ data: { companyId, ...img }, select: { id: true } });
     const url = `/img/${id}`;
     let old: string | null;
     if (typeof target === "string") {
@@ -62,7 +68,16 @@ export async function replaceImage(
   });
 }
 
-export type ItemInput = { name: string; size: string; qty: number };
+/** One item row: `photo` is the photo it already has, `file` a new one replacing it. */
+export type ItemInput = {
+  name: string;
+  size: string;
+  qty: number;
+  retailPrice: string;
+  photo: string | null;
+  file: FormDataEntryValue | null;
+};
+const MONEY = /^\d{1,7}(\.\d{1,2})?$/;
 /** Discount % for baskets of 5, 10 and 15 families. */
 export type DiscountInput = { discount5: string; discount10: string; discount15: string };
 
@@ -74,8 +89,7 @@ export async function publishPackVersion(
   discounts: DiscountInput,
   items: ItemInput[],
 ) {
-  if (!/^\d{1,7}(\.\d{1,2})?$/.test(price) || new D(price).lte(0))
-    throw new AppError("Enter a price above 0.");
+  if (!MONEY.test(price) || new D(price).lte(0)) throw new AppError("Enter a price above 0.");
   for (const pct of Object.values(discounts))
     if (!/^\d{1,2}(\.\d{1,2})?$/.test(pct) || new D(pct).gt(90))
       throw new AppError("Discounts are 0 to 90%.");
@@ -85,8 +99,27 @@ export async function publishPackVersion(
       throw new AppError("Every item needs a name.");
     if (!Number.isInteger(i.qty) || i.qty < 1 || i.qty > 99)
       throw new AppError("Quantities are 1 to 99.");
+    if (i.retailPrice && (!MONEY.test(i.retailPrice) || new D(i.retailPrice).lte(0)))
+      throw new AppError("Shop prices must be above 0.");
   }
+  // Item photos are 1 MB at most, so a whole pack fits in one request.
+  const uploads = await Promise.all(items.map((i) => readImage(i.file, 1)));
   await db.$transaction(async (tx) => {
+    // A kept photo must be one of this company's own uploads.
+    const kept = items.flatMap((i) => (i.photo ? [i.photo.slice(5)] : []));
+    const own = await tx.image.count({ where: { id: { in: kept }, companyId } });
+    if (items.some((i) => i.photo && !i.photo.startsWith("/img/")) || own !== new Set(kept).size)
+      throw new AppError("Photo not found.");
+    const photos: (string | null)[] = [];
+    for (const [n, i] of items.entries()) {
+      const img = uploads[n];
+      photos.push(
+        img
+          ? "/img/" +
+              (await tx.image.create({ data: { companyId, ...img }, select: { id: true } })).id
+          : i.photo,
+      );
+    }
     const pack = await tx.standardPack.findFirst({
       where: { id: packId, companyId },
       select: {
@@ -108,7 +141,16 @@ export async function publishPackVersion(
         ...discounts,
         householdSize: v.householdSize,
         commissionPct: v.commissionPct,
-        items: { create: items.map((i, sortOrder) => ({ ...i, sortOrder })) },
+        items: {
+          create: items.map((i, sortOrder) => ({
+            name: i.name,
+            size: i.size,
+            qty: i.qty,
+            retailPrice: i.retailPrice || null,
+            photo: photos[sortOrder],
+            sortOrder,
+          })),
+        },
       },
     });
   });
@@ -142,7 +184,7 @@ export function companyDashboard(companyId: string) {
               discount15: true,
               items: {
                 orderBy: { sortOrder: "asc" },
-                select: { name: true, size: true, qty: true },
+                select: { name: true, size: true, qty: true, retailPrice: true, photo: true },
               },
             },
           },

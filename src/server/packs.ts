@@ -106,7 +106,7 @@ export async function getPack(slug: string) {
           householdSize: true,
           items: {
             orderBy: { sortOrder: "asc" },
-            select: { id: true, name: true, size: true, qty: true },
+            select: { id: true, name: true, size: true, qty: true, retailPrice: true, photo: true },
           },
         },
       },
@@ -216,7 +216,7 @@ export async function getBasket(
           householdSize: true,
           items: {
             orderBy: { sortOrder: "asc" },
-            select: { id: true, name: true, size: true, qty: true },
+            select: { id: true, name: true, size: true, qty: true, retailPrice: true, photo: true },
           },
           pack: {
             select: {

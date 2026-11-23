@@ -130,13 +130,17 @@ model PackVersion {
 }
 
 model PackItem {
-  id        String      @id @default(cuid())
-  versionId String
-  version   PackVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
-  name      String
-  size      String
-  qty       Int
-  sortOrder Int         @default(0)
+  id          String      @id @default(cuid())
+  versionId   String
+  version     PackVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  name        String
+  size        String
+  qty         Int
+  /// Shop price for one unit, shown next to the item
+  retailPrice Decimal?    @db.Decimal(14, 2)
+  /// Item photo: /img/<id>
+  photo       String?
+  sortOrder   Int         @default(0)
 }
 
 enum PackGroupStatus {

@@ -68,7 +68,10 @@ export default async function CompanyDashboard() {
                     discount10: v.discount10.toString(),
                     discount15: v.discount15.toString(),
                   }}
-                  items={v.items}
+                  items={v.items.map((i) => ({
+                    ...i,
+                    retailPrice: i.retailPrice?.toFixed(2) ?? "",
+                  }))}
                 />
               ) : null}
             </Card>
