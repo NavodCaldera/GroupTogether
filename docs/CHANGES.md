@@ -3,6 +3,13 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-23: Item photos and shop prices
+
+The owner asked for these changes:
+
+- **Items:** every item in a pack can have a photo and a shop price for one unit (`PackItem.photo`, `PackItem.retailPrice`, migration `20261123150000_item_photos`). The pack and basket pages show each item's photo, size, "LKR x each in shops" and quantity.
+- **Dashboard:** each item row has its name, size, quantity, shop price and a photo upload (1 MB at most). Publishing makes a new version. An item keeps its photo unless a new one is chosen, and a kept photo must be one of the company's own uploads. The server action body limit is now 16 MB.
+
 ## 2026-11-23: Basket sizes with discounts
 
 The owner asked for these changes:

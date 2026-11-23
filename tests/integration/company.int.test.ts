@@ -32,6 +32,8 @@ async function company() {
 
 const OFF = { discount5: "5", discount10: "10", discount15: "12.5" };
 
+const NO_PHOTO = { retailPrice: "", photo: null, file: null };
+
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const file = (bytes: Uint8Array<ArrayBuffer>) => new File([bytes], "x.png", { type: "image/png" });
 
@@ -39,7 +41,7 @@ describe("company dashboard", () => {
   it("publishes a new version with new items and price, keeping size, household and commission", async () => {
     const c = await company();
     await publishPackVersion(c.id, c.packId, "1250.50", OFF, [
-      { name: "Butter", size: "200 g", qty: 1 },
+      { name: "Butter", size: "200 g", qty: 1, ...NO_PHOTO },
     ]);
     const versions = await db.packVersion.findMany({
       where: { packId: c.packId },
@@ -71,7 +73,7 @@ describe("company dashboard", () => {
   it("refuses another company's pack, a bad price or discount and an empty pack", async () => {
     const a = await company();
     const b = await company();
-    const item = [{ name: "Milk", size: "1 l", qty: 1 }];
+    const item = [{ name: "Milk", size: "1 l", qty: 1, ...NO_PHOTO }];
     await expect(publishPackVersion(a.id, b.packId, "100", OFF, item)).rejects.toThrow(
       "Pack not found.",
     );
@@ -107,5 +109,31 @@ describe("company dashboard", () => {
       "Pack not found.",
     );
     expect(await db.image.count()).toBe(1);
+  });
+
+  it("saves each item's shop price and photo, keeps an existing photo and refuses another company's", async () => {
+    const c = await company();
+    const milk = { name: "Milk", size: "1 l", qty: 2 };
+    await publishPackVersion(c.id, c.packId, "900", OFF, [
+      { ...milk, retailPrice: "350.00", photo: null, file: file(PNG) },
+    ]);
+    const v2 = await db.packItem.findFirstOrThrow({ where: { version: { version: 2 } } });
+    expect([v2.retailPrice?.toFixed(2), v2.photo?.startsWith("/img/")]).toEqual(["350.00", true]);
+
+    await publishPackVersion(c.id, c.packId, "900", OFF, [
+      { ...milk, retailPrice: "", photo: v2.photo, file: null },
+    ]);
+    const v3 = await db.packItem.findFirstOrThrow({ where: { version: { version: 3 } } });
+    expect([v3.retailPrice, v3.photo]).toEqual([null, v2.photo]);
+
+    const other = await company();
+    await expect(
+      publishPackVersion(other.id, other.packId, "900", OFF, [
+        { ...milk, ...NO_PHOTO, photo: v2.photo },
+      ]),
+    ).rejects.toThrow("Photo not found.");
+    await expect(
+      publishPackVersion(c.id, c.packId, "900", OFF, [{ ...milk, ...NO_PHOTO, retailPrice: "-1" }]),
+    ).rejects.toThrow("Shop prices must be above 0.");
   });
 });

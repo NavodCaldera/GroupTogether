@@ -10,7 +10,14 @@ export function PackContents({
   householdSize,
   durationDays,
 }: {
-  items: { id: string; name: string; size: string; qty: number }[];
+  items: {
+    id: string;
+    name: string;
+    size: string;
+    qty: number;
+    retailPrice: { toString(): string } | null;
+    photo: string | null;
+  }[];
   price: { toString(): string };
   families?: number;
   sizes?: Parameters<typeof SizeTable>[0]["sizes"];
@@ -25,11 +32,25 @@ export function PackContents({
       </div>
       <ul className="divide-y divide-line">
         {items.map((i) => (
-          <li key={i.id} className="flex justify-between gap-3 py-2 text-sm">
-            <span>
-              {i.name} <span className="text-subtle">{i.size}</span>
+          <li key={i.id} className="flex items-center gap-3 py-2.5 text-sm">
+            {i.photo ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={i.photo}
+                alt=""
+                className="size-14 shrink-0 rounded-lg bg-muted object-cover"
+              />
+            ) : (
+              <span className="size-14 shrink-0 rounded-lg bg-muted" />
+            )}
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="font-medium">{i.name}</span>
+              <span className="text-subtle">
+                {i.size}
+                {i.retailPrice ? ` · ${formatLKR(i.retailPrice)} each in shops` : ""}
+              </span>
             </span>
-            <span className="font-medium">× {i.qty}</span>
+            <span className="font-semibold">× {i.qty}</span>
           </li>
         ))}
       </ul>
