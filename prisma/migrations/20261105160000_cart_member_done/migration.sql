@@ -1,1 +1,0 @@
-ALTER TABLE "CartMember" ADD COLUMN "doneAt" TIMESTAMP(3);

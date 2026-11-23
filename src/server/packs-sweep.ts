@@ -1,11 +1,11 @@
 import "server-only";
 import { D } from "@/lib/decimal";
 import { db } from "./db";
-import { lockGroup, releasePackSpot } from "./packs-join";
-import { post } from "./tokens";
+import { lockAttempt, lockGroup, releasePackSpot } from "./packs-join";
+import { credit } from "./tokens";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-export const MAX_EXTENSIONS = 2;
+const MAX_EXTENSIONS = 2;
 
 /** Frees spots whose payment window ran out; drops a basket whose owner never paid. */
 async function expireHolds(now: Date): Promise<number> {
@@ -18,6 +18,7 @@ async function expireHolds(now: Date): Promise<number> {
     for (const a of m.attempts) {
       try {
         await db.$transaction(async (tx) => {
+          await lockAttempt(tx, a.id);
           await releasePackSpot(tx, a.id);
           await tx.paymentAttempt.updateMany({
             where: { id: a.id, status: "PENDING" },
@@ -48,7 +49,10 @@ async function extendOrClose(now: Date): Promise<{ extended: number; closed: num
         if (!g || g.status !== "OPEN" || !g.closesAt || g.closesAt > now) return null;
         const row = await tx.packGroup.findUniqueOrThrow({
           where: { id },
-          select: { extensions: true, version: { select: { pack: { select: { name: true, durationDays: true } } } } },
+          select: {
+            extensions: true,
+            version: { select: { pack: { select: { name: true, durationDays: true } } } },
+          },
         });
         const pack = row.version.pack;
         if (row.extensions < MAX_EXTENSIONS) {
@@ -68,13 +72,14 @@ async function extendOrClose(now: Date): Promise<{ extended: number; closed: num
           orderBy: { userId: "asc" },
         });
         for (const m of paid) {
-          await post(tx, {
-            userId: m.userId,
-            amount: new D(g.price),
-            kind: "PACK_REFUND",
-            eventKey: `pack-refund:${m.id}`,
-            note: `${pack.name} basket did not fill`,
-          });
+          await credit(
+            tx,
+            m.userId,
+            new D(g.price),
+            "PACK_REFUND",
+            `pack-refund:${m.id}`,
+            `${pack.name} basket did not fill`,
+          );
         }
         return "closed" as const;
       });

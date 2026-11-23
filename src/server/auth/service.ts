@@ -1,15 +1,7 @@
 import "server-only";
 import { createHash, randomBytes } from "node:crypto";
 import { z } from "zod";
-import type { AgentStatus, Role, User } from "@/generated/prisma/client";
-import {
-  ADMIN_AREAS,
-  adminHome,
-  canAdminArea,
-  type OperationalAdminArea,
-} from "@/lib/admin-access";
-import { canFactory, factoryOf, type FactorySection } from "@/lib/factory-roles";
-import { linkOnSite } from "@/lib/brand-rules";
+import type { User } from "@/generated/prisma/client";
 import { pinFields, pinInSriLanka, pinOutsideMessage } from "@/lib/location";
 import { db } from "../db";
 import { hashPassword, verifyPassword } from "./password";
@@ -17,140 +9,44 @@ import { hashPassword, verifyPassword } from "./password";
 const SESSION_TTL_DAYS = 30;
 
 /** Sri Lankan mobile: 07XXXXXXXX or +947XXXXXXXX, stored as 07XXXXXXXX. */
-export const phoneSchema = z
+const phoneSchema = z
   .string()
   .trim()
   .transform((v) => v.replace(/[\s-]/g, "").replace(/^\+94/, "0"))
   .pipe(z.string().regex(/^07\d{8}$/, "Enter a mobile number such as 0771234567"));
 
-/** A calendar date typed as YYYY-MM-DD, kept as midnight UTC; not in the future, at most 120 years ago. */
-const birthDateSchema = z
-  .string()
-  .regex(/^\d{4}-\d{2}-\d{2}$/, "Enter your date of birth")
-  .transform((v) => new Date(`${v}T00:00:00Z`))
-  .refine((d) => !Number.isNaN(d.getTime()), "Enter your date of birth")
-  .refine((d) => d.getTime() <= Date.now(), "Your date of birth can't be in the future")
-  .refine(
-    (d) => d.getUTCFullYear() >= new Date().getUTCFullYear() - 120,
-    "Enter your date of birth",
-  );
+const profileFields = {
+  name: z.string().trim().min(2, "Enter your name").max(80),
+  phone: phoneSchema,
+  address: z.string().trim().min(5, "Enter your delivery address").max(300),
+  city: z.string().trim().min(2, "Enter your city").max(60),
+  ...pinFields,
+};
 
-const genderSchema = z.enum(["MALE", "FEMALE"], { message: "Choose your gender" });
+export const profileSchema = z.object(profileFields).refine(pinInSriLanka, pinOutsideMessage);
 
 export const signUpSchema = z
   .object({
-    name: z.string().trim().min(2, "Enter your name"),
+    ...profileFields,
     email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email")),
-    phone: phoneSchema,
-    address: z.string().trim().min(5, "Enter your delivery address").max(300),
-    city: z.string().trim().min(2, "Enter your city").max(60),
-    ...pinFields,
     password: z.string().min(8, "Use at least 8 characters"),
-    gender: genderSchema,
-    birthDate: birthDateSchema,
   })
   .refine(pinInSriLanka, pinOutsideMessage);
-
-type SignUpInput = z.infer<typeof signUpSchema>;
-
-/** The buyer's own profile: who they are and where PickMe drops their orders. */
-export const profileSchema = z
-  .object({
-    name: z.string().trim().min(2, "Enter your name").max(80),
-    phone: phoneSchema,
-    address: z.string().trim().min(5, "Enter your delivery address").max(300),
-    city: z.string().trim().min(2, "Enter your city").max(60),
-    ...pinFields,
-    // Buyers only; left out (sellers, staff) means unchanged.
-    gender: genderSchema.optional(),
-    birthDate: birthDateSchema.optional(),
-  })
-  .refine(pinInSriLanka, pinOutsideMessage);
-
-type ProfileInput = z.infer<typeof profileSchema>;
 
 export class AuthError extends Error {}
 
-const sellerFields = z.object({
-  name: z.string().trim().min(2, "Enter the contact person's name"),
-  company: z.string().trim().min(2, "Enter the factory or company name").max(80),
-  email: z.string().trim().toLowerCase().pipe(z.email("Enter a valid email")),
-  phone: phoneSchema,
-  password: z.string().min(8, "Use at least 8 characters"),
-  // A luxury brand (2026-10-24): its products link to its own website.
-  isBrand: z
-    .preprocess((v) => v === true || v === "on" || v === "true", z.boolean())
-    .default(false),
-  website: z
-    .string()
-    .trim()
-    .max(200)
-    .optional()
-    .transform((v) => v || undefined),
-});
-
-const sellerSchema = sellerFields.refine(
-  (v) => !v.isBrand || (!!v.website && linkOnSite(v.website, null)),
-  {
-    message: "Enter the brand's website, such as https://www.brand.lk",
-    path: ["website"],
-  },
-);
-
-/** Admins create factory seller accounts; sellers can't sign themselves up. */
-export async function createSeller(input: unknown): Promise<User> {
-  const s = sellerSchema.parse(input);
-  const clash = await db.user.findFirst({
-    where: { OR: [{ email: s.email }, { phone: s.phone }] },
-  });
-  if (clash?.email === s.email) throw new AuthError("An account with this email already exists");
-  if (clash) throw new AuthError("An account with this mobile number already exists");
-  return db.user.create({
-    data: {
-      role: "SELLER",
-      name: s.name,
-      company: s.company,
-      email: s.email,
-      phone: s.phone,
-      passwordHash: await hashPassword(s.password),
-      isBrand: s.isBrand,
-      website: s.isBrand ? s.website : null,
-    },
-  });
-}
-
-const packerSchema = sellerFields.omit({ company: true, isBrand: true, website: true }).extend({
-  name: z.string().trim().min(2, "Enter their name").max(80),
-});
-
-/**
- * Public sign-up creates customers only; admins come from the seed, sellers from an admin and
- * agents from an approved application.
- */
-export async function registerUser(input: SignUpInput): Promise<User> {
+export async function registerUser(input: z.infer<typeof signUpSchema>): Promise<User> {
   const clash = await db.user.findFirst({
     where: { OR: [{ email: input.email }, { phone: input.phone }] },
   });
   if (clash?.email === input.email)
     throw new AuthError("An account with this email already exists");
   if (clash) throw new AuthError("An account with this mobile number already exists");
-  return db.user.create({
-    data: {
-      name: input.name,
-      email: input.email,
-      phone: input.phone,
-      address: input.address,
-      city: input.city,
-      lat: input.lat,
-      lng: input.lng,
-      gender: input.gender,
-      birthDate: input.birthDate,
-      passwordHash: await hashPassword(input.password),
-    },
-  });
+  const { password, ...data } = input;
+  return db.user.create({ data: { ...data, passwordHash: await hashPassword(password) } });
 }
 
-export async function updateProfile(userId: string, input: ProfileInput) {
+export async function updateProfile(userId: string, input: z.infer<typeof profileSchema>) {
   const clash = await db.user.findFirst({
     where: { phone: input.phone, id: { not: userId } },
     select: { id: true },
@@ -159,8 +55,10 @@ export async function updateProfile(userId: string, input: ProfileInput) {
   await db.user.update({ where: { id: userId }, data: input });
 }
 
-const LOGIN_LOCKOUT_MESSAGE = "Too many sign-in attempts. Try again in 10 minutes.";
+const DUMMY_HASH =
+  "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
 
+/** Five wrong passwords lock the email for 10 minutes; unknown emails count the same way. */
 export async function authenticate(
   email: string,
   password: string,
@@ -168,17 +66,10 @@ export async function authenticate(
 ): Promise<User> {
   email = email.trim().toLowerCase();
   const attempt = await db.loginAttempt.findUnique({ where: { email } });
-  if (attempt?.lockedUntil && attempt.lockedUntil > now) {
-    throw new AuthError(LOGIN_LOCKOUT_MESSAGE);
-  }
-
+  if (attempt?.lockedUntil && attempt.lockedUntil > now)
+    throw new AuthError("Too many sign-in attempts. Try again in 10 minutes.");
   const user = await db.user.findUnique({ where: { email } });
-  // No transaction or pooled connection is held during password verification.
-  // Attempts past the lock check when the fifth failure lands may finish checking:
-  // a burst can make extra guesses, but failure counts stay exact and the lock applies.
-  // Unknown emails still pay the hashing cost and accrue the same failures.
-  const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
-  if (!user || !ok) {
+  if (!(await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH)) || !user) {
     const lockedUntil = new Date(now.getTime() + 10 * 60_000);
     await db.$executeRaw`
       INSERT INTO "LoginAttempt" ("email", "failures", "lockedUntil", "updatedAt")
@@ -196,30 +87,11 @@ export async function authenticate(
         "updatedAt" = ${now}`;
     throw new AuthError("Email or password is incorrect");
   }
-  if (user.locked) throw new AuthError("This account is locked. Contact support.");
   await db.loginAttempt.deleteMany({ where: { email } });
   return user;
 }
-/**
- * Admin control: a locked customer can't sign in, and locking ends all their sessions at once.
- * Their carts are left as they are (an admin can cancel them separately). Admins can't be locked.
- */
-export async function setUserLocked(userId: string, locked: boolean) {
-  const user = await db.user.findUnique({ where: { id: userId }, select: { role: true } });
-  if (!user) throw new AuthError("User not found");
-  if (user.role === "ADMIN") throw new AuthError("Admin accounts can't be locked");
-  await db.$transaction([
-    db.user.update({ where: { id: userId }, data: { locked } }),
-    ...(locked ? [db.session.deleteMany({ where: { userId } })] : []),
-  ]);
-}
 
-const DUMMY_HASH =
-  "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==";
-
-export function hashToken(token: string): string {
-  return createHash("sha256").update(token).digest("hex");
-}
+const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
 /** Creates a session row and returns the raw token for the cookie. */
 export async function startSession(userId: string, now = new Date()) {
@@ -233,113 +105,23 @@ export async function endSession(token: string) {
   await db.session.deleteMany({ where: { id: hashToken(token) } });
 }
 
-export type SessionUser = Pick<
-  User,
-  | "id"
-  | "role"
-  | "adminArea"
-  | "name"
-  | "email"
-  | "phone"
-  | "address"
-  | "city"
-  | "lat"
-  | "lng"
-  | "gender"
-  | "birthDate"
->;
+const sessionUser = {
+  id: true,
+  name: true,
+  email: true,
+  phone: true,
+  address: true,
+  city: true,
+  lat: true,
+  lng: true,
+} as const;
+
+export type SessionUser = Pick<User, keyof typeof sessionUser>;
 
 export async function userForToken(token: string, now = new Date()): Promise<SessionUser | null> {
   const session = await db.session.findUnique({
     where: { id: hashToken(token) },
-    select: {
-      expiresAt: true,
-      user: {
-        select: {
-          id: true,
-          role: true,
-          adminArea: true,
-          name: true,
-          email: true,
-          phone: true,
-          address: true,
-          city: true,
-          lat: true,
-          lng: true,
-          gender: true,
-          birthDate: true,
-          locked: true,
-        },
-      },
-    },
+    select: { expiresAt: true, user: { select: sessionUser } },
   });
-  if (!session || session.expiresAt <= now || session.user.locked) return null;
-  const { locked: _locked, ...user } = session.user;
-  return user;
-}
-
-export function homeFor(role: Role, adminArea?: string | null): string {
-  if (role === "ADMIN") return adminHome(adminArea);
-  if (role === "SELLER") return "/seller";
-  if (role === "AGENT") return "/agent";
-  return "/dashboard";
-}
-
-/** Resolve the principal from storage before enforcing an operational boundary. */
-export async function assertAdminArea(id: string, area: OperationalAdminArea) {
-  const user = await db.user.findUnique({
-    where: { id },
-    select: { role: true, adminArea: true, locked: true },
-  });
-  if (!canAdminArea(user, area))
-    throw new AuthError("This admin workspace is unavailable to your account");
-}
-
-/** Agents who still serve buyers: a suspended agent still sees parcels and returns. */
-export const AGENT_ACCESS: AgentStatus[] = ["LIVE", "SUSPENDED", "LEAVING"];
-
-/** An AGENT login with a LIVE, SUSPENDED or LEAVING agent row; anyone else is refused. */
-export async function assertAgent(userId: string) {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: {
-      role: true,
-      locked: true,
-      agent: { select: { id: true, userId: true, status: true } },
-    },
-  });
-  if (!user || user.role !== "AGENT" || user.locked || !user.agent)
-    throw new AuthError("Agents only");
-  if (!AGENT_ACCESS.includes(user.agent.status)) throw new AuthError("Agents only");
-  return user.agent;
-}
-
-/** A factory login (owner or staff) whose job includes `section`, with the factory it works for. */
-export async function assertFactorySection(userId: string, section: FactorySection) {
-  const user = await db.user.findUnique({
-    where: { id: userId },
-    select: {
-      id: true,
-      role: true,
-      locked: true,
-      isBrand: true,
-      factoryId: true,
-      factoryRole: true,
-    },
-  });
-  if (!user || user.role !== "SELLER" || user.locked || user.isBrand)
-    throw new AuthError("Factory accounts only");
-  const f = factoryOf(user);
-  if (!canFactory(f.factoryRole, section)) throw new AuthError("Not part of your job");
-  return f;
-}
-
-export async function createOperationalAdmin(input: unknown): Promise<User> {
-  const data = packerSchema.extend({ adminArea: z.enum(ADMIN_AREAS) }).parse(input);
-  if (await db.user.count({ where: { OR: [{ email: data.email }, { phone: data.phone }] } }))
-    throw new AuthError("An account with this email or mobile number already exists");
-  const { password, ...fields } = data;
-  return db.user.create({
-    data: { ...fields, role: "ADMIN", passwordHash: await hashPassword(password) },
-  });
+  return session && session.expiresAt > now ? session.user : null;
 }

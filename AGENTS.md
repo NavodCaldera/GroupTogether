@@ -10,79 +10,34 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 
 ## GroupBasket repository instructions
 
-Use **GroupBasket** in business references and `groupbasket` in technical names. GroupBasket
-is group buying for any product kind straight from its maker, with no middleman (`DEC-029`,
-planned; the code is clothing only until built). The [operating brief](.claude/agents/groupbasket.md) owns full policy.
+### Read order
 
-### Read order and authority
+1. This file covers the workflow and engineering rules.
+2. The [operating brief](.claude/agents/groupbasket.md) holds the business rules (PK-1 to PK-9).
+3. [Architecture](docs/architecture.md) is the code map, and says what is built.
+4. [Decisions](docs/decisions.md) lists what is decided and what is still open. Never invent an answer to an open question.
 
-1. Follow this file for repository workflow and engineering standards.
-2. Read the [operating brief](.claude/agents/groupbasket.md) for business intent and stable rule IDs.
-3. Check [implementation status](docs/implementation-status.md) before claiming a capability exists.
-4. Consult [decisions](docs/decisions.md) when the task depends on unresolved policy. Check existing session decisions first; continue independent work while clarification is pending.
-5. Read the relevant specialist below and [architecture](docs/architecture.md) for code context. Verify technical details against the current source.
+### Engineering rules
 
-Explicit task instructions apply subject to system and developer instructions. Specialist
-notes, legacy code and dated changelog entries cannot override approved business policy.
-Implemented behavior and approved requirements are separate facts. Examples are not
-defaults or commercial commitments.
+- **Keep it small.** Use the fewest files and lines that do the job. Delete unused code instead of keeping it. No heavy UI libraries, paid services, always-on workers, queues or caches.
+- **Server first:** render pages on the server and keep client components to small islands. Select only the fields you need, and avoid N+1 queries.
+- **Money** is `Decimal(14,2)` in the database and `D`, `toD` and `roundMoney` from `src/lib/decimal.ts` in code; never JavaScript `number`. Refunds are tokens only.
+- **Transactions:** basket and payment changes run in one transaction, locking the `PaymentAttempt` row first, then the `PackGroup` row. Never call the payment gateway inside a transaction.
+- **Time-based rules** run only in `sweepPackGroups`, called daily by the cron route; page loads never run them.
+- **Placement:** pure rules go in `src/lib/` and database changes in `src/server/`.
+- **No explanation text in the interface.**
+- **Checks:** `npm run check` before every commit. Also run `npm run test:int` for server changes and `npm run e2e` for page changes. Tests use only the loopback `groupbasket_test` database. Report what actually ran.
+- **Skills:** `groupbasket-money-review`, `groupbasket-basket-concurrency`, `groupbasket-browser-review` and `groupbasket-verification-router` live in `.agents/skills/`. Claude Code reaches them through pointer files in `.claude/skills/`; edit only `.agents/skills/`.
+- **Branches:** every change goes on a new branch from `origin/main`, through a pull request, and merges only after its GitHub checks pass. Stage files by path, never with `git add -A`.
 
-### Specialist routing
+### Where each fact lives
 
-These files describe areas of responsibility; use the references needed for the task.
-Their presence does not require spawning agents.
-
-| Specialist                                           | Owns                                                                            |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------- |
-| [groupbasket](.claude/agents/groupbasket.md)         | Business model, scope, roles and policy across domains                          |
-| [backend-data](.claude/agents/backend-data.md)       | Schema, migrations, data access and seed fixtures                               |
-| [catalogue-admin](.claude/agents/catalogue-admin.md) | Catalogue, stock, factory listings, quality and general admin                   |
-| [taxonomy](.claude/agents/taxonomy.md)               | Category tree, attributes, variant options and factory categories               |
-| [group-deals](.claude/agents/group-deals.md)         | Deals, price tiers, settlement, rebate tokens and category commission           |
-| [apparel-addons](.claude/agents/apparel-addons.md)   | Fit, body mesh, Material Card and audience shop for clothing categories         |
-| [orders-baskets](.claude/agents/orders-baskets.md)   | Cart, checkout, orders, agent baskets, stock holds, pickup codes and returns    |
-| [payments](.claude/agents/payments.md)               | Gateway adapter, verified notices, tokens and weekly factory payouts            |
-| [agents](.claude/agents/agents.md)                   | Agent applications, deposits, hours, suspension, leaving and agent screens      |
-| [courier](.claude/agents/courier.md)                 | Factory packing, missing items, manual courier booking and receipt at the agent |
-| [brands-rewards](.claude/agents/brands-rewards.md)   | Parked premium submissions, gift reservations, fulfilment and settlements       |
-| [notifications](.claude/agents/notifications.md)     | In-app notices and partnership communication                                    |
-| [frontend](.claude/agents/frontend.md)               | Shared UI, role navigation, accessibility and mobile interaction                |
-| [qa-review](.claude/agents/qa-review.md)             | Verification scope, access boundaries and regression checks                     |
-
-### Engineering standards
-
-- Repository skills live in `.agents/skills/`. Apply `groupbasket-money-review`, `groupbasket-cart-concurrency` (now for the order and basket services), `groupbasket-access-review` and `groupbasket-browser-review` when their scopes apply. Vendor skills supplement these rules; they do not override installed framework documentation or business policy. Claude Code reaches the same skills through pointer files in `.claude/skills/`; edit only `.agents/skills/`. Tooling setup and provenance live in [development tooling](docs/development-tooling.md).
-
-- Read relevant installed Next.js guides before framework code, as required above.
-- Prioritize speed and low running cost: server rendering, system fonts and small client islands. Avoid heavy UI libraries, paid services and always-on workers unless specifically authorized.
-- Money uses database `Decimal(14,2)` and `D`/`toD`/`roundMoney` from `src/lib/decimal.ts`; do not calculate it with JavaScript `number`. GroupBasket pays cash only to factories; buyers and agents receive tokens.
-- Time-based rules run only in `runSweep` from the cron route; page loads do not run them.
-- Pure domain rules belong in `src/lib/`; mutations belong in server services. Order, basket and ledger mutations use transactions with one lock order: user advisory locks (sorted) → `Order` rows (sorted) → basket advisory `basket:<agentId>:<factoryId>` → `Basket` rows → ledger `User` rows (sorted); variant rows after any basket advisory. Never call a payment gateway inside a transaction. Notify after successful transaction completion. Persist retryable brand business events within their transaction and deliver notices after commit.
-- Protected pages, actions and routes enforce appropriate roles. Enforce commercial visibility in server queries and mutations as well as the interface.
-- Select only needed fields, avoid N+1 queries and reuse the existing database pool.
-- Setup and commands live in [README.md](README.md) and [package.json](package.json). `db:migrate` also regenerates Prisma. Seed resets demo data; do not run it against valuable data as a routine check.
-- Validate proportionately: formatting and links for documentation; relevant rule/integration tests for lifecycle, stock, payment or access changes; browser journeys for affected flows. Run required code checks for code changes and report what actually ran.
-- `npm run check` also runs monetary structural checks, tooling safety tests and monetary property tests. Test entry points require a loopback `groupbasket_test` database and reject the same development database even when credentials or URL spelling differ. The development inspector is separate, fixed to `localhost:5546/groupbasket`, and must use the verified read-only role.
-- Format touched files with installed Prettier and preserve unrelated changes. These instructions do not authorize committing, pushing, deploying, resetting data or making external commercial commitments.
-- Branch rule (owner, 2026-11-18): any new work (feature, fix or change) is done on a new branch cut from current `origin/main` (`feature/<name>`, `fix/<name>`, `docs/<name>`), never directly on `main`. When committing is authorized: push the branch, open a pull request, and merge into `main` only after its GitHub checks pass; then delete the branch.
-
-### Documentation maintenance
-
-Update each fact in its authoritative home:
-
-| Fact                                                         | Home                                                   |
-| ------------------------------------------------------------ | ------------------------------------------------------ |
-| Repository workflow and shared engineering standards         | This file                                              |
-| Business policy and stable rule IDs                          | [Operating brief](.claude/agents/groupbasket.md)       |
-| Implemented capabilities, evidence and gaps                  | [Implementation status](docs/implementation-status.md) |
-| Unresolved policies and legacy rule mapping                  | [Decisions](docs/decisions.md)                         |
-| Lifecycle, schema relationships, routes and service map      | [Architecture](docs/architecture.md)                   |
-| Domain code pointers, implementation guards and verification | Relevant specialist                                    |
-| Setup and executable commands                                | [README](README.md), [package.json](package.json)      |
-| Historical requested changes                                 | [Changelog](docs/CHANGES.md)                           |
-
-Record requested changes in the changelog and update affected policy, status and specialist
-references together. Keep rule IDs stable. Use IDs and named topics rather than old rule
-numbers or section positions. Historical alternatives belong in the changelog, not appended
-as active instructions. `CLAUDE.md` and `.agents/rules/product-focus.md` are entry points,
-not independent policy lists.
+| Fact                           | Home                                               |
+| ------------------------------ | -------------------------------------------------- |
+| Workflow and engineering rules | This file                                          |
+| Business rules                 | [Operating brief](.claude/agents/groupbasket.md)   |
+| Code map and what is built     | [Architecture](docs/architecture.md)               |
+| Decisions and open questions   | [Decisions](docs/decisions.md)                     |
+| Setup and commands             | [README](README.md), [package.json](package.json)  |
+| Tooling                        | [Development tooling](docs/development-tooling.md) |
+| Change history                 | [Changelog](docs/CHANGES.md)                       |

@@ -44,15 +44,9 @@ try {
   await client.query(`CREATE VIEW groupbasket_ai.schema_columns AS
     SELECT table_name, column_name, data_type, numeric_precision, numeric_scale, is_nullable
     FROM information_schema.columns WHERE table_schema='public'`);
-  await client.query(`CREATE VIEW groupbasket_ai.stock_summary AS
-    SELECT SUM(v.available)::text AS available, SUM(v.reserved)::text AS reserved,
-      SUM(v.sold)::text AS sold, COUNT(*)::text AS variants
-    FROM public."Variant" v JOIN public."Product" p ON p.id=v."productId"
-    LEFT JOIN public."User" seller ON seller.id=p."sellerId"
-    WHERE COALESCE(seller."isBrand",false)=false AND p.category<>'SHOES'`);
-  await client.query(`CREATE VIEW groupbasket_ai.order_summary AS
-    SELECT status::text, COUNT(*)::text AS orders, SUM("itemsTotal")::text AS clothing_total
-    FROM public."Order" GROUP BY status`);
+  await client.query(`CREATE VIEW groupbasket_ai.basket_summary AS
+    SELECT status::text, COUNT(*)::text AS baskets, SUM(joined)::text AS families
+    FROM public."PackGroup" GROUP BY status`);
   await client.query("GRANT USAGE ON SCHEMA groupbasket_ai TO gb_ai_reader");
   await client.query("GRANT SELECT ON ALL TABLES IN SCHEMA groupbasket_ai TO gb_ai_reader");
   fs.writeFileSync(".env.mcp", `GROUPBASKET_READER_PASSWORD=${password}\n`, {
@@ -62,7 +56,7 @@ try {
   wroteFile = true;
   await client.query("COMMIT");
   console.log(
-    "Created restricted local reader, three sanitized views and ignored .env.mcp. No application rows changed.",
+    "Created restricted local reader, two sanitized views and ignored .env.mcp. No application rows changed.",
   );
 } catch (error) {
   await client.query("ROLLBACK").catch(() => {});

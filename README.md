@@ -1,93 +1,40 @@
 # GroupBasket
 
-Business model and current rules: [main agent brief](.claude/agents/groupbasket.md).
-For code coverage and planned features, see [implementation status](docs/implementation-status.md).
-
-Group buying straight from factories, no middleman. Built today for clothing; any product kind with quantity price tiers is planned (`DEC-029`). Shoppers share carts to reach the
-LKR 50,000 minimum order. The cart owner pays the whole cart by bank transfer, and the order
-arrives in one PickMe drop.
+Family packs from the companies you know, bought together with families near you. The business
+rules are in the [operating brief](.claude/agents/groupbasket.md), and the code map is in
+[architecture](docs/architecture.md).
 
 ## Run it locally
+
+You need Node 24 and PostgreSQL. `npm run db:start` runs local servers on ports 5546 (development)
+and 5547 (tests) where its binaries exist; otherwise use your own PostgreSQL on those ports.
 
 ```sh
 npm install
 cp .env.example .env
-npm run db:start      # local PostgreSQL on 5546 (dev) and 5547 (test)
 npx prisma migrate deploy
-npm run db:seed       # demo data, password "password123" (loads the material library too)
-npm run materials:load  # material library from seeds/ (safe to re-run; -- --publish publishes drafts)
-npm run fit:models    # pose models for on-phone measuring (~15 MB, once)
+npm run db:seed       # demo data; wipes the database first
 npm run dev           # http://localhost:3002
 ```
 
-Fit heatmap (`DEC-020`): sign in as Dilan (men's tops in 3D) or Sachini (women's tops in 3D,
-and How did it fit? on her blouse order); Tharindu has no measurements, to try measuring. Garment
-simulations are made offline with [tools/fit-simulation](tools/fit-simulation/README.md).
+Every demo buyer's password is `password123`:
 
-Demo accounts:
+- `buyer@example.com` (Dilan) has two Hemas baskets nearby, his contact Nimali's first.
+- `buyer3@example.com` (Tharindu) lives in Wellawatte with no basket nearby, so he can start one.
 
-- `core@groupbasket.lk` (settings and admin accounts), `premium@groupbasket.lk` (luxury
-  brands), `factory@groupbasket.lk` (factories) and `buyers@groupbasket.lk` (buyers and orders).
-- `buyer@example.com` (Dilan), `buyer2@example.com` (Sachini) and `buyer3@example.com`
-  (Tharindu), the buyers. `seller@example.com` is the factory and `brand@example.com` the luxury brand. Packing staff (`packer@`, `packer2@`) are seeded but parked.
+Payments use the demo gateway (`PAYMENT_GATEWAY="demo"`): its page has Pay, Fail and Cancel.
 
-## Operational admin accounts
+## Commands
 
-There is no main admin. Every admin belongs to one area (**Premium brands**, **Factory
-apparel** or **Warehouse and delivery**) and runs that whole stream, including its own users
-and settings. Apply pending migrations with `npm run db:deploy`; former unrestricted admin
-accounts become warehouse admins. Create a deployment's first admin for each area with:
+| Command             | Does                                                              |
+| ------------------- | ----------------------------------------------------------------- |
+| `npm run check`     | Money checks, doc links, types, lint, tooling tests, unit tests   |
+| `npm run test:int`  | Integration tests on `groupbasket_test`                           |
+| `npm run e2e`       | Browser tests, desktop and 360 px mobile                          |
+| `npm run build`     | Production build                                                  |
+| `npm run dev:phone` | HTTPS dev server for a phone on the same Wi-Fi (`DEV_PHONE_HOST`) |
 
-```bash
-npm run admin:create -- PREMIUM "Name" email@example.com 0771234567   # or FACTORY / WAREHOUSE
-```
+## Running it
 
-It prints a temporary password. After that, each area adds its own admins in
-**Admin > Users > Add admin**. Factory sellers, premium brands and packing staff keep their
-existing workspaces.
-Buyers reach pre-purchase design samples from the dashboard; the group owner requests and
-accepts transport costs, and warehouse operators record sample dispatch and delivery.
-No additional connector or dependency is required for these manual operations.
-
-## Before going live
-
-- **Bank details:** enter them in Admin → Settings. Cart owners see them on the payment page.
-- **PickMe:** apply for a PickMe business (Flash) account to get the API docs and keys.
-  - Until then, keep `DELIVERY_PROVIDER=manual`. The admin books each trip in the PickMe app and
-    enters the details.
-  - Once you have them, set `DELIVERY_PROVIDER=pickme` and the `PICKME_*` variables. Then map the
-    real request fields in `src/server/delivery/provider.ts` and
-    `src/app/api/webhooks/pickme/route.ts`.
-- **Cron:** call `POST /api/cron/sweep` with `Authorization: Bearer $CRON_SECRET` every 5 minutes,
-  so expiry processing and in-app notices run on time. Deadlines also take effect whenever a page loads.
-- **Hosting:** not chosen yet. Bank slips and photos are stored on local disk (`STORAGE_DIR`). On
-  serverless hosting, swap `src/server/storage/local.ts` for object storage.
-
-## Tests
-
-Development assistant skills, MCP setup, CI, security checks and upstream provenance:
-[development tooling](docs/development-tooling.md). Repository skills load on the next
-Codex turn/session; configured MCP servers must appear in the client's actual tool inventory
-before an assistant may claim access.
-
-```sh
-npm run check      # typecheck, lint and unit tests
-npm run test:int   # integration tests: checkout, baskets, payments, returns, payouts
-npm run e2e        # browser journeys
-```
-
-Additional checks and local tools:
-
-```sh
-npm run check:money     # selected monetary hazards and Decimal(14,2) mappings
-npm run check:docs      # local file links in repository guidance
-npm run test:tooling    # test database and inspector boundary regressions
-npm run e2e:mobile      # 360 px accessibility and role-workspace smoke checks
-npm run browser -- --help
-npm run mcp:verify      # Next.js DevTools handshake
-```
-
-Tests require the disposable loopback database `groupbasket_test`; test setup resets it.
-The development database and read-only MCP reader are never test targets. GitHub Actions
-runs checks, a production build, integration tests and browser tests against disposable
-PostgreSQL. A separate workflow audits dependencies and scans local Semgrep rules.
+- **Daily job:** call `POST /api/cron/sweep` once a day with `Authorization: Bearer $CRON_SECRET`.
+- **Hosting:** not chosen yet. One small server, or serverless with a hosted PostgreSQL, both fit.

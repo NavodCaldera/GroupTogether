@@ -1,4 +1,3 @@
-import type { TokenKind } from "@/generated/prisma/enums";
 import { colomboIsoDay } from "./format";
 
 const time = new Intl.DateTimeFormat("en-GB", {
@@ -39,42 +38,4 @@ export function groupByDay<T extends { createdAt: Date }>(entries: T[], now = ne
     group.entries.push(e);
   }
   return groups;
-}
-
-/** How a buyer's token entry reads in their history. */
-export type TokenTone = "in" | "out" | "refund" | "order";
-
-const KINDS: Record<TokenKind, { title: string; tone: TokenTone; note: boolean }> = {
-  RETURN: { title: "Return refund", tone: "refund", note: true },
-  HOLD: { title: "Paid towards an order", tone: "order", note: false },
-  RELEASE: { title: "Back from an unpaid order", tone: "refund", note: false },
-  SPEND: { title: "Spent on an order", tone: "order", note: false },
-  LATE_PAYMENT: { title: "Late payment returned", tone: "refund", note: true },
-  ORDER_CANCEL: { title: "Order refund", tone: "refund", note: true },
-  AGENT_FEE: { title: "Agent fee", tone: "in", note: true },
-  COURIER_REPAY: { title: "Courier repaid", tone: "in", note: true },
-  FEE_CLAWBACK: { title: "Fee taken back", tone: "out", note: true },
-  MISSING_ITEM: { title: "Missing item refund", tone: "refund", note: true },
-  DEPOSIT_RETURN: { title: "Deposit returned", tone: "in", note: true },
-  TRANSFER_OUT: { title: "Sent", tone: "out", note: false },
-  TRANSFER_IN: { title: "Received", tone: "in", note: false },
-  DEAL_REBATE: { title: "Group deal rebate", tone: "in", note: true },
-  PACK_REFUND: { title: "Basket refund", tone: "refund", note: true },
-};
-
-/** Title and detail line for one entry. A transfer names the other person instead of the note,
- * and a note that only repeats the title is left out. */
-export function tokenEntryLabel(e: {
-  kind: TokenKind;
-  note: string;
-  counterparty?: string | null;
-}) {
-  const k = KINDS[e.kind];
-  const title =
-    e.counterparty && e.kind === "TRANSFER_OUT"
-      ? `To ${e.counterparty}`
-      : e.counterparty && e.kind === "TRANSFER_IN"
-        ? `From ${e.counterparty}`
-        : k.title;
-  return { title, detail: k.note ? e.note : null, tone: k.tone };
 }

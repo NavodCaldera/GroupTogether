@@ -3,7 +3,7 @@ import { authenticate, AuthError } from "@/server/auth/service";
 import * as passwordApi from "@/server/auth/password";
 import { hashPassword } from "@/server/auth/password";
 import { db } from "@/server/db";
-import { makeUser, resetDb } from "./helpers";
+import { makeBuyer, resetDb } from "./helpers";
 
 const now = new Date("2026-11-05T06:00:00Z");
 const lockMessage = "Too many sign-in attempts. Try again in 10 minutes.";
@@ -12,7 +12,7 @@ beforeEach(resetDb);
 afterAll(() => db.$disconnect());
 
 async function account() {
-  const user = await makeUser();
+  const user = await makeBuyer();
   return db.user.update({
     where: { id: user.id },
     data: { email: "user@x.lk", passwordHash: await hashPassword(password) },
@@ -86,15 +86,6 @@ describe("email login lockout", () => {
     await fail("user@x.lk");
     await fail("user@x.lk", 1, new Date(now.getTime() + 600_000));
     expect(await attempt()).toMatchObject({ failures: 1, lockedUntil: null });
-  });
-  it("counts wrong passwords for administratively locked users and preserves their correct-password message", async () => {
-    const user = await account();
-    await db.user.update({ where: { id: user.id }, data: { locked: true } });
-    await fail(user.email, 1);
-    expect(await attempt()).toMatchObject({ failures: 1 });
-    await expect(authenticate(user.email, password, now)).rejects.toThrow(
-      "This account is locked. Contact support.",
-    );
   });
   it("expired lock restarts the count", async () => {
     await account();

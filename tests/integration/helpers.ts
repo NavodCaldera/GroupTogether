@@ -1,225 +1,34 @@
-import { randomUUID } from "node:crypto";
-import type { AgentStatus } from "@/generated/prisma/client";
 import { db } from "@/server/db";
-import { ensureCategoryTree } from "@/server/categories";
-import { CLOTHING_ROOT_ID } from "@/lib/categories";
-import { variantFields } from "@/lib/variant-options";
 
-/** Variant columns for a size-only variant. */
-export const sizeVariant = (size: string) => variantFields({ size });
-
-/** Empty every table and restore default settings and the starting category tree. */
+/** Empty every table and restore the settings row. */
 export async function resetDb() {
   const tables = await db.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables
     WHERE schemaname = 'public' AND tablename <> '_prisma_migrations'`;
-  if (tables.length > 0) {
-    const list = tables.map((t) => `"public"."${t.tablename}"`).join(", ");
-    await db.$executeRawUnsafe(`TRUNCATE TABLE ${list} CASCADE`);
-  }
+  if (tables.length > 0)
+    await db.$executeRawUnsafe(
+      `TRUNCATE TABLE ${tables.map((t) => `"public"."${t.tablename}"`).join(", ")} CASCADE`,
+    );
   await db.settings.create({ data: { id: 1 } });
-  await ensureCategoryTree();
-}
-
-/** Lets a factory list in a category and everything below it (CATG-003); Clothing by default. */
-export async function approveCategory(factoryId: string, categoryId = CLOTHING_ROOT_ID) {
-  return db.factoryCategory.upsert({
-    where: { factoryId_categoryId: { factoryId, categoryId } },
-    create: { factoryId, categoryId, status: "APPROVED", reviewedAt: new Date() },
-    update: { status: "APPROVED" },
-  });
 }
 
 let n = 0;
-/** Admins default to the Agents and orders area; pass another area for premium or factory work. */
-export async function makeUser(
-  role: "CUSTOMER" | "ADMIN" = "CUSTOMER",
-  adminArea: "PREMIUM" | "FACTORY" | "AGENTS" | "CORE" = "AGENTS",
-) {
+/** A buyer with an address pin (central Colombo unless given). */
+export async function makeBuyer({
+  lat = 6.9271,
+  lng = 79.8612,
+}: { lat?: number; lng?: number } = {}) {
   n++;
   return db.user.create({
     data: {
-      role,
-      adminArea: role === "ADMIN" ? adminArea : null,
       name: `User ${n}`,
       email: `u${n}-${Date.now()}@test.lk`,
       phone: `07${String(10000000 + n).slice(-8)}`,
       passwordHash: "x",
       address: "1 Test Rd",
       city: "Colombo",
-      lat: 6.9271,
-      lng: 79.8612,
-    },
-  });
-}
-
-/** A live product with one size holding `available` free units. */
-export async function makeVariant(price: string, available: number) {
-  const p = await db.product.create({
-    data: {
-      title: `Shirt ${++n}`,
-      brand: "Test",
-      categoryId: CLOTHING_ROOT_ID,
-      price,
-      status: "LIVE",
-      variants: { create: { ...sizeVariant("M"), available } },
-    },
-    include: { variants: true },
-  });
-  return p.variants[0];
-}
-
-/** A tiny JPEG upload. */
-export function slipFile() {
-  return new File([new Uint8Array([0xff, 0xd8, 0xff, 0xe0])], "photo.jpg", { type: "image/jpeg" });
-}
-
-export function giftPhotoFile() {
-  return new File(
-    [
-      Buffer.from(
-        "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jC1sAAAAASUVORK5CYII=",
-        "base64",
-      ),
-    ],
-    "gift.png",
-    { type: "image/png" },
-  );
-}
-
-/** A factory account (SELLER with a profile) and a LIVE product: factory 1000 + 100 = 1100, 50 free. */
-export async function makeFactory() {
-  n++;
-  const factory = await db.user.create({
-    data: {
-      role: "SELLER",
-      name: `Factory ${n}`,
-      email: `f${n}-${Date.now()}@test.lk`,
-      phone: `07${String(20000000 + n).slice(-8)}`,
-      passwordHash: "x",
-      company: `Factory ${n}`,
-      factoryProfile: { create: {} },
-      factoryCategories: {
-        create: { categoryId: CLOTHING_ROOT_ID, status: "APPROVED", reviewedAt: new Date() },
-      },
-    },
-  });
-  const product = await db.product.create({
-    data: {
-      title: `Shirt ${n}`,
-      brand: "Test",
-      categoryId: CLOTHING_ROOT_ID,
-      price: "1100",
-      factoryPrice: "1000",
-      commission: "100",
-      status: "LIVE",
-      sellerId: factory.id,
-      variants: { create: { ...sizeVariant("M"), available: 50 } },
-    },
-    include: { variants: true },
-  });
-  return { factory, variant: product.variants[0] };
-}
-
-/** An agent user with a pin; status defaults to LIVE. */
-export async function makeAgent({
-  lat = 6.9271,
-  lng = 79.8612,
-  status = "LIVE",
-}: { lat?: number; lng?: number; status?: AgentStatus } = {}) {
-  n++;
-  const user = await db.user.create({
-    data: {
-      role: "AGENT",
-      name: `Agent ${n}`,
-      email: `a${n}-${Date.now()}@test.lk`,
-      phone: `07${String(30000000 + n).slice(-8)}`,
-      passwordHash: "x",
-      address: "1 Agent Rd",
-      city: "Colombo",
       lat,
       lng,
-    },
-  });
-  const agent = await db.agent.create({
-    data: { userId: user.id, status, lat, lng, address: "1 Agent Rd", city: "Colombo" },
-  });
-  return { user, agent };
-}
-
-/** A buyer with a pin. */
-export async function makeBuyer({
-  lat = 6.9271,
-  lng = 79.8612,
-}: { lat?: number; lng?: number } = {}) {
-  const user = await makeUser("CUSTOMER");
-  return db.user.update({ where: { id: user.id }, data: { lat, lng } });
-}
-
-/** A RECEIVED order at an agent with one line (1100 = 1000 + 100). The 5% agent fee of 55 is paid
- * in cash at pickup (DEC-019); `onlineFee` makes an older order that paid it online (DEC-018).
- * `collectedAt` null leaves the line uncollected and the cash fee unpaid. */
-export async function makeReceivedOrder({
-  qty = 1,
-  receivedAt = new Date(),
-  collectedAt = receivedAt as Date | null,
-  onlineFee = false,
-  factory,
-  agent,
-}: {
-  qty?: number;
-  receivedAt?: Date;
-  collectedAt?: Date | null;
-  onlineFee?: boolean;
-  factory?: Awaited<ReturnType<typeof makeFactory>>;
-  agent?: Awaited<ReturnType<typeof makeAgent>>;
-} = {}) {
-  const f = factory ?? (await makeFactory());
-  const a = agent ?? (await makeAgent());
-  const buyer = await makeBuyer();
-  const order = await db.order.create({
-    data: {
-      buyerId: buyer.id,
-      agentId: a.agent.id,
-      factoryId: f.factory.id,
-      status: "RECEIVED",
-      itemsTotal: String(1100 * qty),
-      courierTotal: "0",
-      agentFeeTotal: String(onlineFee ? 55 * qty : 0),
-      tokensApplied: String((onlineFee ? 1155 : 1100) * qty),
-      amountDue: "0",
-      holdUntil: receivedAt,
-      paidAt: receivedAt,
-      receivedAt,
-      lines: {
-        create: {
-          variantId: f.variant.id,
-          variantLabel: f.variant.label,
-          qty,
-          unitPrice: "1100",
-          factoryPrice: "1000",
-          courierEach: "0",
-          agentFeeEach: onlineFee ? "55" : "0",
-          cashFeeEach: onlineFee ? "0" : "55",
-          cashFeePaid: !onlineFee && collectedAt ? String(55 * qty) : null,
-          collectedAt,
-        },
-      },
-    },
-    include: { lines: true },
-  });
-  return { ...f, ...a, agentUser: a.user, buyer, order, line: order.lines[0] };
-}
-
-/** Give a user token balance with one ORDER_CANCEL entry. */
-export async function fundTokens(userId: string, amount: string | number) {
-  return db.tokenEntry.create({
-    data: {
-      userId,
-      amount: String(amount),
-      kind: "ORDER_CANCEL",
-      eventKey: `test:${randomUUID()}`,
-      note: "Test funding",
     },
   });
 }

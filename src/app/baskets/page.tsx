@@ -1,6 +1,5 @@
 import { BasketCard } from "@/components/basket-card";
-import { Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
-import { BUYER_ROLES } from "@/lib/roles";
+import { Button, EmptyState, LinkButton, PageHeader, Select } from "@/components/ui";
 import { requireUser } from "@/server/auth/session";
 import { homeCategories, openBaskets } from "@/server/packs";
 
@@ -10,12 +9,11 @@ export default async function BasketsPage({ searchParams }: PageProps<"/baskets"
   const one = (v: string | string[] | undefined) => (typeof v === "string" && v ? v : undefined);
   const company = one(q.company);
   const category = one(q.category);
-  const user = await requireUser([...BUYER_ROLES], "/baskets");
+  const user = await requireUser("/baskets");
   const [cats, baskets] = await Promise.all([
     homeCategories(),
     openBaskets(user, { companySlug: company, categorySlug: category }),
   ]);
-  const select = "rounded-lg border border-line bg-paper px-3 py-2 text-sm";
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
@@ -23,18 +21,18 @@ export default async function BasketsPage({ searchParams }: PageProps<"/baskets"
       <form method="get" className="flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1 text-sm">
           Category
-          <select name="category" defaultValue={category ?? ""} className={select}>
+          <Select name="category" defaultValue={category ?? ""}>
             <option value="">All</option>
             {cats.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.name}
               </option>
             ))}
-          </select>
+          </Select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Company
-          <select name="company" defaultValue={company ?? ""} className={select}>
+          <Select name="company" defaultValue={company ?? ""}>
             <option value="">All</option>
             {cats.flatMap((c) =>
               c.companies.map((co) => (
@@ -43,7 +41,7 @@ export default async function BasketsPage({ searchParams }: PageProps<"/baskets"
                 </option>
               )),
             )}
-          </select>
+          </Select>
         </label>
         <Button type="submit">Filter</Button>
       </form>

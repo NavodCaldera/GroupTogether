@@ -5,5 +5,3 @@ config({ quiet: true });
 
 const url = assertTestDatabase(process.env.TEST_DATABASE_URL, process.env.DATABASE_URL);
 process.env.DATABASE_URL = url;
-process.env.STORAGE_DIR = ".data/test-uploads-int";
-process.env.BODY_FIT_ENABLED = "1";

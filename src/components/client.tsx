@@ -2,26 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-
-/** Live "2h 5m left" that ticks every 20s; the server renders the first value. */
-export function Countdown({ until, prefix = "" }: { until: string; prefix?: string }) {
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 20_000);
-    return () => clearInterval(t);
-  }, []);
-  const ms = new Date(until).getTime() - now;
-  if (ms <= 0) return <span>{prefix}time is up</span>;
-  const mins = Math.ceil(ms / 60_000);
-  const h = Math.floor(mins / 60);
-  return (
-    <span suppressHydrationWarning>
-      {prefix}
-      {h > 0 ? `${h}h ${mins % 60}m` : `${mins}m`} left
-    </span>
-  );
-}
+import { useEffect } from "react";
 
 // How many GroupBasket pages sit behind this one in the tab's history, so Back never leaves the
 // site for a page the visitor came from (a shared link, a search result). Kept in memory: a full

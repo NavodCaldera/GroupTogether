@@ -3,7 +3,7 @@ import { formatDate, formatLKR } from "@/lib/format";
 import { formatDistance } from "@/lib/distance";
 import { Badge } from "./ui";
 
-export type OpenBasket = {
+type OpenBasket = {
   id: string;
   distanceKm: number;
   city: string | null;

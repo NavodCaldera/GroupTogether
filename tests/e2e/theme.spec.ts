@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 test("white light mode by default, dark mode on request, remembered", async ({ page }) => {
-  await page.goto("/shop");
+  await page.goto("/");
   const bg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor);
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   expect(await bg()).toBe("rgb(255, 255, 255)");

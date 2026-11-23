@@ -1,35 +1,14 @@
 # GroupBasket
 
-Start with [AGENTS.md](AGENTS.md) for read order, engineering standards, documentation
-ownership and specialist routing. Then read the [operating brief](.claude/agents/groupbasket.md)
-for business scope, participants and stable policy IDs.
+Start with [AGENTS.md](AGENTS.md), then the [operating brief](.claude/agents/groupbasket.md).
 
-Own baskets (`BSK-008`, `DEC-023`, 2026-11-18) are a second basket kind with no agent: code that
-reads an order's or basket's agent must handle null. They charge no delivery fee (the owner pays
-the courier on delivery) and can be ordered only once they hold `ownMinItems` items. An own
-basket holds any products of one factory (`DEC-027`, 2026-11-21); others join it only by a
-request the owner accepts, and there are no share links (`DEC-028`). On the Cart buyers tick items
-and send them by Agent pickup, My basket or Join a basket; not from the product page.
+GroupBasket is group buying of family packs (`DEC-030`, 2026-11-23). Companies are listed under
+categories, and each company has fixed standard packs for one family. Families within 1 km of
+each other fill a basket. The first family to pay owns it and receives the delivery. Everyone
+pays when they join. A full basket places one order with the company. An unfilled basket is
+extended twice, then closed with token refunds.
 
-Buyers give gender and date of birth at sign-up (`DEC-025`, 2026-11-21); the shop shows only
-their own audience plus unisex products, with no Audience box. Orders show four stages (Filling,
-Packing, On the way, Delivered; Refunded for own baskets past their 10-day wait) and a paid order
-can never be cancelled by a buyer (`DEC-026`, 2026-11-21). `main` is protected on GitHub:
-changes land only through a pull request with green, up-to-date checks.
-
-The token ledger is append-only in the database: seed data cannot backdate entries. The buyer
-Tokens page groups history by day and names the other person on transfers (2026-11-21). Its recipient box suggests any buyer or
-agent with full email and phone, by owner decision. Profile has no tokens box (Tokens tab only).
-
-GroupBasket is becoming group buying for any product from any factory, no middleman (`DEC-029`,
-2026-11-21, planned): category tree with attributes and variant options, price tiers counted
-across all buyers in a deal (difference back as tokens at close), percentage commission per
-category, agents kept as pickup points, clothing add-ons (fit, materials, audience shop) only in
-clothing categories. Built in phases, one pull request each.
-
-Check [implementation status](docs/implementation-status.md) before claiming a feature
-exists and [decisions](docs/decisions.md) before filling in unresolved commercial rules.
-Specialist files provide technical guidance; historical notes do not override current policy.
-
-Anything new is built on its own branch from `origin/main`, merged through a pull request
-once GitHub checks pass (see the branch rule in [AGENTS.md](AGENTS.md)).
+On 2026-11-23 the code was cut down to this model only. Agents, carts, orders, factories,
+brands, 3D fit, materials, deals, returns, and the admin and seller areas were all removed;
+they are saved at the `any-product-pivot-2026-11-23` tag. `main` is protected: changes land
+only through a pull request with green checks.

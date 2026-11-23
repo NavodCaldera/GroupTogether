@@ -24,9 +24,6 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     // Generated and report output:
     "src/generated/**",
-    // Vendor runtimes copied on install for the fit feature (scripts/copy-fit-assets.mjs):
-    "public/draco/**",
-    "public/fit-vision/**",
     "coverage/**",
     "playwright-report/**",
     "test-results/**",
@@ -34,8 +31,6 @@ const eslintConfig = defineConfig([
     ".playwright-cli/**",
     ".agents/skills/**",
     "tests/security/**",
-    // Standalone experiment with its own package and checks:
-    "fit-lab/**",
   ]),
 ]);
 

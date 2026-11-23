@@ -30,12 +30,3 @@ export const pinFields = { lat: coord("your location"), lng: coord("your locatio
 /** Refinement for any object with `lat` and `lng`: the pin must be inside Sri Lanka. */
 export const pinInSriLanka = (v: { lat: number; lng: number }) => inSriLanka(v.lat, v.lng);
 export const pinOutsideMessage = { message: "The pin must be inside Sri Lanka", path: ["lat"] };
-
-/** A delivery address plus the exact map pin. The pin is mandatory. */
-export const locationSchema = z
-  .object({
-    address: z.string().trim().min(5, "Enter your delivery address").max(300),
-    city: z.string().trim().min(2, "Enter your city").max(60),
-    ...pinFields,
-  })
-  .refine(pinInSriLanka, pinOutsideMessage);

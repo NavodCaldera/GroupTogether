@@ -45,7 +45,6 @@ export default defineConfig({
     timeout: 180_000,
     env: {
       DATABASE_URL: TEST_DATABASE_URL,
-      STORAGE_DIR: ".data/test-uploads",
       APP_URL: `http://localhost:${PORT}`,
       GROUPBASKET_E2E: "1",
       PAYMENT_GATEWAY: "demo",

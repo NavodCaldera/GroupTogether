@@ -1,51 +1,40 @@
 import type { Metadata, Viewport } from "next";
-import { SiteHeader, hasTabBar } from "@/components/site-header";
-import { FlashToast } from "@/components/toast";
 import { NavDepth } from "@/components/client";
-import { isBuyerRole } from "@/lib/roles";
+import { SiteHeader } from "@/components/site-header";
+import { FlashToast } from "@/components/toast";
 import { getCurrentUser } from "@/server/auth/session";
 import { currentTheme } from "@/server/theme";
 import "./globals.css";
 
 export const metadata: Metadata = {
   title: { default: "GroupBasket", template: "%s · GroupBasket" },
-  description:
-    "Clothing direct from the factory to you, below retail with no middlemen. Collect it from an agent near you.",
-};
-
-const viewport: Viewport = {
-  width: "device-width",
-  initialScale: 1,
-  viewportFit: "cover",
+  description: "Family packs from the companies you know, bought together with families near you.",
 };
 
 export async function generateViewport(): Promise<Viewport> {
-  return { ...viewport, themeColor: (await currentTheme()) === "dark" ? "#0d1110" : "#ffffff" };
+  return {
+    width: "device-width",
+    initialScale: 1,
+    viewportFit: "cover",
+    themeColor: (await currentTheme()) === "dark" ? "#0d1110" : "#ffffff",
+  };
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
   const [user, theme] = await Promise.all([getCurrentUser(), currentTheme()]);
-  const tabBar = hasTabBar(user);
-  // Only shoppers (visitors and customers) get the consumer footer. Admins, packing staff and
-  // sellers manage the platform and get a clean, uncluttered interface.
-  const footer = !user || isBuyerRole(user.role);
   return (
     <html lang="en" data-theme={theme} className="h-full antialiased">
       <body className="flex min-h-full flex-col">
         <SiteHeader />
-        <main
-          className={`mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 pt-5 sm:pt-6 ${footer ? "pb-5 sm:pb-6" : "pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-6"}`}
-        >
+        <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col px-4 py-5 sm:py-6">
           {children}
         </main>
-        {/* Bottom padding on phones clears the fixed tab bar, when there is one, and the home indicator. */}
-        {footer && (
-          <footer
-            className={`border-t border-line px-4 pt-6 text-center text-xs text-subtle sm:pb-6 ${tabBar ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"}`}
-          >
-            GroupBasket · Clothing, bought together · Collected from your agent
-          </footer>
-        )}
+        {/* Clears the phone tab bar, when there is one, and the home indicator. */}
+        <footer
+          className={`border-t border-line px-4 pt-6 text-center text-xs text-subtle sm:pb-6 ${user ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"}`}
+        >
+          GroupBasket · Family packs, bought together
+        </footer>
         <FlashToast />
         <NavDepth />
       </body>
