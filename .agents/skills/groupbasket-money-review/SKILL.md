@@ -10,8 +10,8 @@ Trace each amount from input through calculation, storage and output. Use `D`, `
 Check that:
 
 - a pack version's price, size and commission never change after publishing;
-- a spot is paid at the version's `pricePerFamily`;
-- the company is owed `(price − commission) × families`, rounded per family;
+- a basket's `price` is the version's `pricePerFamily` less the discount for its `size` (5, 10 or 15), fixed when it starts (`sizePrice`), and every spot is paid at it;
+- the company is owed `(basket price − commission) × families`, rounded per family;
 - refunds are tokens only (`PACK_REFUND`, `LATE_PAYMENT`) and each is posted once per event key;
 - the token ledger is append-only (a database trigger).
 

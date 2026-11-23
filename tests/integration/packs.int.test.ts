@@ -16,7 +16,10 @@ afterAll(() => db.$disconnect());
 const HOME = { lat: 6.9, lng: 79.86 };
 let n = 0;
 
-async function pack(groupSize = 5, price = "150.00") {
+/** The basket size tests start each version's baskets at. */
+const sizeOf = new Map<string, 5 | 10 | 15>();
+
+async function pack(groupSize: 5 | 10 | 15 = 5, price = "150.00") {
   n++;
   const category = await db.category.create({ data: { slug: `pc-${n}`, name: "Personal Care" } });
   const company = await db.company.create({
@@ -25,17 +28,18 @@ async function pack(groupSize = 5, price = "150.00") {
   const p = await db.standardPack.create({
     data: { slug: `pk-${n}`, name: "30-day Pack", durationDays: 30, companyId: company.id },
   });
-  return db.packVersion.create({
+  const v = await db.packVersion.create({
     data: {
       packId: p.id,
       version: 1,
       publishedAt: new Date(),
       pricePerFamily: price,
-      groupSize,
       commissionPct: "10.00",
       items: { create: [{ name: "Soap", size: "100 g", qty: 2 }] },
     },
   });
+  sizeOf.set(v.id, groupSize);
+  return v;
 }
 
 /** A buyer with an address pin `metres` north of HOME. */
@@ -58,7 +62,7 @@ const group = (versionId: string) => db.packGroup.findFirstOrThrow({ where: { ve
 /** An OPEN basket owned by a paid starter, plus `others` paid members. */
 async function openBasket(versionId: string, others = 0) {
   const owner = await buyerAt();
-  await startBasket(owner.id, versionId);
+  await startBasket(owner.id, versionId, sizeOf.get(versionId)!);
   await pay(owner.id);
   const g = await group(versionId);
   for (let i = 0; i < others; i++) {
@@ -74,7 +78,7 @@ describe("family-pack baskets (DEC-030)", () => {
     const v = await pack();
     const owner = await buyerAt();
     const viewer = await buyerAt(100);
-    await startBasket(owner.id, v.id);
+    await startBasket(owner.id, v.id, 5);
     const g = await group(v.id);
     expect(g.status).toBe("PENDING");
     expect(await openBaskets(viewer)).toEqual([]);
@@ -89,7 +93,7 @@ describe("family-pack baskets (DEC-030)", () => {
   it("drops the basket when the owner's payment fails", async () => {
     const v = await pack();
     const owner = await buyerAt();
-    await startBasket(owner.id, v.id);
+    await startBasket(owner.id, v.id, 5);
     const a = await attemptOf(owner.id);
     await db.$transaction((tx) => releasePackSpot(tx, a.id));
     expect(await db.packGroup.count()).toBe(0);
@@ -105,7 +109,7 @@ describe("family-pack baskets (DEC-030)", () => {
       where: { id: friend.id },
       data: { address: "2 Main St", phone: "0771234567" },
     });
-    await startBasket(friend.id, v.id);
+    await startBasket(friend.id, v.id, sizeOf.get(v.id)!);
     await pay(friend.id);
     const far = await buyerAt(3000);
     const list = await openBaskets(viewer);
@@ -128,7 +132,7 @@ describe("family-pack baskets (DEC-030)", () => {
     const v = await pack();
     const b = await makeBuyer();
     await db.user.update({ where: { id: b.id }, data: { lat: null, lng: null } });
-    await expect(startBasket(b.id, v.id)).rejects.toThrow(/address/);
+    await expect(startBasket(b.id, v.id, 5)).rejects.toThrow(/address/);
   });
 
   it("frees a held spot when its payment fails", async () => {
@@ -192,5 +196,21 @@ describe("family-pack baskets (DEC-030)", () => {
     await sweepPackGroups(new Date(Date.now() + 24 * 3_600_000));
     expect((await group(v.id)).joined).toBe(1);
     expect((await attemptOf(b.id)).status).toBe("EXPIRED");
+  });
+});
+
+describe("basket sizes", () => {
+  it("charges the chosen size's discounted price and fixes it on the basket", async () => {
+    const v = await pack(5, "1000.00");
+    await db.packVersion.update({
+      where: { id: v.id },
+      data: { discount5: "5", discount10: "10", discount15: "15" },
+    });
+    const owner = await buyerAt();
+    await startBasket(owner.id, v.id, 10);
+    const g = await group(v.id);
+    expect([g.size, g.price.toFixed(2)]).toEqual([10, "900.00"]);
+    expect((await attemptOf(owner.id)).amount.toFixed(2)).toBe("900.00");
+    await expect(startBasket(owner.id, v.id, 7)).rejects.toThrow("5, 10 or 15");
   });
 });

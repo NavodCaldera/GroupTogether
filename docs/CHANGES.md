@@ -3,6 +3,15 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-23: Basket sizes with discounts
+
+The owner asked for these changes:
+
+- **Basket sizes:** the family starting a basket picks 5, 10 or 15 families. Each size has a discount % that the company sets in its dashboard for each pack version. The basket stores its `size` and its `price` per family (the full price less that size's discount), fixed when it starts. Everyone pays that price, the basket fills at that size, and the company is owed `(basket price − commission) × families`. `PackVersion.groupSize` is gone (migration `20261123140000_basket_sizes`).
+- **Pack cards and pack page:** the full price, without "per family", then a table of 5, 10 and 15 families with the discount and price for each. The "family packs per basket" and "items in each family pack" lines are gone. Starting a basket offers one button per size.
+- **Company page:** "N family packs bought today", counting spots paid since midnight in Colombo (`PackMember.paidAt`).
+- **Home:** the heading box is back to the earlier plain style (grey box, centred, the second sentence in green), with no images or chips.
+
 ## 2026-11-23: Company page and dashboard
 
 The owner asked for these changes:

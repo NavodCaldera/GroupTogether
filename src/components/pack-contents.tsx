@@ -1,17 +1,19 @@
 import { formatLKR } from "@/lib/format";
 import { Badge, Card, cx } from "./ui";
 
-/** What ONE family gets: fixed items, the price per family and the basket size. */
+/** What ONE family gets: fixed items and the price; a basket's size, or a pack's size table. */
 export function PackContents({
   items,
   price,
   families,
+  sizes,
   householdSize,
   durationDays,
 }: {
   items: { id: string; name: string; size: string; qty: number }[];
   price: { toString(): string };
-  families: number;
+  families?: number;
+  sizes?: Parameters<typeof SizeTable>[0]["sizes"];
   householdSize: number | null;
   durationDays: number;
 }) {
@@ -31,9 +33,10 @@ export function PackContents({
           </li>
         ))}
       </ul>
+      {sizes ? <SizeTable sizes={sizes} /> : null}
       <div className="flex flex-wrap gap-2 text-sm">
         <Badge>{durationDays} days</Badge>
-        <Badge tone="info">{families} families per basket</Badge>
+        {families ? <Badge tone="info">{families} families per basket</Badge> : null}
         {householdSize ? <Badge>Family of {householdSize}</Badge> : null}
       </div>
     </Card>
@@ -57,5 +60,39 @@ export function PackPhoto({ src, className }: { src: string | null; className?: 
         <path d="M3 9h18l-2 11H5zM8 9l4-6 4 6" />
       </svg>
     </div>
+  );
+}
+
+/** Basket sizes with their discount and price per family. */
+export function SizeTable({
+  sizes,
+}: {
+  sizes: { size: number; pct: { toString(): string }; price: { toString(): string } }[];
+}) {
+  return (
+    <table className="w-full text-sm">
+      <thead>
+        <tr className="border-b border-line text-left text-xs text-subtle">
+          <th scope="col" className="py-1.5 font-medium">
+            Families
+          </th>
+          <th scope="col" className="py-1.5 font-medium">
+            Discount
+          </th>
+          <th scope="col" className="py-1.5 text-right font-medium">
+            Price
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {sizes.map((s) => (
+          <tr key={s.size} className="border-b border-line last:border-0">
+            <td className="py-1.5">{s.size}</td>
+            <td className="py-1.5 font-medium text-accent">{s.pct.toString()}%</td>
+            <td className="py-1.5 text-right font-semibold">{formatLKR(s.price)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }

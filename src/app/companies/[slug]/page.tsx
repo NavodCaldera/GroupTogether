@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BasketCard } from "@/components/basket-card";
 import { BackLink } from "@/components/client";
-import { PackPhoto } from "@/components/pack-contents";
+import { PackPhoto, SizeTable } from "@/components/pack-contents";
 import { Badge, CompanyLogo, EmptyState, LinkButton } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { getCurrentUser } from "@/server/auth/session";
@@ -35,8 +35,8 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[slu
             <h1 className="mt-3 text-2xl font-semibold tracking-tight">{company.name}</h1>
             <p className="text-sm text-subtle">{company.category.name}</p>
             <p className="mt-2 text-sm font-semibold" data-testid="packs-bought">
-              {company.bought.toLocaleString("en-LK")} family{" "}
-              {company.bought === 1 ? "pack" : "packs"} bought
+              {company.boughtToday.toLocaleString("en-LK")} family{" "}
+              {company.boughtToday === 1 ? "pack" : "packs"} bought today
             </p>
           </div>
         </div>
@@ -65,11 +65,8 @@ export default async function CompanyPage({ params }: PageProps<"/companies/[slu
                         {p.householdSize ? <Badge>Family of {p.householdSize}</Badge> : null}
                       </span>
                     </div>
-                    <span className="text-sm">{p.families} family packs per basket</span>
-                    <span className="text-sm text-subtle">{p.items} items in each family pack</span>
-                    <span className="mt-auto text-lg font-semibold">
-                      {formatLKR(p.price)} per family
-                    </span>
+                    <span className="text-lg font-semibold">{formatLKR(p.price)}</span>
+                    <SizeTable sizes={p.sizes} />
                   </div>
                 </Link>
               </li>

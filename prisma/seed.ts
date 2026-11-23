@@ -1,11 +1,17 @@
 // Demo data: buyers near Kollupitiya, sample companies with packs, and two open baskets.
 // Company names are examples only, not partners (`demo: true`). Wipes the database first.
 import { DEMO_BUYERS, DEMO_COMPANY, DEMO_PASSWORD } from "../src/lib/demo-accounts";
+import { type BasketSize, sizePrice } from "../src/lib/pack-money";
 import { hashPassword } from "../src/server/auth/password";
 import { db } from "../src/server/db";
 
 type Item = [name: string, size: string, qty: number];
-type Pack = { price: string; size: number; items: Item[] };
+type Pack = { price: string; items: Item[] };
+// Discount % for baskets of 5, 10 and 15 families.
+const DISCOUNTS = {
+  budget: { discount5: "5.00", discount10: "8.00", discount15: "10.00" },
+  premium: { discount5: "6.00", discount10: "10.00", discount15: "15.00" },
+};
 type Company = { slug: string; name: string; logo: string; budget: Pack; premium: Pack };
 
 // Every company has a Budget and a Premium pack, both 30 days, for a family of 4.
@@ -20,7 +26,6 @@ const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
         logo: "/logos/hemas.png",
         budget: {
           price: "2450.00",
-          size: 10,
           items: [
             ["Herbal soap", "100 g", 4],
             ["Toothpaste", "120 g", 1],
@@ -29,7 +34,6 @@ const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
         },
         premium: {
           price: "4600.00",
-          size: 10,
           items: [
             ["Herbal soap", "100 g", 8],
             ["Toothpaste", "120 g", 2],
@@ -50,7 +54,6 @@ const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
         logo: "/logos/cbl.png",
         budget: {
           price: "1900.00",
-          size: 8,
           items: [
             ["Cream crackers", "490 g", 2],
             ["Marie biscuits", "400 g", 2],
@@ -58,7 +61,6 @@ const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
         },
         premium: {
           price: "3200.00",
-          size: 8,
           items: [
             ["Cream crackers", "490 g", 3],
             ["Chocolate biscuits", "200 g", 4],
@@ -72,7 +74,6 @@ const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
         logo: "/logos/maliban.webp",
         budget: {
           price: "1850.00",
-          size: 6,
           items: [
             ["Marie biscuits", "400 g", 2],
             ["Lemon puff", "200 g", 2],
@@ -80,7 +81,6 @@ const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
         },
         premium: {
           price: "3400.00",
-          size: 6,
           items: [
             ["Marie biscuits", "400 g", 3],
             ["Lemon puff", "200 g", 3],
@@ -100,12 +100,10 @@ const CATALOGUE: { slug: string; name: string; companies: Company[] }[] = [
         logo: "/logos/pelwatte.png",
         budget: {
           price: "3100.00",
-          size: 12,
           items: [["Full cream milk powder", "400 g", 3]],
         },
         premium: {
           price: "5400.00",
-          size: 12,
           items: [
             ["Full cream milk powder", "1 kg", 2],
             ["Butter", "200 g", 1],
@@ -158,7 +156,7 @@ async function main() {
     users.set(b.email, { id: u.id, address, ...at });
   }
 
-  const versions = new Map<string, string>();
+  const versions = new Map<string, Awaited<ReturnType<typeof db.packVersion.create>>>();
   for (const [order, cat] of CATALOGUE.entries()) {
     const category = await db.category.create({
       data: { slug: cat.slug, name: cat.name, sortOrder: order },
@@ -186,7 +184,7 @@ async function main() {
             version: 1,
             publishedAt: new Date(),
             pricePerFamily: p.price,
-            groupSize: p.size,
+            ...DISCOUNTS[kind],
             commissionPct: "10.00",
             householdSize: 4,
             items: {
@@ -199,7 +197,7 @@ async function main() {
             },
           },
         });
-        versions.set(slug, v.id);
+        versions.set(slug, v);
       }
     }
   }
@@ -212,9 +210,10 @@ async function main() {
     data: { email: DEMO_COMPANY, name: "Hemas", passwordHash, companyId: hemas.id },
   });
 
-  /** An OPEN basket where the owner and members have paid. */
+  /** An OPEN basket of `size` families where the owner and members have paid. */
   async function basket(
     slug: string,
+    size: BasketSize,
     ownerEmail: string,
     memberEmails: string[],
     daysLeft: number,
@@ -223,7 +222,9 @@ async function main() {
     const members = [owner, ...memberEmails.map((e) => users.get(e)!)];
     await db.packGroup.create({
       data: {
-        versionId: versions.get(slug)!,
+        versionId: versions.get(slug)!.id,
+        size,
+        price: sizePrice(versions.get(slug)!, size).toFixed(2),
         createdById: owner.id,
         lat: owner.lat,
         lng: owner.lng,
@@ -232,12 +233,24 @@ async function main() {
         status: "OPEN",
         joined: members.length,
         closesAt: new Date(Date.now() + daysLeft * 86_400_000),
-        members: { create: members.map((m) => ({ userId: m.id, status: "PAID" as const })) },
+        members: {
+          create: members.map((m) => ({
+            userId: m.id,
+            status: "PAID" as const,
+            paidAt: new Date(),
+          })),
+        },
       },
     });
   }
-  await basket("hemas-premium", DEMO_BUYERS.sachini, [DEMO_BUYERS.ravindu, DEMO_BUYERS.ayesha], 7);
-  await basket("hemas-budget", DEMO_BUYERS.nimali, [], 12);
+  await basket(
+    "hemas-premium",
+    10,
+    DEMO_BUYERS.sachini,
+    [DEMO_BUYERS.ravindu, DEMO_BUYERS.ayesha],
+    7,
+  );
+  await basket("hemas-budget", 5, DEMO_BUYERS.nimali, [], 12);
   // Nimali is in Dilan's contacts, so her basket is listed first for him.
   await db.userContact.create({
     data: { userId: users.get(DEMO_BUYERS.dilan)!.id, phone: "0771000004" },

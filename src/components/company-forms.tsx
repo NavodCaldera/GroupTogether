@@ -36,10 +36,12 @@ type Row = { key: number; name: string; size: string; qty: number };
 export function PackEditor({
   packId,
   price,
+  discounts,
   items,
 }: {
   packId: string;
   price: string;
+  discounts: { discount5: string; discount10: string; discount15: string };
   items: { name: string; size: string; qty: number }[];
 }) {
   const [state, action, pending] = useActionState(packAction, {} as CompanyState);
@@ -59,6 +61,22 @@ export function PackEditor({
           className="max-w-40"
         />
       </label>
+      <fieldset className="flex flex-wrap gap-3">
+        <legend className="mb-1 text-sm font-bold">Discount by basket size (%)</legend>
+        {([5, 10, 15] as const).map((n) => (
+          <label key={n} className="flex flex-col gap-1 text-sm">
+            {n} families
+            <Input
+              id={`${packId}-discount${n}`}
+              name={`discount${n}`}
+              defaultValue={discounts[`discount${n}`]}
+              inputMode="decimal"
+              required
+              className="w-24"
+            />
+          </label>
+        ))}
+      </fieldset>
       <fieldset className="flex flex-col gap-2">
         <legend className="mb-1 text-sm font-bold">Items for one family</legend>
         {rows.map((r, i) => (
