@@ -2,7 +2,7 @@
 
 import { useActionState, useState } from "react";
 import { type CompanyState, imageAction, packAction } from "@/server/company-actions";
-import { Alert, Button, Input } from "./ui";
+import { Alert, Button, Input, Select } from "./ui";
 
 export function ImageForm({ target, label }: { target: string; label: string }) {
   const [state, action, pending] = useActionState(imageAction, {} as CompanyState);
@@ -31,7 +31,14 @@ export function ImageForm({ target, label }: { target: string; label: string }) 
   );
 }
 
-type Item = { name: string; size: string; qty: number; retailPrice: string; photo: string | null };
+type Item = {
+  name: string;
+  size: string;
+  qty: number;
+  retailPrice: string;
+  photo: string | null;
+  chilled: boolean;
+};
 type Row = Item & { key: number };
 
 export function PackEditor({
@@ -148,6 +155,18 @@ export function PackEditor({
                 />
               </label>
             </div>
+            <label className="flex flex-col gap-1 text-xs text-subtle">
+              Storage
+              <Select
+                id={`${packId}-chilled-${r.key}`}
+                name="chilled"
+                defaultValue={r.chilled ? "yes" : "no"}
+                aria-label={`Item ${i + 1} storage`}
+              >
+                <option value="no">Shelf-stable</option>
+                <option value="yes">Chilled or frozen</option>
+              </Select>
+            </label>
             <input
               name="photo"
               type="file"
@@ -163,7 +182,15 @@ export function PackEditor({
           onClick={() => {
             setRows([
               ...rows,
-              { key: next, name: "", size: "", qty: 1, retailPrice: "", photo: null },
+              {
+                key: next,
+                name: "",
+                size: "",
+                qty: 1,
+                retailPrice: "",
+                photo: null,
+                chilled: false,
+              },
             ]);
             setNext(next + 1);
           }}

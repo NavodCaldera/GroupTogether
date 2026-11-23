@@ -20,12 +20,13 @@ stateDiagram-v2
 
 | Area | Files |
 | --- | --- |
-| Pages | `src/app/page.tsx` (home), `companies/[slug]`, `packs/[slug]`, `baskets` (open baskets), `baskets/[id]`, `baskets/return/[attemptId]`, `tokens`, `account`, `(auth)/sign-in`, `(auth)/sign-up`, `demo-pay/[attemptId]`, `company` (company dashboard), `img/[id]` (uploaded images) |
+| Pages | `src/app/page.tsx` (home), `companies/[slug]`, `packs/[slug]`, `baskets` (open baskets), `baskets/[id]`, `baskets/return/[attemptId]`, `tokens`, `account`, `(auth)/sign-in`, `(auth)/sign-up`, `demo-pay/[attemptId]`, `company` (company dashboard), `img/[id]` (uploaded images), `purchases`, `purchases/[id]`, `reselling`, `reselling/[id]`, `reselling/mine` |
 | API | `api/payments/notify` (gateway notices), `api/cron/sweep` (daily job) |
 | Reading packs and baskets | `src/server/packs.ts`: home companies, company, pack, open baskets within 1 km, one basket |
 | Joining and paying | `src/server/packs-join.ts`: start, join, confirm a paid spot, release an unpaid one, fill |
 | Company dashboard | `src/server/company.ts` and `company-actions.ts`: banner, logo and pack photos (stored in the `Image` table), new pack versions, orders. `npm run company:login -- <email> <slug>` gives a login a company |
-| Daily job | `src/server/packs-sweep.ts`: expire unpaid spots, extend or close due baskets |
+| Resale | `src/server/resale.ts` and `resale-actions.ts`: purchase history, listings, who sees them, reservations, contacts |
+| Daily job | `src/server/packs-sweep.ts`: expire unpaid spots, extend or close due baskets; `expireReservations` in `resale.ts` |
 | Payments | `src/server/payments/`: gateway interface, demo gateway, verified notices |
 | Tokens | `src/server/tokens.ts`: balance and idempotent credits |
 | Sign-in | `src/server/auth/`: sign-up, profile, password lockout, sessions |
@@ -37,7 +38,8 @@ stateDiagram-v2
 Lock order is always the `PaymentAttempt` row, then the `PackGroup` row. A held spot counts in
 `joined`, so the last spot goes to exactly one family. Each gateway event is applied once
 (`PaymentEvent` unique on gateway and event id), and each token credit once (`eventKey`). The
-gateway is never called inside a transaction.
+gateway is never called inside a transaction. Resale locks the `PackMember` row to list and the
+`ResaleListing` row to reserve, collect or cancel.
 
 ## Built
 

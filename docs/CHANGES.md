@@ -3,6 +3,19 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-24: At-cost resale (DEC-031)
+
+The owner asked for at-cost resale of unwanted, unopened items. Buying a whole pack is unchanged.
+
+- **Purchase history** (`/purchases`) lists the buyer's paid spots. A basket's page shows the items as bought (its pack version), what each unit cost and how many are left to resell.
+- **Price:** the basket price is split across its items by shop value (shop price × quantity) in whole cents, so the items add up to the price (`itemCosts` in `src/lib/pack-money.ts`). A unit's price is its line over its quantity. When an item has no shop price, the page says "Original item price unavailable" and it cannot be resold. Today's prices are never used.
+- **Listing:** only from the buyer's own paid spot in a full (ordered) basket, never chilled or frozen items (a new per-item "Storage" choice in the company dashboard), never more units than bought. The seller confirms the items are unopened, names a public pickup spot and picks My contacts, Nearby buyers or Both.
+- **Reselling tab** (`/reselling`): From Contacts (both buyers saved each other's number) and Nearby (within 1 km of the basket's delivery point). Viewers see the area only. The pickup spot is shown only to the seller and to a buyer holding a reservation. Visibility is checked on the server, also for direct links.
+- **Reservations:** held for 48 hours. The buyer pays the seller at pickup. The seller marks it collected; either side cancels. A lapsed reservation stops holding units at once, and the daily sweep marks it expired. Both listing and reserving lock rows, so units are never oversold.
+- **My listings** (`/reselling/mine`): the seller's listings with available, reserved and collected units, and the buyer's reservations.
+- **Contacts:** buyers save contacts' mobile numbers on their profile. Numbers are never shown to anyone else.
+- Migration `20261124130000_resale` adds `PackItem.chilled`, `ResaleListing` and `ResaleReservation`. The seed adds an ordered CBL basket and two of Sachini's listings.
+
 ## 2026-11-24: No categories, 26 companies
 
 The owner asked for these changes:

@@ -74,6 +74,7 @@ export type ItemInput = {
   size: string;
   qty: number;
   retailPrice: string;
+  chilled?: boolean;
   photo: string | null;
   file: FormDataEntryValue | null;
 };
@@ -148,6 +149,7 @@ export async function publishPackVersion(
             qty: i.qty,
             retailPrice: i.retailPrice || null,
             photo: photos[sortOrder],
+            chilled: !!i.chilled,
             sortOrder,
           })),
         },
@@ -184,7 +186,14 @@ export function companyDashboard(companyId: string) {
               discount15: true,
               items: {
                 orderBy: { sortOrder: "asc" },
-                select: { name: true, size: true, qty: true, retailPrice: true, photo: true },
+                select: {
+                  name: true,
+                  size: true,
+                  qty: true,
+                  retailPrice: true,
+                  photo: true,
+                  chilled: true,
+                },
               },
             },
           },
