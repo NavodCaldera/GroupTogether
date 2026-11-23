@@ -14,6 +14,9 @@ export const DEMO_BUYERS = {
   ayesha: "buyer6@example.com",
 } as const;
 
+/** Manages Hemas's company dashboard (/company). */
+export const DEMO_COMPANY = "hemas@example.com";
+
 export const DEMO_ACCOUNTS: DemoAccount[] = [
   { name: "Dilan Wickramasinghe", email: DEMO_BUYERS.dilan },
   { name: "Sachini Gunawardena", email: DEMO_BUYERS.sachini },
@@ -21,6 +24,7 @@ export const DEMO_ACCOUNTS: DemoAccount[] = [
   { name: "Nimali Jayasuriya", email: DEMO_BUYERS.nimali },
   { name: "Ravindu Bandara", email: DEMO_BUYERS.ravindu },
   { name: "Ayesha Nazeer", email: DEMO_BUYERS.ayesha },
+  { name: "Hemas (company)", email: DEMO_COMPANY },
 ];
 
 /** Demo logins show in development, or anywhere with SHOW_DEMO_LOGINS=true. */

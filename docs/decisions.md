@@ -27,7 +27,7 @@ The plan documents live in [specs/007-family-packs](../specs/007-family-packs/sp
 | --- | --- |
 | What families see once a basket is full | The owner's and members' first names and phones were proposed. |
 | How the owner confirms delivery | A Received button on the basket page was proposed. |
-| How a company sees and dispatches its orders | Company accounts were removed in the 2026-11-23 cleanup. |
+| How a company dispatches its orders | The dashboard lists orders (2026-11-23); there is no Dispatched step yet. |
 | How and when companies are paid | Payout timing and method. |
 | Notifications | When a basket fills, extends or closes. |
 | Spending tokens | Tokens can't be spent yet. |

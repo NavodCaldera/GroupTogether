@@ -38,3 +38,14 @@ test("buyer pages are accessible without horizontal overflow", async ({ page }) 
   await page.getByTestId("open-basket").first().click();
   await inspect(page);
 });
+
+test("the company dashboard is accessible without horizontal overflow", async ({ page }) => {
+  test.setTimeout(120_000);
+  await page.goto("/sign-in");
+  await page.getByLabel("Email").fill("hemas@example.com");
+  await page.getByLabel("Password", { exact: true }).fill("password123");
+  await page.getByRole("button", { name: "Sign in", exact: true }).click();
+  await page.waitForURL((url) => !url.pathname.startsWith("/sign-in"));
+  await page.goto("/company");
+  await inspect(page);
+});

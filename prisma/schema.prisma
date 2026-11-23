@@ -21,6 +21,9 @@ model User {
   lat          Float?
   lng          Float?
   createdAt    DateTime @default(now())
+  /// Set when this login manages a company's dashboard (/company)
+  companyId    String?
+  company      Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
 
   sessions          Session[]
   tokenEntries      TokenEntry[]
@@ -70,12 +73,14 @@ model Company {
   category   Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   /// Sample listing, not a real partnership
   demo       Boolean        @default(false)
-  /// Logo image path, e.g. /logos/hemas.png
+  /// Logo and banner image paths: /logos/… or an uploaded /img/<id>
   logo       String?
+  banner     String?
   active     Boolean        @default(true)
   sortOrder  Int            @default(0)
   packs      StandardPack[]
   deliveries PackDelivery[]
+  managers   User[]
 
   @@index([categoryId])
 }
@@ -87,8 +92,21 @@ model StandardPack {
   company      Company       @relation(fields: [companyId], references: [id], onDelete: Restrict)
   name         String
   durationDays Int
+  /// Photo of all the items together: /img/<id>
+  photo        String?
   active       Boolean       @default(true)
   versions     PackVersion[]
+}
+
+/// An image a company uploaded (banner, logo, pack photo), served by /img/<id>.
+model Image {
+  id        String   @id @default(cuid())
+  companyId String
+  type      String
+  data      Bytes
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
 }
 
 /// Fixed contents, price, size and commission; never edited once published.

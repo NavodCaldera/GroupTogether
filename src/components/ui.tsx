@@ -190,16 +190,39 @@ export function EmptyState({ title, children }: { title: string; children?: Reac
   );
 }
 
-/** A company's brand logo, or its name when it has none. */
+/** A company's brand logo, or its name when it has none; `round` puts it in a circle. */
 export function CompanyLogo({
   name,
   logo,
+  round,
   className,
 }: {
   name: string;
   logo: string | null;
+  round?: boolean;
   className?: string;
 }) {
+  if (round)
+    return (
+      <span
+        className={cx(
+          "grid size-24 shrink-0 place-items-center overflow-hidden rounded-full border-4 border-paper bg-white shadow-sm sm:size-32",
+          className,
+        )}
+      >
+        {logo ? (
+          <Image
+            src={logo}
+            alt={name}
+            width={160}
+            height={160}
+            className="max-h-[60%] w-[75%] object-contain"
+          />
+        ) : (
+          <span className="text-3xl font-bold text-black">{name[0]}</span>
+        )}
+      </span>
+    );
   return logo ? (
     <Image
       src={logo}

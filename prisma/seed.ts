@@ -1,6 +1,6 @@
 // Demo data: buyers near Kollupitiya, sample companies with packs, and two open baskets.
 // Company names are examples only, not partners (`demo: true`). Wipes the database first.
-import { DEMO_BUYERS, DEMO_PASSWORD } from "../src/lib/demo-accounts";
+import { DEMO_BUYERS, DEMO_COMPANY, DEMO_PASSWORD } from "../src/lib/demo-accounts";
 import { hashPassword } from "../src/server/auth/password";
 import { db } from "../src/server/db";
 
@@ -204,6 +204,14 @@ async function main() {
     }
   }
 
+  const hemas = await db.company.findUniqueOrThrow({
+    where: { slug: "hemas" },
+    select: { id: true },
+  });
+  await db.user.create({
+    data: { email: DEMO_COMPANY, name: "Hemas", passwordHash, companyId: hemas.id },
+  });
+
   /** An OPEN basket where the owner and members have paid. */
   async function basket(
     slug: string,
@@ -237,6 +245,7 @@ async function main() {
 
   console.log(`Seeded. Password for every demo buyer: ${DEMO_PASSWORD}`);
   console.log("  buyer@example.com: two Hemas baskets nearby (Nimali's first, a contact)");
+  console.log(`  ${DEMO_COMPANY}: Hemas company dashboard at /company`);
   console.log("  buyer3@example.com: in Wellawatte with no basket nearby, can start one");
 }
 

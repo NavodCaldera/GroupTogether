@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BasketCard } from "@/components/basket-card";
 import { StartBasketForm } from "@/components/basket-forms";
-import { PackContents } from "@/components/pack-contents";
+import { PackContents, PackPhoto } from "@/components/pack-contents";
 import { BackLink } from "@/components/client";
 import { LinkButton, PageHeader } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
@@ -34,6 +34,7 @@ export default async function PackPage({ params }: PageProps<"/packs/[slug]">) {
           }
         />
       </div>
+      <PackPhoto src={pack.photo} className="rounded-2xl" />
       <PackContents
         items={v.items}
         price={v.pricePerFamily}
