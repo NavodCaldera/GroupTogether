@@ -2,9 +2,6 @@
 CREATE SCHEMA IF NOT EXISTS "public";
 
 -- CreateEnum
-CREATE TYPE "Role" AS ENUM ('CUSTOMER', 'ADMIN', 'SELLER');
-
--- CreateEnum
 CREATE TYPE "PackGroupStatus" AS ENUM ('PENDING', 'OPEN', 'FULL', 'CLOSED');
 
 -- CreateEnum
@@ -17,12 +14,11 @@ CREATE TYPE "PackDeliveryStatus" AS ENUM ('ORDERED', 'DISPATCHED', 'RECEIVED');
 CREATE TYPE "PaymentAttemptStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED', 'EXPIRED', 'LATE_PAID');
 
 -- CreateEnum
-CREATE TYPE "TokenKind" AS ENUM ('PACK_REFUND');
+CREATE TYPE "TokenKind" AS ENUM ('PACK_REFUND', 'LATE_PAYMENT');
 
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
-    "role" "Role" NOT NULL DEFAULT 'CUSTOMER',
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "phone" TEXT,
@@ -31,7 +27,6 @@ CREATE TABLE "User" (
     "city" TEXT,
     "lat" DOUBLE PRECISION,
     "lng" DOUBLE PRECISION,
-    "locked" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
@@ -82,7 +77,6 @@ CREATE TABLE "Company" (
     "slug" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "categoryId" TEXT NOT NULL,
-    "sellerId" TEXT,
     "demo" BOOLEAN NOT NULL DEFAULT false,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "sortOrder" INTEGER NOT NULL DEFAULT 0,
@@ -291,9 +285,6 @@ ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId"
 
 -- AddForeignKey
 ALTER TABLE "Company" ADD CONSTRAINT "Company_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Company" ADD CONSTRAINT "Company_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "StandardPack" ADD CONSTRAINT "StandardPack_companyId_fkey" FOREIGN KEY ("companyId") REFERENCES "Company"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
