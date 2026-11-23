@@ -15,6 +15,7 @@ export default async function HomePage() {
   if (categories.length === 0) return <EmptyState title="No companies yet" />;
   return (
     <div className="flex flex-col gap-8">
+      <h1 className="text-2xl font-semibold">Family packs</h1>
       {categories.map((c) => (
         <section key={c.slug} aria-labelledby={`cat-${c.slug}`}>
           <h2 id={`cat-${c.slug}`} className="mb-3 text-lg font-semibold">

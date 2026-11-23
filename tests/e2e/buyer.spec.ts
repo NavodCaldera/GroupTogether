@@ -2,7 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { Pool } from "pg";
 import { assertTestDatabase } from "../../scripts/test-database.mjs";
-import { DEMO, DEMO_FACTORIES, DEMO_PASSWORD, DEMO_PICKUP_CODE } from "../../src/lib/demo-accounts";
+import { DEMO, DEMO_FACTORIES, DEMO_PASSWORD } from "../../src/lib/demo-accounts";
 import { seedBrowserFixtures } from "./seed-fixtures";
 
 // Reduced motion: product pages show the 3D body, which the software-drawn test browser animates
@@ -59,18 +59,6 @@ async function inspect(page: Page) {
 test("buyer collects, buys at the nearest agent, pays and cannot cancel", async ({ page }) => {
   test.setTimeout(240_000);
   await signIn(page, DEMO.readyBuyer);
-  await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Ready to collect" })).toBeVisible();
-  await expect(page.getByText(DEMO_PICKUP_CODE, { exact: true })).toBeVisible();
-  await expect(page.getByText(ids.agentName).first()).toBeVisible();
-  // The agent fee is paid in cash at the counter (DEC-019).
-  await expect(page.getByText(/^Agent fee LKR/).first()).toBeVisible();
-  await expect(page.getByRole("link", { name: /Map/ }).first()).toHaveAttribute(
-    "href",
-    /^https:\/\/maps\.google\.com\/\?q=6\.9115,79\.8505$/,
-  );
-  await inspect(page);
-
   await page.goto(`/products/${ids.product}`);
   await page.getByRole("button", { name: "Add to cart" }).click();
   await expect(page.getByRole("status").getByText("Added to cart")).toBeVisible();

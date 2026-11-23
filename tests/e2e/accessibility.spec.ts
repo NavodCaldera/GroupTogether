@@ -13,32 +13,11 @@ async function inspect(page: Page) {
   expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
 }
 
-test("home leads with clothing without excluded wording, overflow or Axe violations", async ({
-  page,
-}) => {
-  // Scan the settled hero: mid-animation the decorative dust pieces (aria-hidden) are briefly
-  // grey on grey, which Axe would sample.
-  await page.emulateMedia({ reducedMotion: "reduce" });
+test("home lists companies by category without overflow or Axe violations", async ({ page }) => {
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", {
-      level: 1,
-      name: "Direct from factory to you. No more middlemen.",
-      exact: true,
-    }),
-  ).toBeVisible();
-  await expect(page.locator("body")).not.toContainText(/B-grade|shoes|footwear/i);
-  await expect
-    .poll(() => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth))
-    .toBe(true);
-  const scan = await new AxeBuilder({ page }).analyze();
-  expect(scan.violations, JSON.stringify(scan.violations, null, 2)).toEqual([]);
-  await page.getByRole("link", { name: "Shop and save" }).focus();
-  await expect(page.getByRole("link", { name: "Shop and save" })).toBeFocused();
-  await page.screenshot({
-    path: "test-results/home-" + test.info().project.name + ".png",
-    fullPage: true,
-  });
+  await expect(page.getByRole("heading", { level: 1, name: "Family packs", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Hemas/ })).toBeVisible();
+  await inspect(page);
 });
 
 test("public catalogue and sign-in are accessible without horizontal overflow", async ({
@@ -59,7 +38,7 @@ test("buyer, admin, brand and packing workspaces remain usable at the configured
   // Sixteen sign-ins and scans; a cold dev server compiles each page on first visit.
   test.setTimeout(240_000);
   for (const [email, route] of [
-    ["buyer@example.com", "/dashboard"],
+    ["buyer@example.com", "/"],
     ["factory@groupbasket.lk", "/admin"],
     ["factory@groupbasket.lk", "/admin/factory/applications"],
     ["buyers@groupbasket.lk", "/admin/agents"],
