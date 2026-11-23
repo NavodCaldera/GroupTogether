@@ -4,25 +4,17 @@ import { colomboIsoDay } from "@/lib/format";
 import { sizeTable } from "@/lib/pack-money";
 import { db } from "./db";
 
-/** Family packs (DEC-030): categories → companies → standard packs → open baskets. */
+/** Family packs (DEC-030): companies → standard packs → open baskets. */
 
 const published = { publishedAt: { not: null } } as const;
 const livePack = { active: true, versions: { some: published } } as const;
 
-/** Home: every category that has a company with a published pack, companies under each. */
-export async function homeCategories() {
-  return db.category.findMany({
-    where: { active: true, companies: { some: { active: true, packs: { some: livePack } } } },
+/** Home: every company with a published pack. */
+export async function homeCompanies() {
+  return db.company.findMany({
+    where: { active: true, packs: { some: livePack } },
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-    select: {
-      slug: true,
-      name: true,
-      companies: {
-        where: { active: true, packs: { some: livePack } },
-        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-        select: { slug: true, name: true, logo: true },
-      },
-    },
+    select: { slug: true, name: true, logo: true },
   });
 }
 
@@ -38,7 +30,6 @@ export async function getCompany(slug: string) {
       name: true,
       logo: true,
       banner: true,
-      category: { select: { name: true } },
     },
   });
   if (!company) return null;
@@ -125,7 +116,7 @@ export const NEARBY_KM = 1;
  */
 export async function openBaskets(
   viewer: { id: string; lat: number | null; lng: number | null },
-  filter: { companySlug?: string; categorySlug?: string } = {},
+  companySlug?: string,
 ) {
   if (viewer.lat == null || viewer.lng == null) return null;
   const here = { lat: viewer.lat, lng: viewer.lng };
@@ -141,11 +132,7 @@ export async function openBaskets(
         version: {
           pack: {
             active: true,
-            company: {
-              active: true,
-              ...(filter.companySlug ? { slug: filter.companySlug } : {}),
-              ...(filter.categorySlug ? { category: { slug: filter.categorySlug } } : {}),
-            },
+            company: { active: true, ...(companySlug ? { slug: companySlug } : {}) },
           },
         },
       },

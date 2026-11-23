@@ -21,9 +21,8 @@ const sizeOf = new Map<string, 5 | 10 | 15>();
 
 async function pack(groupSize: 5 | 10 | 15 = 5, price = "150.00") {
   n++;
-  const category = await db.category.create({ data: { slug: `pc-${n}`, name: "Personal Care" } });
   const company = await db.company.create({
-    data: { slug: `co-${n}`, name: `Co ${n}`, categoryId: category.id },
+    data: { slug: `co-${n}`, name: `Co ${n}` },
   });
   const p = await db.standardPack.create({
     data: { slug: `pk-${n}`, name: "30-day Pack", durationDays: 30, companyId: company.id },

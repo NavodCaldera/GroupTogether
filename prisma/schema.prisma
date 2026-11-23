@@ -56,21 +56,10 @@ model Settings {
   paymentHoldMinutes Int @default(15)
 }
 
-model Category {
-  id        String    @id @default(cuid())
-  slug      String    @unique
-  name      String
-  sortOrder Int       @default(0)
-  active    Boolean   @default(true)
-  companies Company[]
-}
-
 model Company {
   id         String         @id @default(cuid())
   slug       String         @unique
   name       String
-  categoryId String
-  category   Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   /// Sample listing, not a real partnership
   demo       Boolean        @default(false)
   /// Logo and banner image paths: /logos/… or an uploaded /img/<id>
@@ -81,8 +70,6 @@ model Company {
   packs      StandardPack[]
   deliveries PackDelivery[]
   managers   User[]
-
-  @@index([categoryId])
 }
 
 model StandardPack {

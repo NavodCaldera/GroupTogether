@@ -12,8 +12,7 @@ The system is not public yet. Earlier models (clothing, agents, group deals) are
 
 ## Words
 
-- **Category:** a shelf on the home page, such as Personal Care or Dairy.
-- **Company:** a maker listed under one category, shown by its brand logo (`logo`). `demo: true` marks a sample listing, never a real partnership; it is not shown on screen.
+- **Company:** a maker listed on the home page (no categories since 2026-11-24), shown by its brand logo, or its name when it has none (`logo`). `demo: true` marks a sample listing, never a real partnership; it is not shown on screen.
 - **Standard pack:** one company's fixed pack for one family of 4. Every company has exactly two, **Budget** and **Premium**, both 30 days. It has versions.
 - **Pack version:** fixed items, full price per family, a discount % for baskets of 5, 10 and 15 families, household size and commission %. It is never edited once published; a change is a new version.
 - **Basket** (`PackGroup` in code): one pack version bought together by families within 1 km of each other. Its size (5, 10 or 15 families) is chosen by the family that starts it, and its price per family (the full price less that size's discount) is fixed then; neither ever changes.
@@ -25,7 +24,7 @@ The system is not public yet. Earlier models (clothing, agents, group deals) are
 
 | ID   | Rule                                                                                                                                                                                                                 |
 | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| PK-1 | Home lists categories, each with its companies. A company page lists its packs, then its open baskets near you.                                                                                                      |
+| PK-1 | Home lists every company. A company page lists its packs, then its open baskets near you.                                                                                                                            |
 | PK-2 | A buyer must have an address pin. Baskets are found within **1 km** of it, the buyer's contacts' baskets first, then nearest.                                                                                        |
 | PK-3 | Starting a basket means choosing 5, 10 or 15 families and paying for your spot at that size's price. It stays hidden (`PENDING`) until that payment succeeds, then opens. A failed first payment deletes the basket. |
 | PK-4 | Joining means paying. An unpaid spot is held for `paymentHoldMinutes` (15) and counts toward the total, so a basket is never overfilled. One spot per family; payment is final and nobody leaves.                    |

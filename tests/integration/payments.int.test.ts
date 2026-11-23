@@ -38,9 +38,8 @@ function notice(
 
 /** A buyer who started a basket and has an open payment for it. */
 async function started() {
-  const category = await db.category.create({ data: { slug: "c", name: "C" } });
   const company = await db.company.create({
-    data: { slug: "co", name: "Co", categoryId: category.id },
+    data: { slug: "co", name: "Co" },
   });
   const pack = await db.standardPack.create({
     data: { slug: "p", name: "Pack", durationDays: 30, companyId: company.id },

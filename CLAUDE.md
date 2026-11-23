@@ -2,8 +2,8 @@
 
 Start with [AGENTS.md](AGENTS.md), then the [operating brief](.claude/agents/groupbasket.md).
 
-GroupBasket is group buying of family packs (`DEC-030`, 2026-11-23). Companies are listed under
-categories (shown by brand logo), and each company has two fixed standard packs, Budget and
+GroupBasket is group buying of family packs (`DEC-030`, 2026-11-23). From 2026-11-24 there are no
+categories: the home page lists every company (shown by brand logo), and each company has two fixed standard packs, Budget and
 Premium, both 30 days for a family of 4. The family starting a basket picks 5, 10 or 15
 families; each size has the company's discount %, and the basket's size and price never change. A company login manages its banner, logo, pack
 photos, pack versions (items with photos and shop prices) and orders at `/company`. Families within 1 km of

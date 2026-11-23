@@ -18,9 +18,7 @@ export default async function PackPage({ params }: PageProps<"/packs/[slug]">) {
   const sizes = sizeTable(v);
   const path = `/packs/${slug}`;
   const baskets = user
-    ? ((await openBaskets(user, { companySlug: pack.company.slug }))?.filter(
-        (b) => b.packSlug === slug,
-      ) ?? null)
+    ? ((await openBaskets(user, pack.company.slug))?.filter((b) => b.packSlug === slug) ?? null)
     : null;
 
   return (
