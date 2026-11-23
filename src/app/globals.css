@@ -240,3 +240,8 @@ body {
     animation: body-guide-draw 0.9s ease-out;
   }
 }
+
+/* Map attribution links (Leaflet) must not rely on colour alone. */
+.leaflet-control-attribution a {
+  text-decoration: underline;
+}
