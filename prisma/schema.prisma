@@ -99,9 +99,8 @@ model User {
   products           Product[]               @relation("SellerProducts")
   packMembers        PackMember[]
   startedPackGroups  PackGroup[]             @relation("PackGroupStarter")
-  /// Buyers: the pickup point picked for family-pack groups (DEC-030)
-  pickupAgentId      String?
-  pickupAgent        Agent?                  @relation("BuyerPickup", fields: [pickupAgentId], references: [id], onDelete: SetNull)
+  companies          Company[]               @relation("CompanySeller")
+  contacts           UserContact[]
   stockOffers        StockOffer[]            @relation("OfferSeller")
   stockReceived      StockOffer[]            @relation("StockReceivedBy")
   giftOrders         GiftOrder[]             @relation("GiftRecipient")
@@ -771,6 +770,8 @@ enum TokenKind {
   TRANSFER_IN
   /// A group deal settled below the price paid (DEAL-002)
   DEAL_REBATE
+  /// A family-pack basket closed unfilled (DEC-030)
+  PACK_REFUND
 }
 
 model TokenEntry {
@@ -1089,8 +1090,6 @@ model Agent {
   pickupAttempts  PickupAttempt[]
   losses          AgentLoss[]
   paymentAttempts PaymentAttempt[]
-  packGroups      PackGroup[]
-  pickupBuyers    User[]             @relation("BuyerPickup")
   handoverReturns ReturnRequest[]    @relation("ReturnHandoverAgent")
   feeClawbacks    AgentFeeClawback[]
 
@@ -1410,6 +1409,8 @@ enum PaymentPurpose {
   DEPOSIT
   /// An own basket's delivery fee, paid by the owner at close
   DELIVERY_FEE
+  /// One family's spot in a family-pack basket (DEC-030)
+  PACK_JOIN
 }
 
 enum PaymentAttemptStatus {
@@ -1439,6 +1440,10 @@ model PaymentAttempt {
   gatewayRef       String               @unique
   createdAt        DateTime             @default(now())
   expiresAt        DateTime
+
+  /// Family-pack spots only
+  packMemberId String?     @unique
+  packMember   PackMember? @relation(fields: [packMemberId], references: [id], onDelete: SetNull)
 
   orders Order[]
   events PaymentEvent[]
@@ -2173,9 +2178,14 @@ model Company {
   name       String
   categoryId String
   category   Category       @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  /// The seller account that delivers full baskets and gets paid
+  sellerId   String?
+  seller     User?          @relation("CompanySeller", fields: [sellerId], references: [id], onDelete: Restrict)
   demo       Boolean        @default(false)
   active     Boolean        @default(true)
+  sortOrder  Int            @default(0)
   packs      StandardPack[]
+  deliveries PackDelivery[]
 
   @@index([categoryId])
 }
@@ -2191,7 +2201,7 @@ model StandardPack {
   versions     PackVersion[]
 }
 
-/// Fixed contents, price and group size; groups point at a version, so edits publish a new one.
+/// Fixed contents, price, size and commission; never edited once published (AD-5).
 model PackVersion {
   id             String       @id @default(cuid())
   packId         String
@@ -2199,9 +2209,10 @@ model PackVersion {
   version        Int
   publishedAt    DateTime?
   pricePerFamily Decimal      @db.Decimal(14, 2)
-  /// Families needed to unlock the group order, 5 to 15
+  /// Families in one basket, 5 to 15
   groupSize      Int
   householdSize  Int?
+  commissionPct  Decimal      @default(0) @db.Decimal(5, 2)
   items          PackItem[]
   groups         PackGroup[]
 
@@ -2219,37 +2230,84 @@ model PackItem {
 }
 
 enum PackGroupStatus {
+  /// Started; waiting for the owner's payment
+  PENDING
   OPEN
   FULL
   CLOSED
 }
 
-/// Buyers at one pickup point joining one exact pack version.
+/// A family-pack basket: one pack version, delivered to its owner (the first payer).
 model PackGroup {
   id          String          @id @default(cuid())
   versionId   String
   version     PackVersion     @relation(fields: [versionId], references: [id], onDelete: Restrict)
-  agentId     String
-  agent       Agent           @relation(fields: [agentId], references: [id], onDelete: Restrict)
-  status      PackGroupStatus @default(OPEN)
-  joined      Int             @default(0)
-  closesAt    DateTime?
   createdById String
   createdBy   User            @relation("PackGroupStarter", fields: [createdById], references: [id], onDelete: Restrict)
+  /// Owner's location when the basket started (AD-4)
+  lat         Float
+  lng         Float
+  address     String
+  city        String?
+  status      PackGroupStatus @default(PENDING)
+  /// Held and paid spots
+  joined      Int             @default(0)
+  extensions  Int             @default(0)
+  closesAt    DateTime
   createdAt   DateTime        @default(now())
   members     PackMember[]
+  delivery    PackDelivery?
 
-  @@index([versionId, agentId, status])
+  @@index([versionId, status])
+  @@index([status, closesAt])
+  @@index([lat, lng])
+}
+
+enum PackMemberStatus {
+  HELD
+  PAID
 }
 
 model PackMember {
-  id       String    @id @default(cuid())
-  groupId  String
-  group    PackGroup @relation(fields: [groupId], references: [id], onDelete: Restrict)
-  userId   String
-  user     User      @relation(fields: [userId], references: [id], onDelete: Restrict)
-  joinedAt DateTime  @default(now())
+  id        String           @id @default(cuid())
+  groupId   String
+  group     PackGroup        @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  status    PackMemberStatus @default(HELD)
+  heldUntil DateTime?
+  joinedAt  DateTime         @default(now())
+  attempts  PaymentAttempt[]
 
   @@unique([groupId, userId])
   @@index([userId])
+}
+
+enum PackDeliveryStatus {
+  ORDERED
+  DISPATCHED
+  RECEIVED
+}
+
+/// A full basket's one order to its company, delivered to the owner (AD-7).
+model PackDelivery {
+  id         String             @id @default(cuid())
+  groupId    String             @unique
+  group      PackGroup          @relation(fields: [groupId], references: [id], onDelete: Restrict)
+  companyId  String
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  families   Int
+  amountDue  Decimal            @db.Decimal(14, 2)
+  status     PackDeliveryStatus @default(ORDERED)
+  createdAt  DateTime           @default(now())
+  receivedAt DateTime?
+}
+
+/// Phone numbers from a buyer's contacts, uploaded by the mobile app; ranks baskets (DEC-030).
+model UserContact {
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  phone  String
+
+  @@id([userId, phone])
 }

@@ -29,8 +29,9 @@ export function signNotice(f: NoticeFields, secret: string): string {
 /** Where the demo payment page returns the payer: the deposit page for a deposit, else checkout. */
 export function demoReturnPath(attempt: {
   id: string;
-  purpose: "ORDERS" | "DEPOSIT" | "DELIVERY_FEE";
+  purpose: "ORDERS" | "DEPOSIT" | "DELIVERY_FEE" | "PACK_JOIN";
 }): string {
+  if (attempt.purpose === "PACK_JOIN") return `/baskets/return/${attempt.id}`;
   return attempt.purpose === "DEPOSIT"
     ? `/agent/deposit/${attempt.id}`
     : `/checkout/return/${attempt.id}`;

@@ -1,5 +1,5 @@
 import { db } from "../src/server/db";
-import { DEMO_AGENTS, DEMO_BUYERS } from "../src/lib/demo-accounts";
+import { DEMO_BUYERS } from "../src/lib/demo-accounts";
 
 /** Demo family packs (DEC-030). Company names are examples only, not partners. */
 
@@ -133,6 +133,7 @@ export async function seedFamilyPacks() {
             publishedAt: new Date(),
             pricePerFamily: p.price,
             groupSize: p.size,
+            commissionPct: "10.00",
             householdSize: p.household ?? null,
             items: { create: p.items.map(([name, size, qty], sortOrder) => ({ name, size, qty, sortOrder })) },
           },
@@ -142,62 +143,42 @@ export async function seedFamilyPacks() {
     }
   }
 
-  const agent = (email: string) =>
-    db.agent.findFirstOrThrow({ where: { user: { email } }, select: { id: true } });
-  const kollupitiya = await agent(DEMO_AGENTS.kollupitiya);
-  const wellawatte = await agent(DEMO_AGENTS.wellawatte);
   const buyers = await db.user.findMany({
     where: { email: { in: Object.values(DEMO_BUYERS) } },
-    select: { id: true, email: true },
+    select: { id: true, email: true, lat: true, lng: true, address: true, city: true },
   });
-  const byEmail = new Map(buyers.map((b) => [b.email, b.id]));
-  const id = (email: string) => byEmail.get(email)!;
+  const by = new Map(buyers.map((b) => [b.email, b]));
+  const day = 86_400_000;
 
-  // Dilan sees a Kollupitiya group at 7 of 10 to join; Tharindu at Wellawatte sees Start a group.
-  await db.user.updateMany({
-    where: { id: { in: buyers.map((b) => b.id) } },
-    data: { pickupAgentId: kollupitiya.id },
-  });
-  await db.user.update({ where: { id: id(DEMO_BUYERS.tharindu) }, data: { pickupAgentId: wellawatte.id } });
-
-  const members = [
-    DEMO_BUYERS.sachini,
-    DEMO_BUYERS.nimali,
-    DEMO_BUYERS.ravindu,
-    DEMO_BUYERS.ayesha,
-    DEMO_BUYERS.kasun,
-    DEMO_BUYERS.dinithi,
-  ].map(id);
-  const starter = members[0];
-  const closesAt = new Date(Date.now() + 7 * 86_400_000);
-  // Six demo buyers and one more demo family make 7 of 10.
-  const extra = await db.user.create({
-    data: {
-      name: "Demo Family",
-      email: "family7@example.com",
-      passwordHash: (await db.user.findUniqueOrThrow({ where: { id: starter }, select: { passwordHash: true } }))
-        .passwordHash,
-      pickupAgentId: kollupitiya.id,
-    },
-  });
-  await db.packGroup.create({
-    data: {
-      versionId: versions.get("hemas-30-day")!,
-      agentId: kollupitiya.id,
-      createdById: starter,
-      joined: 7,
-      closesAt,
-      members: { create: [...members, extra.id].map((userId) => ({ userId })) },
-    },
-  });
-  // Same pickup point, other pack: its progress is its own.
-  await db.packGroup.create({
-    data: {
-      versionId: versions.get("hemas-15-day")!,
-      agentId: kollupitiya.id,
-      createdById: starter,
-      joined: 2,
-      members: { create: members.slice(0, 2).map((userId) => ({ userId })) },
-    },
-  });
+  // A Hemas 30-day basket at 7 of 10 near Dilan, owned by Sachini; Tharindu has none nearby.
+  async function basket(slug: string, ownerEmail: string, memberEmails: string[], daysLeft: number) {
+    const owner = by.get(ownerEmail)!;
+    const versionId = versions.get(slug)!;
+    const members = [owner, ...memberEmails.map((e) => by.get(e)!)];
+    await db.packGroup.create({
+      data: {
+        versionId,
+        createdById: owner.id,
+        lat: owner.lat ?? 6.9,
+        lng: owner.lng ?? 79.86,
+        address: owner.address ?? "Colombo",
+        city: owner.city,
+        status: "OPEN",
+        joined: members.length,
+        closesAt: new Date(Date.now() + daysLeft * day),
+        members: { create: members.map((m) => ({ userId: m.id, status: "PAID" as const })) },
+      },
+    });
+  }
+  const near = [DEMO_BUYERS.nimali, DEMO_BUYERS.ravindu, DEMO_BUYERS.ayesha, DEMO_BUYERS.kasun, DEMO_BUYERS.dinithi];
+  // Pin the basket's families next to Dilan so the basket is within 1 km of him.
+  const dilan = by.get(DEMO_BUYERS.dilan)!;
+  for (const [i, e] of [DEMO_BUYERS.sachini, ...near].entries()) {
+    const b = by.get(e)!;
+    const lat = (dilan.lat ?? 6.9) + 0.001 * (i + 1);
+    await db.user.update({ where: { id: b.id }, data: { lat, lng: dilan.lng ?? 79.86 } });
+    by.set(e, { ...b, lat, lng: dilan.lng ?? 79.86 });
+  }
+  await basket("hemas-30-day", DEMO_BUYERS.sachini, near, 7);
+  await basket("hemas-15-day", DEMO_BUYERS.nimali, [DEMO_BUYERS.ravindu], 12);
 }
