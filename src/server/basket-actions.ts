@@ -22,7 +22,7 @@ async function pay(work: () => Promise<{ redirectUrl: string }>): Promise<Basket
 
 export async function startBasketAction(_p: BasketState, fd: FormData): Promise<BasketState> {
   const user = await requireUser(str(fd, "path") || "/");
-  return pay(() => startBasket(user.id, str(fd, "versionId")));
+  return pay(() => startBasket(user.id, str(fd, "versionId"), Number(str(fd, "size"))));
 }
 
 export async function joinBasketAction(_p: BasketState, fd: FormData): Promise<BasketState> {

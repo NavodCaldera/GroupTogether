@@ -38,7 +38,18 @@ export async function packAction(_p: CompanyState, fd: FormData): Promise<Compan
     .map((n, i) => ({ name: String(n).trim(), size: (sizes[i] ?? "").trim(), qty: qtys[i] }))
     .filter((i) => i.name || i.size);
   return run(
-    (id) => publishPackVersion(id, str(fd, "packId"), str(fd, "price"), items),
+    (id) =>
+      publishPackVersion(
+        id,
+        str(fd, "packId"),
+        str(fd, "price"),
+        {
+          discount5: str(fd, "discount5"),
+          discount10: str(fd, "discount10"),
+          discount15: str(fd, "discount15"),
+        },
+        items,
+      ),
     "Pack updated",
   );
 }

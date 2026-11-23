@@ -57,5 +57,5 @@ test("a company updates a pack and buyers see the new version", async ({ page })
   await expect(page.getByText("LKR 2,600").first()).toBeVisible();
   await expect(page.getByText("Body lotion")).toBeVisible();
   await page.goto("/companies/hemas");
-  await expect(page.getByTestId("packs-bought")).toHaveText(/^\d+ family packs bought$/);
+  await expect(page.getByTestId("packs-bought")).toHaveText(/^\d+ family packs bought today$/);
 });

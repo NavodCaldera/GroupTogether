@@ -2,7 +2,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { appUrl } from "@/lib/app-url";
 import { distanceKm } from "@/lib/distance";
-import { packAmountDue } from "@/lib/pack-money";
+import { isBasketSize, packAmountDue, sizePrice } from "@/lib/pack-money";
 import { db, type Tx } from "./db";
 import { AppError } from "./errors";
 import { getGateway } from "./payments/gateway";
@@ -23,17 +23,17 @@ type LockedGroup = {
   closesAt: Date;
   lat: number;
   lng: number;
-  groupSize: number;
+  size: number;
   price: string;
 };
 
 export async function lockGroup(tx: Tx, groupId: string): Promise<LockedGroup | null> {
   const rows = await tx.$queryRaw<LockedGroup[]>`
     SELECT g."id", g."status"::text AS "status", g."joined", g."closesAt", g."lat", g."lng",
-           v."groupSize", v."pricePerFamily"::text AS "price"
-    FROM "PackGroup" g JOIN "PackVersion" v ON v."id" = g."versionId"
+           g."size", g."price"::text AS "price"
+    FROM "PackGroup" g
     WHERE g."id" = ${groupId}
-    FOR UPDATE OF g`;
+    FOR UPDATE`;
   return rows[0] ?? null;
 }
 
@@ -49,7 +49,7 @@ async function holdSpot(tx: Tx, userId: string, g: LockedGroup) {
   });
   if (existing?.status === "PAID") throw new AppError("You are already in this basket.");
   if (existing) throw new AppError("Your payment for this basket is still open.");
-  if (g.joined >= g.groupSize) throw new AppError("This basket is full.");
+  if (g.joined >= g.size) throw new AppError("This basket is full.");
   const { paymentHoldMinutes } = await getSettings(tx);
   const heldUntil = new Date(Date.now() + paymentHoldMinutes * 60_000);
   const member = await tx.packMember.create({
@@ -93,18 +93,28 @@ export async function joinBasket(userId: string, groupId: string) {
   return checkout(u, pay);
 }
 
-/** Pay to start a basket for a pack; the payer becomes its owner. */
-export async function startBasket(userId: string, versionId: string) {
+/** Pay to start a basket of 5, 10 or 15 families for a pack; the payer becomes its owner. */
+export async function startBasket(userId: string, versionId: string, size: number) {
+  if (!isBasketSize(size)) throw new AppError("Choose 5, 10 or 15 families.");
   const u = await buyer(userId);
   const pay = await db.$transaction(async (tx) => {
     const v = await tx.packVersion.findUnique({
       where: { id: versionId },
-      select: { publishedAt: true, pack: { select: { active: true, durationDays: true } } },
+      select: {
+        publishedAt: true,
+        pricePerFamily: true,
+        discount5: true,
+        discount10: true,
+        discount15: true,
+        pack: { select: { active: true, durationDays: true } },
+      },
     });
     if (!v?.publishedAt || !v.pack.active) throw new AppError("This pack is not available.");
     const group = await tx.packGroup.create({
       data: {
         versionId,
+        size,
+        price: sizePrice(v, size).toFixed(2),
         createdById: userId,
         lat: u.lat,
         lng: u.lng,
@@ -149,12 +159,15 @@ export async function confirmPackSpot(
   if (!m) return false;
   const g = await lockGroup(tx, m.groupId);
   if (!g || g.status === "CLOSED" || g.status === "FULL" || m.status !== "HELD") return false;
-  await tx.packMember.update({ where: { id: m.id }, data: { status: "PAID", heldUntil: null } });
+  await tx.packMember.update({
+    where: { id: m.id },
+    data: { status: "PAID", heldUntil: null, paidAt: now },
+  });
   const paid = await tx.packMember.count({ where: { groupId: g.id, status: "PAID" } });
   if (g.status === "PENDING") {
     await tx.packGroup.update({ where: { id: g.id }, data: { status: "OPEN" } });
   }
-  if (paid >= g.groupSize) await fillBasket(tx, g.id, now);
+  if (paid >= g.size) await fillBasket(tx, g.id, now);
   return true;
 }
 
@@ -165,9 +178,9 @@ async function fillBasket(tx: Tx, groupId: string, now: Date) {
     data: { status: "FULL" },
     select: {
       joined: true,
+      price: true,
       version: {
         select: {
-          pricePerFamily: true,
           commissionPct: true,
           pack: { select: { companyId: true } },
         },
@@ -179,9 +192,7 @@ async function fillBasket(tx: Tx, groupId: string, now: Date) {
       groupId,
       companyId: g.version.pack.companyId,
       families: g.joined,
-      amountDue: packAmountDue(g.version.pricePerFamily, g.version.commissionPct, g.joined).toFixed(
-        2,
-      ),
+      amountDue: packAmountDue(g.price, g.version.commissionPct, g.joined).toFixed(2),
       createdAt: now,
     },
   });

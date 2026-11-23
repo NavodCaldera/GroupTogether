@@ -1,5 +1,7 @@
 import "server-only";
 import { distanceKm } from "@/lib/distance";
+import { colomboIsoDay } from "@/lib/format";
+import { sizeTable } from "@/lib/pack-money";
 import { db } from "./db";
 
 /** Family packs (DEC-030): categories → companies → standard packs → open baskets. */
@@ -26,7 +28,7 @@ export async function homeCategories() {
 
 const latest = { where: published, orderBy: { version: "desc" }, take: 1 } as const;
 
-/** A company page: brand, family packs bought so far, and its standard packs at their latest version. */
+/** A company page: brand, family packs bought today, and its standard packs at their latest version. */
 export async function getCompany(slug: string) {
   const company = await db.company.findFirst({
     where: { slug, active: true },
@@ -40,11 +42,13 @@ export async function getCompany(slug: string) {
     },
   });
   if (!company) return null;
-  // Paid spots in baskets that were not refunded.
-  const [bought, packs] = await Promise.all([
+  // Spots paid since midnight in Colombo, in baskets that were not refunded.
+  const midnight = new Date(`${colomboIsoDay()}T00:00:00+05:30`);
+  const [boughtToday, packs] = await Promise.all([
     db.packMember.count({
       where: {
         status: "PAID",
+        paidAt: { gte: midnight },
         group: { status: { not: "CLOSED" }, version: { pack: { companyId: company.id } } },
       },
     }),
@@ -60,9 +64,10 @@ export async function getCompany(slug: string) {
           ...latest,
           select: {
             pricePerFamily: true,
-            groupSize: true,
+            discount5: true,
+            discount10: true,
+            discount15: true,
             householdSize: true,
-            _count: { select: { items: true } },
           },
         },
       },
@@ -70,13 +75,12 @@ export async function getCompany(slug: string) {
   ]);
   return {
     ...company,
-    bought,
+    boughtToday,
     packs: packs.map(({ versions: [v], ...p }) => ({
       ...p,
       price: v.pricePerFamily,
-      families: v.groupSize,
       householdSize: v.householdSize,
-      items: v._count.items,
+      sizes: sizeTable(v),
     })),
   };
 }
@@ -96,7 +100,9 @@ export async function getPack(slug: string) {
         select: {
           id: true,
           pricePerFamily: true,
-          groupSize: true,
+          discount5: true,
+          discount10: true,
+          discount15: true,
           householdSize: true,
           items: {
             orderBy: { sortOrder: "asc" },
@@ -149,13 +155,13 @@ export async function openBaskets(
         lng: true,
         city: true,
         joined: true,
+        size: true,
+        price: true,
         closesAt: true,
         createdBy: { select: { phone: true } },
         members: { where: { userId: viewer.id }, select: { id: true } },
         version: {
           select: {
-            groupSize: true,
-            pricePerFamily: true,
             pack: {
               select: { slug: true, name: true, company: { select: { slug: true, name: true } } },
             },
@@ -172,10 +178,10 @@ export async function openBaskets(
       distanceKm: distanceKm(here, g),
       city: g.city,
       joined: g.joined,
-      size: g.version.groupSize,
-      spotsLeft: g.version.groupSize - g.joined,
+      size: g.size,
+      spotsLeft: g.size - g.joined,
       closesAt: g.closesAt,
-      price: g.version.pricePerFamily,
+      price: g.price,
       packSlug: g.version.pack.slug,
       packName: g.version.pack.name,
       companySlug: g.version.pack.company.slug,
@@ -203,10 +209,10 @@ export async function getBasket(
       lng: true,
       city: true,
       createdById: true,
+      size: true,
+      price: true,
       version: {
         select: {
-          groupSize: true,
-          pricePerFamily: true,
           householdSize: true,
           items: {
             orderBy: { sortOrder: "asc" },
@@ -240,11 +246,11 @@ export async function getBasket(
     id: g.id,
     status: g.status,
     joined: g.joined,
-    size: g.version.groupSize,
+    size: g.size,
     closesAt: g.closesAt,
     city: g.city,
     distanceKm: km,
-    price: g.version.pricePerFamily,
+    price: g.price,
     householdSize: g.version.householdSize,
     items: g.version.items,
     pack: g.version.pack,
@@ -253,7 +259,7 @@ export async function getBasket(
     joinable:
       g.status === "OPEN" &&
       g.closesAt > new Date() &&
-      g.joined < g.version.groupSize &&
+      g.joined < g.size &&
       !me &&
       km !== null &&
       km <= NEARBY_KM,

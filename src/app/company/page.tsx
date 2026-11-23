@@ -60,7 +60,16 @@ export default async function CompanyDashboard() {
               ) : null}
               <ImageForm target={p.id} label={`${p.name} photo`} />
               {v ? (
-                <PackEditor packId={p.id} price={v.pricePerFamily.toFixed(2)} items={v.items} />
+                <PackEditor
+                  packId={p.id}
+                  price={v.pricePerFamily.toFixed(2)}
+                  discounts={{
+                    discount5: v.discount5.toString(),
+                    discount10: v.discount10.toString(),
+                    discount15: v.discount15.toString(),
+                  }}
+                  items={v.items}
+                />
               ) : null}
             </Card>
           );

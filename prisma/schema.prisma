@@ -116,9 +116,11 @@ model PackVersion {
   pack           StandardPack @relation(fields: [packId], references: [id], onDelete: Restrict)
   version        Int
   publishedAt    DateTime?
+  /// Full price for one family; a basket of 5, 10 or 15 families takes that size's discount %
   pricePerFamily Decimal      @db.Decimal(14, 2)
-  /// Families in one basket, 5 to 15
-  groupSize      Int
+  discount5      Decimal      @default(0) @db.Decimal(5, 2)
+  discount10     Decimal      @default(0) @db.Decimal(5, 2)
+  discount15     Decimal      @default(0) @db.Decimal(5, 2)
   householdSize  Int?
   commissionPct  Decimal      @default(0) @db.Decimal(5, 2)
   items          PackItem[]
@@ -158,6 +160,10 @@ model PackGroup {
   address     String
   city        String?
   status      PackGroupStatus @default(PENDING)
+  /// Families in this basket (5, 10 or 15), chosen by the owner; it never changes
+  size        Int
+  /// Price per family after the size's discount, fixed when the basket starts
+  price       Decimal         @db.Decimal(14, 2)
   /// Held and paid spots
   joined      Int             @default(0)
   extensions  Int             @default(0)
@@ -184,6 +190,7 @@ model PackMember {
   user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
   status    PackMemberStatus @default(HELD)
   heldUntil DateTime?
+  paidAt    DateTime?
   joinedAt  DateTime         @default(now())
   attempts  PaymentAttempt[]
 

@@ -63,16 +63,22 @@ export async function replaceImage(
 }
 
 export type ItemInput = { name: string; size: string; qty: number };
+/** Discount % for baskets of 5, 10 and 15 families. */
+export type DiscountInput = { discount5: string; discount10: string; discount15: string };
 
-/** Publishes a new version of a pack with new items and price; baskets already started keep theirs. */
+/** Publishes a new version with new items, price and discounts; baskets already started keep theirs. */
 export async function publishPackVersion(
   companyId: string,
   packId: string,
   price: string,
+  discounts: DiscountInput,
   items: ItemInput[],
 ) {
   if (!/^\d{1,7}(\.\d{1,2})?$/.test(price) || new D(price).lte(0))
     throw new AppError("Enter a price above 0.");
+  for (const pct of Object.values(discounts))
+    if (!/^\d{1,2}(\.\d{1,2})?$/.test(pct) || new D(pct).gt(90))
+      throw new AppError("Discounts are 0 to 90%.");
   if (items.length === 0 || items.length > 30) throw new AppError("A pack needs 1 to 30 items.");
   for (const i of items) {
     if (!i.name || i.name.length > 80 || i.size.length > 30)
@@ -87,7 +93,7 @@ export async function publishPackVersion(
         versions: {
           orderBy: { version: "desc" },
           take: 1,
-          select: { version: true, groupSize: true, householdSize: true, commissionPct: true },
+          select: { version: true, householdSize: true, commissionPct: true },
         },
       },
     });
@@ -99,7 +105,7 @@ export async function publishPackVersion(
         version: v.version + 1,
         publishedAt: new Date(),
         pricePerFamily: price,
-        groupSize: v.groupSize,
+        ...discounts,
         householdSize: v.householdSize,
         commissionPct: v.commissionPct,
         items: { create: items.map((i, sortOrder) => ({ ...i, sortOrder })) },
@@ -131,7 +137,9 @@ export function companyDashboard(companyId: string) {
             select: {
               version: true,
               pricePerFamily: true,
-              groupSize: true,
+              discount5: true,
+              discount10: true,
+              discount15: true,
               items: {
                 orderBy: { sortOrder: "asc" },
                 select: { name: true, size: true, qty: true },

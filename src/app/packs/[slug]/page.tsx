@@ -6,6 +6,7 @@ import { PackContents, PackPhoto } from "@/components/pack-contents";
 import { BackLink } from "@/components/client";
 import { LinkButton, PageHeader } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
+import { sizeTable } from "@/lib/pack-money";
 import { getCurrentUser } from "@/server/auth/session";
 import { getPack, openBaskets } from "@/server/packs";
 
@@ -14,6 +15,7 @@ export default async function PackPage({ params }: PageProps<"/packs/[slug]">) {
   const [pack, user] = await Promise.all([getPack(slug), getCurrentUser()]);
   if (!pack) notFound();
   const v = pack.version;
+  const sizes = sizeTable(v);
   const path = `/packs/${slug}`;
   const baskets = user
     ? ((await openBaskets(user, { companySlug: pack.company.slug }))?.filter(
@@ -38,7 +40,7 @@ export default async function PackPage({ params }: PageProps<"/packs/[slug]">) {
       <PackContents
         items={v.items}
         price={v.pricePerFamily}
-        families={v.groupSize}
+        sizes={sizes}
         householdSize={v.householdSize}
         durationDays={pack.durationDays}
       />
@@ -59,7 +61,11 @@ export default async function PackPage({ params }: PageProps<"/packs/[slug]">) {
               <BasketCard key={b.id} b={b} />
             ))}
             {baskets.some((b) => b.mine) ? null : (
-              <StartBasketForm versionId={v.id} path={path} price={formatLKR(v.pricePerFamily)} />
+              <StartBasketForm
+                versionId={v.id}
+                path={path}
+                sizes={sizes.map((x) => ({ size: x.size, price: formatLKR(x.price) }))}
+              />
             )}
           </>
         )}

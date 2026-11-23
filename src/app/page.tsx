@@ -8,20 +8,10 @@ export default async function HomePage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <section className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-accent to-accent/70 px-5 py-8 text-on-accent sm:px-10 sm:py-12">
-        <h1 className="max-w-xl text-3xl font-bold leading-tight tracking-tight sm:text-5xl">
-          Direct factory to consumer.
-          <span className="mt-1 block text-on-accent/80">No more middle man.</span>
+      <section className="rounded-2xl bg-muted px-4 py-8 text-center sm:px-8 sm:py-12">
+        <h1 className="text-2xl font-bold tracking-tight text-balance sm:text-4xl">
+          Direct factory to consumer. <span className="text-accent">No more middle man.</span>
         </h1>
-        <svg
-          viewBox="0 0 120 48"
-          aria-hidden="true"
-          className="mt-6 h-10 w-auto fill-none stroke-current stroke-2 opacity-90 sm:absolute sm:right-10 sm:bottom-10 sm:mt-0 sm:h-16 [stroke-linecap:round] [stroke-linejoin:round]"
-        >
-          <path d="M4 44V22l10 6v-6l10 6v-6l10 6V8h6v36z" />
-          <path d="M48 30h36m-6-6 6 6-6 6" />
-          <path d="M94 44V28l12-10 12 10v16zm8 0v-8h8v8" />
-        </svg>
       </section>
       {categories.length === 0 ? <EmptyState title="No companies yet" /> : null}
       {categories.map((c) => (

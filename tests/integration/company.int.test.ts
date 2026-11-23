@@ -22,7 +22,6 @@ async function company() {
       version: 1,
       publishedAt: new Date(),
       pricePerFamily: "1000.00",
-      groupSize: 8,
       householdSize: 4,
       commissionPct: "10.00",
       items: { create: [{ name: "Milk", size: "1 l", qty: 2 }] },
@@ -31,13 +30,15 @@ async function company() {
   return { id: co.id, packId: pack.id };
 }
 
+const OFF = { discount5: "5", discount10: "10", discount15: "12.5" };
+
 const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 const file = (bytes: Uint8Array<ArrayBuffer>) => new File([bytes], "x.png", { type: "image/png" });
 
 describe("company dashboard", () => {
   it("publishes a new version with new items and price, keeping size, household and commission", async () => {
     const c = await company();
-    await publishPackVersion(c.id, c.packId, "1250.50", [
+    await publishPackVersion(c.id, c.packId, "1250.50", OFF, [
       { name: "Butter", size: "200 g", qty: 1 },
     ]);
     const versions = await db.packVersion.findMany({
@@ -46,7 +47,9 @@ describe("company dashboard", () => {
       select: {
         version: true,
         pricePerFamily: true,
-        groupSize: true,
+        discount5: true,
+        discount10: true,
+        discount15: true,
         householdSize: true,
         commissionPct: true,
         items: true,
@@ -58,27 +61,32 @@ describe("company dashboard", () => {
     expect([
       v2.version,
       v2.pricePerFamily.toFixed(2),
-      v2.groupSize,
+      v2.discount15.toFixed(2),
       v2.householdSize,
       v2.commissionPct.toFixed(2),
-    ]).toEqual([2, "1250.50", 8, 4, "10.00"]);
+    ]).toEqual([2, "1250.50", "12.50", 4, "10.00"]);
     expect(v2.items.map((i) => [i.name, i.qty])).toEqual([["Butter", 1]]);
   });
 
-  it("refuses another company's pack, a bad price and an empty pack", async () => {
+  it("refuses another company's pack, a bad price or discount and an empty pack", async () => {
     const a = await company();
     const b = await company();
     const item = [{ name: "Milk", size: "1 l", qty: 1 }];
-    await expect(publishPackVersion(a.id, b.packId, "100", item)).rejects.toThrow(
+    await expect(publishPackVersion(a.id, b.packId, "100", OFF, item)).rejects.toThrow(
       "Pack not found.",
     );
-    await expect(publishPackVersion(a.id, a.packId, "0", item)).rejects.toThrow(
+    await expect(publishPackVersion(a.id, a.packId, "0", OFF, item)).rejects.toThrow(
       "Enter a price above 0.",
     );
-    await expect(publishPackVersion(a.id, a.packId, "12.345", item)).rejects.toThrow(
+    await expect(publishPackVersion(a.id, a.packId, "12.345", OFF, item)).rejects.toThrow(
       "Enter a price above 0.",
     );
-    await expect(publishPackVersion(a.id, a.packId, "100", [])).rejects.toThrow("1 to 30 items");
+    await expect(publishPackVersion(a.id, a.packId, "100", OFF, [])).rejects.toThrow(
+      "1 to 30 items",
+    );
+    await expect(
+      publishPackVersion(a.id, a.packId, "100", { ...OFF, discount15: "95" }, item),
+    ).rejects.toThrow("0 to 90%");
     expect(await db.packVersion.count({ where: { packId: { in: [a.packId, b.packId] } } })).toBe(2);
   });
 

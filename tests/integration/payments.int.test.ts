@@ -51,11 +51,10 @@ async function started() {
       version: 1,
       publishedAt: new Date(),
       pricePerFamily: "150.00",
-      groupSize: 5,
     },
   });
   const buyer = await makeBuyer();
-  await startBasket(buyer.id, v.id);
+  await startBasket(buyer.id, v.id, 5);
   const attempt = await db.paymentAttempt.findFirstOrThrow({ where: { buyerId: buyer.id } });
   return { buyer, attempt };
 }
