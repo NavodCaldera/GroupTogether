@@ -3,6 +3,11 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-23: Basket filter follows the category
+
+On Open baskets, the Company list shows only the companies in the chosen category, and a company
+outside the new category is cleared (`BasketFilter` in `src/components/client.tsx`).
+
 ## 2026-11-23: Minimal core (cleanup)
 
 The owner asked for the smallest system that runs the family-pack model, file by file, with no

@@ -27,4 +27,9 @@ test("a buyer finds a basket near them, pays and is in", async ({ page }) => {
   await expect(page).toHaveURL(/\/baskets\/[^/]+$/);
   await expect(page.getByTestId("basket-progress")).toHaveText("4 of 10 families");
   await expect(page.getByText("You are in")).toBeVisible();
+
+  await page.goto("/baskets?company=hemas");
+  await page.getByLabel("Category").selectOption("biscuits-snacks");
+  await expect(page.getByLabel("Company")).toHaveValue("");
+  await expect(page.getByLabel("Company").locator("option")).toHaveText(["All", "CBL", "Maliban"]);
 });
