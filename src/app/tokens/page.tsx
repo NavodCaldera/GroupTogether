@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Card, EmptyState, PageHeader } from "@/components/ui";
 import { formatLKR } from "@/lib/format";
 import { formatTime, groupByDay } from "@/lib/token-labels";
-import { requireUser } from "@/server/auth/session";
+import { redirectCompany, requireUser } from "@/server/auth/session";
 import { db } from "@/server/db";
 import { tokenBalance } from "@/server/tokens";
 
@@ -12,6 +12,7 @@ const TITLE = { PACK_REFUND: "Basket refund", LATE_PAYMENT: "Payment returned" }
 
 export default async function TokensPage() {
   const user = await requireUser("/tokens");
+  await redirectCompany();
   const [balance, entries] = await Promise.all([
     tokenBalance(user.id),
     db.tokenEntry.findMany({

@@ -14,11 +14,6 @@ const SECTIONS = [
     icon: <path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM9 9h6M9 15h6M12 7v10" />,
   },
 ];
-const COMPANY = {
-  href: "/company",
-  label: "Company",
-  icon: <path d="M4 21V5l8-3v19M12 9h8v12M8 7v.01M8 11v.01M8 15v.01M16 13v.01M16 17v.01M2 21h20" />,
-};
 
 function Icon({ size = 20, children }: { size?: number; children: ReactNode }) {
   return (
@@ -48,26 +43,30 @@ export async function SiteHeader() {
   const underline =
     "relative text-ink after:absolute after:inset-x-2 sm:after:inset-x-2.5 after:-bottom-[7px] after:h-0.5 after:rounded-full after:bg-accent sm:after:-bottom-[11px]";
   const dark = theme === "dark";
-  const sections = user?.companyId ? [...SECTIONS, COMPANY] : SECTIONS;
+  // Buyers get the section tabs; a company login has only its dashboard, behind the logo.
+  const company = !!user?.companyId;
+  const sections = user && !company ? SECTIONS : [];
 
   return (
     <>
       <header className="sticky top-0 z-20 border-b border-line bg-paper/95 pt-[env(safe-area-inset-top)] backdrop-blur">
         <nav className="mx-auto flex max-w-6xl items-center gap-1 px-4 py-1.5 text-sm sm:py-2.5">
-          <Link href="/" className="mr-1 text-base font-bold tracking-tight sm:mr-3 sm:text-lg">
+          <Link
+            href={company ? "/company" : "/"}
+            className="mr-1 text-base font-bold tracking-tight sm:mr-3 sm:text-lg"
+          >
             Group<span className="text-accent">Basket</span>
           </Link>
-          {user &&
-            sections.slice(1).map((s) => (
-              <NavLink
-                key={s.href}
-                href={s.href}
-                className={`hidden sm:inline-flex ${tap}`}
-                activeClassName={`${underline} font-medium`}
-              >
-                {s.label}
-              </NavLink>
-            ))}
+          {sections.slice(1).map((s) => (
+            <NavLink
+              key={s.href}
+              href={s.href}
+              className={`hidden sm:inline-flex ${tap}`}
+              activeClassName={`${underline} font-medium`}
+            >
+              {s.label}
+            </NavLink>
+          ))}
           <span className="flex-1" />
           <form action={toggleThemeAction}>
             <button
@@ -118,7 +117,7 @@ export async function SiteHeader() {
         </nav>
       </header>
 
-      {user && (
+      {sections.length > 0 && (
         <nav
           aria-label="Sections"
           className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-paper/95 pb-[env(safe-area-inset-bottom)] backdrop-blur sm:hidden"

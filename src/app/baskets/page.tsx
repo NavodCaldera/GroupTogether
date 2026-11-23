@@ -1,7 +1,7 @@
 import { BasketCard } from "@/components/basket-card";
 import { BasketFilter } from "@/components/client";
 import { Button, EmptyState, LinkButton, PageHeader } from "@/components/ui";
-import { requireUser } from "@/server/auth/session";
+import { redirectCompany, requireUser } from "@/server/auth/session";
 import { homeCategories, openBaskets } from "@/server/packs";
 
 /** Every open basket within 1 km, contacts first; filter by company or category. */
@@ -11,6 +11,7 @@ export default async function BasketsPage({ searchParams }: PageProps<"/baskets"
   const company = one(q.company);
   const category = one(q.category);
   const user = await requireUser("/baskets");
+  await redirectCompany();
   const [cats, baskets] = await Promise.all([
     homeCategories(),
     openBaskets(user, { companySlug: company, categorySlug: category }),

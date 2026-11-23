@@ -31,7 +31,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         </main>
         {/* Clears the phone tab bar, when there is one, and the home indicator. */}
         <footer
-          className={`border-t border-line px-4 pt-6 text-center text-xs text-subtle sm:pb-6 ${user ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"}`}
+          className={`border-t border-line px-4 pt-6 text-center text-xs text-subtle sm:pb-6 ${user && !user.companyId ? "pb-[calc(5rem+env(safe-area-inset-bottom))]" : "pb-[calc(1.5rem+env(safe-area-inset-bottom))]"}`}
         >
           GroupBasket
         </footer>

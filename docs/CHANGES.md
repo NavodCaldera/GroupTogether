@@ -3,6 +3,12 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-23: Company logins see only their dashboard
+
+A company login signs in to `/company`. Its header has no Home, Baskets or Tokens tabs, and the
+logo leads to the dashboard. Opening `/`, `/baskets` or `/tokens` sends it to the dashboard
+(`redirectCompany` in `src/server/auth/session.ts`).
+
 ## 2026-11-23: "Family of 4 members"
 
 The household badge on pack cards and pages now reads "Family of 4 members".
