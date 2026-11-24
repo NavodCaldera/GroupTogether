@@ -36,7 +36,7 @@ export default async function BasketsPage({ searchParams }: PageProps<"/baskets"
       ) : (
         <div className="flex flex-col gap-3">
           {baskets.map((b) => (
-            <BasketCard key={b.id} b={b} />
+            <BasketCard key={b.id} b={b} showCompany />
           ))}
         </div>
       )}
