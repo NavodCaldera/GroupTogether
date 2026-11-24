@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { BackLink } from "@/components/client";
 import { ActionForm } from "@/components/resale-forms";
 import { Badge, Card, EmptyState, PageHeader } from "@/components/ui";
@@ -95,10 +94,7 @@ export default async function MyListingsPage() {
           <ul className="flex flex-col gap-3">
             {reservations.map((r) => (
               <li key={r.id}>
-                <Link
-                  href={`/reselling/${r.listingId}`}
-                  className="block rounded-xl border border-line bg-paper p-4 text-sm transition hover:border-accent"
-                >
+                <Card className="flex flex-col gap-2 text-sm">
                   <span className="block font-semibold">
                     {r.name} {r.size} · {r.qty}
                   </span>
@@ -107,9 +103,18 @@ export default async function MyListingsPage() {
                   </span>
                   <span className="block">
                     {label(r.status)}
+                    {r.status === "RESERVED" ? ` until ${formatDate(r.expiresAt)}` : ""}
                     {r.spot ? ` · ${r.spot}` : ""}
                   </span>
-                </Link>
+                  {r.status === "RESERVED" ? (
+                    <ActionForm
+                      act={cancelReservationAction}
+                      fields={{ id: r.id }}
+                      label="Cancel reservation"
+                      variant="secondary"
+                    />
+                  ) : null}
+                </Card>
               </li>
             ))}
           </ul>

@@ -58,7 +58,7 @@ export async function listAction(_p: ResaleState, fd: FormData): Promise<ResaleS
 export async function reserveAction(_p: ResaleState, fd: FormData): Promise<ResaleState> {
   const listingId = str(fd, "listingId");
   return run(
-    `/reselling/${listingId}`,
+    "/reselling",
     (id) => reserve(id, listingId, Number(str(fd, "qty"))),
     "Reserved",
   );
@@ -69,7 +69,7 @@ export async function completeAction(_p: ResaleState, fd: FormData): Promise<Res
 }
 
 export async function cancelReservationAction(_p: ResaleState, fd: FormData): Promise<ResaleState> {
-  const back = str(fd, "back").startsWith("/reselling/") ? str(fd, "back") : "/reselling/mine";
+  const back = str(fd, "back") === "/reselling" ? "/reselling" : "/reselling/mine";
   return run(back, (id) => cancelReservation(id, str(fd, "id")), "Reservation cancelled");
 }
 
