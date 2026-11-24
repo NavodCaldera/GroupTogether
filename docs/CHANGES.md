@@ -3,6 +3,10 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-24: Company name on open baskets
+
+The owner asked for the company name on each basket in Open baskets (`/baskets`), e.g. "CBL Group · Budget Pack". Company and pack pages already name the company, so their cards are unchanged.
+
 ## 2026-11-24: At-cost resale (DEC-031)
 
 The owner asked for at-cost resale of unwanted, unopened items. Buying a whole pack is unchanged.
