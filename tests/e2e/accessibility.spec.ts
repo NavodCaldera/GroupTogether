@@ -37,7 +37,6 @@ test("buyer pages are accessible without horizontal overflow", async ({ page }) 
     "/tokens",
     "/account",
     "/reselling",
-    "/reselling?view=nearby",
     "/reselling/mine",
     "/purchases",
   ]) {
@@ -51,7 +50,7 @@ test("buyer pages are accessible without horizontal overflow", async ({ page }) 
   await page.getByRole("link", { name: /CBL Group/ }).click();
   await page.getByText("Resell", { exact: true }).first().click();
   await inspect(page);
-  await page.goto("/reselling?view=nearby");
+  await page.goto("/reselling");
   await page.getByTestId("listing").first().click();
   await inspect(page);
 });

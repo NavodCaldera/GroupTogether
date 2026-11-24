@@ -10,7 +10,8 @@ they paid for the unit within the basket, never more. The rules are PK-10 to PK-
 [operating brief](../.claude/agents/groupbasket.md). The owner chose:
 
 - **Pickup:** the seller names a public meeting place. Viewers see the area; only a buyer holding a reservation sees the place. There are no staffed pickup points.
-- **Contacts:** a listing reaches "From Contacts" only when both buyers saved each other's mobile number. No invite flow; no phone number is shown.
+- **Contacts:** a listing reaches a contact only when both buyers saved each other's mobile number. No invite flow; no phone number is shown.
+- **One list** (2026-11-24): Reselling shows contacts' listings first, then nearby ones within 1 km, each nearest first. Purchase history is on the profile.
 
 Payment happens at pickup, outside GroupBasket. There is no resale delivery, bidding or payout.
 
