@@ -50,9 +50,6 @@ test("buyer pages are accessible without horizontal overflow", async ({ page }) 
   await page.getByRole("link", { name: /CBL Group/ }).click();
   await page.getByText("Resell", { exact: true }).first().click();
   await inspect(page);
-  await page.goto("/reselling");
-  await page.getByTestId("listing").first().click();
-  await inspect(page);
 });
 
 test("the company dashboard is accessible without horizontal overflow", async ({ page }) => {

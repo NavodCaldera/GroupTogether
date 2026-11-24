@@ -33,11 +33,13 @@ test("resell an item, reserve a contact's listing and hand it over", async ({ br
   const tharindu = await browser.newPage();
   await signIn(tharindu, "buyer3@example.com");
   await tharindu.goto("/reselling");
-  await tharindu.getByTestId("listing").filter({ hasText: "Marie biscuits" }).click();
-  await tharindu.getByRole("button", { name: "Reserve" }).click();
-  await expect(tharindu.getByTestId("my-reservation")).toContainText("You reserved 1 · Reserved");
-  await expect(tharindu.getByText("Pickup: Kollupitiya railway station")).toBeVisible();
-  await expect(tharindu.getByTestId("listing-available")).toHaveText("0 available");
+  const marie = tharindu.getByTestId("listing").filter({ hasText: "Marie biscuits" });
+  await expect(marie).toContainText("Sachini");
+  await expect(marie.getByText("Pickup:")).toHaveCount(0);
+  await marie.getByRole("button", { name: "Reserve" }).click();
+  await expect(marie.getByTestId("my-reservation")).toContainText("You reserved 1");
+  await expect(marie.getByText("Pickup: Kollupitiya railway station")).toBeVisible();
+  await expect(marie.getByRole("button", { name: "Reserve" })).toHaveCount(0);
 
   // Nearby buyers never see a contacts-only listing; Dilan sees only Sachini's open one.
   await dilan.goto("/reselling");

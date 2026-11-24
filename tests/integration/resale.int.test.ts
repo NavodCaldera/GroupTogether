@@ -8,7 +8,6 @@ import {
   completeReservation,
   createListing,
   expireReservations,
-  getListing,
   purchase,
   reserve,
 } from "@/server/resale";
@@ -174,7 +173,7 @@ describe("listing", () => {
 });
 
 describe("who sees a listing", () => {
-  it("contacts-only reaches a mutual contact far away, not a nearby stranger, even by URL", async () => {
+  it("contacts-only reaches a mutual contact far away, not a nearby stranger", async () => {
     const { g, seller, crackers } = await fullBasket();
     const friend = await makeBuyer(FAR);
     const neighbour = await makeBuyer(HOME);
@@ -187,10 +186,8 @@ describe("who sees a listing", () => {
     );
 
     expect((await browseListings(friend))!.map((l) => l.id)).toEqual([id]);
-    expect(await getListing(id, friend)).not.toBeNull();
     expect(await browseListings(neighbour)).toEqual([]);
-    expect(await getListing(id, neighbour)).toBeNull();
-    expect(await getListing(id, oneWay)).toBeNull();
+    expect(await browseListings(oneWay)).toEqual([]);
     await expect(reserve(neighbour.id, id, 1)).rejects.toThrow("not available to you");
   });
 
@@ -207,7 +204,6 @@ describe("who sees a listing", () => {
     const near = (await browseListings(neighbour))!;
     expect(near.map((l) => [l.id, l.city, l.available])).toEqual([[id, "Colombo 3", 1]]);
     expect(await browseListings(friend)).toEqual([]);
-    expect(await getListing(id, friend)).toBeNull();
   });
 
   it("lists contacts' listings first, then nearby ones, each nearest first", async () => {
@@ -236,9 +232,10 @@ describe("who sees a listing", () => {
     const { g, seller, crackers } = await fullBasket();
     const buyer = await makeBuyer(HOME);
     const { id } = await createListing(seller.id, listing(g.id, crackers.id));
-    expect((await getListing(id, buyer))!.spot).toBeNull();
+    const shown = async () => (await browseListings(buyer)).find((l) => l.id === id);
+    expect((await shown())!.spot).toBeNull();
     await reserve(buyer.id, id, 1);
-    expect((await getListing(id, buyer))!.spot).toBe("Station entrance");
+    expect(await shown()).toMatchObject({ spot: "Station entrance", available: 0 });
   });
 });
 
@@ -263,7 +260,8 @@ describe("reservations", () => {
     const { g, seller, crackers } = await fullBasket();
     const buyer = await makeBuyer(HOME);
     const { id } = await createListing(seller.id, listing(g.id, crackers.id, { qty: 2 }));
-    const free = async () => (await getListing(id, buyer))!.available;
+    const free = async () =>
+      (await browseListings(buyer)).find((l) => l.id === id)?.available ?? 0;
 
     const r1 = await reserve(buyer.id, id, 2);
     expect(await free()).toBe(0);

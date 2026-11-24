@@ -292,11 +292,13 @@ export async function browseListings(viewer: Viewer) {
   const pin = viewer.lat != null && viewer.lng != null ? { lat: viewer.lat, lng: viewer.lng } : null;
   const dLat = 0.0095;
   const dLng = pin ? dLat / Math.max(0.1, Math.cos((pin.lat * Math.PI) / 180)) : 0;
+  const held = { buyerId: viewer.id, status: "RESERVED" as const, expiresAt: { gt: now } };
   const rows = await db.resaleListing.findMany({
     where: {
       cancelledAt: null,
       sellerId: { not: viewer.id },
       OR: [
+        { reservations: { some: held } },
         { sellerId: { in: [...contacts] }, audience: { in: ["CONTACTS", "BOTH"] } },
         ...(pin
           ? [
@@ -309,62 +311,36 @@ export async function browseListings(viewer: Viewer) {
           : []),
       ],
     },
-    select: listingSelect(now),
+    select: {
+      ...listingSelect(now),
+      spot: true,
+      seller: { select: { name: true } },
+      reservations: {
+        where: holding(now),
+        select: { id: true, qty: true, buyerId: true, status: true, expiresAt: true },
+      },
+    },
   });
   return rows
-    .filter((l) => audienceAllows(viewer, l, contacts))
+    .map((l) => ({ ...l, mine: l.reservations.filter((r) => r.buyerId === viewer.id) }))
+    .filter((l) => l.mine.length > 0 || audienceAllows(viewer, l, contacts))
     .map((l) => ({
       ...card(l),
+      sellerName: firstName(l.seller.name),
       contact: l.audience !== "NEARBY" && contacts.has(l.sellerId),
       distanceKm: pin ? distanceKm(pin, l) : null,
+      // The pickup spot only once the viewer holds a reservation.
+      spot: l.mine.length > 0 ? l.spot : null,
+      mine: l.mine
+        .filter((r) => r.status === "RESERVED")
+        .map((r) => ({ id: r.id, qty: r.qty, expiresAt: r.expiresAt })),
     }))
-    .filter((l) => l.available > 0)
+    .filter((l) => l.available > 0 || l.mine.length > 0)
     .sort(
       (a, b) =>
         (a.contact === b.contact ? 0 : a.contact ? -1 : 1) ||
         (a.distanceKm ?? 0) - (b.distanceKm ?? 0),
     );
-}
-
-/**
- * One listing, or null when the viewer may not see it. The pickup spot is shown only to the
- * seller and to buyers holding a reservation.
- */
-export async function getListing(id: string, viewer: Viewer) {
-  const now = new Date();
-  const l = await db.resaleListing.findUnique({
-    where: { id },
-    select: {
-      ...listingSelect(now),
-      spot: true,
-      cancelledAt: true,
-      seller: { select: { name: true } },
-    },
-  });
-  if (!l) return null;
-  const mine = await db.resaleReservation.findMany({
-    where: { listingId: id, buyerId: viewer.id },
-    orderBy: { createdAt: "desc" },
-    select: { id: true, qty: true, status: true, expiresAt: true },
-  });
-  const isSeller = l.sellerId === viewer.id;
-  if (
-    !isSeller &&
-    mine.length === 0 &&
-    (l.cancelledAt || !audienceAllows(viewer, l, await mutualContacts(viewer)))
-  )
-    return null;
-  const holds = mine.some(
-    (r) => r.status === "COMPLETED" || (r.status === "RESERVED" && r.expiresAt > now),
-  );
-  return {
-    ...card(l),
-    isSeller,
-    cancelled: !!l.cancelledAt,
-    sellerName: firstName(l.seller.name),
-    spot: isSeller || holds ? l.spot : null,
-    mine: mine.map((r) => ({ ...r, status: shownStatus(r, now) })),
-  };
 }
 
 /** A reserved reservation past its time reads as expired before the sweep marks it. */
@@ -583,7 +559,6 @@ export async function myResale(userId: string) {
         qty: r.qty,
         status,
         expiresAt: r.expiresAt,
-        listingId: r.listing.id,
         name: r.listing.item.name,
         size: r.listing.item.size,
         companyName: r.listing.item.version.pack.company.name,

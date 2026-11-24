@@ -3,6 +3,14 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-24: Reselling details on the card
+
+The owner asked to see a listing's details on the Reselling list without opening another page.
+
+- Each card shows the item, company, price each, the seller's first name, a Contact badge, distance and area, how many are available, and a quantity box with Reserve (no box when only one is left).
+- After reserving, the same card shows the pickup spot, the amount to pay the seller and by when, and Cancel reservation. It stays on the list while the reservation is open, even with none left.
+- The listing page `/reselling/[id]` is removed. My reservations on My listings shows each reservation with Cancel reservation.
+
 ## 2026-11-24: Reselling as one list
 
 The owner asked for one Reselling list instead of the From Contacts and Nearby tabs, and for Purchase history on the profile.
