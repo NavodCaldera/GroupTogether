@@ -186,9 +186,9 @@ describe("who sees a listing", () => {
       listing(g.id, crackers.id, { audience: "CONTACTS" }),
     );
 
-    expect((await browseListings(friend, "contacts"))!.map((l) => l.id)).toEqual([id]);
+    expect((await browseListings(friend))!.map((l) => l.id)).toEqual([id]);
     expect(await getListing(id, friend)).not.toBeNull();
-    expect(await browseListings(neighbour, "nearby")).toEqual([]);
+    expect(await browseListings(neighbour)).toEqual([]);
     expect(await getListing(id, neighbour)).toBeNull();
     expect(await getListing(id, oneWay)).toBeNull();
     await expect(reserve(neighbour.id, id, 1)).rejects.toThrow("not available to you");
@@ -204,10 +204,32 @@ describe("who sees a listing", () => {
       listing(g.id, crackers.id, { audience: "NEARBY" }),
     );
 
-    const near = (await browseListings(neighbour, "nearby"))!;
+    const near = (await browseListings(neighbour))!;
     expect(near.map((l) => [l.id, l.city, l.available])).toEqual([[id, "Colombo 3", 1]]);
-    expect(await browseListings(friend, "contacts")).toEqual([]);
+    expect(await browseListings(friend)).toEqual([]);
     expect(await getListing(id, friend)).toBeNull();
+  });
+
+  it("lists contacts' listings first, then nearby ones, each nearest first", async () => {
+    const { g, seller, crackers, biscuits } = await fullBasket();
+    const viewer = await makeBuyer(HOME);
+    const stranger = await makeBuyer(FAR);
+    await mutual(seller, viewer);
+    const far = await createListing(seller.id, listing(g.id, crackers.id));
+    const near = await createListing(seller.id, listing(g.id, crackers.id));
+    const other = await createListing(seller.id, listing(g.id, biscuits.id));
+    await db.resaleListing.update({ where: { id: far.id }, data: { lat: HOME.lat + 0.008 } });
+    await db.resaleListing.update({
+      where: { id: other.id },
+      data: { sellerId: stranger.id, lat: HOME.lat + 0.001 },
+    });
+
+    const list = await browseListings(viewer);
+    expect(list.map((l) => [l.id, l.contact])).toEqual([
+      [near.id, true],
+      [far.id, true],
+      [other.id, false],
+    ]);
   });
 
   it("hides the pickup spot until the viewer reserves", async () => {

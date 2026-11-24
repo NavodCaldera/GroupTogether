@@ -3,6 +3,13 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-24: Reselling as one list
+
+The owner asked for one Reselling list instead of the From Contacts and Nearby tabs, and for Purchase history on the profile.
+
+- `/reselling` shows contacts' listings first, then nearby ones (within 1 km), each nearest first, with the distance and a "Contact" badge. Without an address pin, only contacts' listings show. The seller's My contacts / Nearby / Both choice is unchanged.
+- The Purchase history button moved from Reselling to the Profile page (buyers only).
+
 ## 2026-11-24: Company name on open baskets
 
 The owner asked for the company name on each basket in Open baskets (`/baskets`), e.g. "CBL Group · Budget Pack". Company and pack pages already name the company, so their cards are unchanged.

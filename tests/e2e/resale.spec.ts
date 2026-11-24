@@ -17,7 +17,7 @@ test("resell an item, reserve a contact's listing and hand it over", async ({ br
   // Dilan resells one pack of cream crackers from his ordered CBL basket, at what he paid.
   const dilan = await browser.newPage();
   await signIn(dilan, "buyer@example.com");
-  await dilan.getByRole("link", { name: "Reselling" }).first().click();
+  await dilan.goto("/account");
   await dilan.getByRole("link", { name: "Purchase history" }).click();
   await dilan.getByRole("link", { name: /CBL Group/ }).click();
   const crackers = dilan.getByTestId("purchase-item").filter({ hasText: "Cream crackers" });
@@ -40,7 +40,7 @@ test("resell an item, reserve a contact's listing and hand it over", async ({ br
   await expect(tharindu.getByTestId("listing-available")).toHaveText("0 available");
 
   // Nearby buyers never see a contacts-only listing; Dilan sees only Sachini's open one.
-  await dilan.goto("/reselling?view=nearby");
+  await dilan.goto("/reselling");
   await expect(dilan.getByTestId("listing")).toHaveText([/Cream crackers/]);
 
   // Sachini confirms the handover.

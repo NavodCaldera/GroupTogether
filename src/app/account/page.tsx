@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { BackLink } from "@/components/client";
 import { ActionForm } from "@/components/resale-forms";
-import { Alert, Input, PageHeader } from "@/components/ui";
+import { Alert, Input, LinkButton, PageHeader } from "@/components/ui";
 import { signOutAction } from "@/server/auth/actions";
 import { requireUser } from "@/server/auth/session";
 import { listContacts } from "@/server/resale";
@@ -19,7 +19,17 @@ export default async function ProfilePage({ searchParams }: PageProps<"/account"
     <div className="mx-auto flex w-full max-w-lg flex-col gap-5">
       <div>
         <BackLink fallback="/" />
-        <PageHeader title="Profile" description={user.email} />
+        <PageHeader
+          title="Profile"
+          description={user.email}
+          actions={
+            user.companyId ? null : (
+              <LinkButton variant="secondary" href="/purchases">
+                Purchase history
+              </LinkButton>
+            )
+          }
+        />
       </div>
       {back && user.lat == null && (
         <Alert tone="info">Pin your address on the map to continue.</Alert>

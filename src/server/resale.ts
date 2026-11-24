@@ -282,36 +282,48 @@ const card = (l: ListingRow) => ({
   city: l.city,
 });
 
-/** Listings the viewer may reserve: from mutual contacts, or within 1 km of their address pin. */
-export async function browseListings(viewer: Viewer, view: "contacts" | "nearby") {
+/**
+ * Listings the viewer may reserve: mutual contacts' first, then others within 1 km of their
+ * address pin; each group nearest first.
+ */
+export async function browseListings(viewer: Viewer) {
   const now = new Date();
-  const base = { cancelledAt: null, sellerId: { not: viewer.id } };
-  let rows;
-  if (view === "contacts") {
-    const contacts = await mutualContacts(viewer);
-    rows = await db.resaleListing.findMany({
-      where: { ...base, sellerId: { in: [...contacts] }, audience: { in: ["CONTACTS", "BOTH"] } },
-      orderBy: { createdAt: "desc" },
-      select: listingSelect(now),
-    });
-  } else {
-    if (viewer.lat == null || viewer.lng == null) return null;
-    const dLat = 0.0095;
-    const dLng = dLat / Math.max(0.1, Math.cos((viewer.lat * Math.PI) / 180));
-    rows = (
-      await db.resaleListing.findMany({
-        where: {
-          ...base,
-          audience: { in: ["NEARBY", "BOTH"] },
-          lat: { gte: viewer.lat - dLat, lte: viewer.lat + dLat },
-          lng: { gte: viewer.lng - dLng, lte: viewer.lng + dLng },
-        },
-        orderBy: { createdAt: "desc" },
-        select: listingSelect(now),
-      })
-    ).filter((l) => isNear(viewer, l));
-  }
-  return rows.map(card).filter((l) => l.available > 0);
+  const contacts = await mutualContacts(viewer);
+  const pin = viewer.lat != null && viewer.lng != null ? { lat: viewer.lat, lng: viewer.lng } : null;
+  const dLat = 0.0095;
+  const dLng = pin ? dLat / Math.max(0.1, Math.cos((pin.lat * Math.PI) / 180)) : 0;
+  const rows = await db.resaleListing.findMany({
+    where: {
+      cancelledAt: null,
+      sellerId: { not: viewer.id },
+      OR: [
+        { sellerId: { in: [...contacts] }, audience: { in: ["CONTACTS", "BOTH"] } },
+        ...(pin
+          ? [
+              {
+                audience: { in: ["NEARBY", "BOTH"] as Audience[] },
+                lat: { gte: pin.lat - dLat, lte: pin.lat + dLat },
+                lng: { gte: pin.lng - dLng, lte: pin.lng + dLng },
+              },
+            ]
+          : []),
+      ],
+    },
+    select: listingSelect(now),
+  });
+  return rows
+    .filter((l) => audienceAllows(viewer, l, contacts))
+    .map((l) => ({
+      ...card(l),
+      contact: l.audience !== "NEARBY" && contacts.has(l.sellerId),
+      distanceKm: pin ? distanceKm(pin, l) : null,
+    }))
+    .filter((l) => l.available > 0)
+    .sort(
+      (a, b) =>
+        (a.contact === b.contact ? 0 : a.contact ? -1 : 1) ||
+        (a.distanceKm ?? 0) - (b.distanceKm ?? 0),
+    );
 }
 
 /**
