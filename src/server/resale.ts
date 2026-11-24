@@ -1,5 +1,6 @@
 import "server-only";
 import { distanceKm } from "@/lib/distance";
+import { toD } from "@/lib/decimal";
 import { itemCosts } from "@/lib/pack-money";
 import { db, type Tx } from "./db";
 import { AppError } from "./errors";
@@ -251,6 +252,7 @@ const listingSelect = (now: Date) =>
         name: true,
         size: true,
         photo: true,
+        retailPrice: true,
         version: { select: { pack: { select: { company: { select: { name: true } } } } } },
       },
     },
@@ -259,6 +261,7 @@ const listingSelect = (now: Date) =>
 
 type ListingRow = {
   id: string;
+  sellerId: string;
   qty: number;
   unitPrice: { toString(): string };
   city: string | null;
@@ -266,13 +269,25 @@ type ListingRow = {
     name: string;
     size: string;
     photo: string | null;
+    retailPrice: { toString(): string } | null;
     version: { pack: { company: { name: string } } };
   };
   reservations: { qty: number }[];
 };
 
+/** Whole-percent saving of the resale price against the shop price, or null without one. */
+function discountPct(unit: { toString(): string }, retail: { toString(): string } | null) {
+  if (!retail) return null;
+  const r = toD(retail);
+  const pct = r.minus(toD(unit)).div(r).times(100).toDecimalPlaces(0);
+  return pct.gt(0) ? pct.toString() : null;
+}
+
 const card = (l: ListingRow) => ({
   id: l.id,
+  sellerId: l.sellerId,
+  retailPrice: l.item.retailPrice,
+  discountPct: discountPct(l.unitPrice, l.item.retailPrice),
   name: l.item.name,
   size: l.item.size,
   photo: l.item.photo,
@@ -289,7 +304,8 @@ const card = (l: ListingRow) => ({
 export async function browseListings(viewer: Viewer) {
   const now = new Date();
   const contacts = await mutualContacts(viewer);
-  const pin = viewer.lat != null && viewer.lng != null ? { lat: viewer.lat, lng: viewer.lng } : null;
+  const pin =
+    viewer.lat != null && viewer.lng != null ? { lat: viewer.lat, lng: viewer.lng } : null;
   const dLat = 0.0095;
   const dLng = pin ? dLat / Math.max(0.1, Math.cos((pin.lat * Math.PI) / 180)) : 0;
   const held = { buyerId: viewer.id, status: "RESERVED" as const, expiresAt: { gt: now } };

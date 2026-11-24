@@ -33,8 +33,11 @@ test("resell an item, reserve a contact's listing and hand it over", async ({ br
   const tharindu = await browser.newPage();
   await signIn(tharindu, "buyer3@example.com");
   await tharindu.goto("/reselling");
-  const marie = tharindu.getByTestId("listing").filter({ hasText: "Marie biscuits" });
-  await expect(marie).toContainText("Sachini");
+  const seller = tharindu.getByTestId("seller").filter({ hasText: "Sachini" });
+  await expect(seller).toContainText("2 items");
+  await seller.locator("summary").click();
+  const marie = seller.getByTestId("listing").filter({ hasText: "Marie biscuits" });
+  await expect(marie).toContainText("% off");
   await expect(marie.getByText("Pickup:")).toHaveCount(0);
   await marie.getByRole("button", { name: "Reserve" }).click();
   await expect(marie.getByTestId("my-reservation")).toContainText("You reserved 1");
