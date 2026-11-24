@@ -3,6 +3,13 @@
 Newest first. The history of the earlier models (clothing, agents, any-product deals) is in this
 file at the `any-product-pivot-2026-11-23` tag.
 
+## 2026-11-24: Reselling grouped by seller
+
+The owner asked for one card per seller with a dropdown of all their items.
+
+- Each seller card shows the first name, a Contact badge, distance, area and the number of items, in the same order as before (contacts first, then nearest).
+- Opening it lists each item with its resale price, the shop price crossed out, the discount (whole %, from the pack version's shop price) and its own quantity box and Reserve. A card with the viewer's open reservation opens by itself.
+
 ## 2026-11-24: Reselling details on the card
 
 The owner asked to see a listing's details on the Reselling list without opening another page.

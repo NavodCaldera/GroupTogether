@@ -46,6 +46,9 @@ test("buyer pages are accessible without horizontal overflow", async ({ page }) 
   await page.goto("/baskets");
   await page.getByTestId("open-basket").first().click();
   await inspect(page);
+  await page.goto("/reselling");
+  await page.getByTestId("seller").first().locator("summary").click();
+  await inspect(page);
   await page.goto("/purchases");
   await page.getByRole("link", { name: /CBL Group/ }).click();
   await page.getByText("Resell", { exact: true }).first().click();

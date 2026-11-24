@@ -202,7 +202,10 @@ describe("who sees a listing", () => {
     );
 
     const near = (await browseListings(neighbour))!;
-    expect(near.map((l) => [l.id, l.city, l.available])).toEqual([[id, "Colombo 3", 1]]);
+    // LKR 200.00 each against a shop price of LKR 300.00.
+    expect(
+      near.map((l) => [l.id, l.city, l.available, l.retailPrice?.toString(), l.discountPct]),
+    ).toEqual([[id, "Colombo 3", 1, "300", "33"]]);
     expect(await browseListings(friend)).toEqual([]);
   });
 
